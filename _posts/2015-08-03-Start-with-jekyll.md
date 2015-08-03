@@ -1,3 +1,7 @@
+---
+layout: post_page
+---
+
 ### Jekyll 사용하기
 
 마땅한 블로깅 툴을 찾지 못해서 두리번 거리다가 jekyll 발견.
