@@ -6,3 +6,6 @@ layout: post_page
 ```
 어떻게 하지...
 ```
+
+### jekyll 은 markdown 으로 쓸 수 있어서 편해요..
+
