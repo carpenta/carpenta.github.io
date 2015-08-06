@@ -11,7 +11,7 @@ paginate: 20
 baseurl: /
 domain_name: 'carpenta.github.io'
 #google_analytics: 'UA-XXXXXXXX-X'
-disqus: true
+disqus: false
 disqus_shortname: 'ilhwancho'
 
 # Details for the RSS feed generator
