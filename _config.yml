@@ -1,7 +1,22 @@
-# visit https://github.com/mojombo/jekyll/wiki/Configuration for more settings
+# Site settings
+title: "Woodstock"
+description: "create something.."
+baseurl: ""
+url: "carpenta.github.io"
 
-auto: true # automatically update your jekyll
-server: true # runs a local server
-paginate: 10 # pagination basted on number of posts
-exclude: ["Gemfile", "Gemfile.lock", "README.md", 'sass', 'watch.sh', 'style.scss'] # files to exclude
+# Build settings
+markdown: kramdown
+permalink: pretty
+highlighter: pygments
+paginate: 3
 
+# Links
+links:
+  - title: "abt"
+    url: /about
+  - title: "twt"
+    url: http://twitter.com/carpenta
+  - title: "git"
+    url: http://github.com/carpenta
+#  - title: "rss"
+#    url: /feed.xml
