@@ -1,5 +1,5 @@
 ---
-layout: post_page
+layout: page
 tag: java, logging
 ---
 # Java Logging

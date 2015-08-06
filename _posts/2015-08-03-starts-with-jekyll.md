@@ -1,5 +1,6 @@
 ---
-layout: post_page
+layout: page
+tag: jekyll
 ---
 
 ### Jekyll 사용하기
