@@ -1,7 +1,9 @@
 ---
 title:  "Java Logging"
 description: java logging practices
-tag: java, logging
+tags: 
+- java
+- logging
 ---
 
 Java Logging 이슈로 인해서 구글링을 하다보면 난감한 상황에 빠진다. 굉장히 복잡하고 알수 없는 용어들이 난무하기 때문이다. 사용법은 어찌어찌 숙지하지만 제대로 사용하기 어렵다.

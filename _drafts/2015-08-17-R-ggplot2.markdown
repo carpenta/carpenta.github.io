@@ -1,0 +1,39 @@
+---
+title:  "R ggplot2"
+date:   2015-08-17 10:18:00
+description: R - using ggplot2
+tags: 
+- R
+- ggplot2
+---
+
+## R 로 데이터 분석 해보려고..
+
+### 우선 plot 툴 부터 깔고..
+```
+> install.packages("ggplot2")
+> library(ggplot2)
+```
+
+### R 좀 쉽게 쓰자고 dplyr 깔고..
+```
+> install.packages(c("dplyr", "hflights"))
+> library(dplyr)
+> library(hflights)
+```
+
+### ggplot 을 써보자
+분포를 그려야 하니까 분포 위주로...
+http://www.cookbook-r.com/Graphs/Plotting_distributions_(ggplot2)
+
+### sample data 가지고 놀기
+음 공부공부..
+http://garrettgman.github.io/tidying/
+
+
+[ggplot2]: http://ggplot2.org
+[ggplot2-quick]: http://www.statmethods.net/advgraphs/ggplot2.html
+[ggplot2-cheatsheet]: https://www.rstudio.com/wp-content/uploads/2015/03/ggplot2-cheatsheet.pdf
+[r-lib-dplyr]: http://wsyang.com/2014/02/introduction-to-dplyr
+[r-cookbook]: http://www.cookbook-r.com/Manipulating_data
+[r-cookbook-ggplot2]: http://www.cookbook-r.com/Graphs/Plotting_distributions_(ggplot2)

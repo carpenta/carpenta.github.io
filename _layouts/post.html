@@ -26,6 +26,13 @@ archive: true
     </section>
 </footer>
 
+<!-- Tags -->
+{% if page.tags %}
+    {% for tag in page.tags %}
+        <a class="tag" href="#"><i class="fa fa-tag"> {{ tag }}</i></a>
+    {% endfor %}
+{% endif %}
+
 <!-- Disqus comments -->
 {% if site.disqus %}
     <div class="archive readmore">
@@ -45,6 +52,3 @@ archive: true
         {% endfor %}
     </ul>
 {% endif %}
-
-
-
