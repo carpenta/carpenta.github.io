@@ -37,3 +37,4 @@ http://garrettgman.github.io/tidying/
 [r-lib-dplyr]: http://wsyang.com/2014/02/introduction-to-dplyr
 [r-cookbook]: http://www.cookbook-r.com/Manipulating_data
 [r-cookbook-ggplot2]: http://www.cookbook-r.com/Graphs/Plotting_distributions_(ggplot2)
+[r-sampling]: http://www.jopenbusiness.com/wordpress/?p=117
