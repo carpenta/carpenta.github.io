@@ -1,42 +1,23 @@
-name: Woodstock
-description: just about me
-meta_description: "just start..."
+# Dependencies
+markdown:         redcarpet
+highlighter:      pygments
 
-aboutPage: true
+# Permalinks
+permalink:        pretty
+relative_permalinks: true
 
-markdown: redcarpet
-highlighter: pygments
+# Setup
+title:            Carpenta
+tagline:          'github, blog'
+description:      'Carpenta github.io jekyll blog'
+url:              http://carpenta.github.io
+baseurl:          /
 
-paginate: 20
-baseurl: /
-domain_name: 'carpenta.github.io'
-#google_analytics: 'UA-XXXXXXXX-X'
-disqus: false
-disqus_shortname: 'ilhwancho'
+author:
+  name:           'ian'
+  url:            https://twitter.com/carpenta
 
-# Details for the RSS feed generator
-url:            'http://carpenta.github.io'
-author:         'carpenta'
-authorTwitter:  'carpenta'
+paginate:         5
 
-permalink:       /:year/:title/
-
-defaults:
-    -
-        scope:
-            path: "" # empty string for all files
-            type: pages
-        values:
-            layout: default
-    -
-        scope:
-            path: "" # empty string for all files
-            type: posts
-        values:
-            layout: post
-    -
-        scope:
-            path: ""
-            type: drafts
-        values:
-            layout: post
+# Custom vars
+version:          1.0
