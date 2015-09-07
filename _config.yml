@@ -7,7 +7,7 @@ permalink:        pretty
 relative_permalinks: true
 
 # Setup
-title:            Carpenta
+title:            Knock on Wood
 tagline:          'github, blog'
 description:      'Carpenta github.io jekyll blog'
 url:              http://carpenta.github.io
