@@ -24,11 +24,11 @@ tags:
 		사용하는 데이터셋과 출처, 웹사이트
 
 ## Overview
-우선은 'Statistical learning' 의 의미를 명확히 하고 간다.
+우선은 *'Statistical learning'* 의 의미를 한번 간략히 언급 하고 간다.
 ```
-Statistical learning refers to a vast set of tools for understanding data.
+통계적 학습은 데이터를 이해하는 방대한 방법의 집합이다.
+(Statistical learning refers to a vast set of tools for understanding data.)
 ```
-통계적 학습은 데이터를 이해하는 방대한 도구들의 모임 이라고 소개한다. 이하 
 
 ### Data Sets
 
