@@ -31,16 +31,24 @@ Statistical learning refers to a vast set of tools for understanding data.
 통계적 학습은 데이터를 이해하는 방대한 도구들의 모임 이라고 소개한다. 이하 
 
 ### Data Sets
+
 #### Wage Data
+
 #### Stock Market
+
 #### Gene Expression
 
 ### 간단한 역사
 
 
 ## 책에 대한 전반적인 소개
+
 ### 누가 읽어야 하나?
+
 ### 용어와 수식
+
 ### 구성
+
 ### 데이터셋 출처와 설명
+
 ### 웹사이트
