@@ -2,6 +2,7 @@
 title:  "ISL - 1. Introduction"
 date:   2015-09-09 20:18:00
 description: "'An Introduction to Statistical Learning' 1장 Introduction 공부"
+layout: post
 tags: 
 - statistics
 - machine learning
