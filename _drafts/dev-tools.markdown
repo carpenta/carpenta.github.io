@@ -29,3 +29,7 @@ tags:
 
 ## Vim Plugins
 ...
+
+## pip
+https://pip.pypa.io/en/latest/installing.html
+```pip install couchbase```
