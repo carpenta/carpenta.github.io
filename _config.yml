@@ -1,42 +1,22 @@
-name: Woodstock
-description: just about me
-meta_description: "just start..."
+# Permalinks
+#
+# Use of `relative_permalinks` ensures post links from the index work properly.
+permalink:           pretty
+relative_permalinks: true
 
-aboutPage: true
+# Setup
+title:               Knock on Wood
+tagline:             'carpenta.github.io jekyll blog'
+description:         'carpenta.github.io jekyll blog'
+url:                 http://carpenta.github.io
+baseurl:             ''
+paginate:            5
 
-markdown: redcarpet
-highlighter: pygments
+# About/contact
+author:
+  name:              Ian Cho
+  url:               https://twitter.com/carpenta
+  email:             bthedream@daum.net
 
-paginate: 20
-baseurl: /
-domain_name: 'carpenta.github.io'
-#google_analytics: 'UA-XXXXXXXX-X'
-disqus: false
-disqus_shortname: 'ilhwancho'
-
-# Details for the RSS feed generator
-url:            'http://carpenta.github.io'
-author:         'carpenta'
-authorTwitter:  'carpenta'
-
-permalink:       /:year/:title/
-
-defaults:
-    -
-        scope:
-            path: "" # empty string for all files
-            type: pages
-        values:
-            layout: default
-    -
-        scope:
-            path: "" # empty string for all files
-            type: posts
-        values:
-            layout: post
-    -
-        scope:
-            path: ""
-            type: drafts
-        values:
-            layout: post
+# Custom vars
+version:             1.0.0

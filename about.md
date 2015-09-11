@@ -1,9 +1,9 @@
 ---
-title: About
-permalink: about/
-profile: true
+layout: page
+title: About 
 ---
 
-This is a static page. It could be an 'about page' if you'd like.
-
-{% include footer.html %}
+# Ian Cho
+- Facebook: facebook.com/bethedream
+- Twitter: @carpenta
+- Email: bthedream@daum.net
