@@ -9,7 +9,7 @@ title:               Knock on Wood
 tagline:             'carpenta.github.io jekyll blog'
 description:         'carpenta.github.io jekyll blog'
 url:                 http://carpenta.github.io
-baseurl:             '/'
+baseurl:             ''
 paginate:            1
 
 # About/contact
