@@ -11,6 +11,7 @@ tags:
 # Vim
 Vim 에 대한 설명이 필요하다면 위키를 보는게 좋겠다.
 대신 vim 관련 유용한 사이트 몇개를 기록한다. 
+
 - [Reddit/vim](http://www.reddit.com/r/vim/) : vim 관련 뉴스
 - [Reddit/neovim](http://www.reddit.com/r/neovim/) : neovim 관련 뉴스
 - [VimAwesome](http://vimawesome.com/) : vim plugin 정보
@@ -98,6 +99,7 @@ VimAwesome 에서 탑랭크 몇가지에서 쓸만해 보이는걸 골라봤다.
 {% highlight Vim Script %}
 set nocompatible              " be iMproved, required
 filetype off                  " required
+syntax on
 
 " set the runtime path to include Vundle and initialize
 set rtp+=~/.vim/bundle/Vundle.vim
