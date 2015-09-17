@@ -16,16 +16,18 @@ Vim 에 대한 설명이 필요하다면 위키를 보는게 좋겠다.
 - [Reddit/neovim](http://www.reddit.com/r/neovim/) : neovim 관련 뉴스
 - [VimAwesome](http://vimawesome.com/) : vim plugin 정보
 - [usevim](http://usevim.com/) : tip 정보
+- [VimScripts](http://vim-scripts.org/vim/scripts.html)
 
 # Vundle 의 설치
-Vundle 은 vim 의 플러그인을 관리 해주는 툴중 하나이다. [Vundle 프로젝트](https://github.com/VundleVim/Vundle.vim) 에 들어가보면 자세한 설명과 설치방법에 대해 나와있는다. 간단한 설치 과정을 여기도 기록한다.
+Vundle 은 vim 의 플러그인을 관리 해주는 툴중 하나이다. Vundle 을 사용하기 위해서는 `git` 과 `vim 7.x` 이상 버전 필요하다. 
+
+참고 : [Vundle 프로젝트](https://github.com/VundleVim/Vundle.vim) 에 들어가보면 자세한 설명과 설치방법에 대해 나와있는다. 간단한 설치 과정을 여기도 기록한다.
 
 ## git clone Vundle
 
 {% highlight Bash shell scripts %}
 $ # mkdir -p ~/.vim/bundle	#디렉토리 없으면 생성..
-$ cd ~/.vim/bundle 
-$ git clone https://github.com/VundleVim/Vundle.vim.git
+$ git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 {% endhighlight %}
 
 ## ~/.vimrc 수정
@@ -86,7 +88,7 @@ vundle 을 활성화 하기 위해서는 vim 을 실행하고 cmd 모드에서 P
 
 ![실행 결과]({{site.url}}/assets/vim-vundle/vim-vundle-1.png)
 
-실행 결과에 에러나는 건수가 좀 있다. 에러나는 플러그인들은 과감히 버리자. 
+실행 결과에 에러나는 건수가 좀 있다. 저자가 로컬에서 플러그인 로딩하는 것을 보여주기 위해서 넣어놓은 예시 등, 에러나는 플러그인들은 과감히 버리자. 
 
 
 ## 자 이제 쓸만한게 뭐가 있을지 볼가...
