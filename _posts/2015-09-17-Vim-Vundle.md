@@ -145,4 +145,4 @@ Plugin 'tpope/vim-markdown'
 
 ## 끝~ 기념으로 NerdTree 한번 열어보고
 
-![설치하고 NerdTree]({{site.url}}/assets/vim-vundle/vim-vundle-1.png)
+![설치하고 NerdTree]({{site.url}}/assets/vim-vundle/vim-vundle-2.png)
