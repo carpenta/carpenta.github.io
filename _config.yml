@@ -8,7 +8,7 @@ relative_permalinks: true
 title:               Knock on Wood
 tagline:             'carpenta.github.io jekyll blog'
 description:         'carpenta.github.io jekyll blog'
-url:                 http://carpenta.github.io
+url:                 'http://carpenta.github.io'
 baseurl:             ''
 paginate:            1
 
