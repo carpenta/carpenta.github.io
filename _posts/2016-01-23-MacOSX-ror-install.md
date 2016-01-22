@@ -154,3 +154,6 @@ ruby -e $stdout.sync=true;$stderr.sync=true;load($0=ARGV.shift) rails _4.2.5_ ne
 이쁘게 나온다... 이맛에 ide 쓰는거 같다..
 
 ![생성성공]({{site.url}}/assets/MacOSX-ror-install/ide-success-screenshot-0.png)
+
+
+자 그럼.. 개발 삽질은 다음 포스팅에..
