@@ -12,11 +12,11 @@ paginate:            1
 author:
   name:              Ian Cho
   url:               https://twitter.com/carpenta
-  email:             bthedream@daum.net
+  email:             bthedream@hanmail.net
 
 # Custom vars
 version:             1.0.0
 disqus:              carpenta
 
-gems:
+plugins:
     - jekyll-paginate
