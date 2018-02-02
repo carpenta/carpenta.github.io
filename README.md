@@ -6,8 +6,8 @@ Github IO 활용
 2. [Jekyll] 설치
 
 ```console
-$ git clone git@github.com:kakao/kakao.github.io.git
-$ cd kakao.github.io
+$ git clone git@github.com:carpenta/carpenta.github.io.git
+$ cd carpenta.github.io
 $ bundle install
 ```
 
@@ -40,7 +40,7 @@ $ bundle exec jekyll serve --drafts
 1. `_posts` 디렉토리에 `yyyy-mm-dd-slug.md` 파일로 복사(or 이동).
  - slug: 해당 포스트의 고유 키로 url의 일부로 사용. 왠만하면 특수문자없이 영문자,숫자,-(하이픈),.(점)...만 사용.
  - yyyy,mm,dd: 발행 년,월,일.
- - 참고: 최종적으로 포스트의 url(permalink)는 http://tech.kakao.com/yyyy/mm/dd/slug/
+ - 참고: 최종적으로 포스트의 url(permalink)는 http://carpenta.github.io/yyyy/mm/dd/slug/
 2. 파일 상단에 [front matter] 작성
  - layout: post # 레이아웃(필수). `page` 레이아웃을 사용하면 목록에 보이지 않는 글을 쓸 수 있음.
  - title: '제목' # 제목(필수)
@@ -54,7 +54,7 @@ $ bundle exec jekyll serve --drafts
 ### 필자 등록
 
 1. `_authors` 디렉토리에 `lastname.firstname.md` 이름으로 필자 정보 파일 추가
- - 참고: 최종적으로 사용자 포스트 목록 페이지의 url은 http://tech.kakao.com/authors/lastname.firstname/
+ - 참고: 최종적으로 사용자 포스트 목록 페이지의 url은 http:/carpenta.github.io/authors/lastname.firstname/
 2. 파일 상단에 [front matter] 작성
  - layout: author # 레이아웃(필수)
  - name: `lastname.firstname` # post의 author와 매칭(필수). 왠만하면 회사 아이디(예: iolo.fitzowen) 사용. 왠만하면 특수문자없이 영소문자,숫자,-(하이픈),.(점)...만 사용.
@@ -66,7 +66,7 @@ $ bundle exec jekyll serve --drafts
 ### 태그 등록
 
 1. `_tags` 디렉토리에 `tag-name.md` 이름으로 필자 정보 파일 추가
- - 참고: 최종적으로 사용자 포스트 목록 페이지의 url은 http://tech.kakao.com/tags/tag-name/
+ - 참고: 최종적으로 사용자 포스트 목록 페이지의 url은 http://carpenta.github.io/tags/tag-name/
 2. 파일 상단에 [front matter] 작성
  - layout: tag # 레이아웃(필수)
  - name: `tag-name` # post의 tags 배열의 항목과 매칭(필수). 왠만하면 특수문자없이 영소문자,숫자,-(하이픈),.(점)...만 사용.
