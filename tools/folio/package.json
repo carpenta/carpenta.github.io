@@ -1,0 +1,33 @@
+{
+  "name": "folio-local-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@office-kit/pptx": "0.23.0",
+    "@office-kit/pptx-preview": "0.14.0",
+    "@rhwp/core": "0.8.7",
+    "docx-preview": "0.4.1",
+    "dompurify": "3.4.16",
+    "fast-formula-parser": "1.0.19",
+    "fflate": "0.8.3",
+    "html2canvas": "1.4.1",
+    "jspdf": "4.2.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "26.6.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

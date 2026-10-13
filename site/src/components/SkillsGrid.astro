@@ -1,0 +1,15 @@
+---
+import type { Locale } from '../lib/paths';
+import { skills } from '../data/skills';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<dl class="skills">
+  {skills.map((group) => (
+    <div>
+      <dt>{group.name[locale]}</dt>
+      <dd><ul class="chips">{group.items.map((item) => <li>{item}</li>)}</ul></dd>
+    </div>
+  ))}
+</dl>

@@ -1,0 +1,16 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { ui } from '../data/ui';
+---
+<SiteLayout locale="ko" title={ui.notFoundTitle.ko} description={ui.notFoundBody.ko} path="/" noindex>
+  <main class="not-found">
+    <h1>{ui.notFoundTitle.ko}<span lang="en"> · {ui.notFoundTitle.en}</span></h1>
+    <p>{ui.notFoundBody.ko}</p>
+    <p lang="en">{ui.notFoundBody.en}</p>
+    <p class="not-found-links">
+      <a class="card-link" href="/">{ui.home.ko}</a>
+      <a class="card-link" href="/tools/">{ui.navTools.ko}</a>
+      <a class="card-link" href="/en/" lang="en">{ui.home.en}</a>
+    </p>
+  </main>
+</SiteLayout>

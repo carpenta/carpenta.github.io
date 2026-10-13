@@ -1,0 +1,34 @@
+---
+import { localePath, type Locale } from '../lib/paths';
+import { profile } from '../data/profile';
+
+interface Props {
+  locale: Locale;
+  path: string;
+  nav?: { href: string; label: string }[];
+}
+
+const { locale, path, nav = [] } = Astro.props;
+---
+<header class="side">
+  <a class="side-name" href={localePath(locale, '/')}><h1>{profile.name[locale]}</h1></a>
+  <p class="side-role">{profile.role[locale]}</p>
+  <p class="side-tagline">{profile.tagline[locale]}</p>
+
+  {nav.length > 0 && (
+    <nav class="side-nav" aria-label={locale === 'ko' ? '섹션' : 'Sections'}>
+      <ul>{nav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}</ul>
+    </nav>
+  )}
+
+  <ul class="contact">
+    <li><a href={`mailto:${profile.email}`}>{profile.email}</a></li>
+    <li><a href={profile.github} rel="me noopener">GitHub</a></li>
+  </ul>
+
+  <nav class="lang" aria-label={locale === 'ko' ? '언어' : 'Language'}>
+    <a href={localePath('ko', path)} hreflang="ko" aria-current={locale === 'ko' ? 'true' : undefined}>KO</a>
+    <span aria-hidden="true">/</span>
+    <a href={localePath('en', path)} hreflang="en" aria-current={locale === 'en' ? 'true' : undefined}>EN</a>
+  </nav>
+</header>

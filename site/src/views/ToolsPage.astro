@@ -1,0 +1,22 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import ToolCards from '../components/ToolCards.astro';
+import { localePath, type Locale } from '../lib/paths';
+import { ui } from '../data/ui';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<SiteLayout locale={locale} title={ui.toolsTitle[locale]} description={ui.toolsDescription[locale]} path="/tools/">
+  <div class="shell">
+    <Sidebar locale={locale} path="/tools/" nav={[{ href: localePath(locale, '/'), label: ui.home[locale] }]} />
+    <main class="main">
+      <section class="section">
+        <h2 class="section-title">{ui.navTools[locale]}</h2>
+        <p class="tools-lead">{ui.toolsDescription[locale]}</p>
+        <ToolCards locale={locale} />
+      </section>
+    </main>
+  </div>
+</SiteLayout>

@@ -1,0 +1,17 @@
+---
+import '../styles/resume.css';
+import Head from '../components/Head.astro';
+import type { Locale } from '../lib/paths';
+
+interface Props { locale: Locale; title: string; description: string }
+const { locale, title, description } = Astro.props;
+---
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <Head locale={locale} title={title} description={description} path="/resume/" noindex />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,19 @@
+---
+import type { Locale } from '../lib/paths';
+import { projects } from '../data/projects';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<ul class="items">
+  {projects.map((project) => (
+    <li class="item">
+      <p class="item-period">{project.status[locale]}</p>
+      <div>
+        <h3>{project.url ? <a class="card-link" href={project.url} rel="noopener">{project.name}</a> : project.name}</h3>
+        <p class="item-summary">{project.description[locale]}</p>
+        <ul class="chips">{project.stack.map((s) => <li>{s}</li>)}</ul>
+      </div>
+    </li>
+  ))}
+</ul>

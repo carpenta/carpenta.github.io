@@ -1,0 +1,93 @@
+---
+import ResumeLayout from '../layouts/ResumeLayout.astro';
+import { localePath, type Locale } from '../lib/paths';
+import { profile } from '../data/profile';
+import { experience } from '../data/experience';
+import { education, certificates } from '../data/education';
+import { skills } from '../data/skills';
+import { highlights } from '../data/highlights';
+import { ui } from '../data/ui';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<ResumeLayout locale={locale} title={ui.resumeTitle[locale]} description={profile.headline[locale]}>
+  <nav class="resume-bar">
+    <a href={localePath(locale, '/')}>← {ui.home[locale]}</a>
+    <div class="resume-bar-end">
+      <nav class="lang" aria-label={locale === 'ko' ? '언어' : 'Language'}>
+        <a href={localePath('ko', '/resume/')} hreflang="ko" aria-current={locale === 'ko' ? 'true' : undefined}>KO</a>
+        <span aria-hidden="true">/</span>
+        <a href={localePath('en', '/resume/')} hreflang="en" aria-current={locale === 'en' ? 'true' : undefined}>EN</a>
+      </nav>
+      <a href={encodeURI(profile.resumePdf[locale])} download>{ui.downloadResume[locale]}</a>
+    </div>
+  </nav>
+  <div class="sheet">
+    <header class="resume-header">
+      <h1>{profile.name[locale]}</h1>
+      <p class="role">{profile.role[locale]}</p>
+      <p class="contacts">
+        <span>Email. <a href={`mailto:${profile.email}`}>{profile.email}</a></span>
+        <a href={profile.github}>GitHub</a>
+        <a href={new URL(localePath(locale, '/'), Astro.site).href}>carpenta.github.io</a>
+      </p>
+    </header>
+    <main>
+      <h2>{ui.resumeIntro[locale]}</h2>
+      <p class="intro-lead">{profile.headline[locale]}</p>
+      <p>{profile.intro[locale]}</p>
+
+      <h2>{ui.resumeSkills[locale]}</h2>
+      <div class="skill-grid">
+        {skills.map((group) => (
+          <div><h3>{group.name[locale]}</h3><p>{group.items.join(' · ')}</p></div>
+        ))}
+      </div>
+
+      <h2>{ui.resumeExperience[locale]}</h2>
+      {experience.map((job) => (
+        <section class="job">
+          <div class="row"><h3>{job.company[locale]}</h3><span class="period">{job.period[locale]}</span></div>
+          <p class="role">{job.role[locale]}{job.team && ` · ${job.team[locale]}`}</p>
+          {job.stack.length > 0 && <p class="stack">{job.stack.join(' · ')}</p>}
+          <p class="summary">{job.summary[locale]}</p>
+          {job.achievements.length > 0 && (
+            <ul class="bullets">
+              {job.achievements.map((a) => <li><strong>{a.title[locale]}</strong>{a.detail[locale]}</li>)}
+            </ul>
+          )}
+        </section>
+      ))}
+
+      <h2>{ui.resumeEducation[locale]}</h2>
+      {education.map((item) => (
+        <div class="edu">
+          <div class="row"><h3>{item.school[locale]}</h3><span class="period">{item.period}</span></div>
+          <p>{item.detail[locale]}</p>
+        </div>
+      ))}
+
+      <h2>{ui.resumeCertificates[locale]}</h2>
+      {certificates.map((cert) => (
+        <div class="edu">
+          <div class="row"><h3>{cert.name[locale]}</h3><span class="period">{cert.date}</span></div>
+          <p>{cert.issuer[locale]}</p>
+        </div>
+      ))}
+
+      <h2>{ui.resumeHighlights[locale]}</h2>
+      {highlights.map((h, i) => (
+        <section class="highlight">
+          <div class="row"><h3>{i + 1}. {h.title[locale]}</h3><span class="tag">{h.tag[locale]}</span></div>
+          <p class="stack">{h.stack.join(' · ')}</p>
+          <h4>{ui.background[locale]}</h4>
+          <p>{h.background[locale]}</p>
+          <h4>{ui.decisions[locale]}</h4>
+          <ul class="bullets">{h.decisions.map((d) => <li>{d[locale]}</li>)}</ul>
+          <div class="result"><h4>{ui.result[locale]}</h4><p>{h.result[locale]}</p></div>
+        </section>
+      ))}
+    </main>
+  </div>
+</ResumeLayout>

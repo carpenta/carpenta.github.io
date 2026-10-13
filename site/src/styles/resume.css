@@ -1,0 +1,74 @@
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: block;
+  src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+}
+
+@page { size: A4; margin: 16mm 16mm 18mm; }
+
+:root { --ink: #16181d; --body: #3b4048; --soft: #6b7280; --rule: #d9dce1; --blue: #2f5bd8; --blue-bg: #eaf1fd; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: #eef0f3; color-scheme: light; }
+body { margin: 0; color: var(--body); font-family: 'Pretendard Variable', -apple-system, 'Apple SD Gothic Neo', sans-serif; font-size: 10.5pt; line-height: 1.65; overflow-wrap: anywhere; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html:lang(ko) body { word-break: keep-all; }
+h1, h2, h3, h4, p, ul, ol { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: var(--blue); }
+
+.resume-bar { max-width: 210mm; margin: 0 auto; padding: 14px 4px; display: flex; justify-content: space-between; gap: 16px; font-size: 14px; }
+.resume-bar a { font-weight: 600; text-decoration: none; }
+.resume-bar-end { display: flex; align-items: center; gap: 16px; }
+.lang { display: flex; gap: 6px; color: var(--body); }
+.lang a[aria-current='true'] { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.sheet { max-width: 210mm; margin: 0 auto 48px; padding: 18mm 16mm; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 12px 32px rgba(0, 0, 0, 0.08); }
+
+.resume-header { padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+.resume-header h1 { font-size: 24pt; line-height: 1.2; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.resume-header .role { margin-top: 4px; font-size: 13pt; font-weight: 500; color: var(--body); }
+.resume-header .contacts { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 10pt; }
+
+main h2 { margin: 30px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); font-size: 16pt; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); break-after: avoid; }
+.intro-lead { margin-bottom: 8px; font-weight: 700; color: var(--ink); }
+
+.skill-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 32px; }
+.skill-grid h3 { margin-bottom: 4px; font-size: 10.5pt; font-weight: 700; color: var(--ink); }
+
+.job { margin-bottom: 20px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; break-after: avoid; }
+.row h3 { font-size: 12.5pt; font-weight: 800; color: var(--ink); }
+.row time, .row .period { flex-shrink: 0; font-size: 10pt; color: var(--soft); }
+.job .role { margin-top: 2px; font-weight: 700; color: var(--blue); }
+.job .stack { margin-top: 4px; font-size: 10pt; color: var(--soft); }
+.job .summary { margin-top: 6px; }
+.bullets { margin-top: 8px; display: grid; gap: 8px; }
+.bullets li { position: relative; padding-left: 16px; break-inside: avoid; }
+.bullets li::before { content: '•'; position: absolute; left: 3px; color: var(--ink); }
+.bullets strong { display: block; font-weight: 700; color: var(--ink); }
+
+.edu { margin-bottom: 10px; break-inside: avoid; }
+.edu h3 { font-size: 10.5pt; font-weight: 700; color: var(--ink); }
+
+.highlight { margin-bottom: 26px; }
+.highlight .row h3 { font-size: 12pt; }
+.highlight .tag { flex-shrink: 0; padding: 2px 10px; border: 1px solid var(--rule); border-radius: 999px; font-size: 9pt; color: var(--soft); }
+.highlight .stack { margin-top: 4px; font-size: 9.5pt; font-weight: 700; color: var(--blue); break-after: avoid; }
+.highlight h4 { margin: 12px 0 4px; font-size: 10.5pt; font-weight: 700; color: var(--ink); break-after: avoid; }
+.highlight .result { margin-top: 12px; padding: 10px 14px; border-left: 3px solid var(--blue); background: var(--blue-bg); break-inside: avoid; }
+.highlight .bullets li:last-child { break-after: avoid; }
+.highlight .result h4 { margin-top: 0; }
+.highlight .result p { color: var(--ink); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .sheet { padding: 28px 18px; }
+  .skill-grid { grid-template-columns: minmax(0, 1fr); }
+  .row { flex-direction: column; gap: 2px; }
+}
+
+@media print {
+  html { background: #fff; }
+  .resume-bar { display: none; }
+  .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+}
