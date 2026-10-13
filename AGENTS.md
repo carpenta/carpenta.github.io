@@ -108,6 +108,7 @@ python3 -m http.server 4400 --directory dist
 - 최상위 권한은 `contents: read`입니다. `pages: write`와 `id-token: write`는 `deploy` 잡에만 있습니다. 넓히지 않습니다.
 - `deploy`는 `master`의 push와 수동 실행에서만 돕니다. PR에서는 빌드·테스트·합치기까지만 실행됩니다.
 - 어느 잡이든 실패하면 배포하지 않습니다. 한 도구의 테스트 실패가 사이트 배포를 막는 것은 의도된 동작입니다.
+- 루트의 `.nojekyll`은 GitHub의 기존 Pages 빌드(`pages build and deployment`)가 Jekyll을 돌리다 실패하지 않게 하려고 둔 파일입니다. Pages 소스가 "Deploy from a branch"인 동안에는 그 빌드가 저장소 루트를 그대로 먼저 배포하고, 이 워크플로의 배포가 뒤이어 덮어씁니다. 소스를 "GitHub Actions"로 바꾸면 이 파일은 필요 없습니다.
 
 ## 커밋
 
