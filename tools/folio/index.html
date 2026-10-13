@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="문서를 올리지 않고 열어보세요. PPTX, HWP, HWPX, XLSX, DOCX를 브라우저 안에서만 읽는 개인 문서 뷰어." />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' data: blob:; font-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Folio — 나만의 문서 열람실</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Folio 홈"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 5h15v23H7z"/><path d="M11 2h15v23M12 12h5M12 17h5"/></svg><span>folio<span class="brand-dot">.</span></span></a>
+      <span class="header-description">나만의 문서 열람실</span>
+      <a class="home-link" href="../../"><span class="home-full">carpenta.github.io</span><span class="home-short" aria-hidden="true">carpenta</span></a>
+      <span class="local-badge"><span></span>내 브라우저에서만</span>
+    </header>
+    <main>
+      <section id="welcome" class="welcome">
+        <div class="eyebrow"><span class="tiny-line"></span> YOUR DOCUMENTS, JUST A LITTLE CLOSER</div>
+        <h1>문서를 여는 가장<br/><span>가벼운 방법.</span></h1>
+        <p class="intro">설치 없이, 업로드 없이.<br class="mobile-break"/> 필요한 문서를 바로 펼쳐보세요.</p>
+        <div id="drop-zone" class="drop-zone">
+          <div class="paper-stack" aria-hidden="true"><div class="paper back"><i></i><i></i><i></i></div><div class="paper front"><svg viewBox="0 0 40 40"><path d="M20 27V12m-6 6 6-6 6 6M10 27v5h20v-5"/></svg><span>OPEN, DON'T UPLOAD</span></div><span class="paper-spark">✳</span></div>
+          <h2>여기에 파일을 놓아주세요</h2>
+          <p>파일은 이 브라우저 안에서만 열립니다.</p>
+          <button id="choose-file" class="button primary"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 6V4h6l2 2h8v10H2z"/></svg>파일 선택하기<span aria-hidden="true">↗</span></button>
+          <span class="size-hint">파일당 최대 30 MB · 한 번에 하나씩</span>
+        </div>
+        <div class="formats" aria-label="지원하는 파일 형식"><span class="formats-label">이런 문서를 열 수 있어요</span><span class="format-tag pptx">P<span>PPTX</span></span><span class="format-tag hwp">한<span>HWP</span></span><span class="format-tag hwpx">한<span>HWPX</span></span><span class="format-tag xlsx">X<span>XLSX</span></span><span class="format-tag docx">W<span>DOCX</span></span></div>
+        <button id="try-sample" class="text-button">파일이 없다면, 샘플로 둘러보기 <span aria-hidden="true">→</span></button>
+        <div class="reassurance"><div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></svg><div><strong>문서는 내 곁에만</strong><p>서버 전송도, 열람 기록 저장도 없습니다.</p></div></div><div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H4zM8 20h8M12 16v4M9 10l2 2 4-4"/></svg><div><strong>브라우저 하나면 충분해요</strong><p>프로그램 설치나 로그인 없이 열어보세요.</p></div></div></div>
+      </section>
+      <section id="viewer" class="viewer" hidden aria-label="문서 뷰어">
+        <div class="viewer-toolbar">
+          <div class="file-info"><span id="file-icon" class="file-icon"></span><div><h2 id="file-name"></h2><span id="file-meta"></span></div></div>
+          <div class="toolbar-actions"><button id="download-pdf" class="button primary" title="전체 미리보기를 이미지 PDF로 저장">PDF 다운로드</button><button id="open-file" class="button secondary">다른 파일 열기</button><button id="close-file" class="icon-button" aria-label="문서 닫기" title="문서 닫기 (Esc)">✕</button></div>
+        </div>
+        <div class="viewer-controls">
+          <div class="page-controls"><button id="prev-page" class="icon-button" aria-label="이전 페이지">←</button><label for="page-select" id="page-label" class="sr-only">페이지 선택</label><select id="page-select" aria-labelledby="page-label"></select><span id="page-total"></span><button id="next-page" class="icon-button" aria-label="다음 페이지">→</button></div>
+          <div class="zoom-controls"><button id="zoom-out" class="icon-button" aria-label="축소">−</button><span id="zoom-level">100%</span><button id="zoom-in" class="icon-button" aria-label="확대">+</button><span class="control-divider"></span><button id="fit-page" class="text-button">너비 맞춤</button></div>
+        </div>
+        <div class="export-bar"><span id="export-status" role="status" aria-live="polite">전체 미리보기를 PDF로 저장할 수 있습니다. 큰 시트의 표시 제한은 PDF에도 적용됩니다.</span><button id="cancel-export" class="text-button" hidden>PDF 만들기 취소</button></div>
+        <p id="compatibility" class="compatibility"></p>
+        <iframe id="document-frame" title="문서 미리보기" sandbox="" referrerpolicy="no-referrer"></iframe>
+      </section>
+      <div id="loading" class="loading" hidden><span class="spinner" aria-hidden="true"></span><h2>문서를 펼치고 있어요</h2><p>파일을 이 브라우저에서 읽고 있습니다.</p><button id="cancel-load" class="button secondary">취소</button></div>
+      <div id="error-message" class="error-message" role="alert" hidden></div>
+      <div class="reload-action"><button id="reload-app" class="button secondary" hidden>뷰어 새로고침</button></div>
+      <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+    </main>
+    <footer><span>작은 도구, 온전히 나의 문서.</span><button id="about-button" class="text-button">지원 범위와 개인정보</button><span class="footer-mark">MADE FOR A QUIETER WORKFLOW</span></footer>
+    <input id="file-input" type="file" accept=".pptx,.hwp,.hwpx,.xlsx,.docx" hidden />
+    <dialog id="about-dialog"><div class="dialog-heading"><h2>문서는 브라우저 안에만</h2><button id="close-about" class="icon-button" aria-label="안내 닫기">✕</button></div><p>선택한 파일은 브라우저 메모리에서 처리합니다. 앱은 파일, 파일명, 열람 기록을 서버로 전송하거나 저장하지 않습니다. 닫기·파일 교체·새로고침 시 앱이 가진 문서 참조를 해제합니다.</p><p>뷰어 코드와 한글 해석 엔진은 사이트에서 내려받습니다. 문서 속 외부 이미지·링크는 차단되며, 분석 도구와 쿠키를 사용하지 않습니다. 브라우저·운영체제의 메모리나 캐시 동작까지 제어하는 보안 삭제 도구는 아닙니다.</p><h3>PDF 다운로드</h3><p>열려 있는 문서의 전체 미리보기를 브라우저 안에서 이미지 PDF로 만듭니다. 다운로드 버튼을 눌렀을 때만 PDF 파일로 저장합니다. PDF의 텍스트는 검색·복사할 수 없으며 원본 프로그램의 인쇄 결과와 다를 수 있습니다. 미리보기에서 생략되거나 제한된 내용은 PDF에도 포함되지 않습니다.</p><h3>지원 범위</h3><ul><li><b>PPTX</b> — 슬라이드 미리보기. 애니메이션·동영상·일부 차트와 도형은 생략될 수 있습니다.</li><li><b>HWP / HWPX</b> — HWP 5.x·HWPX 페이지 미리보기. 옛 HWP 3.x와 암호 문서는 지원하지 않습니다.</li><li><b>XLSX</b> — 시트별 셀 서식과 지원하는 수식의 계산 결과. 미지원 수식·외부 참조는 저장된 값으로 표시하며 안내합니다. 조건부 서식과 차트는 표시하지 않습니다. 큰 시트는 표시 범위가 제한됩니다.</li><li><b>DOCX</b> — 본문·표·이미지 미리보기. 페이지 나눔과 글꼴이 원본과 다를 수 있습니다.</li></ul><p>파일당 30 MB, 문서는 500페이지까지 지원합니다. 복잡한 문서의 정확한 인쇄·편집은 원본 프로그램을 이용해 주세요. 최신 Chrome·Edge를 권장합니다.</p></dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
