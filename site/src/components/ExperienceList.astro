@@ -1,0 +1,27 @@
+---
+import type { Locale } from '../lib/paths';
+import { experience } from '../data/experience';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<ol class="items">
+  {experience.map((job) => (
+    <li class="item">
+      <p class="item-period">{job.period[locale]}</p>
+      <div>
+        <h3>{job.company[locale]}</h3>
+        <p class="item-role">{job.role[locale]}{job.team && ` · ${job.team[locale]}`}</p>
+        <p class="item-summary">{job.summary[locale]}</p>
+        {job.achievements.length > 0 && (
+          <ul class="achievements">
+            {job.achievements.map((a) => (
+              <li><strong>{a.title[locale]}</strong><span>{a.detail[locale]}</span></li>
+            ))}
+          </ul>
+        )}
+        {job.stack.length > 0 && <ul class="chips">{job.stack.map((s) => <li>{s}</li>)}</ul>}
+      </div>
+    </li>
+  ))}
+</ol>

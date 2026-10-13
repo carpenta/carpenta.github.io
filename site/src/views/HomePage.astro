@@ -1,0 +1,55 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import ExperienceList from '../components/ExperienceList.astro';
+import SkillsGrid from '../components/SkillsGrid.astro';
+import ProjectList from '../components/ProjectList.astro';
+import ToolCards from '../components/ToolCards.astro';
+import EducationList from '../components/EducationList.astro';
+import { localePath, type Locale } from '../lib/paths';
+import { profile } from '../data/profile';
+import { ui } from '../data/ui';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+
+const nav = [
+  { href: '#experience', label: ui.navExperience[locale] },
+  { href: '#skills', label: ui.navSkills[locale] },
+  { href: '#projects', label: ui.navProjects[locale] },
+  { href: '#tools', label: ui.navTools[locale] },
+  { href: '#education', label: ui.navEducation[locale] },
+];
+---
+<SiteLayout locale={locale} title={ui.siteTitle[locale]} description={profile.description[locale]} path="/">
+  <div class="shell">
+    <Sidebar locale={locale} path="/" nav={nav} />
+    <main class="main">
+      <section class="section intro">
+        <p class="lead">{profile.headline[locale]}</p>
+        <p>{profile.intro[locale]}</p>
+      </section>
+      <section class="section" id="experience">
+        <h2 class="section-title">{ui.navExperience[locale]}</h2>
+        <ExperienceList locale={locale} />
+      </section>
+      <section class="section" id="skills">
+        <h2 class="section-title">{ui.navSkills[locale]}</h2>
+        <SkillsGrid locale={locale} />
+      </section>
+      <section class="section" id="projects">
+        <h2 class="section-title">{ui.navProjects[locale]}</h2>
+        <ProjectList locale={locale} />
+      </section>
+      <section class="section" id="tools">
+        <h2 class="section-title">{ui.navTools[locale]}</h2>
+        <ToolCards locale={locale} />
+        <p class="more"><a class="card-link" href={localePath(locale, '/tools/')}>{ui.allTools[locale]}</a></p>
+      </section>
+      <section class="section" id="education">
+        <h2 class="section-title">{ui.navEducation[locale]}</h2>
+        <EducationList locale={locale} />
+      </section>
+    </main>
+  </div>
+</SiteLayout>

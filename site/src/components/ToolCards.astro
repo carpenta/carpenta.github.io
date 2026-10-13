@@ -1,0 +1,20 @@
+---
+import type { Locale } from '../lib/paths';
+import { tools } from '../data/tools';
+import { ui } from '../data/ui';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<ul class="tool-cards">
+  {tools.map((tool) => (
+    <li>
+      <a class="tool-card" href={`/tools/${tool.slug}/`} data-tool={tool.slug}>
+        <h3>{tool.title[locale]}</h3>
+        <p>{tool.description[locale]}</p>
+        <ul class="chips">{tool.tags.map((tag) => <li>{tag}</li>)}</ul>
+        <span class="tool-open">{ui.openTool[locale]} →</span>
+      </a>
+    </li>
+  ))}
+</ul>

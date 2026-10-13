@@ -1,0 +1,35 @@
+import type { L10n } from './types';
+
+export const ui = {
+  siteTitle: { ko: '조일환 · Developer', en: 'Cho Il-hwan · Developer' },
+  toolsTitle: { ko: '도구 · 조일환', en: 'Tools · Cho Il-hwan' },
+  toolsDescription: {
+    ko: '설치와 업로드 없이 브라우저에서 바로 쓰는 작은 도구 모음입니다.',
+    en: 'Small tools that run entirely in your browser. No install, no upload.',
+  },
+  resumeTitle: { ko: '조일환 이력서', en: 'Cho Il-hwan — Résumé' },
+  notFoundTitle: { ko: '페이지를 찾을 수 없습니다', en: 'Page not found' },
+  notFoundBody: {
+    ko: '이 주소의 글은 더 이상 제공되지 않습니다. 블로그를 프로필 사이트로 바꿨습니다.',
+    en: 'This address is no longer served. The blog has been replaced by a profile site.',
+  },
+  navExperience: { ko: '경력', en: 'Experience' },
+  navSkills: { ko: '기술', en: 'Skills' },
+  navProjects: { ko: '프로젝트', en: 'Projects' },
+  navTools: { ko: '도구', en: 'Tools' },
+  navEducation: { ko: '학력·자격', en: 'Education' },
+  home: { ko: '홈', en: 'Home' },
+  allTools: { ko: '도구 전체 보기', en: 'All tools' },
+  openTool: { ko: '열기', en: 'Open' },
+  downloadResume: { ko: '이력서 PDF', en: 'Résumé PDF' },
+  certificates: { ko: '자격증', en: 'Certificates' },
+  resumeIntro: { ko: 'Introduction', en: 'Introduction' },
+  resumeSkills: { ko: 'Skills', en: 'Skills' },
+  resumeExperience: { ko: 'Work Experience', en: 'Work Experience' },
+  resumeEducation: { ko: 'Education', en: 'Education' },
+  resumeCertificates: { ko: 'Certificates', en: 'Certificates' },
+  resumeHighlights: { ko: 'Project Highlights', en: 'Project Highlights' },
+  background: { ko: '배경 및 해결 과제', en: 'Background and challenge' },
+  decisions: { ko: '기술적 의사결정', en: 'Technical decisions' },
+  result: { ko: '결과', en: 'Result' },
+} satisfies Record<string, L10n>;
