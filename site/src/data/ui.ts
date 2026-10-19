@@ -29,6 +29,8 @@ export const ui = {
   resumeEducation: { ko: 'Education', en: 'Education' },
   resumeCertificates: { ko: 'Certificates', en: 'Certificates' },
   resumeHighlights: { ko: 'Project Highlights', en: 'Project Highlights' },
+  flagshipProjects: { ko: '주요 프로젝트', en: 'Featured Highlights' },
+  sideProjects: { ko: '사이드 프로젝트', en: 'Side Projects' },
   background: { ko: '배경 및 해결 과제', en: 'Background and challenge' },
   decisions: { ko: '기술적 의사결정', en: 'Technical decisions' },
   result: { ko: '결과', en: 'Result' },

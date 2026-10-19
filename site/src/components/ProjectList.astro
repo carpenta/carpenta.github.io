@@ -1,10 +1,38 @@
 ---
 import type { Locale } from '../lib/paths';
 import { projects } from '../data/projects';
+import { highlights } from '../data/highlights';
+import { ui } from '../data/ui';
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 ---
+<ul class="items">
+  {highlights.map((h) => (
+    <li class="item">
+      <div class="item-meta">
+        <p class="item-period">{h.period}</p>
+        <span class="item-tag">{h.tag[locale]}</span>
+      </div>
+      <div>
+        <h3>{h.title[locale]}</h3>
+        <p class="item-summary">{h.background[locale]}</p>
+        <ul class="decisions-list">
+          {h.decisions.map((d) => (
+            <li>{d[locale]}</li>
+          ))}
+        </ul>
+        <div class="result-badge">
+          <strong>{ui.result[locale]}</strong>{h.result[locale]}
+        </div>
+        <ul class="chips">{h.stack.map((s) => <li>{s}</li>)}</ul>
+      </div>
+    </li>
+  ))}
+</ul>
+
+<h3 class="sub-title">{ui.sideProjects[locale]}</h3>
+
 <ul class="items">
   {projects.map((project) => (
     <li class="item">
