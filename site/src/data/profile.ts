@@ -4,8 +4,8 @@ export const profile = {
   name: { ko: '조일환', en: 'Cho Il-hwan' } satisfies L10n,
   role: { ko: 'Developer', en: 'Developer' } satisfies L10n,
   tagline: {
-    ko: '대용량 데이터 플랫폼을 15년간 만들어왔고, 지금은 직접 쓰는 제품과 도구를 만듭니다.',
-    en: 'Fifteen years building large-scale data platforms. Now building the products and tools I use myself.',
+    ko: '대용량 데이터 플랫폼과 검색, AI 서비스를 15년간 만들어왔고, 지금은 직접 쓰는 제품과 도구를 만듭니다.',
+    en: 'Fifteen years building large-scale data platforms, search, and AI services. Now building the products and tools I use myself.',
   } satisfies L10n,
   headline: {
     ko: '대용량 분산 데이터 인프라와 LLM 기반 AI 서비스를 다뤄 온 개발자입니다.',
