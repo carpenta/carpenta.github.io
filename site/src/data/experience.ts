@@ -67,7 +67,7 @@ export const experience: Experience[] = [
       ko: '결제 시스템 백엔드 개발, 정산 데이터 안정화',
       en: 'Payment system backend, settlement data stability',
     },
-    stack: [],
+    stack: ['Spring Boot', 'Spring Batch', 'Spring Cloud', 'Kotlin', 'Scala', 'Spark', 'MySQL'],
     achievements: [
       {
         title: { ko: '대규모 결제 트래픽 처리', en: 'Handling large-scale payment traffic' },
