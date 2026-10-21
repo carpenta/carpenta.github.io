@@ -8,8 +8,8 @@ export const profile = {
     en: 'Fifteen years building large-scale data platforms. Now building the products and tools I use myself.',
   } satisfies L10n,
   headline: {
-    ko: '초대용량 Spark·Hadoop 분산 데이터 인프라부터 LLM 기반 AI 서비스 아키텍처까지 다뤄 온 15년 차 개발자입니다.',
-    en: 'A developer with fifteen years of experience, from very large Spark and Hadoop distributed data infrastructure to LLM-based AI service architecture.',
+    ko: '대용량 분산 데이터 인프라와 LLM 기반 AI 서비스를 다뤄 온 개발자입니다.',
+    en: 'A developer who works on large-scale distributed data infrastructure and LLM-based AI services.',
   } satisfies L10n,
   intro: {
     ko: '150억 건(300TB+) 규모의 데이터를 처리하는 Spark 배치·스트리밍 ETL 파이프라인과 대규모 분산 데이터 플랫폼을 직접 설계하고 운영했습니다. 온프레미스 자원을 Kubernetes 기반 SaaS/PaaS로 전환해 인프라 효율을 400% 이상 개선했고, LLM Gateway API와 AI 검색 서비스 백엔드를 설계해 생성형 AI 서비스의 배포와 운영을 이끌었습니다.',
