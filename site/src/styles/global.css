@@ -90,9 +90,6 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .item h3 { font-size: 17px; font-weight: 600; color: var(--strong); }
 .item-role { margin-top: 2px; font-size: 14px; color: var(--accent); }
 .item-summary { margin-top: 6px; font-size: 15px; color: var(--muted); }
-.items.compact .item { padding-top: 6px; padding-bottom: 6px; }
-.cert { font-size: 15px; color: var(--text); }
-.cert span { color: var(--muted); }
 .sub-title { margin: 28px 0 8px; padding-left: 18px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--dim); }
 
 .achievements { margin-top: 12px; display: grid; gap: 12px; }
