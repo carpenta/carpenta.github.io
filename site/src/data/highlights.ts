@@ -4,8 +4,8 @@ export const highlights: Highlight[] = [
   {
     id: 'ai-search',
     title: {
-      ko: '대화형 AI 검색 PaaS',
-      en: 'Conversational AI search PaaS',
+      ko: '대화형 AI 검색 - PaaS',
+      en: 'Conversational AI search - PaaS',
     },
     tag: { ko: 'AI 검색 / LLM Gateway', en: 'AI search / LLM gateway' },
     period: '2023.01 ~ 2025.10',
@@ -40,8 +40,8 @@ export const highlights: Highlight[] = [
   {
     id: 'data-platform',
     title: {
-      ko: '검색 데이터 플랫폼',
-      en: 'Search data platform',
+      ko: '검색 전용 데이터 플랫폼 - Shaker',
+      en: 'Data platform for search - Shaker',
     },
     tag: { ko: '데이터 플랫폼', en: 'Data platform' },
     period: '2018.05 ~ 2021.12',
@@ -76,7 +76,7 @@ export const highlights: Highlight[] = [
   {
     id: 'k8s-saas',
     title: {
-      ko: 'Kubernetes 활용 SaaS - KIT 서비스',
+      ko: 'Kubernetes 활용 SaaS - KIT',
       en: 'Kubernetes-based SaaS - KIT',
     },
     tag: { ko: '인프라 / 플랫폼', en: 'Infrastructure / platform' },
