@@ -12,8 +12,8 @@ export const profile = {
     en: 'A developer who works on large-scale distributed data infrastructure and LLM-based AI services.',
   } satisfies L10n,
   intro: {
-    ko: '대규모 데이터를 안정적으로 모으고 분석·처리하는 시스템을 15년간 만들어 왔습니다. 카카오 검색스팸팀에서 다양한 데이터를 활용해 검색 품질을 높이는 여러 스팸 필터 모델을 설계하고 구현했습니다. Spark 배치·스트리밍 파이프라인과 분산 데이터 플랫폼을 만들고 운영했고, 온프레미스 인프라를 Kubernetes 기반으로 옮겨 자원을 훨씬 효율적으로 쓸 수 있게 했습니다. 이후에는 LLM Gateway와 AI 검색 서비스의 백엔드를 설계하고, 생성형 AI 서비스를 실제로 배포해 운영했습니다.',
-    en: 'I have spent fifteen years building systems that reliably collect, analyze, and process large-scale data. On the Kakao search spam team, I designed and built a range of spam filter models that draw on diverse data to improve search quality. I built and ran Spark batch and streaming pipelines and distributed data platforms, and moved on-premises infrastructure onto Kubernetes so it could be used far more efficiently. Later I designed an LLM gateway and the backend of an AI search service, and shipped and ran generative AI services in production.',
+    ko: '대규모 데이터를 안정적으로 모으고 분석·처리하는 시스템을 15년간 만들어 왔습니다. 카카오 검색스팸팀에서 다양한 데이터를 활용해 검색 품질을 높이는 여러 스팸 필터 모델을 설계하고 구현했습니다. SK텔레콤에서 Spark 배치·스트리밍 파이프라인과 분산 데이터 플랫폼을 만들고 운영했고, 온프레미스 인프라를 Kubernetes 기반으로 옮겨 자원을 훨씬 효율적으로 쓸 수 있게 했습니다. 이후에는 LLM Gateway와 AI 검색 서비스의 백엔드를 설계하고, 생성형 AI 서비스를 실제로 배포해 운영했습니다.',
+    en: 'I have spent fifteen years building systems that reliably collect, analyze, and process large-scale data. On the Kakao search spam team, I designed and built a range of spam filter models that draw on diverse data to improve search quality. At SK Telecom, I built and ran Spark batch and streaming pipelines and distributed data platforms, and moved on-premises infrastructure onto Kubernetes so it could be used far more efficiently. Later I designed an LLM gateway and the backend of an AI search service, and shipped and ran generative AI services in production.',
   } satisfies L10n,
   description: {
     ko: '조일환의 프로필, 경력, 프로젝트, 그리고 브라우저에서 바로 쓰는 도구 모음.',
