@@ -8,7 +8,7 @@ test('the korean résumé follows the reference structure in order', async ({ pa
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('조일환');
   await expect(page.locator('main h2')).toHaveText(SECTIONS);
   await expect(page.locator('.highlight')).toHaveCount(3);
-  for (const label of ['배경 및 해결 과제', '기술적 의사결정', '결과']) {
+  for (const label of ['배경 및 해결 과제', '기술적 의사결정', '성과']) {
     await expect(page.locator('.highlight').first().getByText(label, { exact: true })).toBeVisible();
   }
 });

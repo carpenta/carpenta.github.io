@@ -31,5 +31,5 @@ export const ui = {
   sideProjects: { ko: '사이드 프로젝트', en: 'Side Projects' },
   background: { ko: '배경 및 해결 과제', en: 'Background and challenge' },
   decisions: { ko: '기술적 의사결정', en: 'Technical decisions' },
-  result: { ko: '결과', en: 'Result' },
+  result: { ko: '성과', en: 'Impact' },
 } satisfies Record<string, L10n>;
