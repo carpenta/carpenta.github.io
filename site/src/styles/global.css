@@ -108,14 +108,19 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 .contact { margin-top: auto; padding-top: 36px; font-size: 14px; color: var(--muted); display: grid; gap: 6px; }
 .contact a:hover { color: var(--accent); }
-.lang { margin-top: 18px; font-family: var(--mono); font-size: 13px; color: var(--dim); display: flex; gap: 8px; }
-.lang a[aria-current='true'] { color: var(--accent); }
-.lang a:hover { color: var(--strong); }
-.side-prefs { margin-top: 18px; display: flex; align-items: center; gap: 16px; }
-.side-prefs .lang { margin-top: 0; }
-.theme-toggle { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--dim); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
-.theme-toggle:hover { color: var(--strong); border-color: var(--dim); }
-.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.side-prefs { margin-top: 18px; display: flex; align-items: center; gap: 8px; }
+.icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--dim); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.icon-btn:hover { color: var(--strong); border-color: var(--dim); }
+.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* 어두운 화면에서는 해, 밝은 화면에서는 달을 보여 준다(누르면 그 테마로 바뀜). */
+.theme-toggle .icon-moon { display: none; }
+:root[data-theme='light'] .theme-toggle .icon-sun { display: none; }
+:root[data-theme='light'] .theme-toggle .icon-moon { display: block; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .theme-toggle .icon-sun { display: none; }
+  :root:not([data-theme]) .theme-toggle .icon-moon { display: block; }
+}
 
 .main { padding: 72px 48px 96px 24px; min-width: 0; }
 

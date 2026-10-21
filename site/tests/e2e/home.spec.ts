@@ -70,9 +70,9 @@ test('english home shows translated content', async ({ page }) => {
 
 test('the language switch goes to the matching page and back', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'EN', exact: true }).click();
+  await page.getByRole('link', { name: 'English', exact: true }).click();
   await expect(page).toHaveURL(/\/en\/$/);
-  await page.getByRole('link', { name: 'KO', exact: true }).click();
+  await page.getByRole('link', { name: '한국어', exact: true }).click();
   await expect(page).toHaveURL(/127\.0\.0\.1:4321\/$/);
 });
 
@@ -116,7 +116,7 @@ test('the 404 page sends visitors to the home page and the tools', async ({ page
 test('sidebar contact links stay reachable in a short desktop window', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 420 });
   await page.goto('/');
-  const lang = page.getByRole('link', { name: 'EN', exact: true });
+  const lang = page.getByRole('link', { name: 'English', exact: true });
   await lang.scrollIntoViewIfNeeded();
   await expect(lang).toBeInViewport();
 });
@@ -134,7 +134,10 @@ test('the 404 page is noindex and does not claim to be the home page', async ({ 
 
 test('the language switch is a labelled navigation landmark', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('navigation', { name: '언어' }).getByRole('link', { name: 'EN' })).toHaveAttribute('href', '/en/');
+  const link = page.getByRole('navigation', { name: '언어' }).getByRole('link', { name: 'English' });
+  await expect(link).toHaveAttribute('href', '/en/');
+  await expect(link).toHaveAttribute('hreflang', 'en');
+  await expect(link.locator('svg')).toBeVisible();
 });
 
 const bg = (page: import('@playwright/test').Page) =>
@@ -157,11 +160,15 @@ test('the theme toggle switches and remembers the theme', async ({ browser }) =>
     await page.goto(path);
     const toggle = page.locator('button.theme-toggle');
     await expect(toggle).toBeVisible();
-    const darkLabel = await toggle.textContent();
+    await expect(toggle.locator('svg:visible')).toHaveCount(1);
+    const darkLabel = await toggle.getAttribute('aria-label');
+    expect(darkLabel).toBeTruthy();
+    const darkIcon = await toggle.locator('svg:visible').getAttribute('class');
     await toggle.click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     expect(await bg(page)).toBe('rgb(247, 248, 250)');
-    expect(await toggle.textContent()).not.toBe(darkLabel);
+    expect(await toggle.getAttribute('aria-label')).not.toBe(darkLabel);
+    expect(await toggle.locator('svg:visible').getAttribute('class')).not.toBe(darkIcon);
     await page.reload();
     expect(await bg(page)).toBe('rgb(247, 248, 250)');
     await page.locator('button.theme-toggle').click();

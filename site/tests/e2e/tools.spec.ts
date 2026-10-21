@@ -26,7 +26,7 @@ test('the english tools page uses english copy and the same tool urls', async ({
 
 test('the language switch on the tools page stays on the tools page', async ({ page }) => {
   await page.goto('/tools/');
-  await page.getByRole('link', { name: 'EN', exact: true }).click();
+  await page.getByRole('link', { name: 'English', exact: true }).click();
   await expect(page).toHaveURL(/\/en\/tools\/$/);
 });
 
