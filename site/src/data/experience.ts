@@ -7,8 +7,8 @@ export const experience: Experience[] = [
     role: { ko: '플랫폼 리드', en: 'Platform Lead' },
     period: { ko: '2025 ~ 현재', en: '2025 – Present' },
     summary: {
-      ko: 'AI를 활용한 물류 자동화 플랫폼 개발을 이끌고 있습니다.',
-      en: 'Leading development of an AI-powered logistics automation platform.',
+      ko: 'AI 기반 물류 자동화 플랫폼 개발',
+      en: 'AI-powered logistics automation platform',
     },
     stack: [],
     achievements: [],
@@ -20,8 +20,8 @@ export const experience: Experience[] = [
     role: { ko: '데이터 플랫폼 아키텍트', en: 'Data Platform Architect' },
     period: { ko: '2018.05 ~ 2025.10', en: 'May 2018 – Oct 2025' },
     summary: {
-      ko: '데이터 플랫폼 아키텍처 설계와 AI 검색 서비스 인프라 고도화를 맡았습니다.',
-      en: 'Designed data platform architecture and advanced the infrastructure behind an AI search service.',
+      ko: '데이터 플랫폼 아키텍처 설계, AI 검색 서비스 인프라 고도화',
+      en: 'Data platform architecture, AI search service infrastructure',
     },
     stack: ['Kubernetes', 'Kafka', 'HBase', 'Redis', 'Spark', 'Hadoop', 'Java', 'Kotlin', 'Python'],
     achievements: [
@@ -64,8 +64,8 @@ export const experience: Experience[] = [
     role: { ko: '백엔드 개발자', en: 'Backend Developer' },
     period: { ko: '2017.06 ~ 2018.05', en: 'Jun 2017 – May 2018' },
     summary: {
-      ko: '결제 시스템 백엔드 개발과 데이터 정산 안정화를 맡았습니다.',
-      en: 'Developed the payment system backend and stabilized settlement data.',
+      ko: '결제 시스템 백엔드 개발, 정산 데이터 안정화',
+      en: 'Payment system backend, settlement data stability',
     },
     stack: [],
     achievements: [
@@ -92,8 +92,8 @@ export const experience: Experience[] = [
     role: { ko: '소프트웨어 개발자', en: 'Software Developer' },
     period: { ko: '2012.10 ~ 2017.06', en: 'Oct 2012 – Jun 2017' },
     summary: {
-      ko: '검색 품질을 높이기 위한 스팸 감지 시스템과 데이터 분석 플랫폼을 개발했습니다.',
-      en: 'Developed spam detection systems and a data analysis platform to improve search quality.',
+      ko: '검색 품질을 위한 스팸 감지 시스템과 데이터 분석 플랫폼 개발',
+      en: 'Spam detection systems and a data analysis platform for search quality',
     },
     stack: ['HBase', 'Hadoop', 'Spark'],
     achievements: [
@@ -119,8 +119,8 @@ export const experience: Experience[] = [
     role: { ko: 'Co-Founder · 서버 사이드 개발', en: 'Co-Founder · Server-side Developer' },
     period: { ko: '2010.09 ~ 2011.10', en: 'Sep 2010 – Oct 2011' },
     summary: {
-      ko: '초기 스타트업 멤버로 웹 서비스 아키텍처 설계와 핵심 엔진 개발을 이끌었습니다.',
-      en: 'As an early startup member, led web service architecture design and core engine development.',
+      ko: '초기 스타트업 멤버, 웹 서비스 아키텍처 설계와 핵심 엔진 개발',
+      en: 'Early startup member; web service architecture and core engine',
     },
     stack: [],
     achievements: [
