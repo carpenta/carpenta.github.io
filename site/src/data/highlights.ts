@@ -76,8 +76,8 @@ export const highlights: Highlight[] = [
   {
     id: 'k8s-saas',
     title: {
-      ko: '미들웨어 프로비저닝을 48시간에서 5분으로 줄인 Kubernetes SaaS와 Control Plane 안정화',
-      en: 'A Kubernetes SaaS that cut middleware provisioning from 48 hours to 5 minutes, and a stabilized control plane',
+      ko: 'Kubernetes 활용 SaaS - KIT 서비스',
+      en: 'Kubernetes-based SaaS - KIT',
     },
     tag: { ko: '인프라 / 플랫폼', en: 'Infrastructure / platform' },
     period: '2020.01 ~ 2023.12',
