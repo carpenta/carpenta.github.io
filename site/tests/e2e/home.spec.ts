@@ -182,3 +182,18 @@ test('the theme toggle stays visible at 360px', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('button.theme-toggle')).toBeVisible();
 });
+
+test('each employer shows its logo before the name, enSalt keeps an empty slot', async ({ page }) => {
+  await page.goto('/');
+  const jobs = page.locator('#experience > ol > li');
+  await expect(jobs).toHaveCount(5);
+  for (let i = 0; i < 4; i++) {
+    const img = jobs.nth(i).locator('h3 img.company-logo');
+    await expect(img).toHaveCount(1);
+    await expect(img).toHaveAttribute('alt', '');
+    expect(await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+  }
+  const last = jobs.nth(4).locator('h3');
+  await expect(last.locator('img')).toHaveCount(0);
+  await expect(last.locator('.company-logo')).toHaveCount(1);
+});

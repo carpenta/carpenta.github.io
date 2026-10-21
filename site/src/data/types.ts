@@ -10,6 +10,8 @@ export interface Achievement {
 export interface Experience {
   id: string;
   company: L10n;
+  /** public/ 기준 로고 경로. 없으면 같은 폭의 빈칸을 둔다. */
+  logo?: string;
   team?: L10n;
   role: L10n;
   period: L10n;

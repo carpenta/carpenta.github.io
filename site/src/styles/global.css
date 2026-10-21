@@ -137,6 +137,8 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .item-meta { display: flex; flex-direction: column; gap: 4px; }
 .item-tag { font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
 .item h3 { font-size: 17px; font-weight: 600; color: var(--strong); }
+.item h3.company { display: flex; align-items: center; gap: 8px; }
+.company-logo { flex: none; width: 20px; height: 20px; border-radius: 5px; object-fit: contain; }
 .item-role { margin-top: 2px; font-size: 14px; color: var(--accent); }
 .item-summary { margin-top: 6px; font-size: 15px; color: var(--muted); }
 .sub-title { margin: 28px 0 8px; padding-left: 18px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; color: var(--dim); }

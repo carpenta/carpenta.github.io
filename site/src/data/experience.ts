@@ -3,6 +3,7 @@ import type { Experience } from './types';
 export const experience: Experience[] = [
   {
     id: 'tigerface',
+    logo: '/logos/tigerface.png',
     company: { ko: '호랑이얼굴', en: 'Tigerface' },
     role: { ko: '플랫폼 리드', en: 'Platform Lead' },
     period: { ko: '2025 ~ 현재', en: '2025 – Present' },
@@ -15,6 +16,7 @@ export const experience: Experience[] = [
   },
   {
     id: 'skt',
+    logo: '/logos/skt.png',
     company: { ko: 'SK텔레콤', en: 'SK Telecom' },
     team: { ko: '검색인프라팀 / PaaS TF', en: 'Search Infrastructure Team / PaaS Task Force' },
     role: { ko: '데이터 플랫폼 아키텍트', en: 'Data Platform Architect' },
@@ -59,6 +61,7 @@ export const experience: Experience[] = [
   },
   {
     id: 'kakaopay',
+    logo: '/logos/kakaopay.png',
     company: { ko: '카카오페이', en: 'KakaoPay' },
     team: { ko: '페이먼트팀', en: 'Payment Team' },
     role: { ko: '백엔드 개발자', en: 'Backend Developer' },
@@ -87,6 +90,7 @@ export const experience: Experience[] = [
   },
   {
     id: 'kakao',
+    logo: '/logos/kakao.png',
     company: { ko: '카카오', en: 'Kakao' },
     team: { ko: '검색팀 검색스팸셀', en: 'Search Team, Search Spam Cell' },
     role: { ko: '소프트웨어 개발자', en: 'Software Developer' },
