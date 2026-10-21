@@ -16,7 +16,7 @@ export const experience: Experience[] = [
   {
     id: 'skt',
     company: { ko: 'SK텔레콤', en: 'SK Telecom' },
-    team: { ko: '검색인프라팀 / PaaS본부', en: 'Search Infrastructure Team / PaaS Division' },
+    team: { ko: '검색인프라팀 / PaaS TF', en: 'Search Infrastructure Team / PaaS Task Force' },
     role: { ko: '데이터 플랫폼 아키텍트', en: 'Data Platform Architect' },
     period: { ko: '2018.05 ~ 2025.10', en: 'May 2018 – Oct 2025' },
     summary: {
