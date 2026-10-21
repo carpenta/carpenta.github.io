@@ -98,31 +98,10 @@ export const experience: Experience[] = [
     stack: ['HBase', 'Hadoop', 'Spark', 'Hive', 'Hue', 'Redis', 'Scala', 'Python', 'R'],
     achievements: [
       {
-        title: { ko: '블로그 스팸 필터', en: 'Blog spam filter' },
+        title: { ko: 'Anti-Spam 시스템 개발', en: 'Anti-spam system' },
         detail: {
-          ko: '검색 결과에 노출되는 블로그 스팸 문서를 걸러내는 필터를 개발했습니다.',
-          en: 'Built a filter that keeps spam blog posts out of search results.',
-        },
-      },
-      {
-        title: { ko: '이미지 스팸 필터', en: 'Image spam filter' },
-        detail: {
-          ko: '이미지 검색 결과에 섞여 드는 스팸 이미지를 걸러내는 필터를 개발했습니다.',
-          en: 'Built a filter that keeps spam images out of image search results.',
-        },
-      },
-      {
-        title: { ko: '유튜브 스팸 필터', en: 'YouTube spam filter' },
-        detail: {
-          ko: '검색 결과에 노출되는 유튜브 스팸 영상을 걸러내는 필터를 개발했습니다.',
-          en: 'Built a filter that keeps spam YouTube videos out of search results.',
-        },
-      },
-      {
-        title: { ko: '스팸 데이터 검수 도구', en: 'Spam data review tool' },
-        detail: {
-          ko: '스팸 판정 결과를 사람이 확인하고 바로잡을 수 있는 검수 도구를 개발했습니다.',
-          en: 'Built a review tool for checking and correcting spam classifications by hand.',
+          ko: '실시간으로 들어오는 대규모 검색 노출·클릭 데이터에서 어뷰징 매크로와 스팸 트래픽을 걸러내는 핑거프린트 엔진을 구축했습니다.',
+          en: 'Built a fingerprint engine that filters abusive macros and spam traffic out of large volumes of real-time search impression and click data.',
         },
       },
       {
