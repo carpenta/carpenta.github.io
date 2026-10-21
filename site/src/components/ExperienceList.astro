@@ -11,9 +11,7 @@ const { locale } = Astro.props;
       <p class="item-period">{job.period[locale]}</p>
       <div>
         <h3 class="company">
-          {job.logo
-            ? <img class="company-logo" src={job.logo} alt="" width="20" height="20" loading="lazy" decoding="async" />
-            : <span class="company-logo" aria-hidden="true"></span>}
+          {job.logo && <img class="company-logo" src={job.logo} alt="" width="20" height="20" loading="lazy" decoding="async" />}
           {job.company[locale]}
         </h3>
         <p class="item-role">{job.role[locale]}{job.team && ` · ${job.team[locale]}`}</p>

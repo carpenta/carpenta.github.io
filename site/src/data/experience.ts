@@ -119,7 +119,7 @@ export const experience: Experience[] = [
   },
   {
     id: 'ensalt',
-    company: { ko: '(주)enSalt', en: 'enSalt' },
+    company: { ko: 'enSalt', en: 'enSalt' },
     role: { ko: 'Co-Founder · 서버 사이드 개발', en: 'Co-Founder · Server-side Developer' },
     period: { ko: '2010.09 ~ 2011.10', en: 'Sep 2010 – Oct 2011' },
     summary: {

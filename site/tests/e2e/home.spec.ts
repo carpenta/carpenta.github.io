@@ -32,7 +32,7 @@ test('the self-hosted font loads', async ({ page }) => {
 
 test('korean home shows every employer and the section headings', async ({ page }) => {
   await page.goto('/');
-  for (const name of ['호랑이얼굴', 'SK텔레콤', '카카오페이', '카카오', '(주)enSalt']) {
+  for (const name of ['호랑이얼굴', 'SK텔레콤', '카카오페이', '카카오', 'enSalt']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   }
   for (const name of ['경력', '기술', '프로젝트', '도구']) {
@@ -185,7 +185,7 @@ test('the theme toggle stays visible at 360px', async ({ page }) => {
   await expect(page.locator('button.theme-toggle')).toBeVisible();
 });
 
-test('each employer shows its logo before the name, enSalt keeps an empty slot', async ({ page }) => {
+test('each employer shows its logo before the name, enSalt has none and no gap', async ({ page }) => {
   await page.goto('/');
   const jobs = page.locator('#experience > ol > li');
   await expect(jobs).toHaveCount(5);
@@ -197,5 +197,6 @@ test('each employer shows its logo before the name, enSalt keeps an empty slot',
   }
   const last = jobs.nth(4).locator('h3');
   await expect(last.locator('img')).toHaveCount(0);
-  await expect(last.locator('.company-logo')).toHaveCount(1);
+  await expect(last.locator('.company-logo')).toHaveCount(0);
+  await expect(last).toHaveText('enSalt');
 });
