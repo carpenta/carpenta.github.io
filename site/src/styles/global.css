@@ -100,6 +100,18 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .decisions-list { margin-top: 12px; display: grid; gap: 8px; }
 .decisions-list li { padding-left: 14px; border-left: 2px solid var(--line); font-size: 14px; color: var(--muted); line-height: 1.5; }
 
+.diagram { margin: 16px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.diagram figcaption { margin-bottom: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--dim); }
+.dia-rows { margin: 0; padding: 0; list-style: none; display: grid; gap: 18px; }
+.dia-row { position: relative; display: flex; gap: 8px; }
+.dia-row + .dia-row::before { content: '↓'; position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 12px; line-height: 16px; color: var(--dim); }
+.dia-node { flex: 1 1 0; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; text-align: center; }
+.dia-node.changed { border-color: rgba(110, 231, 197, 0.45); background: var(--accent-bg); }
+.dia-label { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.dia-node.changed .dia-label { color: var(--accent); }
+.dia-note { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+.dia-legend { margin-top: 10px; font-size: 12px; color: var(--dim); }
+
 .result-badge {
   margin-top: 14px;
   padding: 10px 14px;

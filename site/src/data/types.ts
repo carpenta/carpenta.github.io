@@ -44,6 +44,18 @@ export interface Project {
   url?: string;
 }
 
+export interface DiagramNode {
+  label: L10n;
+  note?: L10n;
+  /** 이 프로젝트에서 새로 만들거나 바꾼 부분 */
+  changed?: boolean;
+}
+/** 위에서 아래로 흐르는 단계. 한 단계에 노드가 여럿이면 나란히 놓인다. */
+export interface Diagram {
+  caption: L10n;
+  rows: DiagramNode[][];
+}
+
 export interface Highlight {
   id: string;
   title: L10n;
@@ -53,6 +65,7 @@ export interface Highlight {
   background: L10n;
   decisions: L10n[];
   result: L10n;
+  diagram: Diagram;
 }
 
 export interface Tool {

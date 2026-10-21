@@ -1,0 +1,24 @@
+---
+import type { Locale } from '../lib/paths';
+import type { Diagram } from '../data/types';
+import { ui } from '../data/ui';
+
+interface Props { locale: Locale; diagram: Diagram }
+const { locale, diagram } = Astro.props;
+---
+<figure class="diagram">
+  <figcaption>{diagram.caption[locale]}</figcaption>
+  <ol class="dia-rows">
+    {diagram.rows.map((row) => (
+      <li class="dia-row">
+        {row.map((node) => (
+          <div class:list={['dia-node', { changed: node.changed }]}>
+            <span class="dia-label">{node.label[locale]}</span>
+            {node.note && <span class="dia-note">{node.note[locale]}</span>}
+          </div>
+        ))}
+      </li>
+    ))}
+  </ol>
+  <p class="dia-legend">{ui.diagramChanged[locale]}</p>
+</figure>

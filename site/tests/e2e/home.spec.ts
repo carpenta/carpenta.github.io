@@ -49,6 +49,18 @@ test('home has no education or certificates section', async ({ page }) => {
   }
 });
 
+test('every featured project shows a design diagram', async ({ page }) => {
+  for (const path of ['/', '/en/']) {
+    await page.goto(path);
+    const diagrams = page.locator('#projects figure.diagram');
+    await expect(diagrams).toHaveCount(3);
+    for (const d of await diagrams.all()) {
+      await expect(d.locator('figcaption')).not.toBeEmpty();
+      expect(await d.locator('.dia-node').count()).toBeGreaterThan(3);
+    }
+  }
+});
+
 test('english home shows translated content', async ({ page }) => {
   await page.goto('/en/');
   await expect(page.getByRole('heading', { name: 'SK Telecom', exact: true })).toBeVisible();

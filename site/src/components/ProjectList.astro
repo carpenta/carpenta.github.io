@@ -3,6 +3,7 @@ import type { Locale } from '../lib/paths';
 import { projects } from '../data/projects';
 import { highlights } from '../data/highlights';
 import { ui } from '../data/ui';
+import Diagram from './Diagram.astro';
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -22,6 +23,7 @@ const { locale } = Astro.props;
             <li>{d[locale]}</li>
           ))}
         </ul>
+        <Diagram locale={locale} diagram={h.diagram} />
         <div class="result-badge">
           <strong>{ui.result[locale]}</strong>{h.result[locale]}
         </div>

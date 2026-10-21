@@ -32,4 +32,5 @@ export const ui = {
   background: { ko: '배경 및 해결 과제', en: 'Background and challenge' },
   decisions: { ko: '기술적 의사결정', en: 'Technical decisions' },
   result: { ko: '성과', en: 'Impact' },
+  diagramChanged: { ko: '강조한 칸이 이 프로젝트에서 새로 만들거나 바꾼 부분입니다.', en: 'Highlighted boxes are the parts this project built or changed.' },
 } satisfies Record<string, L10n>;
