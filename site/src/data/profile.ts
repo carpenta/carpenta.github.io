@@ -8,8 +8,8 @@ export const profile = {
     en: 'At Kakao and SK Telecom, I built large-scale data platforms along with search and AI services. Now I build the products and tools I use myself.',
   } satisfies L10n,
   headline: {
-    ko: '대용량 분산 데이터 인프라와 LLM 기반 AI 서비스를 다뤄 온 개발자입니다.',
-    en: 'A developer who works on large-scale distributed data infrastructure and LLM-based AI services.',
+    ko: '대용량 분산 데이터 인프라와 LLM·검색 기반 AI 서비스를 다뤄 온 개발자입니다.',
+    en: 'A developer who works on large-scale distributed data infrastructure and LLM- and search-based AI services.',
   } satisfies L10n,
   intro: {
     ko: '대규모 데이터를 안정적으로 모으고 분석·처리하는 시스템을 15년간 만들어 왔습니다. 카카오 검색스팸팀에서 다양한 데이터를 활용해 검색 품질을 높이는 여러 스팸 필터 모델을 설계하고 구현했습니다. SK텔레콤에서 Spark 배치·스트리밍 파이프라인과 분산 데이터 플랫폼을 만들고 운영했고, 온프레미스 인프라를 Kubernetes 기반으로 옮겨 자원을 훨씬 효율적으로 쓸 수 있게 했습니다. 이후에는 LLM Gateway와 AI 검색 서비스의 백엔드를 설계하고, 생성형 AI 서비스를 실제로 배포해 운영했습니다.',
