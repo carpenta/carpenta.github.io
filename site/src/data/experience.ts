@@ -95,7 +95,7 @@ export const experience: Experience[] = [
       ko: '검색 품질을 위한 스팸 감지 시스템과 데이터 분석 플랫폼 개발',
       en: 'Spam detection systems and a data analysis platform for search quality',
     },
-    stack: ['HBase', 'Hadoop', 'Spark'],
+    stack: ['HBase', 'Hadoop', 'Spark', 'Hive', 'Hue', 'Redis', 'Scala', 'Python', 'R'],
     achievements: [
       {
         title: { ko: '블로그 스팸 필터', en: 'Blog spam filter' },
