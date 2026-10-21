@@ -6,7 +6,9 @@
   src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
 }
 
+/* 어두운 테마가 기본. 밝은 테마는 시스템 설정이나 data-theme="light"로 켜진다. */
 :root {
+  color-scheme: dark;
   --bg: #0d1320;
   --text: #c9d2e3;
   --strong: #eef2f9;
@@ -14,17 +16,54 @@
   --dim: #73809a;
   --accent: #6ee7c5;
   --accent-bg: rgba(110, 231, 197, 0.1);
+  --accent-line: rgba(110, 231, 197, 0.2);
+  --accent-strong-line: rgba(110, 231, 197, 0.45);
+  --glow: rgba(110, 231, 197, 0.05);
+  --hover: rgba(201, 210, 227, 0.04);
   --line: rgba(201, 210, 227, 0.12);
   --font: 'Pretendard Variable', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --text: #2b3445;
+    --strong: #0f1726;
+    --muted: #4f5a6e;
+    --dim: #626c80;
+    --accent: #0b7a60;
+    --accent-bg: rgba(11, 122, 96, 0.08);
+    --accent-line: rgba(11, 122, 96, 0.22);
+    --accent-strong-line: rgba(11, 122, 96, 0.45);
+    --glow: rgba(11, 122, 96, 0.06);
+    --hover: rgba(15, 23, 38, 0.035);
+    --line: rgba(15, 23, 38, 0.12);
+  }
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f7f8fa;
+  --text: #2b3445;
+  --strong: #0f1726;
+  --muted: #4f5a6e;
+  --dim: #626c80;
+  --accent: #0b7a60;
+  --accent-bg: rgba(11, 122, 96, 0.08);
+  --accent-line: rgba(11, 122, 96, 0.22);
+  --accent-strong-line: rgba(11, 122, 96, 0.45);
+  --glow: rgba(11, 122, 96, 0.06);
+  --hover: rgba(15, 23, 38, 0.035);
+  --line: rgba(15, 23, 38, 0.12);
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; }
+html { background: var(--bg); scroll-behavior: smooth; }
 
 body {
   margin: 0;
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   font-size: 16px;
@@ -49,7 +88,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   inset: 0;
   pointer-events: none;
   z-index: 10;
-  background: radial-gradient(600px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), rgba(110, 231, 197, 0.05), transparent 80%);
+  background: radial-gradient(600px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px), var(--glow), transparent 80%);
 }
 
 /* ---------- shell ---------- */
@@ -72,6 +111,11 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .lang { margin-top: 18px; font-family: var(--mono); font-size: 13px; color: var(--dim); display: flex; gap: 8px; }
 .lang a[aria-current='true'] { color: var(--accent); }
 .lang a:hover { color: var(--strong); }
+.side-prefs { margin-top: 18px; display: flex; align-items: center; gap: 16px; }
+.side-prefs .lang { margin-top: 0; }
+.theme-toggle { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--dim); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.theme-toggle:hover { color: var(--strong); border-color: var(--dim); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .main { padding: 72px 48px 96px 24px; min-width: 0; }
 
@@ -83,7 +127,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 
 .items { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
 .item { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 18px; padding: 16px 18px; border-radius: 8px; transition: background 0.15s; }
-.item:hover { background: rgba(201, 210, 227, 0.04); }
+.item:hover { background: var(--hover); }
 .item-period { padding-top: 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--dim); font-variant-numeric: tabular-nums; }
 .item-meta { display: flex; flex-direction: column; gap: 4px; }
 .item-tag { font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
@@ -106,7 +150,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .dia-row { position: relative; display: flex; gap: 8px; }
 .dia-row + .dia-row::before { content: '↓'; position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 12px; line-height: 16px; color: var(--dim); }
 .dia-node { flex: 1 1 0; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; text-align: center; }
-.dia-node.changed { border-color: rgba(110, 231, 197, 0.45); background: var(--accent-bg); }
+.dia-node.changed { border-color: var(--accent-strong-line); background: var(--accent-bg); }
 .dia-label { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
 .dia-node.changed .dia-label { color: var(--accent); }
 .dia-note { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--muted); }
@@ -117,7 +161,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
   padding: 10px 14px;
   border-radius: 6px;
   background: var(--accent-bg);
-  border: 1px solid rgba(110, 231, 197, 0.2);
+  border: 1px solid var(--accent-line);
   font-size: 13px;
   line-height: 1.5;
   color: var(--text);

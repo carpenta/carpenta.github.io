@@ -17,6 +17,12 @@ const { locale, title, description, path, noindex = false } = Astro.props;
 <html lang={locale}>
   <head>
     <Head locale={locale} title={title} description={description} path={path} noindex={noindex} />
+    <script is:inline>
+      try {
+        const t = localStorage.getItem('theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
   </head>
   <body>
     <div class="spotlight" aria-hidden="true"></div>

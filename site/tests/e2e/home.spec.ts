@@ -136,3 +136,42 @@ test('the language switch is a labelled navigation landmark', async ({ page }) =
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: '언어' }).getByRole('link', { name: 'EN' })).toHaveAttribute('href', '/en/');
 });
+
+const bg = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+
+test('the theme follows the system setting on first visit', async ({ browser }) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    const context = await browser.newContext({ colorScheme });
+    const page = await context.newPage();
+    await page.goto('/');
+    expect(await bg(page)).toBe(colorScheme === 'light' ? 'rgb(247, 248, 250)' : 'rgb(13, 19, 32)');
+    await context.close();
+  }
+});
+
+test('the theme toggle switches and remembers the theme', async ({ browser }) => {
+  for (const path of ['/', '/en/']) {
+    const context = await browser.newContext({ colorScheme: 'dark' });
+    const page = await context.newPage();
+    await page.goto(path);
+    const toggle = page.locator('button.theme-toggle');
+    await expect(toggle).toBeVisible();
+    const darkLabel = await toggle.textContent();
+    await toggle.click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    expect(await bg(page)).toBe('rgb(247, 248, 250)');
+    expect(await toggle.textContent()).not.toBe(darkLabel);
+    await page.reload();
+    expect(await bg(page)).toBe('rgb(247, 248, 250)');
+    await page.locator('button.theme-toggle').click();
+    expect(await bg(page)).toBe('rgb(13, 19, 32)');
+    await context.close();
+  }
+});
+
+test('the theme toggle stays visible at 360px', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await expect(page.locator('button.theme-toggle')).toBeVisible();
+});
