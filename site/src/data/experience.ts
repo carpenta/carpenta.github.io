@@ -23,7 +23,7 @@ export const experience: Experience[] = [
       ko: '데이터 플랫폼 아키텍처 설계, AI 검색 서비스 인프라 고도화',
       en: 'Data platform architecture, AI search service infrastructure',
     },
-    stack: ['Kubernetes', 'Kafka', 'HBase', 'Redis', 'Spark', 'Hadoop', 'Java', 'Kotlin', 'Python'],
+    stack: ['Kubernetes', 'Kafka', 'HBase', 'Redis', 'Spark', 'Hadoop', 'Airflow', 'Java', 'Kotlin', 'Scala', 'Python', 'Go', 'Rust', 'Spring Boot'],
     achievements: [
       {
         title: {
