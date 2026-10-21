@@ -35,10 +35,18 @@ test('korean home shows every employer and the section headings', async ({ page 
   for (const name of ['호랑이얼굴', 'SK텔레콤', '카카오페이', '카카오', '(주)enSalt']) {
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   }
-  for (const name of ['경력', '기술', '프로젝트', '도구', '학력·자격']) {
+  for (const name of ['경력', '기술', '프로젝트', '도구']) {
     await expect(page.getByRole('heading', { level: 2, name, exact: true })).toBeVisible();
   }
   await expect(page.getByText('Developer', { exact: true }).first()).toBeVisible();
+});
+
+test('home has no education or certificates section', async ({ page }) => {
+  for (const path of ['/', '/en/']) {
+    await page.goto(path);
+    await expect(page.locator('#education')).toHaveCount(0);
+    await expect(page.locator('a[href="#education"]')).toHaveCount(0);
+  }
 });
 
 test('english home shows translated content', async ({ page }) => {

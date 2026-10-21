@@ -19,6 +19,15 @@ const { locale, title, description, path, noindex = false } = Astro.props;
     <Head locale={locale} title={title} description={description} path={path} noindex={noindex} />
   </head>
   <body>
+    <div class="spotlight" aria-hidden="true"></div>
     <slot />
+    <script>
+      if (typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        window.addEventListener('pointermove', (e: PointerEvent) => {
+          document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+          document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        }, { passive: true });
+      }
+    </script>
   </body>
 </html>

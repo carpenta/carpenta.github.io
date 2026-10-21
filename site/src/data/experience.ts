@@ -23,7 +23,7 @@ export const experience: Experience[] = [
       ko: '데이터 플랫폼 아키텍처 설계와 AI 검색 서비스 인프라 고도화를 맡았습니다.',
       en: 'Designed data platform architecture and advanced the infrastructure behind an AI search service.',
     },
-    stack: ['Kubernetes', 'Kafka', 'HBase', 'Redis', 'Spark', 'Java', 'Kotlin', 'Python'],
+    stack: ['Kubernetes', 'Kafka', 'HBase', 'Redis', 'Spark', 'Hadoop', 'Java', 'Kotlin', 'Python'],
     achievements: [
       {
         title: {
@@ -41,8 +41,8 @@ export const experience: Experience[] = [
           en: 'Removed bottlenecks in and re-architected a very large real-time ETL platform for unstructured data',
         },
         detail: {
-          ko: '150억 건(300TB+)을 처리하면서 생긴 78 TPS 병목과 499 타임아웃(12.4%)을 CompletableFuture 기반 비동기 아웃박스와 G1GC IHOP 튜닝으로 해결했습니다. 수집 처리량을 78에서 450+ TPS로(5.7배) 늘리고 499 타임아웃 장애를 99.8% 제거했으며, G1GC 최대 정지 시간을 1.5s에서 120ms로(92% 단축) 줄였습니다.',
-          en: 'Resolved a 78 TPS bottleneck and 499 timeouts (12.4%) that appeared while processing 15 billion records (300TB+), using a CompletableFuture-based asynchronous outbox and G1GC IHOP tuning. Raised ingest throughput from 78 to 450+ TPS (5.7x), eliminated 99.8% of 499 timeout failures, and cut the G1GC maximum pause from 1.5s to 120ms (92% shorter).',
+          ko: '150억 건(300TB+) 규모의 데이터를 Spark 배치와 Structured Streaming 하이브리드 파이프라인으로 처리하면서 생긴 78 TPS 병목과 499 타임아웃(12.4%)을 CompletableFuture 기반 비동기 아웃박스와 G1GC IHOP 튜닝으로 해결했습니다. 수집 처리량을 78에서 450+ TPS로(5.7배) 늘리고 499 타임아웃 장애를 99.8% 제거했으며, G1GC 최대 정지 시간을 1.5s에서 120ms로(92% 단축) 줄였습니다.',
+          en: 'Resolved a 78 TPS bottleneck and 499 timeouts (12.4%) that occurred while processing 15 billion records (300TB+) with Spark batch and Structured Streaming hybrid pipelines, using a CompletableFuture-based asynchronous outbox and G1GC IHOP tuning. Raised ingest throughput from 78 to 450+ TPS (5.7x), eliminated 99.8% of 499 timeout failures, and cut the G1GC maximum pause from 1.5s to 120ms (92% shorter).',
         },
       },
       {
@@ -105,10 +105,10 @@ export const experience: Experience[] = [
         },
       },
       {
-        title: { ko: '대용량 DW 인프라 구축과 운영', en: 'Large-scale data warehouse infrastructure' },
+        title: { ko: 'Hadoop/Spark 기반 대용량 로그 DW 인프라 구축과 운영', en: 'Hadoop/Spark-based large-scale log data warehouse infrastructure' },
         detail: {
-          ko: 'HBase와 Hadoop/Spark 기반의 스팸 패턴 분석 DW를 구축하고 대용량 로그 분석 파이프라인을 운영했습니다.',
-          en: 'Built a spam-pattern analysis data warehouse on HBase and Hadoop/Spark and operated large-scale log analysis pipelines.',
+          ko: 'HBase와 Hadoop(HDFS/MapReduce), Spark 기반의 스팸 패턴 분석 DW를 구축하고 일 수억 건 규모의 검색 노출·클릭 로그 분석 파이프라인을 운영했습니다.',
+          en: 'Built a spam-pattern analysis data warehouse on HBase, Hadoop (HDFS/MapReduce), and Spark, operating large-scale log analysis pipelines for hundreds of millions of daily search impression and click events.',
         },
       },
     ],
