@@ -21,6 +21,7 @@ export const ui = {
   themeToLight: { ko: '밝은 화면으로 보기', en: 'Switch to light theme' },
   themeToDark: { ko: '어두운 화면으로 보기', en: 'Switch to dark theme' },
   langSwitchTo: { ko: 'English', en: '한국어' },
+  langSwitchCode: { ko: 'EN', en: 'KR' },
   allTools: { ko: '도구 전체 보기', en: 'All tools' },
   openTool: { ko: '열기', en: 'Open' },
   downloadResume: { ko: '이력서 PDF', en: 'Résumé PDF' },

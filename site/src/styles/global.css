@@ -112,6 +112,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 .icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--dim); cursor: pointer; transition: color 0.15s, border-color 0.15s; }
 .icon-btn:hover { color: var(--strong); border-color: var(--dim); }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lang-code { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
 .icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 /* 어두운 화면에서는 해, 밝은 화면에서는 달을 보여 준다(누르면 그 테마로 바뀜). */
 .theme-toggle .icon-moon { display: none; }

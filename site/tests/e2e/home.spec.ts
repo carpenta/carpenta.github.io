@@ -137,7 +137,9 @@ test('the language switch is a labelled navigation landmark', async ({ page }) =
   const link = page.getByRole('navigation', { name: '언어' }).getByRole('link', { name: 'English' });
   await expect(link).toHaveAttribute('href', '/en/');
   await expect(link).toHaveAttribute('hreflang', 'en');
-  await expect(link.locator('svg')).toBeVisible();
+  await expect(link).toHaveText('EN');
+  await page.goto('/en/');
+  await expect(page.getByRole('navigation', { name: 'Language' }).getByRole('link', { name: '한국어' })).toHaveText('KR');
 });
 
 const bg = (page: import('@playwright/test').Page) =>
