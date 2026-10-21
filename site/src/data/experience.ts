@@ -7,8 +7,8 @@ export const experience: Experience[] = [
     role: { ko: '플랫폼 리드', en: 'Platform Lead' },
     period: { ko: '2025 ~ 현재', en: '2025 – Present' },
     summary: {
-      ko: 'AI 기반 물류 자동화 플랫폼 개발',
-      en: 'AI-powered logistics automation platform',
+      ko: 'AI 기반 물류 자동화 플랫폼 개발 리드',
+      en: 'Leading development of an AI-powered logistics automation platform',
     },
     stack: [],
     achievements: [],
