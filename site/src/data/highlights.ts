@@ -4,8 +4,8 @@ export const highlights: Highlight[] = [
   {
     id: 'ai-search',
     title: {
-      ko: '대화형 AI 검색 PaaS의 응답 지연과 외부 API 비용 절감',
-      en: 'Cutting response latency and external API cost in a conversational AI search PaaS',
+      ko: '대화형 AI 검색 PaaS',
+      en: 'Conversational AI search PaaS',
     },
     tag: { ko: 'AI 검색 / LLM Gateway', en: 'AI search / LLM gateway' },
     period: '2023.01 ~ 2025.10',
