@@ -40,8 +40,8 @@ export const highlights: Highlight[] = [
   {
     id: 'data-platform',
     title: {
-      ko: '150억 건 규모 실시간 ETL 플랫폼의 처리량 병목 해소',
-      en: 'Removing the throughput bottleneck in a real-time ETL platform at 15 billion records',
+      ko: '검색 데이터 플랫폼',
+      en: 'Search data platform',
     },
     tag: { ko: '데이터 플랫폼', en: 'Data platform' },
     period: '2018.05 ~ 2021.12',
