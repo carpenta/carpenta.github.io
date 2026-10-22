@@ -29,3 +29,12 @@ test('fileSource counts bytes it read', async () => {
   expect(src.bytesRead).toBe(20);
   expect(src.byteLength).toBe(1000);
 });
+
+test('fileSource counts each byte once even when ranges overlap', async () => {
+  const src = fileSource(new Blob([new Uint8Array(1000)]));
+  await src.read(0, 100);
+  await src.read(50, 150);
+  await src.read(0, 100);
+  await src.read(900, 2000);
+  expect(src.bytesRead).toBe(250);
+});

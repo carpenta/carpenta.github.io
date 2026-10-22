@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/generate-sample.mjs",
     "dev": "vite --host 127.0.0.1",
     "prebuild": "node scripts/generate-sample.mjs",
     "build": "tsc --noEmit && vite build",
