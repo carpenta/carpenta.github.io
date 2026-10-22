@@ -6,6 +6,11 @@ import { finished } from 'node:stream/promises';
 import zlib from 'node:zlib';
 import avro from 'avsc';
 import { parquetWriteBuffer } from 'hyparquet-writer';
+import {
+  CompressionType, Decimal, Dictionary, Field, Int32, Int64, List, RecordBatchStreamWriter, Struct, Table,
+  TimestampMicrosecond, Utf8, compressionRegistry, makeData, makeVector, tableToIPC, vectorFromArray,
+} from 'apache-arrow';
+import lz4js from 'lz4js';
 import snappy from 'snappyjs';
 
 const out = join(import.meta.dirname, 'fixtures/generated');
@@ -197,6 +202,46 @@ for (const codec of ['UNCOMPRESSED', 'SNAPPY', 'GZIP', 'BROTLI', 'ZSTD']) {
     rowGroupSize: 25000,
   });
   writeFileSync(join(out, 'parquet-big.parquet'), new Uint8Array(buf));
+}
+
+// ---------- Arrow ----------
+
+function arrowBatchTable(from, n) {
+  const ids = BigInt64Array.from({ length: n }, (_, k) => BigInt(from + k));
+  const tsv = BigInt64Array.from({ length: n }, (_, k) => 1700000000000000n + BigInt(from + k));
+  const dec = new Uint32Array(n * 4);
+  for (let k = 0; k < n; k++) {
+    let v = 9223372036854775807n - BigInt(from + k);
+    for (let w = 0; w < 4; w++) {
+      dec[k * 4 + w] = Number(v & 0xffffffffn);
+      v >>= 32n;
+    }
+  }
+  const at = (f) => Array.from({ length: n }, (_, k) => f(from + k));
+  return new Table({
+    id: makeVector(makeData({ type: new Int64(), length: n, data: ids })),
+    name: vectorFromArray(at((i) => (i % 10 === 0 ? '' : i % 10 === 1 ? null : `name-${i}`)), new Utf8()),
+    ts: makeVector(makeData({ type: new TimestampMicrosecond('UTC'), length: n, data: tsv })),
+    amount: makeVector(makeData({ type: new Decimal(4, 18, 128), length: n, data: dec })),
+    tags: vectorFromArray(at((i) => (i % 5 === 0 ? [] : i % 5 === 1 ? null : ['a', 'b'.repeat((i % 3) + 1)])), new List(new Field('item', new Utf8(), true))),
+    st: vectorFromArray(at((i) => (i % 7 === 0 ? null : { a: i })), new Struct([new Field('a', new Int32(), true)])),
+    cat: vectorFromArray(at((i) => ['x', 'y', 'z'][i % 3]), new Dictionary(new Utf8(), new Int32())),
+  });
+}
+
+{
+  // 한 번에 만든 뒤 잘라야 스키마(dictionary id, nullable)가 같다
+  const whole = arrowBatchTable(0, 1000);
+  const table = new Table([0, 250, 500, 750].flatMap((from) => whole.slice(from, from + 250).batches));
+  writeFileSync(join(out, 'arrow-file.arrow'), tableToIPC(table, 'file'));
+  writeFileSync(join(out, 'arrow-stream.arrows'), tableToIPC(table, 'stream'));
+
+  compressionRegistry.set(CompressionType.ZSTD, { encode: (b) => new Uint8Array(zlib.zstdCompressSync(b)) });
+  compressionRegistry.set(CompressionType.LZ4_FRAME, { encode: (b) => new Uint8Array(lz4js.compress(b)) });
+  for (const [name, compressionType] of [['zstd', CompressionType.ZSTD], ['lz4', CompressionType.LZ4_FRAME]]) {
+    const writer = new RecordBatchStreamWriter({ compressionType });
+    writeFileSync(join(out, `arrow-${name}.arrows`), writer.writeAll(table).toUint8Array(true));
+  }
 }
 
 console.log(`fixtures written to ${out}`);

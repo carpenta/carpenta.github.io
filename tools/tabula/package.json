@@ -24,6 +24,7 @@
     "@types/node": "26.6.4",
     "avsc": "5.7.9",
     "hyparquet-writer": "0.17.0",
+    "lz4js": "0.2.0",
     "snappyjs": "0.7.0",
     "typescript": "7.0.2",
     "vite": "8.3.3",
