@@ -131,6 +131,32 @@ test('count rows for avro, and closing while counting does not leak into the nex
   await expect(page.locator('#file-name')).toHaveText('parquet-SNAPPY.parquet');
 });
 
+test('going to a row past the end of an avro file shows the last page and the real total', async ({ page }) => {
+  await open(page, 'avro-all-types-null.avro');
+  await page.locator('#goto').fill('5000');
+  await page.locator('#goto').press('Enter');
+  await expect(page.locator('#page-range')).toHaveText('901–1,000 / 1,000');
+  await expect(page.locator('#grid tbody tr')).toHaveCount(100);
+});
+
+test('closing a file while it is still opening keeps the start screen', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles(join(fixtures, 'parquet-big.parquet'));
+  await page.evaluate(() => document.getElementById('close-file')!.click());
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#welcome')).toBeVisible();
+  await expect(page.locator('#viewer')).toBeHidden();
+});
+
+test('choosing another file while one is opening shows the one chosen last', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles(join(fixtures, 'parquet-big.parquet'));
+  await page.locator('#file-input').setInputFiles(join(fixtures, 'arrow-file.arrow'));
+  await page.waitForTimeout(1500);
+  await expect(page.locator('#file-name')).toHaveText('arrow-file.arrow');
+  await expect(page.locator('#page-range')).toContainText('/ ?');
+});
+
 test('malformed and unsupported files show recoverable errors', async ({ page }) => {
   await page.goto('/');
   await page.locator('#file-input').setInputFiles(join(fixtures, 'unsupported.txt'));

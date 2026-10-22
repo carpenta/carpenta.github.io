@@ -82,6 +82,20 @@ test('exceeding the byte budget fails with budget and the suggestion is trimmed'
   await expect(r.readPage(0, 100, ['id', 's1'], signal())).rejects.toMatchObject({ code: 'budget' });
 });
 
+test('column stats cover every row group and never show lossy decimals', async () => {
+  const s = await parquetReader(nodeSource('parquet-SNAPPY.parquet')).open();
+  const cols = s.metadata.find((m) => m.title === '컬럼')!.table!;
+  const at = (name: string, header: string) => cols.rows.find((r) => r[0] === name)![cols.headers.indexOf(header)];
+  expect(at('ts', 'max')).toBe('2023-11-14 22:13:20.000999');
+  expect(at('ts', 'min')).toBe('2023-11-14 22:13:20.000000');
+  expect(at('day', 'max')).toBe(formatDay(19999));
+  expect(at('id', 'max')).toBe('999');
+  expect(at('amount', 'min')).toBe('');
+  expect(at('amount', 'max')).toBe('');
+});
+
+const formatDay = (d: number) => new Date(d * 86400000).toISOString().slice(0, 10);
+
 test('metadata has file, key-value, row group and column sections', async () => {
   const s = await parquetReader(nodeSource('parquet-GZIP.parquet')).open();
   expect(s.metadata.map((m) => m.title)).toEqual(['파일', 'key-value', 'row group', '컬럼']);

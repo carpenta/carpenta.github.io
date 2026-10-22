@@ -59,6 +59,8 @@ interface State {
 }
 
 let state: State | null = null;
+/** 아직 열리는 중인 파일의 client. 열기가 끝나기 전에 닫거나 다른 파일을 고르면 이것을 끝낸다. */
+let opening: TabulaClient | null = null;
 const widths = new Map<string, number>();
 let popoverCell: { cell: Cell; row: Cell[]; columns: string[] } | null = null;
 let reloadTimer: number | undefined;
@@ -132,6 +134,8 @@ function flattenTypes(cols: ColumnInfo[]): Map<string, string> {
 function closeFile(): void {
   if (state) state.client.dispose();
   state = null;
+  opening?.dispose();
+  opening = null;
   window.clearTimeout(reloadTimer);
   closePopover();
   closeMeta();
@@ -147,16 +151,24 @@ function closeFile(): void {
 async function openFile(file: File): Promise<void> {
   closeFile();
   const client = createClient(() => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+  opening = client;
   say(`${file.name}을 여는 중`);
   let summary: FileSummary;
   try {
     summary = await withProgress('파일 구조를 읽는 중', client.open(file));
   } catch (e) {
     client.dispose();
+    if (opening === client) opening = null;
     if (e instanceof TabulaError && e.code === 'cancelled') return;
     showError(errorText(e));
     return;
   }
+  // 그사이 닫았거나 다른 파일을 골랐다
+  if (opening !== client) {
+    client.dispose();
+    return;
+  }
+  opening = null;
   const selected = summary.suggestedColumns;
   const tree = renderSchema(ui.schema, summary.columns, selected, (names) => {
     if (!state) return;
@@ -212,7 +224,7 @@ async function loadPage(start: number): Promise<void> {
   }
   if (state !== s) return;
   s.page = page;
-  if (page.eof && s.rowCount === null) s.rowCount = page.start + page.rows.length;
+  if (page.total !== undefined) s.rowCount = page.total;
   if (page.rows.length === 0 && page.start > 0) {
     // 끝을 지나쳤다: 마지막 페이지로
     const last = s.rowCount !== null ? Math.max(0, s.rowCount - PAGE_SIZE) : 0;
@@ -354,7 +366,10 @@ ui.goto.addEventListener('keydown', (ev) => {
   if (Number.isInteger(n) && n >= 1) void loadPage(n - 1);
 });
 ui.countRows.addEventListener('click', () => void countRows());
-$('cancel-progress').addEventListener('click', () => state?.client.cancel());
+$('cancel-progress').addEventListener('click', () => {
+  if (opening) closeFile();
+  else state?.client.cancel();
+});
 
 ui.schemaSearch.addEventListener('input', () => state?.tree.filter(ui.schemaSearch.value));
 $('select-all').addEventListener('click', () => {

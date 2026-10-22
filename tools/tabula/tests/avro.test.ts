@@ -4,7 +4,7 @@ import { TabulaError } from '../src/types';
 import { nodeSource, signal } from './helpers';
 
 const ROW0 = [
-  '0', '-500', '0', '0', 'true', '""', '0x000102', 'RED', '0x00aabbcc', '[]', '{"k":0}', 'NULL', 'NULL',
+  '0', '-500', '0', '0', 'true', '""', '0x000102', 'RED', '0x00aabbcc', '[]', '{"k":"0"}', 'NULL', 'NULL',
   '{"x":0,"y":"GREEN"}', '123.45', '00000000-0000-4000-8000-000000000000', '2022-01-08', '01:02:03.004',
   '01:02:03.004005', '2023-11-14 22:13:20.000', '2023-11-14 22:13:20.000000', '2023-11-14 22:13:20.000000000',
   '2023-11-14 22:13:20.000000',
@@ -63,6 +63,15 @@ test('jumping to row 150000 reads only block headers before it', async () => {
   expect(src.bytesRead).toBeLessThan(src.byteLength * 0.05);
   const back = await r.readPage(100, 100, ['id'], signal());
   expect(back.rows[0][0].text).toBe(String(100n * 1000000007n));
+});
+
+test('reading past the end reports eof and the real total', async () => {
+  const r = avroReader(nodeSource('avro-big.avro'));
+  const s = await r.open();
+  const p = await r.readPage(250000, 100, s.suggestedColumns, signal());
+  expect(p.rows).toEqual([]);
+  expect(p.eof).toBe(true);
+  expect(p.total).toBe(200000);
 });
 
 test('countRows walks every block', async () => {

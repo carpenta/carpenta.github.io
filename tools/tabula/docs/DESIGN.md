@@ -14,7 +14,9 @@ Values are shown without loss:
 - Decimals are scaled exactly from their unscaled integers.
 - Timestamps keep every digit of their unit (ms, µs, ns), and zoned timestamps display in UTC.
 - NULL, the empty string and the empty list render differently.
-- JSON export writes int64 and decimals as strings.
+- float32 values print the shortest text that round-trips as float32.
+- JSON export always writes int64 and decimals as strings.
+- Parquet decimal statistics are left blank, because the metadata parser has already turned them into floats.
 
 Out of scope for this version: ORC, SQL or whole-file sort and filter, editing, conversion, remote files and multi-file datasets.
 
@@ -75,7 +77,7 @@ Fixtures are generated deterministically by `tests/generate-fixtures.mjs`:
 - avsc writes the Avro files, hyparquet-writer the Parquet files and apache-arrow the Arrow files.
 - Node `zlib` and lz4js are the compressors.
 - No personal data is used.
-- Parquet LZ4 variants and INT96 have no Node writer available. Their decoding relies on the library, and INT96 conversion is unit-tested.
+- Parquet LZ4 variants and INT96 columns have no Node writer available. Their decoding relies on the library; only the INT96 conversion used for column statistics is unit-tested.
 
 Playwright (Chromium) covers:
 - Opening every format; paging, go-to-row and end of file; column selection and search.

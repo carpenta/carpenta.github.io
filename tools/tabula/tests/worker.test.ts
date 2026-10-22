@@ -44,6 +44,13 @@ test('unsupported files report unsupported-format', async () => {
   expect(reply(1)).toMatchObject({ ok: false, code: 'unsupported-format' });
 });
 
+test('a truncated parquet file reports corrupt, not unsupported', async () => {
+  const { handle, reply } = harness();
+  const buf = readFileSync(join(fixtures, 'parquet-SNAPPY.parquet'));
+  await handle({ id: 1, op: 'open', file: new File([buf.subarray(0, buf.length - 100)], 'cut.parquet') });
+  expect(reply(1)).toMatchObject({ ok: false, code: 'corrupt' });
+});
+
 test('page before open is an error, not a crash', async () => {
   const { handle, reply } = harness();
   await handle({ id: 1, op: 'page', start: 0, count: 1, columns: [] });

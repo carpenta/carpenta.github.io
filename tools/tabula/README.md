@@ -45,7 +45,9 @@ npm run preview -- --port 4174 --strictPort
   - decimal은 스케일을 적용한 정확한 10진수로 보여 줍니다.
   - timestamp는 단위(ms·μs·ns)의 자릿수를 모두 보여 줍니다. 시간대가 있는 값은 UTC로 표시합니다.
   - NULL, 빈 문자열(`""`), 빈 리스트(`[]`)를 서로 다르게 보여 줍니다.
-  - JSON 내보내기에서 int64와 decimal은 문자열입니다.
+  - float32는 float64로 넓힐 때 생기는 꼬리 없이 보여 줍니다(`0.1`).
+  - JSON 내보내기에서 int64와 decimal은 항상 문자열입니다.
+  - Parquet 메타데이터의 decimal 컬럼 min/max는 비워 둡니다. 읽는 라이브러리가 통계를 정밀도 낮은 숫자로 바꿔 주기 때문입니다.
 - 제한
   - ORC는 지원하지 않습니다.
   - SQL 질의, 파일 전체를 대상으로 한 정렬·필터는 없습니다. 둘러보기 전용입니다.
@@ -85,7 +87,7 @@ npm run test:e2e -- --workers=1
   - 손상·미지원 파일, 샘플, 내보내기
   - 외부 요청·저장소 사용 없음, 360px 폭에서 가로 스크롤 없음
 - 테스트 파일은 `tests/generate-fixtures.mjs`가 결정적인 값으로 만듭니다(`tests/fixtures/generated/`, 커밋하지 않음). 개인 데이터를 넣지 않습니다.
-- Parquet LZ4 계열과 INT96은 Node용 작성 도구가 없어 파일 단위 테스트가 없습니다. INT96 변환은 단위 테스트로 확인합니다.
+- Parquet LZ4 계열과 INT96 컬럼은 Node용 작성 도구가 없어 파일 단위 테스트가 없습니다. INT96 값의 변환은 hyparquet에 맡기고, 통계(min/max)의 INT96 변환만 단위 테스트로 확인합니다.
 
 ## 배포
 

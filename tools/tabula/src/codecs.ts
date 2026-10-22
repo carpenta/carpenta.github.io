@@ -1,6 +1,7 @@
 import { inflateSync } from 'fflate';
 import { decompress } from 'fzstd';
 import { snappyUncompress } from 'hyparquet';
+import { PAGE_BYTE_BUDGET } from './types';
 
 /** raw DEFLATE (Avro deflate 코덱). */
 export function inflateRaw(b: Uint8Array): Uint8Array {
@@ -22,7 +23,10 @@ function snappyLength(b: Uint8Array): number {
 }
 
 export function snappy(b: Uint8Array, outLen?: number): Uint8Array {
-  const out = new Uint8Array(outLen ?? snappyLength(b));
+  const len = outLen ?? snappyLength(b);
+  // 손상된 길이로 수십 GB를 할당하지 않는다
+  if (len > PAGE_BYTE_BUDGET) throw new Error('snappy block is too large');
+  const out = new Uint8Array(len);
   snappyUncompress(b, out);
   return out;
 }

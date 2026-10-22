@@ -42,8 +42,18 @@ export function createClient(makeWorker: () => Worker): TabulaClient {
     else p.reject(new TabulaError(msg.code, msg.message));
   };
 
+  let broken: TabulaError | null = null;
+  worker.onerror = (ev) => {
+    if (disposed) return;
+    broken = new TabulaError('corrupt', `파일을 읽는 작업이 멈췄습니다${(ev as ErrorEvent)?.message ? `: ${(ev as ErrorEvent).message}` : ''}. 파일을 다시 열어 주세요.`);
+    for (const p of pending.values()) p.reject(broken);
+    pending.clear();
+  };
+  worker.onmessageerror = worker.onerror as never;
+
   function send<T>(body: ReqBody, onProgress?: (rows: number) => void): Promise<T> {
     if (disposed) return Promise.reject(new TabulaError('cancelled', '뷰어가 닫혔습니다.'));
+    if (broken) return Promise.reject(broken);
     const id = nextId++;
     return new Promise<T>((resolve, reject) => {
       pending.set(id, { resolve: resolve as (v: unknown) => void, reject, onProgress });

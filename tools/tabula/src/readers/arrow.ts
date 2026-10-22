@@ -1,6 +1,6 @@
 import { CompressionType, DataType, RecordBatchReader, Type, compressionRegistry, type RecordBatch, type Schema, type Vector } from 'apache-arrow';
 import {
-  binaryCell, boolCell, formatDate, formatDecimal, formatTime, formatTimestamp, nestedCell, nullCell, numberCell, stringCell,
+  binaryCell, boolCell, float32Cell, formatDate, formatDecimal, formatTime, formatTimestamp, nestedCell, nullCell, numberCell, stringCell,
   temporalCell, type TimeUnit,
 } from '../cells';
 import { lz4Frame, zstd } from '../codecs';
@@ -61,7 +61,8 @@ function typeLabel(t: DataType): string {
       return `time(${UNIT_LABEL[x.unit]})`;
     case Type.Timestamp: {
       const tz = x.timezone;
-      return `timestamp(${UNIT_LABEL[x.unit]}${tz ? `, ${tz}` : ''})`;
+      // 시간대가 있는 값은 UTC epoch이고 UTC로 표시한다
+      return `timestamp(${UNIT_LABEL[x.unit]}${tz ? ', UTC' : ''})`;
     }
     case Type.List:
     case Type.LargeList:
@@ -101,8 +102,9 @@ function cellAt(v: Vector, i: number): Cell {
   const t = v.type as DataType & Record<string, unknown>;
   switch (t.typeId) {
     case Type.Int:
-    case Type.Float:
       return numberCell(v.get(i) as number | bigint);
+    case Type.Float:
+      return t.precision === 1 ? float32Cell(v.get(i) as number) : numberCell(v.get(i) as number);
     case Type.Bool:
       return boolCell(v.get(i) as boolean);
     case Type.Utf8:
@@ -282,7 +284,8 @@ export function arrowReader(src: ByteSource, format: 'arrow-file' | 'arrow-strea
           currentStart = keep.currentStart;
         }
       }
-      return { start, columns: picked.map((f) => f.name), rows, eof: done && end >= nextStart };
+      const atEnd = done && end >= nextStart;
+      return { start, columns: picked.map((f) => f.name), rows, eof: atEnd, total: atEnd ? nextStart : undefined };
     },
 
     async countRows(signal, onProgress) {

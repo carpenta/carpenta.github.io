@@ -1,7 +1,7 @@
 import { parquetMetadataAsync, parquetRead, parquetSchema, type AsyncBuffer, type FileMetaData, type ParquetParsers, type SchemaElement, type SchemaTree } from 'hyparquet';
 import { compressors } from 'hyparquet-compressors';
 import {
-  bigintFromTwosComplement, binaryCell, boolCell, formatDate, formatDecimal, formatTime, formatTimestamp,
+  bigintFromTwosComplement, binaryCell, float32Cell, int96ToNanos, boolCell, formatDate, formatDecimal, formatTime, formatTimestamp,
   nestedCell, nullCell, numberCell, stringCell, temporalCell, type TimeUnit,
 } from '../cells';
 import { PAGE_BYTE_BUDGET, TabulaError, type ByteSource, type Cell, type ColumnInfo, type FileSummary, type JsonValue, type MetaSection, type Reader } from '../types';
@@ -55,6 +55,7 @@ function leafCell(v: unknown, e: SchemaElement): Cell {
   }
   const unit = timeUnit(e);
   if (unit && (typeof v === 'number' || typeof v === 'bigint')) return temporalCell(formatTime(BigInt(v), unit));
+  if (typeof v === 'number' && e.type === 'FLOAT') return float32Cell(v);
   if (typeof v === 'bigint' || typeof v === 'number') return numberCell(v);
   if (typeof v === 'boolean') return boolCell(v);
   if (typeof v === 'string') return stringCell(v);
@@ -171,7 +172,34 @@ const str = (v: unknown): string => {
 };
 const bytes = (n: number) => (n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`);
 
-function metadataSections(md: FileMetaData): MetaSection[] {
+/** 통계 값을 비교할 수 있는 원시 값으로. 비교할 수 없으면 undefined. */
+function statKey(v: unknown): bigint | number | string | boolean | undefined {
+  if (isTs(v)) return v.$ts;
+  if (isDay(v)) return v.$date;
+  if (typeof v === 'bigint' || typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') return v;
+  return undefined;
+}
+
+/** row group 하나의 통계 값을 화면용 값으로. decimal은 hyparquet가 이미 Number로 바꿔 정밀도를 잃었으므로 버린다. */
+function statValue(v: unknown, e: SchemaElement | undefined): unknown {
+  if (v === undefined || v === null || !e) return v ?? undefined;
+  if (decimalScale(e) !== undefined) return undefined;
+  if (e.type === 'INT96' && v instanceof Uint8Array && v.length === 12) return { $ts: int96ToNanos(v), unit: 'ns' } satisfies Ts;
+  return v;
+}
+
+function leafElements(tree: SchemaTree): Map<string, SchemaElement> {
+  const out = new Map<string, SchemaElement>();
+  const walk = (n: SchemaTree, path: string[]) => {
+    if (n.children.length === 0) out.set(path.join('.'), n.element);
+    for (const c of n.children) walk(c, [...path, c.element.name]);
+  };
+  for (const c of tree.children) walk(c, [c.element.name]);
+  return out;
+}
+
+function metadataSections(md: FileMetaData, tree: SchemaTree): MetaSection[] {
+  const leaves = leafElements(tree);
   const groups = md.row_groups;
   const perColumn = new Map<string, { codec: Set<string>; enc: Set<string>; comp: number; uncomp: number; min?: unknown; max?: unknown; nulls: bigint; type: string }>();
   let total = 0;
@@ -188,10 +216,14 @@ function metadataSections(md: FileMetaData): MetaSection[] {
       total += Number(m.total_compressed_size);
       const st = m.statistics;
       if (st) {
-        const min = st.min_value ?? st.min;
-        const max = st.max_value ?? st.max;
-        if (min !== undefined && (entry.min === undefined || (min as never) < (entry.min as never))) entry.min = min;
-        if (max !== undefined && (entry.max === undefined || (max as never) > (entry.max as never))) entry.max = max;
+        const el = leaves.get(key);
+        const min = statValue(st.min_value ?? st.min, el);
+        const max = statValue(st.max_value ?? st.max, el);
+        const kMin = statKey(min);
+        const kMax = statKey(max);
+        // 비교할 수 없는 값(바이너리 등)은 첫 row group 것만 보여 준다
+        if (min !== undefined && (entry.min === undefined || (kMin !== undefined && kMin < statKey(entry.min)!))) entry.min = min;
+        if (max !== undefined && (entry.max === undefined || (kMax !== undefined && kMax > statKey(entry.max)!))) entry.max = max;
         if (st.null_count !== undefined) entry.nulls += BigInt(st.null_count);
       }
       perColumn.set(key, entry);
@@ -297,7 +329,7 @@ export function parquetReader(src: ByteSource, opts: { budget?: number } = {}): 
         columns: tree.children.map(columnInfo),
         suggestedColumns: suggested,
         notice,
-        metadata: metadataSections(md),
+        metadata: metadataSections(md, tree),
       };
     },
 
@@ -305,7 +337,7 @@ export function parquetReader(src: ByteSource, opts: { budget?: number } = {}): 
       const total = Number(md.num_rows);
       const end = Math.min(total, start + count);
       const picked = tree.children.filter((c) => columns.includes(c.element.name));
-      if (start >= end || picked.length === 0) return { start, columns: picked.map((c) => c.element.name), rows: [], eof: end >= total };
+      if (start >= end || picked.length === 0) return { start, columns: picked.map((c) => c.element.name), rows: [], eof: end >= total, total };
       if (signal.aborted) throw cancelled();
 
       let need = 0;
@@ -341,6 +373,7 @@ export function parquetReader(src: ByteSource, opts: { budget?: number } = {}): 
         columns: names,
         rows: rows.map((r) => picked.map((c) => cellFor(r[c.element.name], c))),
         eof: end >= total,
+        total,
       };
     },
 

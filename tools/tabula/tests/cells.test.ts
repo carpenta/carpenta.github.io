@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import {
-  binaryCell, bigintFromTwosComplement, formatDate, formatDecimal, formatTime, formatTimestamp,
+  float32Cell, binaryCell, bigintFromTwosComplement, formatDate, formatDecimal, formatTime, formatTimestamp,
   int96ToNanos, nestedCell, nullCell, numberCell, stringCell,
 } from '../src/cells';
 
@@ -38,9 +38,18 @@ test('NULL, empty string and empty list stay distinct', () => {
   expect(nestedCell([])).toMatchObject({ kind: 'nested', text: '[]' });
 });
 
-test('int64 beyond safe range stays exact and exports as string', () => {
+test('int64 stays exact and always exports as a string', () => {
   expect(numberCell(9007199254740993n)).toMatchObject({ text: '9007199254740993', json: '9007199254740993' });
-  expect(numberCell(42n).json).toBe(42);
+  expect(numberCell(42n).json).toBe('42');
+  expect(numberCell(42).json).toBe(42);
+});
+
+test('float32 prints the shortest text that round-trips as float32', () => {
+  expect(float32Cell(Math.fround(0.1)).text).toBe('0.1');
+  expect(float32Cell(Math.fround(249.75)).text).toBe('249.75');
+  expect(float32Cell(Math.fround(1 / 3)).text).toBe('0.33333334');
+  expect(float32Cell(Math.fround(0.1)).json).toBe(0.1);
+  expect(float32Cell(NaN).text).toBe('NaN');
 });
 
 test('binary preview and truncation', () => {

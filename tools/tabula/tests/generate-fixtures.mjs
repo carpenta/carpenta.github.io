@@ -236,6 +236,10 @@ function arrowBatchTable(from, n) {
   writeFileSync(join(out, 'arrow-file.arrow'), tableToIPC(table, 'file'));
   writeFileSync(join(out, 'arrow-stream.arrows'), tableToIPC(table, 'stream'));
 
+  // 시간대가 붙은 timestamp: 값은 UTC epoch다
+  const tz = new Table({ ts: makeVector(makeData({ type: new TimestampMicrosecond('Asia/Seoul'), length: 1, data: BigInt64Array.from([1700000000000000n]) })) });
+  writeFileSync(join(out, 'arrow-tz.arrows'), tableToIPC(tz, 'stream'));
+
   compressionRegistry.set(CompressionType.ZSTD, { encode: (b) => new Uint8Array(zlib.zstdCompressSync(b)) });
   compressionRegistry.set(CompressionType.LZ4_FRAME, { encode: (b) => new Uint8Array(lz4js.compress(b)) });
   for (const [name, compressionType] of [['zstd', CompressionType.ZSTD], ['lz4', CompressionType.LZ4_FRAME]]) {

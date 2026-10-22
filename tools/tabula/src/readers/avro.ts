@@ -118,7 +118,8 @@ export function avroReader(src: ByteSource): Reader {
       }
       const end = start + rows.length;
       if (end >= knownRows && !eof) await locate(end, signal);
-      return { start, columns: picked, rows, eof: eof && end >= knownRows };
+      const atEnd = eof && end >= knownRows;
+      return { start, columns: picked, rows, eof: atEnd, total: atEnd ? knownRows : undefined };
     },
 
     async countRows(signal, onProgress) {

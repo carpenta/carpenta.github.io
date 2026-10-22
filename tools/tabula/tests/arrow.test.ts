@@ -53,6 +53,23 @@ test('the last page reports eof', async () => {
   expect(p.eof).toBe(true);
 });
 
+test('reading past the end reports eof and the real total', async () => {
+  const r = arrowReader(nodeSource('arrow-file.arrow'), 'arrow-file');
+  await r.open();
+  const p = await r.readPage(4999, 100, ['id'], signal());
+  expect(p.rows).toEqual([]);
+  expect(p.eof).toBe(true);
+  expect(p.total).toBe(1000);
+});
+
+test('zoned timestamps are labelled and shown in UTC', async () => {
+  const r = arrowReader(nodeSource('arrow-tz.arrows'), 'arrow-stream');
+  const s = await r.open();
+  expect(s.columns[0].type).toBe('timestamp(us, UTC)');
+  const p = await r.readPage(0, 1, ['ts'], signal());
+  expect(p.rows[0][0].text).toBe('2023-11-14 22:13:20.000000');
+});
+
 test('countRows is 1000 and does not disturb paging', async () => {
   const r = arrowReader(nodeSource('arrow-stream.arrows'), 'arrow-stream');
   await r.open();

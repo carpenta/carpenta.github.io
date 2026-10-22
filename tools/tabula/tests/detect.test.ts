@@ -4,9 +4,10 @@ import { fileSource } from '../src/source';
 
 const b = (s: string) => new TextEncoder().encode(s);
 
-test('parquet needs PAR1 at both ends', () => {
+test('parquet starts with PAR1', () => {
   expect(detectFormat(b('PAR1xxxx'), b('xxxxPAR1'))).toBe('parquet');
-  expect(detectFormat(b('PAR1xxxx'), b('xxxxxxxx'))).toBeNull();
+  // 끝의 PAR1이 없으면 잘린 Parquet이다. 형식은 Parquet으로 보고 여는 단계에서 손상으로 알린다
+  expect(detectFormat(b('PAR1xxxx'), b('xxxxxxxx'))).toBe('parquet');
 });
 
 test('arrow file and stream', () => {

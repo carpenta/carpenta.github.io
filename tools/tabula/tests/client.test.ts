@@ -84,6 +84,15 @@ test('progress messages call onProgress', async () => {
   expect(seen).toEqual([100, 200]);
 });
 
+test('a worker error rejects pending requests instead of hanging', async () => {
+  const w = fakeWorker() as ReturnType<typeof fakeWorker> & { onerror: ((ev: unknown) => void) | null };
+  const c = createClient(() => w as unknown as Worker);
+  const p = c.page(0, 1, []);
+  w.onerror?.({ message: 'boom' });
+  await expect(p).rejects.toMatchObject({ code: 'corrupt' });
+  await expect(c.page(0, 1, [])).rejects.toMatchObject({ code: 'corrupt' });
+});
+
 test('bytesRead follows the latest reply', async () => {
   const w = fakeWorker();
   const c = createClient(() => w as unknown as Worker);

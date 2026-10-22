@@ -47,6 +47,8 @@ export interface Page {
   columns: string[];
   rows: Cell[][];
   eof: boolean;
+  /** 전체 행 수를 알게 되었으면 그 값(끝에 닿았거나 메타데이터에 있을 때). */
+  total?: number;
 }
 
 export interface Reader {

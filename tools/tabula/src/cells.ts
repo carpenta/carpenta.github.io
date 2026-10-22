@@ -83,9 +83,24 @@ export function stringCell(s: string): Cell {
 export function numberCell(v: number | bigint): Cell {
   const text = String(v);
   let json: JsonValue;
-  if (typeof v === 'bigint') json = v >= BigInt(Number.MIN_SAFE_INTEGER) && v <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(v) : text;
+  // bigint는 int64·uint64에서만 온다. 한 컬럼 안에서 숫자와 문자열이 섞이지 않게 항상 문자열로 내보낸다
+  if (typeof v === 'bigint') json = text;
   else json = Number.isFinite(v) ? v : text;
   return { kind: 'number', text, full: text, json };
+}
+
+/** float32 값. float64로 넓히면 생기는 꼬리(0.10000000149…) 없이, float32로 되돌렸을 때 같은 가장 짧은 표기를 쓴다. */
+export function float32Cell(v: number): Cell {
+  if (!Number.isFinite(v)) return numberCell(v);
+  let text = String(v);
+  for (let p = 1; p <= 9; p++) {
+    const s = v.toPrecision(p);
+    if (Math.fround(Number(s)) === v) {
+      text = String(Number(s));
+      break;
+    }
+  }
+  return { kind: 'number', text, full: text, json: Number(text) };
 }
 
 export function boolCell(v: boolean): Cell {

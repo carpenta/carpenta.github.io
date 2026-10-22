@@ -1,5 +1,5 @@
 import {
-  bigintFromTwosComplement, binaryCell, boolCell, formatDate, formatDecimal, formatTime, formatTimestamp,
+  bigintFromTwosComplement, binaryCell, float32Cell, boolCell, formatDate, formatDecimal, formatTime, formatTimestamp,
   nestedCell, nullCell, numberCell, stringCell, temporalCell, type TimeUnit,
 } from '../cells';
 import { TabulaError, type Cell, type JsonValue } from '../types';
@@ -17,6 +17,10 @@ export class Cursor {
 
   get done(): boolean {
     return this.pos >= this.bytes.length;
+  }
+
+  get remaining(): number {
+    return this.bytes.length - this.pos;
   }
 
   private need(n: number): void {
@@ -88,8 +92,39 @@ const decimal = (bytes: Uint8Array, scale = 0): Cell => {
   return { kind: 'number', text, full: text, json: text };
 };
 
+/** 값 하나가 차지하는 최소 바이트. null이나 필드 없는 record는 0이다. */
+function minWidth(t: AvroType, seen = new Set<AvroType>()): number {
+  switch (t.kind) {
+    case 'null':
+      return 0;
+    case 'float':
+      return 4;
+    case 'double':
+      return 8;
+    case 'fixed':
+      return t.size;
+    case 'record': {
+      if (seen.has(t)) return 0;
+      seen.add(t);
+      return t.fields.reduce((s, f) => s + minWidth(f.type, seen), 0);
+    }
+    default:
+      return 1;
+  }
+}
+
+/** 바이트를 쓰지 않는 항목이 블록 하나에 이보다 많으면 손상으로 본다. */
+const MAX_ZERO_WIDTH_ITEMS = 1_000_000;
+
+/** 블록의 항목 수가 남은 바이트로 가능한지 확인한다. 손상된 count로 멈추거나 메모리를 다 쓰지 않게 한다. */
+function checkCount(count: bigint, itemWidth: number, c: Cursor): number {
+  const limit = itemWidth === 0 ? MAX_ZERO_WIDTH_ITEMS : Math.floor(c.remaining / itemWidth);
+  if (count > BigInt(limit)) throw new TabulaError('corrupt', 'Avro array·map의 항목 수가 데이터보다 많습니다.');
+  return Number(count);
+}
+
 /** array·map의 블록을 돌며 항목마다 fn을 부른다. 음수 count 뒤에는 블록 바이트 크기가 온다. */
-function eachBlockItem(c: Cursor, fn: () => void): void {
+function eachBlockItem(c: Cursor, itemWidth: number, fn: () => void): void {
   for (;;) {
     let count = c.readLong();
     if (count === 0n) return;
@@ -97,7 +132,8 @@ function eachBlockItem(c: Cursor, fn: () => void): void {
       count = -count;
       c.readLong();
     }
-    for (let i = 0n; i < count; i++) fn();
+    const n = checkCount(count, itemWidth, c);
+    for (let i = 0; i < n; i++) fn();
   }
 }
 
@@ -122,7 +158,7 @@ export function decodeCell(t: AvroType, c: Cursor): Cell {
       return numberCell(v);
     }
     case 'float':
-      return numberCell(c.readFloat());
+      return float32Cell(c.readFloat());
     case 'double':
       return numberCell(c.readDouble());
     case 'bytes': {
@@ -145,12 +181,12 @@ export function decodeCell(t: AvroType, c: Cursor): Cell {
     }
     case 'array': {
       const items: JsonValue[] = [];
-      eachBlockItem(c, () => items.push(decodeCell(t.items, c).json));
+      eachBlockItem(c, minWidth(t.items), () => items.push(decodeCell(t.items, c).json));
       return nestedCell(items);
     }
     case 'map': {
       const obj: { [k: string]: JsonValue } = {};
-      eachBlockItem(c, () => {
+      eachBlockItem(c, 1 + minWidth(t.values), () => {
         const key = c.readString();
         obj[key] = decodeCell(t.values, c).json;
       });
@@ -215,9 +251,11 @@ export function skipValue(t: AvroType, c: Cursor): void {
           c.readFixed(Number(c.readLong()));
           continue;
         }
-        for (let i = 0n; i < count; i++) {
+        const item = t.kind === 'map' ? t.values : t.items;
+        const n = checkCount(count, (t.kind === 'map' ? 1 : 0) + minWidth(item), c);
+        for (let i = 0; i < n; i++) {
           if (t.kind === 'map') c.readBytes();
-          skipValue(t.kind === 'map' ? t.values : t.items, c);
+          skipValue(item, c);
         }
       }
     case 'union': {
