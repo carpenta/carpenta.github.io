@@ -8,5 +8,15 @@
       "en": "Open HWP, HWPX, PPTX, XLSX and DOCX files in your browser without uploading them, and save them as PDF."
     },
     "tags": ["HWP", "PPTX", "XLSX", "DOCX", "PDF"]
+  },
+  {
+    "slug": "tabula",
+    "kind": "built",
+    "title": { "ko": "Tabula — 데이터 파일 뷰어", "en": "Tabula — data file viewer" },
+    "description": {
+      "ko": "Parquet·Arrow·Avro 파일을 서버에 올리지 않고 브라우저에서 표로 열어 보고, 스키마와 row group 통계를 확인합니다.",
+      "en": "Browse Parquet, Arrow and Avro files as tables in your browser without uploading them, and inspect schemas and row group stats."
+    },
+    "tags": ["Parquet", "Arrow", "Avro"]
   }
 ]

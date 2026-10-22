@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Parquet·Arrow·Avro 파일을 올리지 않고 브라우저에서 표로 열어 보는 데이터 파일 뷰어." />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Tabula — 데이터 파일 뷰어</title>
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="./" aria-label="Tabula 처음 화면"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg>tabula</a>
+      <div id="file-bar" class="file-bar" hidden>
+        <div class="file-title"><h1 id="file-name"></h1><span id="file-meta"></span></div>
+        <div id="bytes-read" class="bytes" data-bytes="0" title="이 파일에서 지금까지 읽은 양">
+          <span class="bytes-text"></span>
+          <span class="bytes-meter" aria-hidden="true"><span class="bytes-fill"></span></span>
+        </div>
+        <div class="file-actions">
+          <button id="open-meta" class="btn" type="button" aria-controls="meta-panel" aria-expanded="false">메타데이터</button>
+          <button id="open-other" class="btn" type="button">다른 파일</button>
+          <button id="close-file" class="btn icon" type="button" aria-label="파일 닫기" title="파일 닫기">✕</button>
+        </div>
+      </div>
+      <a class="home-link" href="../../">carpenta.github.io</a>
+    </header>
+
+    <main>
+      <section id="welcome" class="welcome">
+        <h1>Parquet·Arrow·Avro 파일을<br />브라우저에서 바로 열어 봅니다</h1>
+        <p class="lede">파일은 이 컴퓨터를 떠나지 않습니다. 수 GB 파일도 필요한 부분만 읽어서, 스키마와 앞쪽 행을 바로 보여 줍니다.</p>
+        <div id="drop-zone" class="drop-zone">
+          <p class="drop-title">여기에 파일을 놓으세요</p>
+          <div class="drop-actions">
+            <button id="choose-file" class="btn primary" type="button">파일 선택</button>
+            <button id="try-sample" class="btn" type="button">샘플 파일 열기</button>
+          </div>
+          <p class="formats">.parquet, .arrow, .feather, .arrows, .avro</p>
+        </div>
+        <ul class="facts">
+          <li><b>올리지 않습니다.</b> 서버도 계정도 없습니다. 파일 내용과 이름을 어디에도 저장하지 않습니다.</li>
+          <li><b>필요한 만큼만 읽습니다.</b> Parquet은 고른 컬럼과 해당 row group만, Avro는 블록 단위로 읽습니다.</li>
+          <li><b>값을 바꾸지 않습니다.</b> int64, decimal, 마이크로·나노초 timestamp를 원래 정밀도 그대로 보여 줍니다.</li>
+        </ul>
+      </section>
+
+      <section id="viewer" class="viewer" hidden aria-label="파일 뷰어">
+        <details id="schema-box" class="schema" open>
+          <summary>컬럼 <span id="schema-count"></span></summary>
+          <input id="schema-search" type="search" placeholder="컬럼 이름 찾기" aria-label="컬럼 이름 찾기" autocomplete="off" />
+          <div class="schema-actions"><button id="select-all" class="link" type="button">모두 보기</button><button id="select-none" class="link" type="button">모두 숨기기</button></div>
+          <ul id="schema" class="schema-list"></ul>
+        </details>
+        <div class="grid-area">
+          <p id="notice" class="notice" hidden></p>
+          <div class="grid-scroll" tabindex="0" aria-label="데이터 표">
+            <table id="grid"><thead></thead><tbody></tbody></table>
+            <p id="empty" class="empty" hidden></p>
+          </div>
+          <div class="pager">
+            <span id="page-range" class="range"></span>
+            <button id="count-rows" class="link" type="button" hidden>전체 행 수 세기</button>
+            <span class="pager-nav">
+              <button id="prev" class="btn" type="button" aria-label="이전 100행">◀ 이전</button>
+              <button id="next" class="btn" type="button" aria-label="다음 100행">다음 ▶</button>
+              <label class="goto">행 <input id="goto" type="number" min="1" inputmode="numeric" aria-label="이동할 행 번호" /></label>
+            </span>
+            <span class="pager-export">
+              <button id="export-csv" class="link" type="button">CSV로 저장</button>
+              <button id="export-json" class="link" type="button">JSON으로 저장</button>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <aside id="meta-panel" class="meta-panel" hidden aria-label="메타데이터">
+        <div class="meta-head"><h2>메타데이터</h2><button id="close-meta" class="btn icon" type="button" aria-label="메타데이터 닫기">✕</button></div>
+        <div id="meta-body"></div>
+      </aside>
+
+      <div id="cell-popover" class="popover" role="dialog" aria-label="셀 값" hidden>
+        <div class="popover-head"><span id="popover-title"></span><button id="close-popover" class="btn icon" type="button" aria-label="닫기">✕</button></div>
+        <pre></pre>
+        <div class="popover-actions"><button id="copy-cell" class="btn" type="button">값 복사</button><button id="copy-row" class="btn" type="button">행을 JSON으로 복사</button></div>
+      </div>
+
+      <div id="progress" class="progress" hidden role="status">
+        <span class="spinner" aria-hidden="true"></span><span id="progress-text">읽는 중</span>
+        <button id="cancel-progress" class="link" type="button">취소</button>
+      </div>
+      <div id="error-message" class="error" role="alert" hidden></div>
+      <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+    </main>
+    <input id="file-input" type="file" hidden />
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
