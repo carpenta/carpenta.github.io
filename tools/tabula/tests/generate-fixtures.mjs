@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { finished } from 'node:stream/promises';
 import zlib from 'node:zlib';
 import avro from 'avsc';
+import { parquetWriteBuffer } from 'hyparquet-writer';
 import snappy from 'snappyjs';
 
 const out = join(import.meta.dirname, 'fixtures/generated');
@@ -124,5 +125,78 @@ await writeAvro('avro-big.avro', 'deflate', 200000, 30000);
 const big = readFileSync(join(out, 'avro-big.avro'));
 writeFileSync(join(out, 'truncated.avro'), big.subarray(0, Math.floor(big.length * 0.6)));
 writeFileSync(join(out, 'unsupported.txt'), 'a,b,c\n1,2,3\n');
+
+// ---------- Parquet ----------
+
+const range = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+const ts = (unit) => ({ type: 'TIMESTAMP', isAdjustedToUTC: true, unit });
+
+export function parquetColumns(n) {
+  return {
+    columnData: [
+      { name: 'id', data: range(n, (i) => i) },
+      { name: 'big', data: range(n, (i) => 9007199254740993n + BigInt(i)) },
+      { name: 'f64', data: range(n, (i) => i * 1.5) },
+      { name: 'flag', data: range(n, (i) => i % 2 === 0) },
+      { name: 'name', data: range(n, (i) => (i % 10 === 0 ? '' : i % 10 === 1 ? null : `name-${i}`)) },
+      { name: 'amount', data: range(n, (i) => 9223372036854775807n - BigInt(i)) },
+      { name: 'day', data: range(n, (i) => 19000 + i) },
+      { name: 'ts', data: range(n, (i) => 1700000000000000n + BigInt(i)) },
+      { name: 'ts_ms', data: range(n, (i) => 1700000000000n + BigInt(i)) },
+      { name: 'tags', data: range(n, (i) => (i % 5 === 0 ? [] : i % 5 === 1 ? null : ['a', 'b'.repeat((i % 3) + 1)])) },
+      { name: 'st', data: range(n, (i) => (i % 7 === 0 ? null : { a: i, b: i % 2 ? null : 'x' })) },
+    ],
+    schema: [
+      { name: 'root', num_children: 11 },
+      { name: 'id', type: 'INT32', repetition_type: 'REQUIRED' },
+      { name: 'big', type: 'INT64', repetition_type: 'OPTIONAL' },
+      { name: 'f64', type: 'DOUBLE', repetition_type: 'OPTIONAL' },
+      { name: 'flag', type: 'BOOLEAN', repetition_type: 'OPTIONAL' },
+      { name: 'name', type: 'BYTE_ARRAY', converted_type: 'UTF8', repetition_type: 'OPTIONAL' },
+      { name: 'amount', type: 'INT64', converted_type: 'DECIMAL', scale: 4, precision: 18, repetition_type: 'OPTIONAL' },
+      { name: 'day', type: 'INT32', converted_type: 'DATE', repetition_type: 'OPTIONAL' },
+      { name: 'ts', type: 'INT64', converted_type: 'TIMESTAMP_MICROS', logical_type: ts('MICROS'), repetition_type: 'OPTIONAL' },
+      { name: 'ts_ms', type: 'INT64', converted_type: 'TIMESTAMP_MILLIS', logical_type: ts('MILLIS'), repetition_type: 'OPTIONAL' },
+      { name: 'tags', converted_type: 'LIST', num_children: 1, repetition_type: 'OPTIONAL' },
+      { name: 'list', num_children: 1, repetition_type: 'REPEATED' },
+      { name: 'element', type: 'BYTE_ARRAY', converted_type: 'UTF8', repetition_type: 'OPTIONAL' },
+      { name: 'st', num_children: 2, repetition_type: 'OPTIONAL' },
+      { name: 'a', type: 'INT32', repetition_type: 'OPTIONAL' },
+      { name: 'b', type: 'BYTE_ARRAY', converted_type: 'UTF8', repetition_type: 'OPTIONAL' },
+    ],
+  };
+}
+
+const parquetCompressors = {
+  GZIP: (b) => zlib.gzipSync(b),
+  BROTLI: (b) => zlib.brotliCompressSync(b),
+  ZSTD: (b) => zlib.zstdCompressSync(b),
+};
+
+for (const codec of ['UNCOMPRESSED', 'SNAPPY', 'GZIP', 'BROTLI', 'ZSTD']) {
+  const buf = parquetWriteBuffer({
+    ...parquetColumns(1000), codec, compressors: parquetCompressors, rowGroupSize: 250,
+    kvMetadata: [{ key: 'tabula.test', value: 'yes' }], createdBy: 'tabula fixtures',
+  });
+  writeFileSync(join(out, `parquet-${codec}.parquet`), new Uint8Array(buf));
+}
+
+{
+  const n = 1000000;
+  const buf = parquetWriteBuffer({
+    columnData: [
+      { name: 'id', data: range(n, (i) => i), type: 'INT32' },
+      { name: 'v1', data: range(n, (i) => BigInt(i) * 3n), type: 'INT64' },
+      { name: 'v2', data: range(n, (i) => i / 3), type: 'DOUBLE' },
+      { name: 's1', data: range(n, (i) => `row-${i}`), type: 'STRING' },
+      { name: 's2', data: range(n, (i) => `group-${i % 97}`), type: 'STRING' },
+      { name: 'b', data: range(n, (i) => i % 3 === 0), type: 'BOOLEAN' },
+      { name: 'v3', data: range(n, (i) => i * 7), type: 'INT32' },
+      { name: 's3', data: range(n, (i) => `${i}`.repeat(3)), type: 'STRING' },
+    ],
+    rowGroupSize: 25000,
+  });
+  writeFileSync(join(out, 'parquet-big.parquet'), new Uint8Array(buf));
+}
 
 console.log(`fixtures written to ${out}`);
