@@ -1,0 +1,29 @@
+{
+  "name": "lector-document-ocr",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/setup-assets.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "node scripts/setup-assets.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pdfjs-dist": "4.10.38",
+    "tesseract.js": "6.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/kor": "^1.0.0",
+    "@types/node": "26.6.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}
