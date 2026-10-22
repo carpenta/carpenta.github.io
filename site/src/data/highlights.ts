@@ -45,6 +45,7 @@ export const highlights: Highlight[] = [
         [{ label: { ko: '질의 분석', en: 'Query analysis' } }],
         [{ label: { ko: 'Redis 2단계 캐시', en: 'Two-tier Redis cache' }, note: { ko: '반복 질의는 여기서 응답', en: 'Repeated queries answered here' }, changed: true }, { label: { ko: '수집 엔진', en: 'Collection engine' }, note: { ko: '외부 검색 API · 실시간 웹 수집', en: 'External search API · live web collection' } }],
         [{ label: { ko: '랭킹', en: 'Ranking' } }],
+        [{ label: { ko: '요약', en: 'Summarization' } }],
         [{ label: { ko: 'LLM 스트리밍 (SSE)', en: 'LLM streaming (SSE)' }, note: { ko: '본문과 출처 메타데이터를 별도 패킷으로', en: 'Body and citation metadata in separate packets' }, changed: true }],
       ],
     },
