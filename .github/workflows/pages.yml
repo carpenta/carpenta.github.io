@@ -86,10 +86,34 @@ jobs:
           path: tools/tabula/dist
           if-no-files-found: error
 
+  lector:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tools/lector
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/lector/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --workers=1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lector-dist
+          path: tools/lector/dist
+          if-no-files-found: error
+
   assemble:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [site, folio, tabula]
+    needs: [site, folio, tabula, lector]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -107,6 +131,10 @@ jobs:
         with:
           name: tabula-dist
           path: tools/tabula/dist
+      - uses: actions/download-artifact@v8
+        with:
+          name: lector-dist
+          path: tools/lector/dist
       - run: node --test scripts/assemble.test.mjs
       - run: node scripts/assemble.mjs
       - uses: actions/upload-pages-artifact@v5
