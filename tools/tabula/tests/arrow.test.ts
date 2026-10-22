@@ -53,6 +53,18 @@ test('the last page reports eof', async () => {
   expect(p.eof).toBe(true);
 });
 
+test('a page that ends on a batch boundary does not read the next batch', async () => {
+  const exact = nodeSource('arrow-file.arrow');
+  const short = nodeSource('arrow-file.arrow');
+  const a = arrowReader(exact, 'arrow-file');
+  const b = arrowReader(short, 'arrow-file');
+  await a.open();
+  await b.open();
+  await a.readPage(0, 250, ['id'], signal());
+  await b.readPage(0, 249, ['id'], signal());
+  expect(exact.bytesRead).toBe(short.bytesRead);
+});
+
 test('reading past the end reports eof and the real total', async () => {
   const r = arrowReader(nodeSource('arrow-file.arrow'), 'arrow-file');
   await r.open();

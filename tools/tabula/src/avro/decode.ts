@@ -210,12 +210,6 @@ export function decodeCell(t: AvroType, c: Cursor): Cell {
   }
 }
 
-/** 최상위 record 한 행을 필드별 Cell로. 최상위가 record가 아니면 값 하나짜리 행. */
-export function decodeRow(t: AvroType, c: Cursor): Cell[] {
-  if (t.kind !== 'record') return [decodeCell(t, c)];
-  return t.fields.map((f) => decodeCell(f.type, c));
-}
-
 /** 값을 디코딩하지 않고 건너뛴다. */
 export function skipValue(t: AvroType, c: Cursor): void {
   switch (t.kind) {

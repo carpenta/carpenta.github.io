@@ -5,6 +5,8 @@ export type TimeUnit = 'ms' | 'us' | 'ns';
 const PER_SECOND: Record<TimeUnit, bigint> = { ms: 1000n, us: 1000000n, ns: 1000000000n };
 const DIGITS: Record<TimeUnit, number> = { ms: 3, us: 6, ns: 9 };
 const BINARY_PREVIEW = 32;
+/** 전체 값(팝오버·복사·내보내기)에 담는 바이너리의 최대 바이트. 큰 blob이 셀 하나에 수백 MB 문자열이 되지 않게 한다. */
+const BINARY_FULL_LIMIT = 65536;
 
 /** 음수 쪽으로 내림하는 나눗셈. */
 function floorDiv(a: bigint, b: bigint): bigint {
@@ -21,8 +23,10 @@ export function formatTimestamp(v: bigint, unit: TimeUnit): string {
   const frac = v - secs * per;
   const date = new Date(Number(secs) * 1000);
   if (Number.isNaN(date.getTime())) return `${v} (${unit})`;
+  // 0000–9999년 밖은 ISO 확장 연도(+010000, -000001)가 붙어 날짜 부분의 길이가 달라진다
   const iso = date.toISOString();
-  return `${iso.slice(0, 10)} ${iso.slice(11, 19)}.${pad(frac, DIGITS[unit])}`;
+  const t = iso.indexOf('T');
+  return `${iso.slice(0, t)} ${iso.slice(t + 1, t + 9)}.${pad(frac, DIGITS[unit])}`;
 }
 
 /** epoch 기준 일 수를 'YYYY-MM-DD'로. */
@@ -114,16 +118,11 @@ export function temporalCell(text: string): Cell {
 const hex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 
 export function binaryCell(bytes: Uint8Array): Cell {
-  const full = `0x${hex(bytes)}`;
+  const full = bytes.length > BINARY_FULL_LIMIT ? `0x${hex(bytes.subarray(0, BINARY_FULL_LIMIT))}… (${bytes.length} B)` : `0x${hex(bytes)}`;
   const text = bytes.length > BINARY_PREVIEW ? `0x${hex(bytes.subarray(0, BINARY_PREVIEW))}… (${bytes.length} B)` : full;
   return { kind: 'binary', text, full, json: full };
 }
 
 export function nestedCell(json: JsonValue): Cell {
   return { kind: 'nested', text: truncate(JSON.stringify(json)), full: JSON.stringify(json, null, 2), json };
-}
-
-/** 셀이 가진 내보내기용 값을 JSON 값으로 바꾼다. 중첩 값 안에 들어갈 때 쓴다. */
-export function cellToJson(c: Cell): JsonValue {
-  return c.json;
 }

@@ -32,6 +32,9 @@ export function avroReader(src: ByteSource): Reader {
       eof = true;
       return false;
     }
+    // 블록 끝의 sync를 확인해야 손상된 길이로 엉뚱한 곳을 다음 블록으로 읽지 않는다
+    const sync = await src.read(info.next - 16, info.next);
+    if (sync.some((x, i) => x !== header.sync[i])) throw new TabulaError('corrupt', 'Avro 파일이 손상되었습니다: sync 마커가 맞지 않습니다');
     blocks.push(info);
     starts.push(knownRows);
     knownRows += info.count;

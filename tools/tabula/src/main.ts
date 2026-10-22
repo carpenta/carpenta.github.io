@@ -3,6 +3,7 @@ import { createClient, type TabulaClient } from './client';
 import { PAGE_SIZE, TabulaError, type Cell, type ColumnInfo, type FileSummary, type JsonValue, type Page } from './types';
 import { download, exportName, toCsv, toJson } from './ui/export';
 import { renderMeta } from './ui/meta-panel';
+import { createProgress } from './ui/progress';
 import { renderSchema, type SchemaTree } from './ui/schema-tree';
 import { renderGrid } from './ui/table';
 
@@ -64,6 +65,19 @@ let opening: TabulaClient | null = null;
 const widths = new Map<string, number>();
 let popoverCell: { cell: Cell; row: Cell[]; columns: string[] } | null = null;
 let reloadTimer: number | undefined;
+/** 가장 최근에 요청한 페이지. 빠르게 여러 번 누르면 이 값에서 이어서 움직이고, 늦게 온 이전 응답은 버린다. */
+let navStart = 0;
+let pageToken = 0;
+
+const progress = createProgress(
+  (label) => {
+    ui.progressText.textContent = label;
+    ui.progress.hidden = false;
+  },
+  () => {
+    ui.progress.hidden = true;
+  },
+);
 
 const fmtInt = (n: number) => n.toLocaleString('ko-KR');
 function fmtBytes(n: number): string {
@@ -101,17 +115,21 @@ function errorText(e: unknown): string {
   return `예상하지 못한 문제가 생겼습니다: ${(e as Error)?.message ?? e}`;
 }
 
-/** 오래 걸리면(300ms 넘게) 진행 표시와 취소 버튼을 보여 준다. */
-async function withProgress<T>(label: string, work: Promise<T>): Promise<T> {
+/** 오래 걸리면(300ms 넘게) 진행 표시와 취소 버튼을 보여 준다. 겹친 작업은 마지막 것이 끝날 때 표시를 닫는다. */
+async function withProgress<T>(label: string, work: (setLabel: (label: string) => void) => Promise<T>): Promise<T> {
+  let current = label;
+  let task: ReturnType<typeof progress.begin> | null = null;
   const timer = window.setTimeout(() => {
-    ui.progressText.textContent = label;
-    ui.progress.hidden = false;
+    task = progress.begin(current);
   }, 300);
   try {
-    return await work;
+    return await work((next) => {
+      current = next;
+      task?.update(next);
+    });
   } finally {
     clearTimeout(timer);
-    ui.progress.hidden = true;
+    (task as ReturnType<typeof progress.begin> | null)?.end();
     updateBytes();
   }
 }
@@ -155,7 +173,7 @@ async function openFile(file: File): Promise<void> {
   say(`${file.name}을 여는 중`);
   let summary: FileSummary;
   try {
-    summary = await withProgress('파일 구조를 읽는 중', client.open(file));
+    summary = await withProgress('파일 구조를 읽는 중', () => client.open(file));
   } catch (e) {
     client.dispose();
     if (opening === client) opening = null;
@@ -177,6 +195,7 @@ async function openFile(file: File): Promise<void> {
     reloadTimer = window.setTimeout(() => void loadPage(state?.page?.start ?? 0), 200);
   });
   state = { client, file, summary, types: flattenTypes(summary.columns), selected, page: null, rowCount: summary.rowCount, tree };
+  navStart = 0;
   widths.clear();
   ui.schemaSearch.value = '';
   ui.schemaCount.textContent = `${summary.columns.length}개`;
@@ -200,6 +219,8 @@ async function loadPage(start: number): Promise<void> {
   if (!s) return;
   if (s.rowCount !== null) start = Math.min(start, Math.max(0, s.rowCount - 1));
   start = Math.max(0, start);
+  navStart = start;
+  const token = ++pageToken;
   if (s.selected.length === 0) {
     s.page = { start, columns: [], rows: [], eof: s.page?.eof ?? false };
     ui.grid.replaceChildren();
@@ -212,9 +233,9 @@ async function loadPage(start: number): Promise<void> {
   clearError();
   let page: Page;
   try {
-    page = await withProgress(`${fmtInt(start + 1)}번째 행을 찾는 중`, s.client.page(start, PAGE_SIZE, s.selected));
+    page = await withProgress(`${fmtInt(start + 1)}번째 행을 찾는 중`, () => s.client.page(start, PAGE_SIZE, s.selected));
   } catch (e) {
-    if (state !== s) return;
+    if (state !== s || token !== pageToken) return;
     if (e instanceof TabulaError && e.code === 'cancelled') {
       say('취소했습니다.');
       return;
@@ -222,7 +243,7 @@ async function loadPage(start: number): Promise<void> {
     showError(errorText(e));
     return;
   }
-  if (state !== s) return;
+  if (state !== s || token !== pageToken) return;
   s.page = page;
   if (page.total !== undefined) s.rowCount = page.total;
   if (page.rows.length === 0 && page.start > 0) {
@@ -255,10 +276,12 @@ async function countRows(): Promise<void> {
   if (!s) return;
   ui.countRows.disabled = true;
   try {
-    const n = await withProgress('행을 세는 중', s.client.count((rows) => {
-      ui.progressText.textContent = `행을 세는 중: ${fmtInt(rows)}`;
-      updateBytes();
-    }));
+    const n = await withProgress('행을 세는 중', (setLabel) =>
+      s.client.count((rows) => {
+        setLabel(`행을 세는 중: ${fmtInt(rows)}`);
+        updateBytes();
+      }),
+    );
     if (state !== s) return;
     s.rowCount = n;
     updatePager();
@@ -358,8 +381,15 @@ for (const target of [ui.dropZone, document.body]) {
   });
 }
 
-ui.prev.addEventListener('click', () => void loadPage((state?.page?.start ?? 0) - PAGE_SIZE));
-ui.next.addEventListener('click', () => void loadPage((state?.page?.start ?? 0) + PAGE_SIZE));
+ui.prev.addEventListener('click', () => {
+  if (state && navStart > 0) void loadPage(navStart - PAGE_SIZE);
+});
+ui.next.addEventListener('click', () => {
+  if (!state) return;
+  const target = navStart + PAGE_SIZE;
+  if (state.rowCount !== null && target >= state.rowCount) return;
+  void loadPage(target);
+});
 ui.goto.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter') return;
   const n = Number(ui.goto.value);

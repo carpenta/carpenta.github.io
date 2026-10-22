@@ -10,6 +10,19 @@ test('timestamps keep every digit of their unit', () => {
   expect(formatTimestamp(1700000000123456789n, 'ns')).toBe('2023-11-14 22:13:20.123456789');
 });
 
+test('years beyond 9999 keep a readable extended year', () => {
+  expect(formatTimestamp(253402300800000n, 'ms')).toBe('+010000-01-01 00:00:00.000');
+  expect(formatTimestamp(-62198755200000000n, 'us')).toBe('-000001-01-01 00:00:00.000000');
+  expect(formatTimestamp(9000000000000000000n, 'ms')).toBe('9000000000000000000 (ms)');
+});
+
+test('huge binary values keep a bounded full text', () => {
+  const c = binaryCell(new Uint8Array(100000));
+  expect(c.full.length).toBeLessThan(2 + 65536 * 2 + 40);
+  expect(c.full.endsWith('… (100000 B)')).toBe(true);
+  expect(c.json).toBe(c.full);
+});
+
 test('dates and times', () => {
   expect(formatDate(0)).toBe('1970-01-01');
   expect(formatDate(-1)).toBe('1969-12-31');

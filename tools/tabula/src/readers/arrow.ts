@@ -275,15 +275,8 @@ export function arrowReader(src: ByteSource, format: 'arrow-file' | 'arrow-strea
         }
         if (rows.length < count && !(await advance())) break;
       }
+      // 페이지가 batch 경계에서 끝나면 다음 batch를 미리 읽지 않는다. 끝인지는 다음 페이지를 요청할 때 알게 된다
       const end = start + rows.length;
-      // 이 페이지가 현재 batch의 끝에서 끝났으면 다음 batch가 있는지 확인해야 eof를 알 수 있다
-      if (!done && end >= nextStart && current) {
-        const keep = { current, currentStart };
-        if (!(await advance())) {
-          current = keep.current;
-          currentStart = keep.currentStart;
-        }
-      }
       const atEnd = done && end >= nextStart;
       return { start, columns: picked.map((f) => f.name), rows, eof: atEnd, total: atEnd ? nextStart : undefined };
     },

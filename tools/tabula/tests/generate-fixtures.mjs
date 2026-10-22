@@ -129,6 +129,24 @@ for (const codec of Object.keys(avroCodecs)) await writeAvro(`avro-all-types-${c
 await writeAvro('avro-big.avro', 'deflate', 200000, 30000);
 const big = readFileSync(join(out, 'avro-big.avro'));
 writeFileSync(join(out, 'truncated.avro'), big.subarray(0, Math.floor(big.length * 0.6)));
+{
+  // 파일 끝 16바이트가 sync 마커다. 헤더 다음 50번째 블록 끝의 sync를 한 바이트 바꾼다
+  const sync = big.subarray(big.length - 16);
+  const bad = Buffer.from(big);
+  let at = -1;
+  for (let k = 0; k < 51; k++) at = bad.indexOf(sync, at + 1);
+  bad[at] ^= 0xff;
+  writeFileSync(join(out, 'avro-bad-sync.avro'), bad);
+}
+{
+  // 파일 끝 16바이트가 sync 마커다. 50번째 블록 끝의 sync를 한 바이트 바꾼다
+  const sync = big.subarray(big.length - 16);
+  const bad = Buffer.from(big);
+  let at = -1;
+  for (let k = 0; k < 51; k++) at = bad.indexOf(sync, at + 1);
+  bad[at] ^= 0xff;
+  writeFileSync(join(out, 'avro-bad-sync.avro'), bad);
+}
 writeFileSync(join(out, 'unsupported.txt'), 'a,b,c\n1,2,3\n');
 
 // ---------- Parquet ----------
@@ -202,6 +220,28 @@ for (const codec of ['UNCOMPRESSED', 'SNAPPY', 'GZIP', 'BROTLI', 'ZSTD']) {
     rowGroupSize: 25000,
   });
   writeFileSync(join(out, 'parquet-big.parquet'), new Uint8Array(buf));
+}
+
+// 경계값: 음수 epoch 나노초, int64 최솟값, 바이트 decimal(FIXED_LEN·BYTE_ARRAY), float32
+{
+  const buf = parquetWriteBuffer({
+    columnData: [
+      { name: 'ts_ns', data: [-1n, 1700000000123456789n] },
+      { name: 'neg', data: [-9223372036854775808n, -1n] },
+      { name: 'dec_fixed', data: [-12345n, 12345n] }, // bigint은 스케일 전 값
+      { name: 'dec_bytes', data: [-1n, 12345678901234567890n] },
+      { name: 'f32', data: [0.1, -2.5] },
+    ],
+    schema: [
+      { name: 'root', num_children: 5 },
+      { name: 'ts_ns', type: 'INT64', logical_type: ts('NANOS'), repetition_type: 'REQUIRED' },
+      { name: 'neg', type: 'INT64', repetition_type: 'REQUIRED' },
+      { name: 'dec_fixed', type: 'FIXED_LEN_BYTE_ARRAY', type_length: 8, converted_type: 'DECIMAL', scale: 2, precision: 18, repetition_type: 'REQUIRED' },
+      { name: 'dec_bytes', type: 'BYTE_ARRAY', converted_type: 'DECIMAL', scale: 3, precision: 20, repetition_type: 'REQUIRED' },
+      { name: 'f32', type: 'FLOAT', repetition_type: 'REQUIRED' },
+    ],
+  });
+  writeFileSync(join(out, 'parquet-edge.parquet'), new Uint8Array(buf));
 }
 
 // ---------- Arrow ----------

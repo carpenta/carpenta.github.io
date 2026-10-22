@@ -64,6 +64,23 @@ test('pages forward, back and to a row', async ({ page }) => {
   await expect(page.locator('#next')).toBeDisabled();
 });
 
+test('three quick clicks on next move three pages', async ({ page }) => {
+  await open(page, 'parquet-SNAPPY.parquet');
+  await page.evaluate(() => {
+    const next = document.getElementById('next')!;
+    next.click();
+    next.click();
+    next.click();
+  });
+  await expect(page.locator('#page-range')).toContainText('301–400');
+  await expect(firstCell(page)).toHaveText('300');
+});
+
+test('the file picker does not hide files by extension', async ({ page }) => {
+  await page.goto('/');
+  expect(await page.locator('#file-input').getAttribute('accept')).toBeNull();
+});
+
 test('unchecking a column removes it from the grid', async ({ page }) => {
   await open(page, 'parquet-SNAPPY.parquet');
   await expect(page.locator('#grid th[data-column="big"]')).toBeVisible();

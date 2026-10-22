@@ -2,6 +2,8 @@ import type { Cell, JsonValue, Page } from '../types';
 
 const csvValue = (c: Cell): string => {
   if (c.kind === 'null') return '';
+  // 빈 문자열은 ""로 써서 NULL(빈 칸)과 구분한다
+  if (c.kind === 'string' && c.full === '') return '""';
   const s = c.kind === 'nested' ? JSON.stringify(c.json) : c.full;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };

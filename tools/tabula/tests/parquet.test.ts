@@ -106,3 +106,17 @@ test('metadata has file, key-value, row group and column sections', async () => 
   expect(cols.headers[0]).toBe('컬럼');
   expect(cols.rows.map((r) => r[0])).toContain('st.a');
 });
+
+test('edge values: ns timestamps, int64 extremes, byte-array decimals and float32', async () => {
+  const r = parquetReader(nodeSource('parquet-edge.parquet'));
+  const s = await r.open();
+  const p = await r.readPage(0, 2, s.suggestedColumns, signal());
+  expect(p.rows.map((row) => row.map((c) => c.text))).toEqual([
+    ['1969-12-31 23:59:59.999999999', '-9223372036854775808', '-123.45', '-0.001', '0.1'],
+    ['2023-11-14 22:13:20.123456789', '-1', '123.45', '12345678901234567.890', '-2.5'],
+  ]);
+  const type = (n: string) => s.columns.find((c) => c.name === n)?.type;
+  expect(type('ts_ns')).toBe('timestamp(ns, UTC)');
+  expect(type('dec_fixed')).toBe('decimal(18,2)');
+  expect(type('dec_bytes')).toBe('decimal(20,3)');
+});

@@ -86,8 +86,15 @@ export function avroTypeLabel(t: AvroType): string {
       const inner = others.length === 1 ? avroTypeLabel(others[0]) : `union<${others.map(avroTypeLabel).join('|')}>`;
       return nullable ? `${inner}?` : inner;
     }
-    default:
+    default: {
       if (t.logical === 'decimal') return `decimal(${t.precision},${t.scale ?? 0})`;
+      const ts = t.logical?.match(/^(local-)?timestamp-(millis|micros|nanos)$/);
+      if (ts) {
+        const unit = { millis: 'ms', micros: 'us', nanos: 'ns' }[ts[2] as 'millis' | 'micros' | 'nanos'];
+        // timestamp-*는 UTC 기준 순간, local-timestamp-*는 시간대 없는 값이다
+        return ts[1] ? `local-timestamp(${unit})` : `timestamp(${unit}, UTC)`;
+      }
       return t.logical ?? t.kind;
+    }
   }
 }

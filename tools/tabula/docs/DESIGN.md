@@ -25,9 +25,9 @@ Out of scope for this version: ORC, SQL or whole-file sort and filter, editing, 
 TypeScript + Vite, no UI framework.
 
 - **Worker.** The main thread hands the `File` to a dedicated module worker. The worker reads byte ranges with `Blob.slice()` through a `ByteSource` that also counts distinct bytes read. The header shows that count as "읽은 양".
-- **Format detection.** The worker sniffs the first and last 64 KiB for magic bytes: `PAR1` at both ends, `ARROW1`, the Arrow stream continuation marker, or `Obj\x01`.
+- **Format detection.** The worker sniffs the first bytes for magic numbers: `PAR1`, `ARROW1`, the Arrow stream continuation marker, or `Obj\x01`. A Parquet file that lacks its trailing `PAR1` is reported as truncated, not unsupported. The file picker does not filter by extension.
 - **Readers.** Each format implements one `Reader` interface: `open`, `readPage(start, count, columns)` and `countRows`. Readers turn values into display cells inside the worker (`{ kind, text, full, json }`), so BigInt and binary data never cross to the UI.
-- **Requests.** The worker serializes requests. Cancel bypasses the queue and aborts the running request. The client ignores replies from a disposed worker.
+- **Requests.** Page navigation continues from the latest requested page and discards stale replies; overlapping long operations share one progress indicator. The worker serializes requests. Cancel bypasses the queue and aborts the running request. The client ignores replies from a disposed worker.
 
 Per format:
 - **Parquet** uses hyparquet with hyparquet-compressors.

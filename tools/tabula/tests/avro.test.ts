@@ -35,6 +35,10 @@ test('unions with several non-null branches show the branch, and row 999 decodes
   expect(p.eof).toBe(true);
   expect(s.columns.find((c) => c.name === 'multi')?.type).toBe('union<long|string>?');
   expect(s.columns.find((c) => c.name === 'opt')?.type).toBe('string?');
+  const type = (n: string) => s.columns.find((c) => c.name === n)?.type;
+  expect([type('ts_ms'), type('ts_us'), type('ts_ns'), type('lts')]).toEqual([
+    'timestamp(ms, UTC)', 'timestamp(us, UTC)', 'timestamp(ns, UTC)', 'local-timestamp(us)',
+  ]);
   expect(s.columns.find((c) => c.name === 'inner')?.children?.map((c) => c.name)).toEqual(['x', 'y']);
 });
 
@@ -72,6 +76,12 @@ test('reading past the end reports eof and the real total', async () => {
   expect(p.rows).toEqual([]);
   expect(p.eof).toBe(true);
   expect(p.total).toBe(200000);
+});
+
+test('countRows notices a damaged sync marker', async () => {
+  const r = avroReader(nodeSource('avro-bad-sync.avro'));
+  await r.open();
+  await expect(r.countRows(signal(), () => {})).rejects.toMatchObject({ code: 'corrupt' });
 });
 
 test('countRows walks every block', async () => {
