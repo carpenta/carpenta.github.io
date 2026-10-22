@@ -124,6 +124,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 }
 
 .main { padding: 72px 48px 96px 24px; min-width: 0; }
+.mobile-nav { display: none; }
 
 /* ---------- sections ---------- */
 .section { margin-bottom: 72px; scroll-margin-top: 32px; }
@@ -207,16 +208,29 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-
 /* ---------- narrow screens ---------- */
 @media (max-width: 860px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
-  .side { position: static; height: auto; padding: 48px 20px 8px; overflow-y: visible; }
+  .side { position: relative; height: auto; padding: 40px 20px 8px; overflow-y: visible; }
+  .side-name h1 { font-size: 34px; }
   .side-nav { display: none; }
-  .contact { margin-top: 28px; padding-top: 0; }
-  .main { padding: 40px 20px 72px; }
-  .section { margin-bottom: 56px; }
+  .contact { margin-top: 20px; padding-top: 0; }
+  /* 언어·테마 버튼은 이름 옆 오른쪽 위로 올려 첫 화면을 줄인다. */
+  .side-prefs { position: absolute; top: 40px; right: 20px; margin-top: 0; }
+  .main { padding: 12px 20px 72px; }
+  /* 긴 페이지에서 섹션으로 바로 갈 수 있게 위쪽에 붙는 목차. */
+  .mobile-nav { display: block; position: sticky; top: 0; z-index: 5; margin: 0 -20px 32px; padding: 0 20px; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .mobile-nav ul { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+  .mobile-nav a { display: block; padding: 13px 0 11px; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 600; white-space: nowrap; color: var(--dim); transition: color 0.15s, border-color 0.15s; }
+  .mobile-nav a:hover, .mobile-nav a.active { color: var(--strong); border-bottom-color: var(--accent); }
+  .section { margin-bottom: 56px; scroll-margin-top: 68px; }
   .section-title, .sub-title, .more { padding-left: 0; }
+  .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 14px; letter-spacing: 0.08em; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .intro, .skills, .tool-cards { padding: 0; }
-  .item { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 14px 0; }
+  .item { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 24px 0; border-radius: 0; }
+  .item + .item { border-top: 1px solid var(--line); }
   .item-meta { flex-direction: row; align-items: baseline; gap: 10px; margin-bottom: 4px; }
   .item:hover { background: none; }
+  .achievements { margin-top: 16px; gap: 18px; }
+  .achievements span { margin-top: 4px; font-size: 13.5px; line-height: 1.65; }
   .skills { grid-template-columns: minmax(0, 1fr); }
   .tool-cards { grid-template-columns: minmax(0, 1fr); }
 }

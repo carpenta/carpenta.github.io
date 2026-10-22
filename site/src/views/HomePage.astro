@@ -23,6 +23,9 @@ const nav = [
   <div class="shell">
     <Sidebar locale={locale} path="/" nav={nav} />
     <main class="main">
+      <nav class="mobile-nav" aria-label={locale === 'ko' ? '섹션' : 'Sections'}>
+        <ul>{nav.map((item) => <li><a href={item.href}>{item.label}</a></li>)}</ul>
+      </nav>
       <section class="section intro">
         <p class="lead">{profile.headline[locale]}</p>
         <p>{profile.intro[locale]}</p>

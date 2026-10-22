@@ -185,6 +185,42 @@ test('the theme toggle stays visible at 360px', async ({ page }) => {
   await expect(page.locator('button.theme-toggle')).toBeVisible();
 });
 
+test('at 360px a section menu stays pinned while scrolling and jumps to each section', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  const menu = page.locator('nav.mobile-nav');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('link')).toHaveText(['경력', '기술', '프로젝트', '도구']);
+  await menu.getByRole('link', { name: '프로젝트' }).click();
+  await expect(page).toHaveURL(/#projects$/);
+  await expect(menu).toBeInViewport();
+  const menuBottom = await menu.evaluate((el) => el.getBoundingClientRect().bottom);
+  const titleTop = await page.locator('#projects .section-title').evaluate((el) => el.getBoundingClientRect().top);
+  expect(titleTop).toBeGreaterThanOrEqual(menuBottom);
+});
+
+test('the section menu is only for narrow screens', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(page.locator('nav.mobile-nav')).toBeHidden();
+  await expect(page.locator('nav.side-nav')).toBeVisible();
+});
+
+test('at 360px the language and theme buttons sit beside the name', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  // h1은 블록이라 박스가 화면 폭 전체이므로, 글자가 실제로 차지하는 영역으로 잰다.
+  const name = await page.locator('.side-name h1').evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const r = range.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, right: r.right };
+  });
+  const prefs = await page.locator('.side-prefs').evaluate((el) => el.getBoundingClientRect().toJSON());
+  expect(prefs.top).toBeLessThan(name.bottom);
+  expect(prefs.left).toBeGreaterThan(name.right);
+});
+
 test('each employer shows its logo before the name, enSalt has none and no gap', async ({ page }) => {
   await page.goto('/');
   const jobs = page.locator('#experience > ol > li');
