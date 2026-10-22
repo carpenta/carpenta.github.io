@@ -1,0 +1,32 @@
+{
+  "name": "tabula-data-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "node scripts/generate-sample.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "apache-arrow": "21.2.0",
+    "fflate": "0.8.3",
+    "fzstd": "0.1.1",
+    "hyparquet": "1.31.5",
+    "hyparquet-compressors": "1.1.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "26.6.4",
+    "avsc": "5.7.9",
+    "hyparquet-writer": "0.17.0",
+    "snappyjs": "0.7.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}
