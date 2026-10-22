@@ -10,3 +10,5 @@ tests/fixtures/generated/
 .omx/
 docs/superpowers/
 site/tests/unit/forbidden.local.json
+
+.idea/
