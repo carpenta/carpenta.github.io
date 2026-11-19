@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { AREAS, COURSES, DEFAULT_CHOICE, choseong, courseSource, defaultNines, findCourse, resolveChoice, roundSetup, searchCourses } from '../src/courses';
+import { layoutBend } from '../src/hole-art';
 import { COURSE_PARS, DEFAULT_COURSE, HOLE_COUNT } from '../src/round';
+
+const DENIED = /golfpass|hole19|18birdies|golfingrecord|golfzon|smartscore|kakao|openstreetmap|data\.go\.kr/;
+const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, '');
+/** Lengths in metres a hole of each par can have, the range scripts/build-courses.mjs keeps. */
+const PAR_RANGE_M = { 3: [60, 280], 4: [180, 560], 5: [300, 650] } as const;
 
 describe('bundled courses', () => {
   it('has unique ids and nine pars of 3, 4 or 5', () => {
@@ -35,6 +41,105 @@ describe('bundled courses', () => {
     const everis = findCourse('everis')!;
     expect(everis.nines.map((n) => n.name.ko)).toEqual(['새별', '레이크', '파인']);
     expect(everis.source).toContain('shinangolf.com');
+  });
+});
+
+describe('bundled hole notes', () => {
+  const noted = COURSES.flatMap((c) => c.nines.filter((n) => n.holes).map((n) => ({ c, n, holes: n.holes! })));
+
+  it('come nine to a nine with only the HoleInfo fields, and nines without notes have no holes field', () => {
+    expect(noted.length).toBeGreaterThan(30);
+    for (const { c, n, holes } of noted) {
+      const where = `${c.id}/${n.id}`;
+      expect(Object.keys(n).sort(), where).toEqual(['holes', 'id', 'name', 'par']);
+      expect(holes, where).toHaveLength(9);
+      expect(holes.some(Boolean), where).toBe(true);
+      for (const h of holes) {
+        if (h === null) continue;
+        expect(Object.keys(h).length, where).toBeGreaterThan(0);
+        for (const key of Object.keys(h)) expect(['distances', 'guideUrl', 'layout'], where).toContain(key);
+      }
+    }
+    for (const c of COURSES) {
+      for (const n of c.nines) if (!n.holes) expect(Object.keys(n).sort(), `${c.id}/${n.id}`).toEqual(['id', 'name', 'par']);
+    }
+  });
+
+  it('link only to https pages on the site the course’s pars come from', () => {
+    let links = 0;
+    for (const { c, holes } of noted) {
+      for (const h of holes) {
+        if (h?.guideUrl === undefined) continue;
+        links += 1;
+        expect(h.guideUrl, c.id).toMatch(/^https:\/\/[^/]+\//);
+        expect(hostOf(h.guideUrl), c.id).toBe(hostOf(c.source));
+        expect(h.guideUrl, c.id).not.toMatch(DENIED);
+      }
+    }
+    expect(links).toBeGreaterThan(100);
+  });
+
+  it('give one length per named tee, in m or yd, that fits the hole’s par', () => {
+    for (const { c, n, holes } of noted) {
+      holes.forEach((h, i) => {
+        if (h?.distances === undefined) return;
+        const where = `${c.id}/${n.id}#${i + 1}`;
+        expect(h.distances.length, where).toBeGreaterThan(0);
+        expect(new Set(h.distances.map((d) => d.tee)).size, where).toBe(h.distances.length);
+        const [low, high] = PAR_RANGE_M[n.par[i]];
+        for (const d of h.distances) {
+          expect(d.tee.trim(), where).not.toBe('');
+          expect(['m', 'yd'], where).toContain(d.unit);
+          const metres = d.unit === 'yd' ? d.length * 0.9144 : d.length;
+          expect(metres, where).toBeGreaterThanOrEqual(low);
+          expect(metres, where).toBeLessThanOrEqual(high);
+        }
+        // Every tee showing the same length is a placeholder, which is left out.
+        if (h.distances.length > 1) expect(new Set(h.distances.map((d) => `${d.length}${d.unit}`)).size, where).toBeGreaterThan(1);
+      });
+    }
+  });
+
+  it('list the white or regular tee first when a hole has one, so the card shows it', () => {
+    for (const { holes } of noted) {
+      for (const h of holes) {
+        const tees = h?.distances?.map((d) => d.tee) ?? [];
+        const start = tees.find((t) => t === '화이트') ?? tees.find((t) => t.startsWith('레귤러'));
+        if (start) expect(tees[0], tees.join(' ')).toBe(start);
+      }
+    }
+  });
+
+  it('keep layout notes to three short phrases within 40 characters', () => {
+    for (const { c, holes } of noted) {
+      for (const h of holes) {
+        if (h?.layout === undefined) continue;
+        expect(h.layout.length, c.id).toBeLessThanOrEqual(40);
+        const phrases = h.layout.split(', ');
+        expect(phrases.length, h.layout).toBeLessThanOrEqual(3);
+        for (const p of phrases) expect(p.trim(), h.layout).not.toBe('');
+        expect(h.layout, c.id).not.toMatch(/[.!?]$|니다$/);
+      }
+    }
+  });
+
+  it('leave out lengths from a course whose pages give them in two units', () => {
+    const cypress = findCourse('cypress')!;
+    expect(cypress.nines.some((n) => n.holes)).toBe(true);
+    expect(cypress.nines.flatMap((n) => n.holes ?? []).some((h) => h?.distances)).toBe(false);
+  });
+
+  it('give every Everis hole a link to its official guide', () => {
+    for (const n of findCourse('everis')!.nines) {
+      expect(n.holes, n.id).toHaveLength(9);
+      for (const h of n.holes!) expect(h?.guideUrl, n.id).toMatch(/^https:\/\/www\.shinangolf\.com\//);
+    }
+  });
+
+  it('name doglegs both ways, so drawn holes bend', () => {
+    const bends = noted.flatMap(({ holes }) => holes.map((h) => layoutBend(h?.layout)));
+    expect(bends).toContain(1);
+    expect(bends).toContain(-1);
   });
 });
 
