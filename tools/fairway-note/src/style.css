@@ -273,10 +273,10 @@ main {
 .past-where, .past-meta { font-size: 13px; color: var(--muted); }
 .past-meta { text-align: right; white-space: nowrap; }
 #history-empty { margin: 0; }
-#history .backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #backup-share { grid-column: 1 / -1; }
-#history-status, #past-status { margin: 8px 0 0; }
-#history-status:empty, #past-status:empty { display: none; }
+#history-status, #backup-status, #past-status { margin: 8px 0 0; }
+#history-status:empty, #backup-status:empty, #past-status:empty { display: none; }
 
 /* Never sets display, so the closed dialog stays hidden by the browser's own rule. */
 .past {
@@ -311,6 +311,8 @@ html.past-open { overflow: hidden; }
 .past-head p { font-size: 13px; }
 .past-head .btn { flex: none; min-height: 44px; }
 .past-body { padding: 0 max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+/* The dialog hangs off <body>, outside any .card, so it carries the card heading size itself. */
+.past h3 { font-size: 15px; margin: 16px 0 8px; }
 .past .past-body > h3:first-child { margin-top: 12px; }
 .past .past-send { margin-top: 16px; }
 .past #past-delete { width: 100%; margin-top: 16px; }

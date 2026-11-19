@@ -1210,7 +1210,7 @@ test('saves a backup file and restores it in a fresh browser', async ({ page, br
   expect(backup.history[0]).toMatchObject({ id: expect.any(String), endedAt: expect.any(Number), round: { version: 1 } });
   expect(backup.history[0].round.holes[0]).toMatchObject({ driver: 1, approach: 1, putts: 2 });
   expect(backup.current.holes[0]).toMatchObject({ driver: 1, approach: 0, putts: 2 });
-  await expect(page.locator('#history-status')).toContainText('백업 파일을 만들었습니다');
+  await expect(page.locator('#backup-status')).toContainText('백업 파일을 만들었습니다');
   expect(outside).toEqual([]);
 
   const fresh = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
@@ -1226,12 +1226,12 @@ test('saves a backup file and restores it in a fresh browser', async ({ page, br
   const asked = accept(other);
   await (await chooser).setFiles(file);
   expect(await asked).toContain('진행 중이던 라운드');
-  await expect(other.locator('#history-status')).toHaveText('지난 라운드 1개를 가져왔습니다. 진행 중이던 라운드를 지금 라운드로 불러왔습니다.');
+  await expect(other.locator('#backup-status')).toHaveText('지난 라운드 1개를 가져왔습니다. 진행 중이던 라운드를 지금 라운드로 불러왔습니다.');
   await expect(pastItems(other)).toHaveCount(1);
   await expect(other.locator('#hole-strokes')).toHaveText('3');
   // The same file again adds nothing.
   await other.locator('#backup-file').setInputFiles(file);
-  await expect(other.locator('#history-status')).toHaveText('가져온 지난 라운드는 없습니다. 이미 있는 2개는 건너뛰었습니다.');
+  await expect(other.locator('#backup-status')).toHaveText('가져온 지난 라운드는 없습니다. 이미 있는 2개는 건너뛰었습니다.');
   await expect(pastItems(other)).toHaveCount(1);
   await fresh.close();
   expect(errors).toEqual([]);
@@ -1253,7 +1253,7 @@ test('never replaces the round being recorded without asking', async ({ page }) 
     void d.dismiss();
   });
   await page.locator('#backup-file').setInputFiles(file);
-  await expect(page.locator('#history-status')).toHaveText('지난 라운드 1개를 가져왔습니다. 진행 중이던 라운드는 지난 라운드에 넣었습니다. 읽을 수 없는 1개는 넣지 않았습니다.');
+  await expect(page.locator('#backup-status')).toHaveText('지난 라운드 1개를 가져왔습니다. 진행 중이던 라운드는 지난 라운드에 넣었습니다. 읽을 수 없는 1개는 넣지 않았습니다.');
   expect(question).toContain('2026년 11월 1일');
   expect(question).toContain('지금 라운드는 지난 라운드에 보관합니다');
   await expect(page.locator('#sum-strokes')).toHaveText('4');
@@ -1267,7 +1267,7 @@ test('never replaces the round being recorded without asking', async ({ page }) 
   const asked = accept(page);
   await page.locator('#backup-file').setInputFiles(another);
   await asked;
-  await expect(page.locator('#history-status')).toHaveText('가져온 지난 라운드는 없습니다. 진행 중이던 라운드를 지금 라운드로 불러왔습니다.');
+  await expect(page.locator('#backup-status')).toHaveText('가져온 지난 라운드는 없습니다. 진행 중이던 라운드를 지금 라운드로 불러왔습니다.');
   await expect(page.locator('#sum-strokes')).toHaveText('2');
   await expect(page.locator('#stale')).toBeHidden();
   await expect(pastItems(page)).toHaveCount(3);
@@ -1276,7 +1276,7 @@ test('never replaces the round being recorded without asking', async ({ page }) 
 test('rejects files that are not a Fairway Note backup and changes nothing', async ({ page }) => {
   await openRound(page);
   await parHole(page);
-  const status = page.locator('#history-status');
+  const status = page.locator('#backup-status');
   const files: [string, unknown][] = [
     ['notes.json', 'hello'],
     ['other-app.json', { app: 'other', format: 1, history: [] }],
@@ -1360,7 +1360,7 @@ test('shares the backup file where the browser can share files', async ({ page }
   await openRound(page);
   await parHole(page);
   await page.getByRole('button', { name: '백업 파일 공유' }).click();
-  await expect(page.locator('#history-status')).toHaveText('백업 파일을 공유했습니다.');
+  await expect(page.locator('#backup-status')).toHaveText('백업 파일을 공유했습니다.');
   const shared = await page.evaluate(() => (window as unknown as { sharedFiles: { name: string; type: string; text: string }[] }).sharedFiles);
   expect(shared).toHaveLength(1);
   expect(shared[0].name).toMatch(/^fairway-note-backup-\d{4}-\d{2}-\d{2}\.json$/);

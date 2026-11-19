@@ -97,44 +97,9 @@
         <button id="new-round" class="btn danger" type="button">새 라운드 시작</button>
       </section>
 
-      <section id="history" class="card" aria-labelledby="history-title">
-        <h2 id="history-title">지난 라운드</h2>
-        <p id="history-note" class="muted small" hidden></p>
-        <div id="history-trends" class="history-trends" hidden></div>
-        <ol id="history-list" class="history-list" aria-label="지난 라운드 목록"></ol>
-        <p id="history-empty" class="muted small">아직 보관한 라운드가 없습니다. "새 라운드 시작"을 누르면 끝낸 홀이 있는 지금 라운드가 여기에 보관됩니다.</p>
-        <h3>백업</h3>
-        <p class="muted small">지난 라운드와 지금 라운드를 파일 하나로 저장합니다. 휴대폰을 바꾸거나 브라우저 데이터를 지우기 전에 저장해 두고 새 기기에서 가져오세요. 파일은 저장하거나 공유한 곳에만 있고, 앱은 어디로도 보내지 않습니다.</p>
-        <div class="backup-actions">
-          <button id="backup-save" class="btn" type="button">백업 파일 저장</button>
-          <button id="backup-import" class="btn" type="button">백업 파일 가져오기</button>
-          <button id="backup-share" class="btn" type="button" hidden>백업 파일 공유</button>
-        </div>
-        <input id="backup-file" type="file" accept="application/json,.json" hidden />
-        <p id="history-status" class="muted small" role="status"></p>
-
-        <dialog id="past" class="past" aria-labelledby="past-title">
-          <div class="past-head">
-            <div class="past-heading">
-              <h2 id="past-title"></h2>
-              <p id="past-course" class="muted"></p>
-            </div>
-            <button id="past-close" class="btn" type="button">닫기</button>
-          </div>
-          <div class="past-body">
-            <h3>스코어카드</h3>
-            <div id="past-scorecard"></div>
-            <h3>라운드 분석</h3>
-            <div id="past-analysis"></div>
-            <div class="send-actions past-send">
-              <a id="past-email" class="btn primary" href="mailto:">이메일로 보내기</a>
-              <button id="past-share" class="btn" type="button">공유하기</button>
-            </div>
-            <p id="past-status" class="muted small" role="status"></p>
-            <button id="past-delete" class="btn danger" type="button">이 라운드 지우기</button>
-          </div>
-        </dialog>
-      </section>
+      <!-- Filled by renderHistory() and renderBackup(); each view can be mounted into any container. -->
+      <section id="history" class="card"></section>
+      <section id="backup" class="card"></section>
     </main>
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title">

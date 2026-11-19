@@ -36,7 +36,8 @@ import { registerOffline } from './offline';
 import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
 import { $, h, setText } from './dom';
-import { initHistory, keepBeforeNewRound, newRoundQuestion } from './past';
+import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
+import { renderBackup } from './backup-view';
 import { trackSummaryHeight } from './layout';
 import { keepScreenOn } from './wake';
 import { courseLabel, roundCourse } from './round';
@@ -605,7 +606,8 @@ else if (stale) {
 trackSummaryHeight();
 keepScreenOn();
 registerOffline();
-initHistory({
+// What the past rounds and backup views borrow from the page; each mounts into its own container.
+const lent: Page = {
   current: () => round,
   replace: (next) => {
     stale = false;
@@ -617,4 +619,6 @@ initHistory({
   analysis: analysisNodes,
   share: shareReport,
   shareLabel: canShare ? '공유하기' : canCopy ? '결과 복사' : null,
-});
+};
+renderHistory($('history'), lent);
+renderBackup($('backup'), lent);
