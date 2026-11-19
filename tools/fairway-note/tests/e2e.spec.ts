@@ -1273,6 +1273,38 @@ test('sends the round by email, shares it, or copies it', async ({ page, context
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 4타 (E)');
 });
 
+test('saves the round as a CSV that Excel reads, and copies it as plain text for analysis', async ({ page, context }, testInfo) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await open(page);
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  await next(page).click();
+  await menu(page, '결과 보내기');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'CSV 저장' }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^fairway-note-\d{4}-\d{2}-\d{2}\.csv$/);
+  const file = testInfo.outputPath('round.csv');
+  await download.saveAs(file);
+  const bytes = readFileSync(file);
+  // UTF-8 with a byte order mark, so Excel opens the Korean headers.
+  expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+  const rows = bytes.subarray(3).toString('utf8').split('\r\n');
+  expect(rows[0]).toBe('홀,파,드라이버,어프로치,퍼트,OB,해저드,타수,파 대비');
+  expect(rows[1]).toBe('1,4,1,1,2,0,0,4,0');
+  expect(rows[2]).toBe('2,4,,,,,,,');
+  expect(rows[19]).toBe('합계,4,1,1,2,0,0,4,0');
+  await expect(page.locator('#send-status')).toContainText('CSV 파일을 저장했어요');
+  await page.getByRole('button', { name: '분석용 텍스트 복사' }).click();
+  await expect(page.locator('#send-status')).toContainText('분석용 텍스트를 복사했어요');
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toContain('골프장: 에버리스 골프리조트');
+  expect(text).toContain('코스: 전반 새별 · 후반 레이크');
+  expect(text).toContain('1 | 4 | 1 | 1 | 2 | 0 | 0 | 4 | E');
+  expect(text).toContain('[잃은 타수]');
+  expect(text).not.toMatch(/https?:/);
+  expect(await sideScroll(page)).toBe(0);
+});
+
 test('shares the round with the phone share sheet', async ({ page }) => {
   await page.addInitScript(() => {
     (window as unknown as { shared: unknown[] }).shared = [];

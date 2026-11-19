@@ -242,7 +242,7 @@
         <li>
           <button class="mi" type="button" id="mi-send" aria-expanded="false" aria-controls="mp-send">
             <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg></span>
-            <span class="mi-t"><b>결과 보내기</b><small>이메일, 공유</small></span>
+            <span class="mi-t"><b>결과 보내기</b><small>이메일, 공유, CSV</small></span>
             <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="mpanel" id="mp-send" hidden>
@@ -250,6 +250,9 @@
             <div id="send-actions" class="row">
               <a id="send-email" class="btn primary" href="mailto:">이메일로 보내기</a>
               <button id="send-share" class="btn" type="button">공유하기</button>
+              <!-- For a spreadsheet, and as plain facts to paste into a note or any chat that analyses text -->
+              <button id="send-csv" class="btn" type="button">CSV 저장</button>
+              <button id="send-copy" class="btn" type="button">분석용 텍스트 복사</button>
             </div>
             <p id="send-status" class="muted small" role="status"></p>
           </div>

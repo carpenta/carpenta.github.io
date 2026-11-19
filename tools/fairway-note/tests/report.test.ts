@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newRound, type Hole } from '../src/round';
-import { dateLabel, mailtoHref, reportSubject, reportText } from '../src/report';
+import { analysisText, csvName, dateLabel, mailtoHref, reportSubject, reportText, roundCsv } from '../src/report';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
 
@@ -95,5 +95,39 @@ describe('a 9-hole round', () => {
     expect(text).toContain('에버리스 골프리조트 새별 9홀 · 2026년 11월 20일');
     expect(text).toContain('· 2/9홀');
     expect(text).not.toContain('전반');
+  });
+});
+
+describe('CSV and analysis text', () => {
+  it('writes one CSV row per hole, blank counts for holes not finished, and a 합계 over the finished ones', () => {
+    const r = sample();
+    const rows = roundCsv(r).split('\r\n');
+    expect(rows[0]).toBe('홀,파,드라이버,어프로치,퍼트,OB,해저드,타수,파 대비');
+    expect(rows[1]).toBe('1,4,1,1,2,0,0,4,0');
+    expect(rows[2]).toBe('2,4,2,1,3,1,0,7,3');
+    expect(rows[3]).toBe('3,3,1,0,1,0,0,2,-1');
+    expect(rows[4]).toBe('4,3,,,,,,,');
+    // Hole 12 is being played without a putt: not finished, so blank.
+    expect(rows[12]).toBe('12,4,,,,,,,');
+    expect(rows[19]).toBe('합계,16,5,4,8,1,0,18,2');
+    expect(rows).toHaveLength(21);
+    expect(rows[20]).toBe('');
+    expect(csvName(r)).toBe('fairway-note-2026-11-19.csv');
+  });
+
+  it('copies the round as plain facts: course, nines, date, holes, totals and strokes lost, with no links', () => {
+    const text = analysisText(sample());
+    expect(text).toContain('골프장: 에버리스 골프리조트');
+    expect(text).toContain('코스: 전반 새별 · 후반 레이크');
+    expect(text).toContain('날짜: 2026-11-19');
+    expect(text).toContain('기록한 홀: 4/18');
+    expect(text).toContain('1 | 4 | 1 | 1 | 2 | 0 | 0 | 4 | E');
+    expect(text).toContain('2 | 4 | 2 | 1 | 3 | 1 | 0 | 7 | +3');
+    expect(text).toContain('4 | 3 | 기록 없음');
+    expect(text).toContain('타수 18 (+2) · 퍼트 8 · OB 1 · 해저드 0');
+    expect(text).toContain('전반 13타 (3홀) · 후반 5타 (1홀)');
+    // Hole 2 (two drives, three putts, an OB) is where every lost stroke is; the approaches were all regulation.
+    expect(text).toContain('티샷 +1 · 어프로치 +0 · 퍼트 +1 · 벌타 +1');
+    expect(text).not.toMatch(/https?:|www\./);
   });
 });

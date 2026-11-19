@@ -34,7 +34,7 @@ import {
 import { CLUB_ICONS } from './icons';
 import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
-import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
+import { analysisText, csvName, dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
@@ -973,6 +973,30 @@ function renderSend(a: Analysis): void {
   const share = $<HTMLButtonElement>('send-share');
   share.hidden = !canShare && !canCopy;
   setText(share, canShare ? '공유하기' : '결과 복사');
+  $('send-copy').hidden = !canCopy;
+}
+
+/** CSV 저장: the round's holes as a spreadsheet file, UTF-8 with a BOM so Excel reads the Korean headers. */
+function saveCsv(): void {
+  const name = csvName(round);
+  const url = URL.createObjectURL(new Blob(['\uFEFF', roundCsv(round)], { type: 'text/csv;charset=utf-8' }));
+  const link = h('a', { href: url, download: name, hidden: '' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // The download keeps its own copy; the URL only has to outlive the click.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  setText($('send-status'), `CSV 파일을 저장했어요 (${name}). 엑셀이나 구글 시트에서 열 수 있어요.`);
+}
+
+/** 분석용 텍스트 복사: the round as plain facts on the clipboard, to paste into a note or any chat. */
+async function copyAnalysis(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(analysisText(round));
+    setText($('send-status'), '분석용 텍스트를 복사했어요. 메모나 채팅에 붙여 넣으세요.');
+  } catch {
+    setText($('send-status'), '복사하지 못했어요. CSV 저장이나 이메일을 써 주세요.');
+  }
 }
 
 /** Shares a round's report (this round or a past one), or copies it where the browser cannot share. */
@@ -1600,6 +1624,8 @@ function bind(): void {
     if (confirm(newRoundQuestion(round))) startNew();
   });
   $('send-share').addEventListener('click', () => void shareReport(round, $('send-status')));
+  $('send-csv').addEventListener('click', saveCsv);
+  $('send-copy').addEventListener('click', () => void copyAnalysis());
   $('stale-keep').addEventListener('click', () => {
     stale = false;
     // Saving marks the round as just edited, so the banner does not come back on the next load.
