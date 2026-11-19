@@ -21,7 +21,10 @@ if (!dir) {
 /** Region files to read, in this order. Other JSON files in the folder (OSM extracts) are ignored. */
 const FILES = ['jeju-si', 'seogwipo-si', 'kr-gyeonggi', 'kr-gangwon', 'kr-chungcheong', 'kr-jeolla', 'kr-gyeongsang'];
 /** Hosts whose terms forbid reusing their data. A value backed only by these is never bundled. */
-const DENIED = [/(^|\.)hole19golf\.com$/, /(^|\.)golfpass\.com$/, /(^|\.)18birdies\.com$/, /(^|\.)golfingrecord\.com$/, /(^|\.)golfzon\.com$/, /smartscore/, /kakao/];
+const DENIED = [/(^|\.)hole19golf\.com$/, /(^|\.)golfpass\.com$/, /(^|\.)18birdies\.com$/, /(^|\.)golfingrecord\.com$/, /(^|\.)golfzon\.com$/, /smartscore/, /kakao/,
+  // GolfZon County is the operator's own site, but its terms (article 16) reserve copyright and forbid
+  // redistribution without consent, so its values are not shipped.
+  /(^|\.)golfzoncounty\.com$/];
 /** Public lists and map data: fine for names and counts, never a source of hole pars. */
 const NOT_PAR_SOURCES = [/(^|\.)data\.go\.kr$/, /(^|\.)openstreetmap\.org$/, /(^|\.)kgba\.co\.kr$/];
 /** Operator sites that publish scorecards for courses whose own website lives elsewhere. */

@@ -19,7 +19,7 @@ describe('bundled courses', () => {
   it('carries an official source and checked date, and no map coordinates', () => {
     for (const c of COURSES) {
       expect(c.source, c.id).toMatch(/^https?:\/\/[^/]+\//);
-      expect(c.source, c.id).not.toMatch(/golfpass|hole19|18birdies|golfingrecord|golfzon\.com|smartscore|kakao|openstreetmap|data\.go\.kr/);
+      expect(c.source, c.id).not.toMatch(/golfpass|hole19|18birdies|golfingrecord|golfzon|smartscore|kakao|openstreetmap|data\.go\.kr/);
       expect(c.checked, c.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(Object.keys(c).sort()).toEqual(['area', 'checked', 'id', 'name', 'nines', 'region', 'source']);
     }
