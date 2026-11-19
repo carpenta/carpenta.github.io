@@ -320,17 +320,26 @@ function bindSwipe(): void {
 /* ---------- the drawn course behind the screen ---------- */
 
 /** The pills give the captions under the chips the room they take, one row or two (none where CSS hides them). */
+/** The captions row under the chips is gone (v10: the notes moved into 홀 안내), so the pills keep the full height. */
 function fitNotes(): void {
-  const rows = $('hole-notes').getBoundingClientRect().height;
-  $('entry').style.setProperty('--notes-h', `${rows ? Math.ceil(rows) + 8 : 0}px`);
+  $('entry').style.setProperty('--notes-h', '0px');
+  fitMeta();
+}
+
+/** Keeps the header to one row beside the badge: HDCP steps aside first, then the length (both stay in 홀 안내). */
+function fitMeta(): void {
+  const meta = $('meta');
+  meta.classList.remove('tight', 'tighter');
+  if (meta.scrollWidth > meta.clientWidth + 1) meta.classList.add('tight');
+  if (meta.scrollWidth > meta.clientWidth + 1) meta.classList.add('tighter');
 }
 
 function drawCourse(): void {
   const svg = document.getElementById('course')!;
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
   if (view === 'entry') {
-    // The open band starts under the captions when they show, else under the chips.
-    const notes = $('hole-notes').getBoundingClientRect();
+    // The open band starts under the one-row header.
+    const notes = { height: 0, bottom: 0 };
     frame.bandTop = (notes.height ? notes.bottom : $('hole-info').getBoundingClientRect().bottom) + 6;
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
     frame.right = $('badge').getBoundingClientRect().left - 6;
@@ -673,23 +682,34 @@ function renderEntry(a: Analysis, changed?: string): void {
   holeBtn.classList.toggle('missed', missed.length > 0);
   setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);
   const info = holeInfo(roundCourse(round), i);
+  // One row: Par, length and HDCP (only with the course's official handicap) as text in one pill.
   setChip('hole-distance', distanceLabel(info));
-  // Under the hole number when 상세 on a short screen hides the chips.
+  setChip('hole-hdcp', info?.si ? `HDCP ${info.si}` : null);
+  $('meta').classList.toggle('has-prog', a.totals.holes > 0);
+  // Under the hole number when 상세 on a short screen hides the row.
   setText($('hole-sub'), [`Par ${cur.par}`, distanceLabel(info)].filter(Boolean).join(' · '));
-  // The handicap and the layout note's phrases ("내리막, 블라인드 티샷") as captions under the chips, in 기본 only.
-  const captions = [...(info?.si ? [`HDCP ${info.si}`] : []), ...(info?.layout ?? '').split(/\s*[,，]\s*/).filter(Boolean)];
+  // 홀 안내: the layout note's phrases ("내리막, 블라인드 티샷") and the official guide, behind one chip.
+  const phrases = (info?.layout ?? '').split(/\s*[,，]\s*/).filter(Boolean);
   const notes = $('hole-notes');
-  const withNotes = mode === 'basic' && captions.length > 0;
-  notes.hidden = !withNotes;
-  if (notes.dataset.key !== captions.join('|')) {
-    notes.dataset.key = captions.join('|');
-    notes.replaceChildren(...captions.map((c, k) => h('li', k === 0 && info?.si ? { class: 'si' } : {}, c)));
+  if (notes.dataset.key !== phrases.join('|')) {
+    notes.dataset.key = phrases.join('|');
+    notes.replaceChildren(...phrases.map((c) => h('li', {}, c)));
   }
-  fitNotes();
+  notes.hidden = phrases.length === 0;
+  $('hi-none').hidden = phrases.length > 0;
+  setText($('hi-title'), `${i + 1}번 홀 안내`);
+  setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(' · '));
   const guide = $<HTMLAnchorElement>('hole-guide');
   if (info?.guideUrl) setAttr(guide, 'href', info.guideUrl);
   else guide.removeAttribute('href');
   guide.hidden = !info?.guideUrl;
+  const infoBtn = $('info-btn');
+  infoBtn.hidden = phrases.length === 0 && !info?.guideUrl;
+  const infoN = $('info-n');
+  infoN.hidden = phrases.length === 0;
+  setText(infoN, String(phrases.length));
+  setAttr(infoBtn, 'aria-label', `홀 안내${phrases.length ? `, 특징 ${phrases.length}개` : ''}`);
+  fitNotes();
   $<HTMLButtonElement>('prev-hole').disabled = i === 0;
   $<HTMLButtonElement>('next-hole').disabled = i === HOLE_COUNT - 1;
 
@@ -1161,6 +1181,7 @@ function bindSummary(): void {
   $('finish-round').addEventListener('click', () => requestFinish($('finish-round')));
   bindCheck();
   bindStrip();
+  bindHoleInfo();
 }
 
 /** A tap on the dim backdrop, outside the dialog's box, closes it. */
@@ -1326,6 +1347,26 @@ function openStrip(): void {
   const here = row.querySelector<HTMLElement>('[aria-current="true"]')!;
   row.scrollLeft = here.offsetLeft - (row.clientWidth - here.offsetWidth) / 2;
   here.focus({ preventScroll: true });
+}
+
+/* ---------- 홀 안내: the layout notes and the official guide, opened from one chip ---------- */
+
+function bindHoleInfo(): void {
+  const dialog = $<HTMLDialogElement>('hole-pop');
+  const button = $('info-btn');
+  closeOnBackdrop(dialog);
+  button.addEventListener('click', () => {
+    hideToast();
+    dialog.showModal();
+    // Under the header row, from the left margin. CSSOM, allowed by the CSP.
+    dialog.style.top = `${Math.round($('hole-info').getBoundingClientRect().bottom + 8)}px`;
+    setAttr(button, 'aria-expanded', 'true');
+    dialog.focus();
+  });
+  dialog.addEventListener('close', () => {
+    setAttr(button, 'aria-expanded', 'false');
+    button.focus();
+  });
 }
 
 function bindStrip(): void {

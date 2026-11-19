@@ -260,7 +260,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v9');
+  await expect(page.locator('#app-version')).toHaveText('v10');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -277,12 +277,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v9');
+  await expect(page.locator('#menu-version')).toHaveText('v10');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v9');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v10');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -387,26 +387,31 @@ test.describe('with hole notes in the course data', () => {
     await open(page);
     // Everis 새별 1 as its own hole guide gives it: one length with no tee name, the handicap and a short note.
     await expect(page.locator('#hole-distance')).toHaveText('381m');
-    // The handicap and the note's phrases are captions under the chips; the guide is an icon chip with a 48px target.
-    await expect(page.locator('#hole-notes li')).toHaveText(['HDCP 3', '내리막', '블라인드 티샷', '좌우 OB']);
+    // One header row: Par, length and HDCP in one pill; the note's phrases and the guide behind one 홀 안내 chip.
+    await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 3');
+    expect((await page.locator('#hole-info').boundingBox())!.height).toBeLessThanOrEqual(34);
+    const infoBtn = page.getByRole('button', { name: '홀 안내, 특징 3개' });
+    await expect(page.locator('#info-n')).toHaveText('3');
+    await infoBtn.click();
+    await expect(page.locator('#hole-pop')).toBeVisible();
+    await expect(infoBtn).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#hi-title')).toHaveText('1번 홀 안내');
+    await expect(page.locator('#hi-facts')).toHaveText('Par 4 · 381m · HDCP 3');
+    await expect(page.locator('#hole-notes li')).toHaveText(['내리막', '블라인드 티샷', '좌우 OB']);
     const guide = page.getByRole('link', { name: '공식 홀 안내, 새 창' });
-    const target = (await guide.evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const after = getComputedStyle(el, '::after');
-      return { w: r.width - 2 * parseFloat(after.left), h: r.height - 2 * parseFloat(after.top) };
-    }));
-    expect(Math.min(target.w, target.h)).toBeGreaterThanOrEqual(48);
+    expect((await guide.boundingBox())!.height).toBeGreaterThanOrEqual(48);
     await expect(guide).toHaveAttribute('href', /^https:\/\/[^/]+\//);
     await expect(guide).toHaveAttribute('target', '_blank');
     await expect(guide).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(await sideScroll(page)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#hole-pop')).toBeHidden();
+    await expect(infoBtn).toBeFocused();
     // 레이크 1 (hole 10) bends right, so its green sits right of a straight hole's.
     await showCard(page);
     await page.locator('#scorecard [data-hole="9"]').click();
-    await expect(page.locator('#hole-notes li')).toHaveText(['HDCP 5', '우 도그렉', '그린 뒤 내리막']);
-    // 상세 leaves the captions out to make room.
-    await page.getByRole('button', { name: '상세', exact: true }).click();
-    await expect(page.locator('#hole-notes')).toBeHidden();
-    await page.getByRole('button', { name: '기본', exact: true }).click();
+    await expect(page.locator('#hole-notes li')).toHaveText(['우 도그렉', '그린 뒤 내리막']);
+    await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 5');
     const straight = await page.evaluate(() => innerWidth * 0.47);
     await expect.poll(async () => {
       const box = (await page.locator('#course .green').boundingBox())!;
@@ -1110,7 +1115,7 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
       return { selector, size: parseFloat(style.fontSize), contrast: (a + 0.05) / (b + 0.05) };
     });
   }, selectors);
-  const checks = await measure(['.club-lbl', '#hole-par', '#prog-n', '#hole-notes li', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
+  const checks = await measure(['.club-lbl', '#hole-par', '#prog-n', '#info-btn', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
   await showCard(page);
   checks.push(...await measure(['.sum dt', '.rowlbl span', '.col .pr', '.nine-h span', '.metrics dt']));
   for (const { selector, size, contrast } of checks) {

@@ -41,18 +41,11 @@
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </div>
+          <!-- One row (v10): Par, length and HDCP as text with the progress chips, all in one pill, then 홀 안내 -->
           <p class="info" id="hole-info">
-            <span class="chip" id="hole-par">Par 4</span>
-            <span class="chip" id="hole-distance" hidden></span>
-            <!-- Progress: holes recorded, then the score against par -->
-            <span class="chip" id="prog-n" hidden></span>
-            <span class="chip score" id="prog-p" hidden></span>
-            <a class="chip icon" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>
-              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </a>
+            <span class="meta" id="meta"><span id="hole-par">Par 4</span><span class="mt-len" id="hole-distance" hidden></span><span class="mt-hd" id="hole-hdcp" hidden></span><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
+            <button class="chip info-chip" type="button" id="info-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="hole-pop" hidden>홀 안내<span class="info-n" id="info-n" hidden></span></button>
           </p>
-          <!-- The hole's handicap and layout note from the course data, as captions on the course -->
-          <ul class="notes" id="hole-notes" aria-label="홀 특징" hidden></ul>
           <span class="ver" id="app-version" aria-hidden="true"></span>
         </header>
 
@@ -325,6 +318,15 @@
         <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>
         <button type="button" class="primary" id="sum-archive">지난 라운드에 보관</button>
       </div>
+    </dialog>
+
+    <!-- 홀 안내: the hole's facts, its layout notes and the official guide -->
+    <dialog id="hole-pop" class="hinfo" aria-labelledby="hi-title" tabindex="-1">
+      <h2 class="hi-h" id="hi-title">홀 안내</h2>
+      <p class="hi-facts" id="hi-facts"></p>
+      <ul class="hi-notes" id="hole-notes" aria-label="홀 특징"></ul>
+      <p class="hi-none" id="hi-none" hidden>적어 둔 특징이 없는 홀이에요.</p>
+      <a class="hi-link" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>공식 홀 안내 보기<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </dialog>
 
     <!-- 라운드 마치기: a quick check before the summary, only when something looks unfinished -->
