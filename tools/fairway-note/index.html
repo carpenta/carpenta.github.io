@@ -379,9 +379,29 @@
         <input id="picker-search" class="picker-search" type="search" placeholder="골프장 이름, 지역, 초성(ㅇㅂㄹㅅ)" aria-label="골프장 검색" autocomplete="off" enterkeyhint="search" />
       </label>
       <div id="picker-areas" class="picker-areas" role="group" aria-label="지역"></div>
+      <!-- Saved records gone or unreadable on the first screen: a calm card with a way back from a backup file -->
+      <section class="pk-missing" id="picker-missing" aria-labelledby="pm-title" hidden>
+        <div class="nc-head">
+          <span class="nc-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4.5 4.5v3.8h3.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <h3 id="pm-title">저장된 기록을 찾지 못했어요</h3>
+        </div>
+        <p id="pm-text"></p>
+        <p id="pm-status" class="pm-status" role="status"></p>
+        <div class="nc-row">
+          <button type="button" class="btn primary" id="pm-restore">백업 파일에서 복원</button>
+          <button type="button" class="btn" id="pm-close">닫기</button>
+        </div>
+      </section>
       <ul id="picker-list" class="picker-list" aria-label="골프장"></ul>
       <div class="picker-foot">
-        <p id="picker-label" class="picker-label"></p>
+        <!-- The chosen course, and 18 or 9 holes -->
+        <div class="pk-name">
+          <p id="picker-label" class="picker-label"></p>
+          <div class="pk-len" id="picker-len" role="group" aria-label="홀 수">
+            <button type="button" data-holes="18" aria-pressed="true">18홀</button>
+            <button type="button" data-holes="9" aria-pressed="false">9홀</button>
+          </div>
+        </div>
         <div id="picker-chosen" class="picker-chosen"></div>
         <button id="picker-start" class="btn primary" type="button">이 코스로 시작</button>
       </div>

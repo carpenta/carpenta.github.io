@@ -35,7 +35,7 @@ export function courseLabel(c: RoundCourse): string {
 }
 
 /** The course label of a round, with "9홀" after it for a round of one nine: "에버리스 골프리조트 새별 9홀". */
-export function roundLabel(round: Pick<Round, 'course' | 'holes'>): string {
+export function roundLabel(round: Pick<Round, 'course'> & { holes: ArrayLike<unknown> }): string {
   const label = courseLabel(roundCourse(round));
   return round.holes.length === 9 ? `${label} 9홀` : label;
 }

@@ -635,6 +635,14 @@ html.past-open { overflow: hidden; }
   background: var(--white); border-radius: 28px 28px 0 0; box-shadow: 0 -8px 28px rgb(8 28 10 / .28);
 }
 .picker-label { font-weight: 800; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The course name row: the chosen course, then 18홀 / 9홀 (v11). */
+.pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.pk-name .picker-label { min-width: 0; }
+.pk-len { flex: none; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--tint); }
+.pk-len[hidden] { display: none; }
+.pk-len button { position: relative; min-width: 54px; height: 36px; padding: 0 10px; border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.pk-len button::after { content: ''; position: absolute; inset: -6px 0; }   /* a 48px touch area */
+.pk-len button[aria-pressed='true'] { background: var(--white); color: var(--ink); box-shadow: 0 1px 3px rgb(23 48 26 / .2); }
 .picker-chosen { display: grid; gap: 8px; }
 .picker-chosen .small { margin: 0; }
 .picker-chosen input { width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); font: inherit; color: inherit; }
@@ -815,6 +823,17 @@ body.big .meta { height: 32px; font-size: 15px; }
 body.big .prog { height: 24px; }
 body.big .info-chip { font-size: 15px; }
 @media (max-height: 599px) { body.big .meta { height: 28px; } body.big .prog { height: 20px; } }
+
+/* ---------- saved records gone or unreadable: the first screen's card ---------- */
+.pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: 24px; background: var(--sand-tint); box-shadow: inset 0 0 0 1.5px var(--sand), 0 8px 24px rgb(8 28 10 / .2); color: #4a3a12; }
+.pk-missing[hidden] { display: none; }
+.pk-missing .nc-head { display: flex; align-items: center; gap: 10px; }
+.pk-missing h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+.pk-missing .nc-ico { background: rgb(255 255 255 / .75); color: #6b4e0e; }
+.pk-missing > p { margin-top: 8px; font-size: 15px; line-height: 1.45; }
+.pk-missing .pm-status:empty { display: none; }
+.pk-missing .pm-status { font-weight: 700; }
+.pk-missing .btn:not(.primary) { background: rgb(255 255 255 / .8); }
 
 /* ---------- the home-screen card on 지난 라운드 ---------- */
 .home-card .nc-head { display: flex; align-items: center; gap: 10px; }

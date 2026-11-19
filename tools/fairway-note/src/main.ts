@@ -1,7 +1,6 @@
 import './style.css';
 import {
   AREA_LABELS,
-  HOLE_COUNT,
   MAX_COUNT,
   PARS,
   PENALTIES,
@@ -11,6 +10,7 @@ import {
   analyze,
   bump,
   courseLabel,
+  roundLabel,
   finished,
   formatToPar,
   isStale,
@@ -35,14 +35,14 @@ import { CLUB_ICONS } from './icons';
 import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
 import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
-import { STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, type CourseChoice } from './storage';
+import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
-import { hasFinishedHole } from './history';
+import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
 
 type Penalty = (typeof PENALTIES)[number];
@@ -132,6 +132,9 @@ function hole(): Hole {
   return round.holes[round.current];
 }
 
+/** The last hole's index: 17, or 8 in a round of one nine. */
+const lastHole = () => round.holes.length - 1;
+
 function update(next: Round, changed?: string): void {
   round = { ...next, lastEdited: Date.now() };
   saved = saveRound(round);
@@ -205,7 +208,7 @@ function bindViews(): void {
 /* ---------- moving between holes: the arrows, 다음 홀 and a swipe all slide ---------- */
 
 function go(index: number): void {
-  if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
+  if (index < 0 || index >= lastHole() + 1 || index === round.current) return;
   hideToast();
   update({ ...round, current: index });
   $('sheet').scrollTop = 0;
@@ -243,7 +246,7 @@ function leaveGhost(sheet: HTMLElement, dir: number): void {
 function changeHole(dir: 1 | -1, swiped = false): void {
   const sheet = $('sheet');
   const target = round.current + dir;
-  if (target < 0 || target >= HOLE_COUNT) {
+  if (target < 0 || target > lastHole()) {
     slide(sheet, 0, 180);
     return;
   }
@@ -262,7 +265,7 @@ function changeHole(dir: 1 | -1, swiped = false): void {
 
 /** "다음 홀", or the round summary after the last hole. */
 function goNext(): void {
-  if (round.current === HOLE_COUNT - 1) requestFinish($('go-next'));
+  if (round.current === lastHole()) requestFinish($('go-next'));
   else changeHole(1);
 }
 
@@ -291,7 +294,7 @@ function bindSwipe(): void {
       }
     }
     // At the first and last hole the sheet only gives a little.
-    const edge = (dx > 0 && round.current === 0) || (dx < 0 && round.current === HOLE_COUNT - 1);
+    const edge = (dx > 0 && round.current === 0) || (dx < 0 && round.current === lastHole());
     slide(sheet, edge ? dx * 0.25 : dx);
   });
   const end = (e: PointerEvent, cancel: boolean) => {
@@ -672,7 +675,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   const missed = missedHoles();
   // The tick bar in the hole button: every hole, the current one longer, skipped ones in sand.
   const ticks = $('ticks');
-  if (!ticks.children.length) ticks.replaceChildren(...round.holes.map(() => h('i')));
+  if (ticks.children.length !== round.holes.length) ticks.replaceChildren(...round.holes.map(() => h('i')));
   [...ticks.children].forEach((t, k) => setAttr(t, 'data-t', k === i ? 'cur' : finished(round, k) ? 'done' : missed.includes(k) ? 'miss' : 'later'));
   // The coach mark: once, on hole 1 with nothing recorded, until the first tap (remembered in the prefs key).
   const coached = !coachSeen && i === 0 && !played(cur);
@@ -711,7 +714,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(infoBtn, 'aria-label', `홀 안내${phrases.length ? `, 특징 ${phrases.length}개` : ''}`);
   fitNotes();
   $<HTMLButtonElement>('prev-hole').disabled = i === 0;
-  $<HTMLButtonElement>('next-hole').disabled = i === HOLE_COUNT - 1;
+  $<HTMLButtonElement>('next-hole').disabled = i === lastHole();
 
   for (const key of TAGGED) {
     const n = cur[key];
@@ -802,7 +805,7 @@ function renderEntry(a: Analysis, changed?: string): void {
     }
     setAttr(undo, 'aria-label', `${LABELS[target]} 하나 빼기`);
   }
-  setText($('go-next'), i === HOLE_COUNT - 1 ? '라운드 마치기' : '다음 홀');
+  setText($('go-next'), i === lastHole() ? '라운드 마치기' : '다음 홀');
 }
 
 /* ---------- 스코어카드 ---------- */
@@ -845,7 +848,8 @@ function table(r: Round, a: Analysis, from: number, to: number, sub: string | nu
   const box = h('div', { class: 'tbl' }, labels);
   for (let i = from; i < to; i++) box.append(holeColumn(r, i, mode));
   if (sub) {
-    const start = sub === '전반' ? 0 : 9;
+    // The nine this subtotal closes: holes 1–9 or 10–18.
+    const start = from >= 9 ? 9 : 0;
     const t = a[start === 0 ? 'front' : 'back'];
     const par = r.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
     box.append(h('div', { class: 'col sub' }, h('span', { class: 'no' }, sub), h('span', { class: 'pr' }, String(par)),
@@ -854,14 +858,16 @@ function table(r: Round, a: Analysis, from: number, to: number, sub: string | nu
   return box;
 }
 
-/** A round's two nines as scorecard columns, each nine in its own `.scorecard` block. */
+/** A round's nines as scorecard columns, each nine in its own `.scorecard` block: two, or one for a 9-hole round. */
 function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
   const course = roundCourse(r);
+  const single = r.holes.length === 9;
+  const side = (start: number) => (single ? '9홀' : start === 0 ? '전반' : '후반');
   const nine = (start: number) => h('div', { class: 'scorecard' },
-    h('div', { class: 'nine-h' }, h('h3', {}, (start === 0 ? course.front : course.back) || (start === 0 ? '전반 9홀' : '후반 9홀')), h('span', {}, start === 0 ? '전반' : '후반')),
+    h('div', { class: 'nine-h' }, h('h3', {}, (start === 0 ? course.front : course.back) || (single ? '9홀' : start === 0 ? '전반 9홀' : '후반 9홀')), h('span', {}, side(start))),
     table(r, a, start, start + 5, null, mode),
-    table(r, a, start + 5, start + 9, start === 0 ? '전반' : '후반', mode));
-  return [nine(0), nine(9)];
+    table(r, a, start + 5, start + 9, single ? '합계' : side(start), mode));
+  return single ? [nine(0)] : [nine(0), nine(9)];
 }
 
 /** The total line under the nines, for a past round (the current round's is static markup). */
@@ -937,7 +943,7 @@ function analysisNodes(a: Analysis): (Node | string)[] {
   const maxDist = Math.max(...Object.values(a.distribution));
   return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
-      t.holes < HOLE_COUNT ? h('span', { class: 'muted' }, ` · 남은 ${HOLE_COUNT - t.holes}홀`) : null),
+      t.holes < round.holes.length ? h('span', { class: 'muted' }, ` · 남은 ${round.holes.length - t.holes}홀`) : null),
     h('dl', { class: 'metrics' }, ...metrics.flatMap(([k, v]) => [h('div', {}, h('dt', {}, k), h('dd', {}, v))])),
     h('h4', {}, '스코어 분포'),
     h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
@@ -992,7 +998,7 @@ async function shareReport(r: Round, status: HTMLElement): Promise<void> {
 
 function renderCourse(): void {
   const course = roundCourse(round);
-  setText($('course-name'), courseLabel(course));
+  setText($('course-name'), roundLabel(round));
   const source = courseSource(course);
   const box = $('par-source');
   const key = source ? `${source.source}|${source.checked}` : 'custom';
@@ -1039,7 +1045,7 @@ function changeCourse(choice: CourseChoice): void {
   const setup = roundSetup(choice);
   savePrefs(choice);
   update({ ...round, course: setup.course, holes: round.holes.map((x, i) => (x.par === setup.pars[i] ? x : { ...x, par: setup.pars[i] })) });
-  announce(`코스를 ${courseLabel(setup.course)}로 바꿨어요`);
+  announce(`코스를 ${roundLabel({ course: setup.course, holes: setup.pars })}로 바꿨어요`);
 }
 
 function bindMenu(): void {
@@ -1086,7 +1092,8 @@ function bindMenu(): void {
   });
   $('change-course').addEventListener('click', () => {
     menu.close();
-    openPicker({ mode: 'new', initial: loadPrefs(), title: '코스 바꾸기', startLabel: '이 코스로 바꾸기', onStart: changeCourse });
+    // The round keeps its holes: 18 or 9 is fixed here.
+    openPicker({ mode: 'new', initial: loadPrefs(), title: '코스 바꾸기', startLabel: '이 코스로 바꾸기', onStart: changeCourse, holes: round.holes.length === 9 ? 9 : 18 });
   });
 }
 
@@ -1102,14 +1109,15 @@ function renderSummary(): void {
   const nine = roundCheck().nine;
   const [front, back] = nineNames();
   const playedNine = nine === 'front' ? front : back;
-  setText($('sum-title'), nine ? '9홀 라운드 요약' : '라운드 요약');
-  setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  setText($('sum-title'), nine || round.holes.length === 9 ? '9홀 라운드 요약' : '라운드 요약');
+  setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : roundLabel(round)} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
   setAttr($('sum-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
   setText($('sum-total'), String(t.strokes));
   const vs = $('sum-vs');
   setText(vs, t.holes ? `파 대비 ${toParText(a.toPar)}` : '기록한 홀이 없어요');
   vs.classList.toggle('under', t.holes > 0 && a.toPar < 0);
-  setText($('sum-count'), !t.holes ? '홀을 기록하면 여기에 보여요' : nine ? `${playedNine} 9홀을 모두 기록했어요` : t.holes === HOLE_COUNT ? '18홀을 모두 기록했어요' : `${t.holes}홀만 기록했어요. 기록한 홀만 계산해요`);
+  const count = round.holes.length;
+  setText($('sum-count'), !t.holes ? '홀을 기록하면 여기에 보여요' : nine ? `${playedNine} 9홀을 모두 기록했어요` : t.holes === count ? `${count}홀을 모두 기록했어요` : `${t.holes}홀만 기록했어요. 기록한 홀만 계산해요`);
   const d = a.distribution;
   const marks: [Mark, string, number][] = [['eagle', '이글', d.eagle], ['birdie', '버디', d.birdie], ['par', '파', d.par], ['bogey', '보기', d.bogey], ['double', '더블', d.double], ['triple', '트리플+', d.triple]];
   $('sum-marks').replaceChildren(...marks.map(([m, label, n]) => h('li', {},
@@ -1123,7 +1131,7 @@ function renderSummary(): void {
   const stat = (label: string, value: string, small = '') => h('div', {}, h('dt', {}, label), h('dd', {}, value, small ? h('small', {}, small) : null));
   // A 9-hole round has no other nine to compare.
   $('sum-stats').replaceChildren(
-    ...(nine ? [] : [stat('전반', ...half(a.front) as [string, string]), stat('후반', ...half(a.back) as [string, string])]),
+    ...(nine || count === 9 ? [] : [stat('전반', ...half(a.front) as [string, string]), stat('후반', ...half(a.back) as [string, string])]),
     stat('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
     stat('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
     stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷을 고르면'),
@@ -1168,6 +1176,52 @@ function keepFinishedRound(): void {
   announce('지난 라운드에 보관했어요. 다음 라운드는 코스를 고르고 시작해요');
 }
 
+/* ---------- saved records gone or unreadable: said on the first screen, with a way back ---------- */
+
+type Missing = 'unreadable' | 'gone';
+
+/** Why the first screen has nothing to continue when that is not a first visit; null on an ordinary first visit. */
+function missingKind(): Missing | null {
+  if (rescued) return 'unreadable';
+  const kv = store();
+  const raw = (key: string) => {
+    try {
+      return kv?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const past = raw(HISTORY_KEY);
+  const read = readHistory(past);
+  if (past !== null && read.lossy && read.entries.length === 0) return 'unreadable';
+  // Opened from the home screen with nothing stored at all: the browser may have cleared this site's data.
+  if (standalone() && raw(STORAGE_KEY) === null && raw(PREFS_KEY) === null && past === null) return 'gone';
+  return null;
+}
+
+function showMissing(kind: Missing | null): void {
+  $('picker-missing').hidden = kind === null;
+  if (!kind) return;
+  setText($('pm-title'), kind === 'gone' ? '저장된 기록을 찾지 못했어요' : '저장된 기록을 읽지 못했어요');
+  setText($('pm-text'), kind === 'gone'
+    ? '홈 화면에서 열었는데 이 기기에 기록이 없어요. 브라우저가 오래 쓰지 않은 사이트의 기록을 정리했을 수 있어요. 백업 파일이 있으면 되살릴 수 있어요.'
+    : '이 기기에 저장된 기록을 읽을 수 없어 원래 값은 따로 보관했어요. 백업 파일이 있으면 되살릴 수 있어요.');
+  setText($('pm-status'), '');
+}
+
+function bindMissing(): void {
+  // The backup view's own file picker and import, from the first screen.
+  $('pm-restore').addEventListener('click', () => $('backup-import').click());
+  $('pm-close').addEventListener('click', () => {
+    $('picker-missing').hidden = true;
+    $('picker-start').focus();
+  });
+  // The import says how it went in the backup view (in the menu); the card says it here too.
+  new MutationObserver(() => {
+    if (!$('picker-missing').hidden) setText($('pm-status'), $('backup-status').textContent ?? '');
+  }).observe($('backup'), { subtree: true, childList: true, characterData: true });
+}
+
 /** With no round, 기록 and 스코어카드 start with the course picker; 닫기 stays on 지난 라운드. */
 function pickFirst(): void {
   openPicker({ mode: 'new', initial: loadPrefs(), cancelLabel: '닫기', onStart: startRound });
@@ -1209,7 +1263,8 @@ function roundCheck(): { blank: number[]; noPutt: number[]; nine: 'front' | 'bac
     if (!played(x)) blank.push(k);
     else if (x.putts === 0) noPutt.push(k);
   });
-  const only = (from: number) => blank.length === 9 && blank.every((k) => k >= from && k < from + 9);
+  // One whole nine of an 18-hole round; a 9-hole round is already one nine.
+  const only = (from: number) => round.holes.length === 18 && blank.length === 9 && blank.every((k) => k >= from && k < from + 9);
   return { blank, noPutt, nine: only(9) ? 'front' : only(0) ? 'back' : null };
 }
 
@@ -1253,7 +1308,7 @@ function requestFinish(from: HTMLElement): void {
   if (c.blank.length && !c.nine) items.push(['blank', `기록 안 한 홀 ${c.blank.length}개`, `${holeList(c.blank)}. 그대로 마치면 기록한 홀만 계산해요.`]);
   if (c.noPutt.length) items.push(['putt', `퍼트가 없는 홀 ${c.noPutt.length}개`, `${holeList(c.noPutt)}. 칩인으로 끝났다면 그대로 두세요.`]);
   setText($('check-title'), c.nine ? '9홀 라운드로 마칠까요?' : '라운드를 마칠까요?');
-  setText($('check-sub'), c.nine ? `${playedNine} 9홀을 모두 기록했어요. ${other}${topic(other)} 기록이 없어요.` : `18홀 중 ${HOLE_COUNT - c.blank.length}홀을 기록했어요.`);
+  setText($('check-sub'), c.nine ? `${playedNine} 9홀을 모두 기록했어요. ${other}${topic(other)} 기록이 없어요.` : `${round.holes.length}홀 중 ${round.holes.length - c.blank.length}홀을 기록했어요.`);
   const list = $('check-list');
   list.hidden = items.length === 0;
   list.replaceChildren(...items.map(([kind, title, detail]) => {
@@ -1327,7 +1382,9 @@ function renderStrip(): void {
       h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, played(x) ? String(s) : '–'))));
     if (k === 8 || k === 17) {
       const t = k === 8 ? a.front : a.back;
-      cells.push(h('span', { class: 'scell sub' }, h('span', { class: 'sc-no' }, k === 8 ? '전반' : '후반'), h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')));
+      // A 9-hole round has one subtotal, its total.
+      const label = round.holes.length === 9 ? '합계' : k === 8 ? '전반' : '후반';
+      cells.push(h('span', { class: 'scell sub' }, h('span', { class: 'sc-no' }, label), h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')));
     }
   });
   $('strip-row').replaceChildren(...cells);
@@ -1391,7 +1448,7 @@ function bindStrip(): void {
 function renderNow(a: Analysis = analyze(round)): void {
   const t = a.totals;
   setText($('now-title'), roundless ? '다음 라운드' : '지금 라운드');
-  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
+  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${roundLabel(round)} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
   setText($('now-continue'), roundless ? '코스 고르고 시작' : '이어서 기록');
   const score = $('now-score');
   setText(score, roundless ? '' : t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
@@ -1579,7 +1636,10 @@ applyBig(loadDisplay().big);
 bind();
 render();
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
-if (loaded === null || untouched) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+if (loaded === null || untouched) {
+  openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+  showMissing(missingKind());
+}
 else if (stale) {
   openPicker({
     mode: 'new',
@@ -1603,10 +1663,14 @@ const lent: Page = {
   current: () => round,
   replace: (next) => {
     stale = false;
+    roundless = false;
     hideToast();
     added.clear();
     celebrated.clear();
     update(next);
+    // A round restored from a backup file on the first screen: there is one to continue now.
+    $('picker-missing').hidden = true;
+    if (pickerOpen()) closePicker();
   },
   scorecard: (r, a) => [...scorecardNodes(r, a, 'read'), totalLine(a)],
   analysis: analysisNodes,
@@ -1615,6 +1679,7 @@ const lent: Page = {
 };
 renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
+bindMissing();
 // The 지난 라운드 header counts the kept rounds; the list changes on keeping, deleting and importing.
 new MutationObserver(() => renderNow()).observe($('history-list'), { childList: true });
 renderNow();
