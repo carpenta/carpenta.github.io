@@ -312,7 +312,7 @@ function bind(): void {
   });
   const dialog = $<HTMLDialogElement>('past');
   $('past-close').addEventListener('click', () => dialog.close());
-  // Closed by the button, Escape or the phone's back gesture.
+  // Closed by the button, Escape, or any other close request the browser sends to a modal dialog.
   dialog.addEventListener('close', () => {
     shown = null;
     document.documentElement.classList.remove('past-open');
