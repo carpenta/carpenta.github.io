@@ -43,6 +43,25 @@ describe('report', () => {
     expect(text).toContain('- 3퍼트 이상이 1홀 있습니다.');
   });
 
+  it('lists hazard drops next to OB and counts both as penalty strokes', () => {
+    const r = newRound(new Date(2026, 10, 19));
+    r.holes[0] = hole(4, 1, 1, 2, 1, 0, 1);
+    r.holes[1] = hole(5, 1, 2, 2, 0, 1, 2);
+    r.current = 2;
+    const text = reportText(r);
+    expect(text).toContain('1번 Par4: 6타 (+2) 드1 어1 퍼2 OB 1 해저드 1');
+    expect(text).toContain('2번 Par5: 7타 (+2) 드1 어2 퍼2 해저드 2 멀리건 1');
+    expect(text.split('\n')[3]).toBe('퍼트 4 · OB 1 · 해저드 3 · 멀리건 1');
+    expect(text).toContain('[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + 벌타(OB·해저드)');
+    expect(text).toContain('- OB 1회·해저드 3회로 벌타 4타가 더해졌습니다.');
+    expect(text).toContain('가장 많이 잃은 곳은 벌타입니다 (+4타)');
+    const hazardOnly = newRound(new Date(2026, 10, 19));
+    hazardOnly.holes[0] = hole(4, 1, 1, 2, 0, 0, 1);
+    hazardOnly.current = 1;
+    expect(reportText(hazardOnly)).toContain('- 해저드 1회로 벌타 1타가 더해졌습니다.');
+    expect(reportText(hazardOnly)).not.toContain('OB 하나에');
+  });
+
   it('names the round course, and Everis 새별·레이크 for rounds saved without one', () => {
     const r = newRound(new Date(2026, 10, 19), { course: { id: null, name: '동네 골프장', front: '', back: '' }, pars: Array(18).fill(4) });
     expect(reportSubject(r)).toBe('동네 골프장 2026년 11월 19일 라운드');

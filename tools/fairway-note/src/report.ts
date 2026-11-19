@@ -14,7 +14,11 @@ export function insights(a: Analysis): string[] {
     out.push('모든 영역이 기준 타수 안에 있습니다. 좋은 라운드입니다.');
   }
   if (a.threePutts) out.push(`3퍼트 이상이 ${a.threePutts}홀 있습니다. 첫 퍼트 거리감을 맞추면 바로 줄일 수 있는 타수입니다.`);
-  if (t.ob) out.push(`OB ${t.ob}회로 벌타 ${t.ob}타가 더해졌습니다. 다시 친 샷까지 치면 OB 하나에 보통 2타를 잃습니다.`);
+  if (t.ob || t.hazard) {
+    const counts = [t.ob ? `OB ${t.ob}회` : '', t.hazard ? `해저드 ${t.hazard}회` : ''].filter(Boolean).join('·');
+    const retee = t.ob ? ' 다시 친 샷까지 치면 OB 하나에 보통 2타를 잃습니다.' : '';
+    out.push(`${counts}로 벌타 ${t.ob + t.hazard}타가 더해졌습니다.${retee}`);
+  }
   if (t.mulligan) out.push(`멀리건 ${t.mulligan}회를 썼습니다. 멀리건 없이 쳤다면 스코어가 더 나왔을 수 있습니다.`);
   out.push(`그린 적중(GIR)은 ${a.girHoles}/${t.holes}홀 (${pct(a.girHoles, t.holes)}%)입니다.`);
   return out;
@@ -82,14 +86,14 @@ export function reportText(round: Round): string {
   lines.push(
     `총 ${t.strokes}타 (${formatToPar(a.toPar)}) · ${t.holes}/${HOLE_COUNT}홀`,
     `전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`,
-    `퍼트 ${t.putts} · OB ${t.ob} · 멀리건 ${t.mulligan}`,
+    `퍼트 ${t.putts} · OB ${t.ob}${t.hazard ? ` · 해저드 ${t.hazard}` : ''} · 멀리건 ${t.mulligan}`,
     '',
-    '[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + OB',
+    '[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + 벌타(OB·해저드)',
   );
   round.holes.forEach((h, i) => {
     if (!finished(round, i)) return;
     const s = strokes(h);
-    const extra = [h.ob ? `OB ${h.ob}` : '', h.mulligan ? `멀리건 ${h.mulligan}` : ''].filter(Boolean).join(' ');
+    const extra = [h.ob ? `OB ${h.ob}` : '', h.hazard ? `해저드 ${h.hazard}` : '', h.mulligan ? `멀리건 ${h.mulligan}` : ''].filter(Boolean).join(' ');
     lines.push(`${i + 1}번 Par${h.par}: ${s}타 (${formatToPar(s - h.par)}) 드${h.driver} 어${h.approach} 퍼${h.putts}${extra ? ` ${extra}` : ''}${holeTags(h)}`);
   });
   const dist = (Object.keys(SCORE_LABELS) as ScoreName[])
