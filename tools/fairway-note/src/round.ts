@@ -1,4 +1,3 @@
-export const COURSE_NAME = '에버리스 새별·레이크';
 export const HOLE_COUNT = 18;
 export const DEFAULT_PAR = 4;
 export const PARS = [3, 4, 5] as const;
@@ -9,6 +8,29 @@ export type Par = (typeof PARS)[number];
  * operator's scorecard (shinangolf.com/club/course/everis, checked 2026-11-19). Editable per hole.
  */
 export const COURSE_PARS: readonly Par[] = [4, 4, 5, 3, 4, 4, 3, 5, 4, 4, 3, 4, 4, 5, 5, 3, 4, 4];
+
+/** The course a round is played on, by display name so a round reads the same if the bundle changes. */
+export interface RoundCourse {
+  /** Bundled course id, or null for a course typed in by hand. */
+  id: string | null;
+  name: string;
+  /** Nine names, front (holes 1-9) and back (10-18). Empty for a course typed in by hand. */
+  front: string;
+  back: string;
+}
+
+/** Rounds saved before courses could be chosen were played on Everis 새별 then 레이크. */
+export const DEFAULT_COURSE: RoundCourse = { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' };
+
+export function roundCourse(round: Pick<Round, 'course'>): RoundCourse {
+  return round.course ?? DEFAULT_COURSE;
+}
+
+/** "에버리스 골프리조트 새별·레이크", one nine played twice once, or the name alone. */
+export function courseLabel(c: RoundCourse): string {
+  const nines = c.front === c.back ? c.front : [c.front, c.back].filter(Boolean).join('·');
+  return nines ? `${c.name} ${nines}` : c.name;
+}
 
 /** Counted items on a hole. OB adds one penalty stroke each; mulligans are noted but never counted. */
 export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'mulligan'] as const;
@@ -59,6 +81,8 @@ export interface Round {
   holes: Hole[];
   /** When the round was last changed, ms since the epoch. Missing in rounds saved before it was added. */
   lastEdited?: number;
+  /** Missing in rounds saved before courses could be chosen: those are DEFAULT_COURSE. */
+  course?: RoundCourse;
 }
 
 export function emptyHole(par: Par = DEFAULT_PAR): Hole {
@@ -70,8 +94,8 @@ export function localDate(now = new Date()): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function newRound(now = new Date()): Round {
-  return { version: 1, date: localDate(now), current: 0, holes: COURSE_PARS.map((par) => emptyHole(par)) };
+export function newRound(now = new Date(), setup: { course: RoundCourse; pars: readonly Par[] } = { course: DEFAULT_COURSE, pars: COURSE_PARS }): Round {
+  return { version: 1, date: localDate(now), current: 0, holes: setup.pars.map((par) => emptyHole(par)), course: { ...setup.course } };
 }
 
 export function isTagged(key: Counter): key is Tagged {

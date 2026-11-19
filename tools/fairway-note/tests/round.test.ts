@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COURSE_NAME, COURSE_PARS, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
+import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, mulligan });
 
@@ -13,11 +13,32 @@ function roundOf(list: Hole[], current = HOLE_LAST): Round {
 const HOLE_LAST = 17;
 
 describe('course', () => {
-  it('is Everis 새별 front and 레이크 back with the official pars', () => {
-    expect(COURSE_NAME).toBe('에버리스 새별·레이크');
+  it('is Everis 새별 front and 레이크 back with the official pars by default', () => {
+    expect(DEFAULT_COURSE).toEqual({ id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' });
     expect(COURSE_PARS).toEqual([4, 4, 5, 3, 4, 4, 3, 5, 4, 4, 3, 4, 4, 5, 5, 3, 4, 4]);
     expect(COURSE_PARS.reduce((a, b) => a + b, 0)).toBe(72);
     expect(newRound().holes.map((h) => h.par)).toEqual(COURSE_PARS);
+    expect(newRound().course).toEqual(DEFAULT_COURSE);
+  });
+
+  it('starts a round on a chosen course and pars', () => {
+    const course = { id: 'pinx', name: '핀크스 골프클럽', front: '이스트', back: '웨스트' };
+    const pars = [...COURSE_PARS].reverse();
+    const r = newRound(new Date(2026, 10, 19), { course, pars });
+    expect(r.course).toEqual(course);
+    expect(r.holes.map((h) => h.par)).toEqual(pars);
+    expect(roundCourse(r)).toEqual(course);
+  });
+
+  it('treats a round saved before courses were added as Everis 새별·레이크', () => {
+    const { course: _, ...old } = newRound();
+    expect(roundCourse(old)).toEqual(DEFAULT_COURSE);
+  });
+
+  it('labels a course with its two nines, one nine played twice, or a name alone', () => {
+    expect(courseLabel(DEFAULT_COURSE)).toBe('에버리스 골프리조트 새별·레이크');
+    expect(courseLabel({ id: 'shinan', name: '신안컨트리클럽', front: 'Tomato', back: 'Tomato' })).toBe('신안컨트리클럽 Tomato');
+    expect(courseLabel({ id: null, name: '동네 골프장', front: '', back: '' })).toBe('동네 골프장');
   });
 });
 
