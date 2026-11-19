@@ -1357,6 +1357,27 @@ function renderNow(a: Analysis = analyze(round)): void {
   score.classList.toggle('none', !t.holes);
   const kept = document.querySelectorAll('#history-list > li').length;
   setText($('hist-sub'), kept ? `보관한 라운드 ${kept}개` : '아직 보관한 라운드가 없어요');
+  // The home-screen card: once a round is kept, until 알겠어요, and not when opened from the home screen.
+  $('home-card').hidden = !kept || homeSeen || standalone();
+}
+
+let homeSeen = loadDisplay().home;
+const standalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+function bindHomeCard(): void {
+  const more = $('home-more');
+  more.addEventListener('click', () => {
+    const open = more.getAttribute('aria-expanded') !== 'true';
+    setAttr(more, 'aria-expanded', String(open));
+    $('hc-more').hidden = !open;
+    setText(more, open ? '접기' : '방법 보기');
+  });
+  $('home-ok').addEventListener('click', () => {
+    homeSeen = true;
+    saveDisplay({ home: true });
+    renderNow();
+    $('tab-hist').focus();
+  });
 }
 
 /**
@@ -1420,6 +1441,7 @@ function bind(): void {
     h('span', { class: 'm', 'data-mark': m, 'data-tone': tone, 'aria-hidden': 'true' }, h('b', {}, String(n))), label, h('span', { class: 'sr-only' }, `, ${n}타 ${shape}`))));
   $('toast-undo').addEventListener('click', restore);
   $('now-continue').addEventListener('click', () => show('entry'));
+  bindHomeCard();
   bindSummary();
   setText($('picker-version'), VERSION_LABEL);
   bindSwipe();

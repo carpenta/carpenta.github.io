@@ -243,10 +243,12 @@ export function savePrefs(choice: CourseChoice, kv: KV | null = store()): boolea
 export interface Display {
   big: boolean;
   coach: boolean;
+  /** The home-screen card on 지난 라운드 was put away with 알겠어요. */
+  home: boolean;
 }
 
 /** Only the settings that are on are written, so an untouched prefs value stays as it was. */
-const flags = (d: Display) => ({ ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}) });
+const flags = (d: Display) => ({ ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}), ...(d.home ? { home: true } : {}) });
 
 function prefsObject(kv: KV | null): Record<string, unknown> {
   try {
@@ -259,14 +261,14 @@ function prefsObject(kv: KV | null): Record<string, unknown> {
 
 export function loadDisplay(kv: KV | null = store()): Display {
   const o = prefsObject(kv);
-  return { big: o.big === true, coach: o.coach === true };
+  return { big: o.big === true, coach: o.coach === true, home: o.home === true };
 }
 
 /** Changes some display settings, keeping the others and the remembered course. */
 export function saveDisplay(change: Partial<Display>, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    const { big: _big, coach: _coach, ...rest } = prefsObject(kv);
+    const { big: _big, coach: _coach, home: _home, ...rest } = prefsObject(kv);
     kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...flags({ ...loadDisplay(kv), ...change }) }));
     return true;
   } catch {

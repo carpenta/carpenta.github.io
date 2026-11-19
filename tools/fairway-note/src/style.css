@@ -783,6 +783,16 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
   body.big .club-lbl { height: 18px; }
 }
 
+/* ---------- the home-screen card on 지난 라운드 ---------- */
+.home-card .nc-head { display: flex; align-items: center; gap: 10px; }
+.home-card .nc-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.nc-ico { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--tint); color: var(--turf); }
+.hc-more > p { margin-top: 10px; font-size: 15px; line-height: 1.45; color: var(--muted); }
+.steps { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.steps li { padding: 10px 12px; border-radius: 14px; background: var(--paper); font-size: 15px; line-height: 1.5; }
+.steps b { display: block; font-size: 13px; color: var(--muted); }
+.nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
 /* ---------- the long-press coach mark: once, on hole 1 of the first round ---------- */
 .num-row { position: relative; }
 .coach {

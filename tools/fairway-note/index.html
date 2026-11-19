@@ -164,6 +164,24 @@
           <button type="button" class="btn primary" id="now-continue">이어서 기록</button>
         </section>
         <!-- Filled by renderHistory(); the view can be mounted into any container. -->
+        <!-- Once a round is kept: one calm line about the home screen, the steps behind 방법 보기. Never on 기록. -->
+        <section class="box home-card" id="home-card" aria-labelledby="home-h" hidden>
+          <div class="nc-head">
+            <span class="nc-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 8.6v6M9 11.6h6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span>
+            <h3 id="home-h">홈 화면에 추가하면 기록이 더 오래 남아요</h3>
+          </div>
+          <div class="hc-more" id="hc-more" hidden>
+            <p>브라우저는 오래 열지 않은 사이트의 기록을 지울 수 있어요(iPhone Safari는 7일). 홈 화면에서 열면 이 규칙을 피해요.</p>
+            <ol class="steps">
+              <li><b>iPhone</b>Safari에서 공유를 누르고 홈 화면에 추가를 고르세요.</li>
+              <li><b>Android</b>Chrome에서 ⋮ 메뉴를 누르고 홈 화면에 추가를 고르세요.</li>
+            </ol>
+          </div>
+          <div class="nc-row">
+            <button type="button" class="btn" id="home-more" aria-expanded="false" aria-controls="hc-more">방법 보기</button>
+            <button type="button" class="btn" id="home-ok">알겠어요</button>
+          </div>
+        </section>
         <section id="history" class="box"></section>
       </section>
     </div>

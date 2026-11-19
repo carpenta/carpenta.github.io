@@ -646,6 +646,30 @@ test('a coach mark on hole 1 of the first round explains the long press once, an
   expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual([PREFS_KEY, STORAGE_KEY].sort());
 });
 
+test('once a round is kept, 지난 라운드 suggests the home screen in one line, until 알겠어요', async ({ page }) => {
+  await open(page);
+  const card = page.locator('#home-card');
+  await showPast(page);
+  await expect(card).toBeHidden();
+  await seed(page, { 0: { driver: 1, approach: 1, putts: 2 } }, 1);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await expect(card).toBeVisible();
+  await expect(card.locator('h3')).toHaveText('홈 화면에 추가하면 기록이 더 오래 남아요');
+  await expect(page.locator('#hc-more')).toBeHidden();
+  await page.getByRole('button', { name: '방법 보기' }).click();
+  await expect(page.locator('#hc-more .steps li')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: '접기' })).toHaveAttribute('aria-expanded', 'true');
+  expect(await sideScroll(page)).toBe(0);
+  await page.getByRole('button', { name: '알겠어요' }).click();
+  await expect(card).toBeHidden();
+  // Put away for good, in the prefs key.
+  expect(JSON.parse((await page.evaluate((key) => localStorage.getItem(key), PREFS_KEY))!).home).toBe(true);
+});
+
 test('finishing with one whole nine offers a 9-hole round, and its summary leaves the other nine out', async ({ page }) => {
   await open(page);
   await seed(page, Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i, { driver: 1, approach: 1, putts: 2 }])), 8);
