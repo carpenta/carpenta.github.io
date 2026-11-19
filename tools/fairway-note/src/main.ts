@@ -374,6 +374,12 @@ function buildClubs(): void {
     // The count, with the club's icon beside it for screens where the names step aside.
     const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}` }, '0'));
     num.insertAdjacentHTML('afterbegin', CLUB_ICONS[key].replace('<svg', '<svg class="pill-ico"'));
+    // The long-press coach mark sits over the middle count (screen readers get it from #lp-hint).
+    if (key === 'approach') {
+      const coach = h('span', { class: 'coach', id: 'coach', 'aria-hidden': 'true', hidden: '' }, '숫자를 길게 누르면 바로 골라요');
+      coach.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="3" fill="currentColor"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/></svg>');
+      num.append(coach);
+    }
     box.append(h('div', { class: `club club-${key}`, 'data-key': key }, name,
       h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}`, 'aria-describedby': 'lp-hint' }, plus, num, minus)));
   }
@@ -383,9 +389,24 @@ function buildClubs(): void {
     count(button.closest<HTMLElement>('.club')!.dataset.key as Tagged, button.classList.contains('plus') ? 1 : -1);
   });
   bindNumPick();
+  $('entry').addEventListener('pointerdown', dismissCoach, true);
+  document.addEventListener('keydown', () => {
+    if (!$('entry').hidden) dismissCoach();
+  });
 }
 
 /* ---------- long-press a count: set it straight to 0 … 5+ ---------- */
+
+let coachSeen = loadDisplay().coach;
+
+/** The first tap or key on 기록 while the coach mark shows puts it away for good. */
+function dismissCoach(): void {
+  if (coachSeen || $('coach').hidden) return;
+  coachSeen = true;
+  saveDisplay({ coach: true });
+  $('coach').hidden = true;
+  $('clubs').classList.remove('coached');
+}
 
 let press: { pill: HTMLElement; key: Tagged; id: number; x: number; y: number; timer: number; fired: boolean } | null = null;
 let pickKey: Tagged | null = null;
@@ -640,6 +661,14 @@ function renderEntry(a: Analysis, changed?: string): void {
   progP.classList.toggle('under', a.toPar < 0);
   // A hole behind you with nothing recorded: a quiet sand dot on the hole number, which opens the strip.
   const missed = missedHoles();
+  // The tick bar in the hole button: every hole, the current one longer, skipped ones in sand.
+  const ticks = $('ticks');
+  if (!ticks.children.length) ticks.replaceChildren(...round.holes.map(() => h('i')));
+  [...ticks.children].forEach((t, k) => setAttr(t, 'data-t', k === i ? 'cur' : finished(round, k) ? 'done' : missed.includes(k) ? 'miss' : 'later'));
+  // The coach mark: once, on hole 1 with nothing recorded, until the first tap (remembered in the prefs key).
+  const coached = !coachSeen && i === 0 && !played(cur);
+  $('coach').hidden = !coached;
+  $('clubs').classList.toggle('coached', coached);
   const holeBtn = $('hole-btn');
   holeBtn.classList.toggle('missed', missed.length > 0);
   setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);

@@ -232,17 +232,21 @@ export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
 export function savePrefs(choice: CourseChoice, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    kv.setItem(PREFS_KEY, JSON.stringify({ ...choice, ...(loadDisplay(kv).big ? { big: true } : {}) }));
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...choice, ...flags(loadDisplay(kv)) }));
     return true;
   } catch {
     return false;
   }
 }
 
-/** Display settings, kept in the prefs key beside the course choice: 큰 글씨. */
+/** Display settings, kept in the prefs key beside the course choice: 큰 글씨, and whether the long-press coach mark was seen. */
 export interface Display {
   big: boolean;
+  coach: boolean;
 }
+
+/** Only the settings that are on are written, so an untouched prefs value stays as it was. */
+const flags = (d: Display) => ({ ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}) });
 
 function prefsObject(kv: KV | null): Record<string, unknown> {
   try {
@@ -254,15 +258,16 @@ function prefsObject(kv: KV | null): Record<string, unknown> {
 }
 
 export function loadDisplay(kv: KV | null = store()): Display {
-  return { big: prefsObject(kv).big === true };
+  const o = prefsObject(kv);
+  return { big: o.big === true, coach: o.coach === true };
 }
 
-/** Saves the display settings without touching the remembered course. */
-export function saveDisplay(display: Display, kv: KV | null = store()): boolean {
+/** Changes some display settings, keeping the others and the remembered course. */
+export function saveDisplay(change: Partial<Display>, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    const { big: _old, ...rest } = prefsObject(kv);
-    kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...(display.big ? { big: true } : {}) }));
+    const { big: _big, coach: _coach, ...rest } = prefsObject(kv);
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...flags({ ...loadDisplay(kv), ...change }) }));
     return true;
   } catch {
     return false;

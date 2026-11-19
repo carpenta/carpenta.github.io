@@ -102,8 +102,13 @@ svg { display: block; }
 .hole-title:active, .hole-title[aria-expanded='true'] { background: var(--tint); }
 .hole-chev { flex: none; margin-left: 4px; color: var(--turf); transition: transform .16s; }
 .hole-title[aria-expanded='true'] .hole-chev { transform: rotate(180deg); }
-/* A skipped hole behind you: a quiet sand dot on the hole number. */
-.hole-title.missed::before { content: ''; position: absolute; top: 6px; right: 3px; width: 9px; height: 9px; border-radius: 50%; background: var(--sand); box-shadow: 0 0 0 2px var(--white); }
+/* The tick bar: every hole of the round, always in view inside the hole button (v9; a skipped hole is a sand tick). */
+/* As wide as the hole number: a wider switcher would run into the badge on short screens. */
+.ticks { align-self: stretch; display: flex; gap: 1px; height: 4px; margin-top: 4px; }
+.ticks i { flex: 1 1 0; min-width: 2px; border-radius: 1px; background: #d5e1cf; }
+.ticks i[data-t='done'] { background: var(--fairway); }
+.ticks i[data-t='miss'] { background: #c9962e; }
+.ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--turf); }
 .hole-txt { display: flex; flex-direction: column; align-items: flex-start; }
 .hole-main { display: flex; align-items: baseline; gap: 2px; margin: 0; font: inherit; }
 .hole-n { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
@@ -777,6 +782,18 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
   body.big .chip { height: 28px; }
   body.big .club-lbl { height: 18px; }
 }
+
+/* ---------- the long-press coach mark: once, on hole 1 of the first round ---------- */
+.num-row { position: relative; }
+.coach {
+  position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: 999px;
+  background: rgb(22 48 29 / .94); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 6px 16px rgb(8 28 10 / .3);
+}
+.coach[hidden] { display: none; }
+/* The counts are all 0 under it; hidden so they do not peek out. */
+.clubs.coached .count { visibility: hidden; }
+@media (max-height: 599px) { #entry[data-mode='detail'] .ticks { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .hole-chev, .pill.pressing .count, .sw::after { transition: none; }
