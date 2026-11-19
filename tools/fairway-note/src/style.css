@@ -323,7 +323,7 @@ button.col:active { background: var(--tint); }
 
 .box { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 24px; padding: 16px; box-shadow: 0 8px 24px rgb(23 48 26 / .10); }
 .box h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
-.box h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
+.box h4, .past h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .lost-bars li { display: grid; grid-template-columns: 64px 1fr 32px; align-items: center; gap: 8px; font-size: 13px; }
 .lost-bars .bar { height: 10px; border-radius: 4px; background: var(--off); overflow: hidden; }
@@ -354,7 +354,59 @@ button.col:active { background: var(--tint); }
 .send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
 .send-actions .btn.primary { color: #fff; }
 #send-status:empty { display: none; }
-.footer-actions { display: grid; gap: 10px; margin-bottom: 24px; }
+.footer-actions { display: grid; gap: 10px; }
+
+/* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
+.box h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+#backup { margin-bottom: 24px; }
+.topar.score-eagle, .topar.score-birdie { color: var(--red); }
+.history-trends { margin: 8px 0 12px; }
+.history-trends .metrics { margin: 0; }
+.trend-note { margin: 8px 0 0; }
+.spark { display: grid; gap: 2px; margin-top: 10px; }
+.spark-cap { font-size: 13px; color: var(--muted); }
+.spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.spark-line { display: block; width: 100%; height: 32px; overflow: visible; }
+.spark-line polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.history-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.history-list:empty { display: none; }
+.past-item {
+  width: 100%; min-height: 56px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline;
+  padding: 8px 12px; border-radius: 14px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); text-align: left;
+}
+.past-item:active { background: var(--tint); }
+.past-when { font-weight: 700; }
+.past-score { font-size: 18px; font-weight: 800; text-align: right; white-space: nowrap; }
+.past-score .topar { font-size: 14px; }
+.past-where, .past-meta { font-size: 13px; color: var(--muted); }
+.past-meta { text-align: right; white-space: nowrap; }
+#history-empty { margin: 4px 0 0; }
+.backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+#backup-share { grid-column: 1 / -1; }
+#history-status, #backup-status, #past-status { margin: 8px 0 0; }
+#history-status:empty, #backup-status:empty, #past-status:empty { display: none; }
+/* Never sets display, so the closed dialog stays hidden by the browser's own rule. */
+.past {
+  width: 100%; max-width: 640px; height: 100%; max-height: none; margin: 0 auto; padding: 0; border: 0;
+  background: var(--paper); color: var(--ink); overflow-y: auto; overscroll-behavior: contain;
+}
+.past::backdrop { background: rgb(8 24 10 / .5); }
+html.past-open { overflow: hidden; }
+.past-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
+  background: var(--white); border-bottom: 1px solid var(--line);
+}
+.past-heading { min-width: 0; }
+.past-head h2 { font-size: 18px; font-weight: 700; }
+.past-head p { font-size: 13px; }
+.past-head .btn { flex: none; }
+.past-body { padding: 0 max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.past-body > h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.past-body > h3:first-child { margin-top: 12px; }
+#past-scorecard .nine-h:first-child { margin-top: 0; }
+.past .past-send { margin-top: 16px; }
+.past #past-delete { width: 100%; margin-top: 16px; }
 
 .btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: 700; }
 .btn.primary { background: var(--turf); color: #fff; }

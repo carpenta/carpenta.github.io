@@ -40,6 +40,9 @@ import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION, VERSION_LABEL } from './version';
+import { $, h, setText } from './dom';
+import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
+import { renderBackup } from './backup-view';
 
 type Penalty = (typeof PENALTIES)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'none';
@@ -61,25 +64,6 @@ const SHAPES: Record<Mark, string> = {
   bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
   double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
 };
-
-type Children = (Node | string | null | false)[];
-
-function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, string> = {}, ...children: Children): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k === 'class') el.className = v;
-    else el.setAttribute(k, v);
-  }
-  for (const c of children) if (c !== null && c !== false) el.append(c);
-  return el;
-}
-
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-
-/** Writes text only when it changes, so screen readers and layout are not disturbed on every tap. */
-function setText(el: Element, text: string): void {
-  if (el.textContent !== text) el.textContent = text;
-}
 
 function setAttr(el: Element, name: string, value: string): void {
   if (el.getAttribute(name) !== value) el.setAttribute(name, value);
@@ -119,6 +103,11 @@ let detached = false;
 let persistAsked = false;
 /** A round left untouched for half a day, offered to continue or replace on load. */
 let stale = loaded !== null && isStale(loaded);
+/**
+ * Versions before course selection saved an untouched round on open. Such a round (no course, nothing recorded)
+ * counts as no round. A round started from the picker always has its course, so it is not this.
+ */
+const untouched = loaded !== null && loaded.course === undefined && !loaded.holes.some((x) => played(x) || x.mulligan > 0);
 /** 기본 or 상세, kept in memory. */
 let mode: 'basic' | 'detail' = 'basic';
 /** Penalties in the order they were added on each hole, so "빼기" takes off the last one. Not saved. */
@@ -563,14 +552,17 @@ function renderEntry(a: Analysis, changed?: string): void {
 
 /* ---------- 스코어카드 ---------- */
 
-/** A hole's column: a button that opens the hole, or in 파 수정 a column whose par cell is the button. */
-function holeColumn(i: number): HTMLElement {
-  const x = round.holes[i];
-  const done = finished(round, i);
+/** How a scorecard is shown: the current round's columns open holes or, in 파 수정, step pars; a past round's only read. */
+type CardMode = 'open' | 'edit' | 'read';
+
+/** A hole's column: a button that opens the hole, a column whose par cell is the button (파 수정), or plain (a past round). */
+function holeColumn(r: Round, i: number, mode: CardMode): HTMLElement {
+  const x = r.holes[i];
+  const done = finished(r, i);
   const s = strokes(x);
   const d = s - x.par;
-  const published = publishedPar(roundCourse(round), i);
-  const par = editPar
+  const published = publishedPar(roundCourse(r), i);
+  const par = mode === 'edit'
     ? h('button', { type: 'button', class: `par-btn${published !== null && x.par !== published ? ' changed' : ''}`, 'data-par-hole': String(i), 'aria-label': `${i + 1}번 홀 Par ${x.par}, 누르면 바뀜` }, String(x.par))
     : h('span', { class: 'pr' }, String(x.par));
   const cells = [
@@ -579,9 +571,10 @@ function holeColumn(i: number): HTMLElement {
     h('span', { class: 'sc-row' }, h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, done ? String(s) : '–'))),
     h('span', { class: 'pt' }, done ? String(x.putts) : ''),
   ];
-  if (editPar) return h('div', { class: 'col', 'aria-current': String(i === round.current) }, ...cells);
+  if (mode === 'read') return h('div', { class: 'col' }, ...cells);
+  if (mode === 'edit') return h('div', { class: 'col', 'aria-current': String(i === r.current) }, ...cells);
   const state = done ? `, ${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : ', 기록 없음';
-  return h('button', { type: 'button', class: 'col', 'data-hole': String(i), 'aria-current': String(i === round.current), 'aria-label': `${i + 1}번 홀로 가기, Par ${x.par}${state}` }, ...cells);
+  return h('button', { type: 'button', class: 'col', 'data-hole': String(i), 'aria-current': String(i === r.current), 'aria-label': `${i + 1}번 홀로 가기, Par ${x.par}${state}` }, ...cells);
 }
 
 /** 파 수정: Par 3 → 4 → 5 → 3, keeping focus on the same hole's button. */
@@ -592,18 +585,35 @@ function cyclePar(index: number): void {
   announce(`${index + 1}번 홀 Par ${next}`);
 }
 
-function table(from: number, to: number, sub: string | null): HTMLElement {
+function table(r: Round, a: Analysis, from: number, to: number, sub: string | null, mode: CardMode): HTMLElement {
   const labels = h('div', { class: 'rowlbl', 'aria-hidden': 'true' }, h('span', {}, '홀'), h('span', { class: 'pr-row' }, '파'), h('span', { class: 'sc-row' }, '타수'), h('span', {}, '퍼트'));
   const box = h('div', { class: 'tbl' }, labels);
-  for (let i = from; i < to; i++) box.append(holeColumn(i));
+  for (let i = from; i < to; i++) box.append(holeColumn(r, i, mode));
   if (sub) {
     const start = sub === '전반' ? 0 : 9;
-    const t = analyze(round)[start === 0 ? 'front' : 'back'];
-    const par = round.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
+    const t = a[start === 0 ? 'front' : 'back'];
+    const par = r.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
     box.append(h('div', { class: 'col sub' }, h('span', { class: 'no' }, sub), h('span', { class: 'pr' }, String(par)),
       h('span', { class: 'sc-row' }, h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')), h('span', { class: 'pt' }, t.holes ? String(t.putts) : '')));
   }
   return box;
+}
+
+/** A round's two nines as scorecard columns, each nine in its own `.scorecard` block. */
+function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
+  const course = roundCourse(r);
+  const nine = (start: number) => h('div', { class: 'scorecard' },
+    h('div', { class: 'nine-h' }, h('h3', {}, (start === 0 ? course.front : course.back) || (start === 0 ? '전반 9홀' : '후반 9홀')), h('span', {}, start === 0 ? '전반' : '후반')),
+    table(r, a, start, start + 5, null, mode),
+    table(r, a, start + 5, start + 9, start === 0 ? '전반' : '후반', mode));
+  return [nine(0), nine(9)];
+}
+
+/** The total line under the nines, for a past round (the current round's is static markup). */
+function totalLine(a: Analysis): HTMLElement {
+  const t = a.totals;
+  return h('div', { class: 'tot' }, h('h3', {}, '합계'), h('span', {}, `${t.holes}홀`), h('b', {}, `${t.strokes}타`),
+    h('b', { class: t.holes && a.toPar < 0 ? 'under' : '' }, toParText(t.holes ? a.toPar : 0)));
 }
 
 function renderCard(a: Analysis): void {
@@ -622,12 +632,7 @@ function renderCard(a: Analysis): void {
   setText($('sum-putts'), String(t.putts));
   setText($('sum-ob'), String(t.ob));
   setText($('sum-hazard'), String(t.hazard));
-  const nine = (start: number) => [
-    h('div', { class: 'nine-h' }, h('h3', {}, (start === 0 ? course.front : course.back) || (start === 0 ? '전반 9홀' : '후반 9홀')), h('span', {}, start === 0 ? '전반' : '후반')),
-    table(start, start + 5, null),
-    table(start + 5, start + 9, start === 0 ? '전반' : '후반'),
-  ];
-  $('scorecard').replaceChildren(...nine(0), ...nine(9));
+  $('scorecard').replaceChildren(...scorecardNodes(round, a, editPar ? 'edit' : 'open'));
   setText($('tot-holes'), `${t.holes}홀`);
   setText($('tot-strokes'), `${t.strokes}타`);
   const total = $('tot-topar');
@@ -659,12 +664,13 @@ function bar(label: string, value: number, max: number, text: string, cls = ''):
 }
 
 function renderAnalysis(a: Analysis): void {
-  const box = $('analysis');
+  $('analysis').replaceChildren(...analysisNodes(a));
+}
+
+/** The analysis of a round, for this round and for past ones. */
+function analysisNodes(a: Analysis): (Node | string)[] {
   const t = a.totals;
-  if (!t.holes) {
-    box.replaceChildren(h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나옵니다.'));
-    return;
-  }
+  if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나옵니다.')];
   const metrics = [
     ['평균 퍼트', `${one(a.puttsPerHole)}개/홀`],
     ['1퍼트', `${a.onePutts}홀`],
@@ -674,7 +680,7 @@ function renderAnalysis(a: Analysis): void {
     ['멀리건', `${t.mulligan}회`],
   ];
   const maxDist = Math.max(...Object.values(a.distribution));
-  box.replaceChildren(
+  return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
       t.holes < HOLE_COUNT ? h('span', { class: 'muted' }, ` · 남은 ${HOLE_COUNT - t.holes}홀`) : null),
     h('dl', { class: 'metrics' }, ...metrics.flatMap(([k, v]) => [h('div', {}, h('dt', {}, k), h('dd', {}, v))])),
@@ -690,7 +696,7 @@ function renderAnalysis(a: Analysis): void {
     ...(a.details
       ? [h('h4', {}, '샷 세부'), h('ul', { class: 'insights details' }, ...detailLines(a).map((s) => h('li', {}, s)))]
       : []),
-  );
+  ];
 }
 
 const canShare = typeof navigator.share === 'function';
@@ -708,12 +714,12 @@ function renderSend(a: Analysis): void {
   setText(share, canShare ? '공유하기' : '결과 복사');
 }
 
-async function shareReport(): Promise<void> {
-  const text = reportText(round);
-  const status = $('send-status');
+/** Shares a round's report (this round or a past one), or copies it where the browser cannot share. */
+async function shareReport(r: Round, status: HTMLElement): Promise<void> {
+  const text = reportText(r);
   if (canShare) {
     try {
-      await navigator.share({ title: reportSubject(round), text });
+      await navigator.share({ title: reportSubject(r), text });
       setText(status, '');
     } catch (error) {
       // Closing the share sheet is not an error worth showing.
@@ -769,8 +775,12 @@ function bindMenu(): void {
   $('mulligan-minus').addEventListener('click', () => count('mulligan', -1));
 }
 
-/** Starts a new round on the chosen course and remembers the choice for next time. */
+/**
+ * Starts a new round on the chosen course and remembers the choice for next time. Every way into a new round comes
+ * through here, so a round with a finished hole moves to the past rounds first; if it cannot be kept, the player decides.
+ */
 function startRound(choice: CourseChoice): void {
+  if (!keepBeforeNewRound(round)) return;
   stale = false;
   editPar = false;
   savePrefs(choice);
@@ -841,15 +851,15 @@ function bind(): void {
     render();
     announce(editPar ? '파 수정: 파를 누를 때마다 3, 4, 5 순서로 바뀌어요' : '파 수정 완료');
   });
-  // The current round stays until a course is chosen; cancelling the picker keeps it.
+  // The current round stays until a course is chosen; cancelling the picker keeps it (startRound keeps it among past rounds).
   const startNew = () => openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
   $('new-round').addEventListener('click', () => {
-    if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
+    if (confirm(newRoundQuestion(round))) startNew();
   });
   $('stale-new').addEventListener('click', () => {
-    if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
+    if (confirm(newRoundQuestion(round))) startNew();
   });
-  $('send-share').addEventListener('click', () => void shareReport());
+  $('send-share').addEventListener('click', () => void shareReport(round, $('send-status')));
   $('stale-keep').addEventListener('click', () => {
     stale = false;
     // Saving marks the round as just edited, so the banner does not come back on the next load.
@@ -882,6 +892,39 @@ function bind(): void {
 
 bind();
 render();
-if (loaded === null) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+// The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
+if (loaded === null || untouched) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+else if (stale) {
+  openPicker({
+    mode: 'new',
+    initial: loadPrefs(),
+    cancelLabel: '지난 라운드 이어서',
+    // Going back continues the earlier round, as "이어서 기록" on the banner does.
+    onCancel: () => {
+      stale = false;
+      update(round);
+    },
+    // A new round from here still asks before the earlier one is replaced (kept among past rounds when a hole is finished); declining leaves the banner.
+    onStart: (choice) => {
+      if (confirm(newRoundQuestion(round, `${dateLabel(round.date)} 라운드`))) startRound(choice);
+    },
+  });
+}
 keepScreenOn();
 registerOffline();
+// What the past rounds and backup views borrow from the page; each mounts into its own container.
+const lent: Page = {
+  current: () => round,
+  replace: (next) => {
+    stale = false;
+    added.clear();
+    celebrated.clear();
+    update(next);
+  },
+  scorecard: (r, a) => [...scorecardNodes(r, a, 'read'), totalLine(a)],
+  analysis: analysisNodes,
+  share: shareReport,
+  shareLabel: canShare ? '공유하기' : canCopy ? '결과 복사' : null,
+};
+renderHistory($('history'), lent);
+renderBackup($('backup'), lent);
