@@ -91,6 +91,11 @@ let detached = false;
 let persistAsked = false;
 /** A round left untouched for half a day, offered to continue or replace on load. */
 let stale = loaded !== null && isStale(loaded);
+/**
+ * Versions before course selection saved an untouched round on open. Such a round (no course, nothing recorded)
+ * counts as no round. A round started from the picker always has its course, so it is not this.
+ */
+const untouched = loaded !== null && loaded.course === undefined && !loaded.holes.some((x) => played(x) || x.mulligan > 0);
 
 function hole(): Hole {
   return round.holes[round.current];
@@ -583,7 +588,24 @@ function bind(): void {
 
 bind();
 render();
-if (loaded === null) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+// The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
+if (loaded === null || untouched) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+else if (stale) {
+  openPicker({
+    mode: 'new',
+    initial: loadPrefs(),
+    cancelLabel: '지난 라운드 이어서',
+    // Going back continues the earlier round, as "이어서 기록" on the banner does.
+    onCancel: () => {
+      stale = false;
+      update(round);
+    },
+    // A new round from here still asks before the earlier one is wiped; declining leaves the banner.
+    onStart: (choice) => {
+      if (confirm(`${dateLabel(round.date)} 라운드 기록을 지우고 새로 시작할까요?`)) startRound(choice);
+    },
+  });
+}
 trackSummaryHeight();
 keepScreenOn();
 registerOffline();

@@ -22,11 +22,16 @@ export interface PickerOptions {
   mode: 'first' | 'new';
   initial: CourseChoice | null;
   onStart: (choice: CourseChoice) => void;
+  /** Text of the button that closes the picker in 'new' mode (default "취소"). */
+  cancelLabel?: string;
+  /** Called when that button closes the picker. */
+  onCancel?: () => void;
 }
 
 let choice: CourseChoice = resolveChoice(null);
 let area: string | null = null;
 let onStart: PickerOptions['onStart'] = () => undefined;
+let onCancel: PickerOptions['onCancel'];
 let mode: PickerOptions['mode'] = 'first';
 let bound = false;
 
@@ -45,10 +50,12 @@ export function openPicker(options: PickerOptions): void {
   bind();
   mode = options.mode;
   onStart = options.onStart;
+  onCancel = options.onCancel;
   choice = resolveChoice(options.initial);
   area = null;
   $<HTMLInputElement>('picker-search').value = '';
   $('picker-cancel').hidden = mode === 'first';
+  $('picker-cancel').textContent = options.cancelLabel ?? '취소';
   renderAreas();
   renderList();
   renderChosen();
@@ -108,7 +115,10 @@ function bind(): void {
     dialog().close();
     onStart(chosen);
   });
-  $('picker-cancel').addEventListener('click', () => dialog().close());
+  $('picker-cancel').addEventListener('click', () => {
+    dialog().close();
+    onCancel?.();
+  });
 }
 
 function renderAreas(): void {

@@ -284,6 +284,59 @@ test('says so when the round cannot be saved', async ({ page }) => {
   await expect(page.locator('#hole-strokes')).toHaveText('1');
 });
 
+test('opens the course picker first when an older version left an empty round', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((key) => {
+    // Versions before "nothing saved until the first edit" saved an untouched round on open.
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    localStorage.setItem(key, JSON.stringify({ version: 1, date: '2026-11-19', current: 0, holes }));
+  }, STORAGE_KEY);
+  await page.reload();
+  await expect(page.locator('#picker')).toBeVisible();
+  // Nothing was recorded, so there is no round to go back to.
+  await expect(page.locator('#picker-cancel')).toBeHidden();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
+});
+
+test('keeps a round just started from the picker after a reload, before any tap', async ({ page }) => {
+  await open(page);
+  await page.reload();
+  // The round has its course, so it is not an untouched round from an older version.
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+});
+
+test('opens the course picker first for a round from an earlier day, and can go back to it', async ({ page }) => {
+  await open(page);
+  await page.evaluate((key) => {
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    holes[0] = { par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 };
+    localStorage.setItem(key, JSON.stringify({ version: 1, date: '2026-01-01', current: 1, holes }));
+  }, STORAGE_KEY);
+  await page.reload();
+  await expect(page.locator('#picker')).toBeVisible();
+  const back = page.locator('#picker-cancel');
+  await expect(back).toHaveText('지난 라운드 이어서');
+
+  // Starting a new round from here still asks before the earlier round is wiped.
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+  await expect(page.locator('#stale')).toBeVisible();
+
+  await page.reload();
+  await back.click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+  // Going back counts as continuing: the round is not offered again on the next load.
+  await page.reload();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+});
+
 test('offers to continue or replace a round from an earlier day', async ({ page }) => {
   await open(page);
   const old = await page.evaluate((key) => {
@@ -295,6 +348,9 @@ test('offers to continue or replace a round from an earlier day', async ({ page 
   }, STORAGE_KEY);
   expect(old).toContain('2026-01-01');
   await page.reload();
+  // The course picker opens first for an earlier-day round; Esc closes it and the banner stays.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#picker')).toBeHidden();
   await expect(page.locator('#stale')).toBeVisible();
   await expect(page.locator('#stale-text')).toContainText('2026년 1월 1일');
   await page.locator('#stale-keep').click();
@@ -316,6 +372,9 @@ test('asks before the earlier-day banner replaces a round', async ({ page }) => 
     localStorage.setItem(key, JSON.stringify({ version: 1, date: '2026-01-01', current: 1, holes }));
   }, STORAGE_KEY);
   await page.reload();
+  // The course picker opens first for an earlier-day round; Esc closes it and the banner stays.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#picker')).toBeHidden();
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.locator('#stale-new').click();
   await expect(page.locator('#sum-strokes')).toHaveText('4');
@@ -345,6 +404,9 @@ test('keeps a round that crosses midnight without the earlier-day banner', async
   // Half a day later the round is offered again, and one tap does not wipe it.
   await page.clock.setSystemTime(new Date(2026, 10, 20, 12, 30));
   await page.reload();
+  // The course picker opens first for an earlier-day round; Esc closes it and the banner stays.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#picker')).toBeHidden();
   await expect(page.locator('#stale')).toBeVisible();
   page.once('dialog', (dialog) => dialog.dismiss());
   await page.locator('#stale-new').click();
