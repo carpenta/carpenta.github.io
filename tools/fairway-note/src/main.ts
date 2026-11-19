@@ -9,7 +9,7 @@ import {
   bump,
   finished,
   formatToPar,
-  localDate,
+  isStale,
   MAX_COUNT,
   newRound,
   played,
@@ -25,8 +25,11 @@ import {
   type Totals,
 } from './round';
 import { COUNTER_ICONS } from './icons';
+import { registerOffline } from './offline';
 import { dateLabel, insights, mailtoHref, reportSubject, reportText } from './report';
-import { STORAGE_KEY, clearRound, loadRound, saveRound } from './storage';
+import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
+import { trackSummaryHeight } from './layout';
+import { keepScreenOn } from './wake';
 
 const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
   driver: { label: '드라이버', hint: '티샷. OB 뒤 다시 친 티샷도' },
@@ -63,18 +66,31 @@ function announce(text: string): void {
 }
 
 const loaded = loadRound();
+// An unreadable value (broken, or from a newer version) is copied aside; nothing is written until the first edit.
+const kept = preserveUnreadable();
 let round: Round = loaded ?? newRound();
-let saved = saveRound(round);
-/** A round left from an earlier day, offered to continue or replace on load. */
-let stale = loaded !== null && loaded.date !== localDate() && loaded.holes.some((x) => played(x) || x.mulligan > 0);
+let saved = kept !== 'failed';
+/** Shown until the first edit when an unreadable saved value was copied aside. */
+let rescued = kept === 'kept';
+/** Set when the saved copy was removed or replaced elsewhere; this tab's round is kept and saved on the next edit. */
+let detached = false;
+let persistAsked = false;
+/** A round left untouched for half a day, offered to continue or replace on load. */
+let stale = loaded !== null && isStale(loaded);
 
 function hole(): Hole {
   return round.holes[round.current];
 }
 
 function update(next: Round): void {
-  round = next;
+  round = { ...next, lastEdited: Date.now() };
   saved = saveRound(round);
+  if (saved) detached = false;
+  rescued = false;
+  if (saved && !persistAsked) {
+    persistAsked = true;
+    requestPersistence();
+  }
   render();
 }
 
@@ -339,9 +355,13 @@ function render(): void {
   renderScorecard(a);
   renderAnalysis(a);
   renderSend(a);
-  setText($('save-state'), saved
-    ? `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`
-    : '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.');
+  setText($('save-state'), !saved
+    ? '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.'
+    : detached
+      ? '저장된 기록이 다른 탭에서 지워졌거나 읽을 수 없습니다. 이 탭의 기록은 다음 입력 때 다시 저장됩니다.'
+      : rescued
+        ? '저장된 기록을 읽을 수 없어 새 라운드로 시작합니다. 원래 값은 이 기기에 따로 보관했습니다.'
+        : `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`);
   $('stale').hidden = !stale;
   if (stale) setText($('stale-text'), `${dateLabel(round.date)}에 기록하던 라운드입니다.`);
 }
@@ -381,19 +401,35 @@ function bind(): void {
   $('new-round').addEventListener('click', () => {
     if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
   });
-  $('stale-new').addEventListener('click', startNew);
+  $('stale-new').addEventListener('click', () => {
+    if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
+  });
   $('send-share').addEventListener('click', () => void shareReport());
   $('stale-keep').addEventListener('click', () => {
     stale = false;
-    render();
+    // Saving marks the round as just edited, so the banner does not come back on the next load.
+    update(round);
   });
   // Another tab of this tool saved the round: show that instead of overwriting it on the next tap.
+  // If the saved round was removed or cannot be read, keep this tab's round and say it is not saved.
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
-    round = loadRound() ?? newRound();
+    const next = loadRound();
+    if (next) {
+      round = next;
+      saved = true;
+      detached = false;
+      rescued = false;
+      stale = isStale(next);
+    } else {
+      detached = true;
+    }
     render();
   });
 }
 
 bind();
 render();
+trackSummaryHeight();
+keepScreenOn();
+registerOffline();

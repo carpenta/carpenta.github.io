@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 const STORAGE_KEY = 'fairway-note:round:v1';
@@ -124,6 +126,31 @@ test('ignores a broken saved round', async ({ page }) => {
   await page.reload();
   await expect(page.locator('#hole-title')).toHaveText('1번 홀');
   await expect(page.locator('#sum-strokes')).toHaveText('0');
+});
+
+test('keeps an unreadable or newer saved value instead of overwriting it', async ({ page }) => {
+  await page.goto('/');
+  const future = JSON.stringify({ version: 2, note: 'saved by a newer version' });
+  await page.evaluate(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, future]);
+  await page.reload();
+  await expect(page.locator('#sum-strokes')).toHaveText('0');
+  await expect(page.locator('#save-state')).toContainText('따로 보관');
+  // Opening the page alone writes nothing over the stored value.
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(future);
+  await page.reload();
+  await tap(page, 'driver');
+  const stored = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
+  const copies = Object.entries(stored).filter(([k]) => k.startsWith('fairway-note:corrupt:'));
+  expect(copies.map(([, v]) => v)).toEqual([future]);
+  expect(JSON.parse(stored[STORAGE_KEY]).holes[0].driver).toBe(1);
+});
+
+test('does not save an empty round just by opening the page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  await tap(page, 'putts');
+  expect(await page.evaluate((key) => localStorage.getItem(key) !== null, STORAGE_KEY)).toBe(true);
 });
 
 test('jumps to a hole from the scorecard and stops at the ends', async ({ page }) => {
@@ -256,12 +283,53 @@ test('offers to continue or replace a round from an earlier day', async ({ page 
   await expect(page.locator('#stale')).toBeHidden();
   await expect(page.locator('#sum-strokes')).toHaveText('4');
 
+  // Choosing to continue keeps the banner away on the next load.
   await page.reload();
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+});
+
+test('asks before the earlier-day banner replaces a round', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((key) => {
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    holes[0] = { par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 };
+    localStorage.setItem(key, JSON.stringify({ version: 1, date: '2026-01-01', current: 1, holes }));
+  }, STORAGE_KEY);
+  await page.reload();
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('#stale-new').click();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#stale-new').click();
   await expect(page.locator('#stale')).toBeHidden();
   await expect(page.locator('#sum-strokes')).toHaveText('0');
   await page.reload();
   await expect(page.locator('#stale')).toBeHidden();
+});
+
+test('keeps a round that crosses midnight without the earlier-day banner', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 10, 19, 23, 40) });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  await page.locator('#next-hole').click();
+  await page.clock.setSystemTime(new Date(2026, 10, 20, 0, 20));
+  await page.reload();
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+
+  // Half a day later the round is offered again, and one tap does not wipe it.
+  await page.clock.setSystemTime(new Date(2026, 10, 20, 12, 30));
+  await page.reload();
+  await expect(page.locator('#stale')).toBeVisible();
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('#stale-new').click();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
 });
 
 test('follows a round saved in another tab', async ({ context }) => {
@@ -272,6 +340,23 @@ test('follows a round saved in another tab', async ({ context }) => {
   await tap(first, 'driver');
   await tap(first, 'putts', 2);
   await expect(second.locator('#sum-strokes')).toHaveText('3');
+});
+
+test('keeps its round when another tab removes the saved one', async ({ context }) => {
+  const first = await context.newPage();
+  const second = await context.newPage();
+  await first.goto('/');
+  await tap(first, 'driver');
+  await tap(first, 'putts', 2);
+  await second.goto('/');
+  await expect(second.locator('#sum-strokes')).toHaveText('3');
+  await first.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
+  await expect(second.locator('#save-state')).toContainText('다음 입력 때 다시 저장');
+  await expect(second.locator('#sum-strokes')).toHaveText('3');
+  await second.locator('#next-hole').click();
+  const stored = await second.evaluate((key) => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
+  expect(stored.holes[0]).toMatchObject({ driver: 1, putts: 2 });
+  await expect(second.locator('#save-state')).toContainText('자동 저장');
 });
 
 test.describe('on a phone', () => {
@@ -318,6 +403,139 @@ test.describe('on a phone', () => {
     await page.locator('.counter-ob .plus').tap();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
+});
+
+for (const [width, height] of [[375, 553], [390, 664]]) {
+  test.describe(`on a short phone screen ${width}×${height}`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('shows the whole hole card between the summary and the hole bar after moving to the next hole', async ({ page }) => {
+      await page.goto('/');
+      await page.locator('#next-hole').tap();
+      await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+      const summary = (await page.locator('.summary').boundingBox())!;
+      const bar = (await page.locator('.hole-move').boundingBox())!;
+      const below = summary.y + summary.height;
+      for (const selector of ['#hole-title', '.par-pick']) {
+        expect((await page.locator(selector).boundingBox())!.y, selector).toBeGreaterThanOrEqual(below);
+      }
+      for (const key of ['driver', 'approach', 'putts', 'ob', 'mulligan']) {
+        for (const side of ['minus', 'plus']) {
+          const box = (await page.locator(`.counter-${key} .${side}`).boundingBox())!;
+          expect(box.y, `${key} ${side}`).toBeGreaterThanOrEqual(below);
+          expect(box.y + box.height, `${key} ${side}`).toBeLessThanOrEqual(bar.y);
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+      }
+      for (const radio of await page.locator('.par-pick button').all()) {
+        expect((await radio.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    });
+
+    test('keeps the link back to the site visible but away from the top edge', async ({ page }) => {
+      await page.goto('/');
+      const home = page.locator('a.home-link');
+      await expect(home).toBeVisible();
+      const box = (await home.boundingBox())!;
+      const header = (await page.locator('header.top').boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(16);
+      // Sits low in the header, not in the top corner, with small text.
+      expect(box.y + box.height / 2).toBeGreaterThan(header.y + header.height / 2 + 4);
+      expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(12);
+    });
+  });
+}
+
+test('scrolls a hole card to just below the summary, whatever its height', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 553 });
+  await page.goto('/');
+  const padding = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
+  const summary = (await page.locator('.summary').boundingBox())!;
+  expect(padding).toBeGreaterThanOrEqual(summary.height);
+  expect(padding).toBeLessThanOrEqual(summary.height + 8);
+});
+
+test('labels are large and dark enough to read in sunlight', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  const checks = await page.evaluate(() => {
+    const rgb = (s: string) => s.match(/[\d.]+/g)!.map(Number);
+    const lum = (s: string) => {
+      const [r, g, b] = rgb(s).slice(0, 3).map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const background = (el: Element | null): string => {
+      while (el) {
+        const bg = getComputedStyle(el).backgroundColor;
+        if (rgb(bg)[3] !== 0) return bg;
+        el = el.parentElement;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    return ['.stat .label', '.hole-nav .tab-no', '.counter-label span', '.scorecard th[scope="row"]', '.metrics dt'].map((selector) => {
+      const el = document.querySelector(selector)!;
+      const style = getComputedStyle(el);
+      const [a, b] = [lum(style.color), lum(background(el))].sort((x, y) => y - x);
+      return { selector, size: parseFloat(style.fontSize), contrast: (a + 0.05) / (b + 0.05) };
+    });
+  });
+  for (const { selector, size, contrast } of checks) {
+    expect(size, selector).toBeGreaterThanOrEqual(13);
+    expect(contrast, selector).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+test('makes a usable minus button clearly stronger than a disabled one', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  const look = (selector: string) => page.locator(selector).evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { opacity: Number(s.opacity), border: parseFloat(s.borderTopWidth), color: s.color };
+  });
+  const on = await look('.counter-driver .minus');
+  const off = await look('.counter-approach .minus');
+  expect(on.opacity).toBe(1);
+  expect(on.border).toBeGreaterThanOrEqual(2);
+  expect(off.opacity).toBeLessThanOrEqual(0.5);
+  expect(on.color).not.toBe(off.color);
+});
+
+test('keeps the screen on while recording when the browser allows it', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { wakeRequests: string[] };
+    w.wakeRequests = [];
+    Object.defineProperty(Navigator.prototype, 'wakeLock', {
+      configurable: true,
+      value: { request: async (type: string) => { w.wakeRequests.push(type); return { released: false, release: async () => {}, addEventListener() {} }; } },
+    });
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { wakeRequests: string[] }).wakeRequests)).toEqual(['screen']);
+});
+
+test('works without errors when screen wake is missing or refused', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'wakeLock', { configurable: true, value: undefined });
+  });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'wakeLock', {
+      configurable: true,
+      value: { request: async () => { throw new DOMException('no', 'NotAllowedError'); } },
+    });
+  });
+  await page.reload();
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
 });
 
 test('can be added to the home screen', async ({ page, request }) => {
@@ -385,4 +603,64 @@ test('copies the round when the browser cannot share', async ({ page, context })
   await page.getByRole('button', { name: '결과 복사' }).click();
   await expect(page.locator('#send-status')).toContainText('복사했습니다');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 3타 (-1)');
+});
+
+test('opens and records offline after the first visit', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.summary')!).position)).toBe('sticky');
+  await expect(page.locator('.counter-driver .plus svg')).toBeVisible();
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await expect(count(page, 'driver')).toHaveText('1');
+  await expect(page.locator('#hole-strokes')).toHaveText('3');
+  await context.setOffline(false);
+});
+
+test('precaches every built file under the tool path', async ({ request }) => {
+  const source = await (await request.get('sw.js')).text();
+  for (const file of ['index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) {
+    expect(source).toContain(`"${file}"`);
+  }
+  expect(source).toMatch(/"assets\/[^"]+\.js"/);
+  expect(source).toMatch(/"assets\/[^"]+\.css"/);
+  expect(source).not.toMatch(/"\//);
+  expect(source).toMatch(/fairway-note-[0-9a-f]{12}/);
+});
+
+test('offers to reopen when a new version is waiting', async ({ page }) => {
+  // The next deploy is the same ./sw.js URL with different bytes, as on GitHub Pages. The preview
+  // server reads dist/ from disk and the browser cannot be intercepted for its worker fetch, so the
+  // built file is changed in place and restored afterwards.
+  const swPath = fileURLToPath(new URL('../dist/sw.js', import.meta.url));
+  const original = readFileSync(swPath, 'utf8');
+  try {
+    await page.goto('/');
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.reload();
+    const prompt = page.getByRole('button', { name: '새 버전이 있습니다 · 다시 열기' });
+    await expect(prompt).toHaveCount(0);
+    await tap(page, 'driver');
+
+    writeFileSync(swPath, `${original}\n// next deploy\n`);
+    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())!.update(); });
+    await expect(prompt).toBeVisible();
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting !== null)).toBe(true);
+    // The prompt does not block the page.
+    await tap(page, 'putts');
+    await expect(page.locator('#hole-strokes')).toHaveText('2');
+
+    const reloaded = page.waitForEvent('load');
+    await prompt.click();
+    await reloaded;
+    await expect(page.locator('#hole-strokes')).toHaveText('2');
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting)).toBeNull();
+    await expect(prompt).toHaveCount(0);
+  } finally {
+    writeFileSync(swPath, original);
+  }
 });
