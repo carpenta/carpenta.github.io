@@ -138,6 +138,9 @@ test('jumps to a hole from the scorecard and stops at the ends', async ({ page }
 test('links back to the site and fits a 360px screen', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto('/');
+  await expect(page).toHaveTitle('Fairway Note');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fairway Note');
+  await expect(page.locator('#course-name')).toHaveText('에버리스 동코스');
   const home = page.locator('a.home-link');
   await expect(home).toBeVisible();
   await expect(home).toHaveAttribute('href', '../../');
@@ -322,7 +325,7 @@ test('can be added to the home screen', async ({ page, request }) => {
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
   expect(href).toBe('./manifest.webmanifest');
   const manifest = await (await request.get(href!)).json();
-  expect(manifest).toMatchObject({ short_name: 'Fairway Note', start_url: './', scope: './', display: 'standalone' });
+  expect(manifest).toMatchObject({ name: 'Fairway Note', short_name: 'Fairway Note', start_url: './', scope: './', display: 'standalone' });
   for (const icon of [...manifest.icons.map((i: { src: string }) => i.src), 'apple-touch-icon.png']) {
     const response = await request.get(icon);
     expect(response.status(), icon).toBe(200);

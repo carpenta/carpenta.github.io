@@ -52,8 +52,8 @@ h1, h2, h3, p { margin: 0; }
 }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand svg { width: 30px; height: 30px; flex: none; }
-.app-name { font-size: 12px; opacity: .8; letter-spacing: .02em; }
-.brand h1 { font-size: 18px; line-height: 1.2; }
+.app-name { font-size: 19px; line-height: 1.15; letter-spacing: .01em; }
+.course-name { font-size: 12px; opacity: .85; }
 .home-link { margin-left: auto; color: #fff; opacity: .85; font-size: 13px; white-space: nowrap; }
 
 main {
@@ -244,7 +244,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 /* Short screens (iPhone SE with the browser bars): tighter spacing, one-line hints. */
 @media (max-height: 700px) {
   .top { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 8px; }
-  .brand h1 { font-size: 16px; }
+  .app-name { font-size: 17px; }
   .hole-score { margin: 4px 0 8px; }
   .hole-score b { font-size: 30px; }
   .counters { gap: 6px; }
