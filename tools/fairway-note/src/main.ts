@@ -692,7 +692,8 @@ function renderEntry(a: Analysis, changed?: string): void {
   bmark.classList.toggle('two', s >= 10);
   const badge = $('badge');
   setAttr(badge, 'data-tone', done ? toneOf(d) : played(cur) ? 'progress' : 'none');
-  setText($('hole-name'), name);
+  // The badge is a 96px circle: 트리플 보기 and 쿼드러플 보기 read 트리플 and 쿼드러플 there (the label keeps the full name).
+  setText($('hole-name'), name.replace(/^(트리플|쿼드러플) 보기$/, '$1'));
   setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타, ${name}` : '이 홀 아직 기록 전');
   const markKey = `${i}:${mark}`;
   // Static markup from SHAPES; written only when the mark changes, so a drawing mark is not restarted.

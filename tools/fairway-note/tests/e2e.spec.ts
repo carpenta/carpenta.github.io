@@ -535,6 +535,17 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   // 10 strokes against this hole's par: +5 on a par 5, +6 on a par 4, +7 on a par 3.
   const par = Number((await page.locator('#hole-par').textContent())!.replace('Par ', ''));
   await expect(page.locator('#hole-name')).toHaveText(`+${10 - par}`);
+  // A long name is shortened in the badge, and read in full.
+  await tap(page, 'putts', 2);
+  await page.getByRole('button', { name: '어프로치 하나 빼기' }).click();
+  await page.getByRole('button', { name: '어프로치 하나 빼기' }).click();
+  await page.getByRole('button', { name: '어프로치 하나 빼기' }).click();
+  await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
+  // Now 1 + 2 + 4 = 7 strokes: 트리플 보기 on this par 4 (Everis 새별 2).
+  expect(par).toBe(4);
+  await expect(page.locator('#hole-name')).toHaveText('트리플');
+  await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 7타, 트리플 보기');
   // Escape closes the strip and keeps the hole.
   await holeBtn.click();
   await page.keyboard.press('Escape');
