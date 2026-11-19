@@ -19,7 +19,7 @@ if (!dir) {
 }
 
 /** Region files to read, in this order. Other JSON files in the folder (OSM extracts) are ignored. */
-const FILES = ['jeju-si', 'seogwipo-si', 'kr-gyeonggi', 'kr-gangwon', 'kr-chungcheong', 'kr-jeolla', 'kr-gyeongsang'];
+const FILES = ['jeju-si', 'seogwipo-si', 'kr-gyeonggi', 'kr-gangwon', 'kr-chungcheong', 'kr-jeolla', 'kr-gyeongsang', 'kr-gyeongsang-official'];
 /** Hosts whose terms forbid reusing their data. A value backed only by these is never bundled. */
 const DENIED = [/(^|\.)hole19golf\.com$/, /(^|\.)golfpass\.com$/, /(^|\.)18birdies\.com$/, /(^|\.)golfingrecord\.com$/, /(^|\.)golfzon\.com$/, /smartscore/, /kakao/,
   // GolfZon County is the operator's own site, but its terms (article 16) reserve copyright and forbid
