@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { analyze, bump, emptyHole, formatToPar, gir, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
+import { analyze, bump, emptyHole, finished, formatToPar, gir, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, mulligan });
 
-function roundOf(list: Hole[]): Round {
+/** A round with these holes filled in, currently on the last hole (so earlier holes are finished). */
+function roundOf(list: Hole[], current = HOLE_LAST): Round {
   const r = newRound(new Date(2026, 10, 19));
   list.forEach((h, i) => (r.holes[i] = h));
+  r.current = current;
   return r;
 }
+const HOLE_LAST = 17;
 
 describe('hole', () => {
   it('counts every shot plus one penalty stroke per OB, never mulligans', () => {
@@ -54,8 +57,8 @@ describe('round', () => {
     expect(r.holes.every((h) => h.par === 4 && strokes(h) === 0)).toBe(true);
   });
 
-  it('totals only played holes, but counts every mulligan', () => {
-    const t = totals([hole(4, 1, 1, 2), hole(5, 1, 2, 3, 1), { ...emptyHole(), mulligan: 1 }, emptyHole()]);
+  it('totals only finished holes, but counts every mulligan', () => {
+    const t = totals(roundOf([hole(4, 1, 1, 2), hole(5, 1, 2, 3, 1), { ...emptyHole(), mulligan: 1 }, emptyHole()]));
     expect(t).toEqual({ holes: 2, par: 9, strokes: 11, putts: 5, driver: 2, approach: 3, ob: 1, mulligan: 1 });
   });
 
@@ -82,8 +85,8 @@ describe('round', () => {
       { par: 4, holes: 3, average: 5 },
       { par: 5, holes: 1, average: 6 },
     ]);
-    expect(a.lost).toEqual({ driver: 1, approach: 1, putts: 0, penalty: 1 });
-    expect(a.worstArea).toBe('driver');
+    expect(a.lost).toEqual({ driver: 1, approach: 1, putts: 1, penalty: 1 });
+    expect(a.worstAreas).toEqual(['driver', 'approach', 'putts', 'penalty']);
     expect(a.best).toEqual({ hole: 3, toPar: -1 });
     expect(a.worst).toEqual({ hole: 2, toPar: 2 });
   });
@@ -92,11 +95,40 @@ describe('round', () => {
     const empty = analyze(newRound());
     expect(empty.totals.holes).toBe(0);
     expect(empty.puttsPerHole).toBe(0);
-    expect(empty.worstArea).toBeNull();
+    expect(empty.worstAreas).toEqual([]);
     expect(empty.best).toBeNull();
     const even = analyze(roundOf([hole(4, 1, 1, 2), hole(4, 1, 1, 2)]));
     expect(even.best).toBeNull();
     expect(even.worst).toBeNull();
-    expect(even.worstArea).toBeNull();
+    expect(even.worstAreas).toEqual([]);
+  });
+
+  it('keeps the hole being played out of scores until it has a putt', () => {
+    const r = roundOf([hole(4, 1, 1, 2), hole(4, 1, 0, 0, 0, 1)], 1);
+    expect(finished(r, 0)).toBe(true);
+    expect(finished(r, 1)).toBe(false);
+    const a = analyze(r);
+    expect(a.totals).toMatchObject({ holes: 1, strokes: 4, par: 4, mulligan: 1 });
+    expect(a.toPar).toBe(0);
+    expect(a.distribution.eagle).toBe(0);
+    expect(a.byPar[1]).toEqual({ par: 4, holes: 1, average: 4 });
+
+    r.holes[1] = hole(4, 1, 1, 1);
+    expect(finished(r, 1)).toBe(true);
+    expect(analyze(r).totals.strokes).toBe(7);
+  });
+
+  it('counts a chip-in (no putt) once the player moves on', () => {
+    const r = roundOf([hole(4, 1, 2, 0)], 0);
+    expect(finished(r, 0)).toBe(false);
+    r.current = 1;
+    expect(finished(r, 0)).toBe(true);
+    expect(analyze(r).toPar).toBe(-1);
+  });
+
+  it('does not let a better hole hide losses on another', () => {
+    const a = analyze(roundOf([hole(4, 3, 1, 1, 2), hole(4, 0, 2, 1), hole(5, 1, 1, 3)]));
+    expect(a.lost).toEqual({ driver: 2, approach: 1, putts: 1, penalty: 2 });
+    expect(a.worstAreas).toEqual(['driver', 'penalty']);
   });
 });

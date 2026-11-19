@@ -6,7 +6,7 @@
   --line: #d9e2da;
   --green: #1f5a3a;
   --green-soft: #e3efe6;
-  --accent: #c98a12;
+  --accent: #9a6508;
   --danger: #b3261e;
   --eagle: #7a3fb0;
   --birdie: #1565c0;
@@ -20,7 +20,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 96px; }
 body {
   margin: 0;
   background: var(--bg);
@@ -218,4 +218,32 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   .stat.big b { font-size: 20px; }
   .scorecard { font-size: 12px; }
   .scorecard th[scope='row'] { width: 3.2em; font-size: 11px; }
+}
+
+/* The sticky summary covers the top of the screen; keep the hole title and par picker below it. */
+.hole-card { scroll-margin-top: 96px; }
+.hole-nav button.in-progress { border-style: dashed; border-color: var(--muted); }
+.hole-nav button.in-progress .tab-score { color: var(--muted); }
+
+.stale {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: #fff6df;
+  border: 1px solid #e8d29a;
+}
+.stale[hidden] { display: none; }
+.stale-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

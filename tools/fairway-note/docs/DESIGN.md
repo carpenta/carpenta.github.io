@@ -5,9 +5,11 @@
 Static GitHub Pages application for keeping one 18-hole golf round on a phone. Each hole counts drives (tee shots), approaches, putts, OBs and mulligans with tap buttons. Totals and a round analysis update on every tap.
 
 - Hole strokes = drives + approaches + putts + OBs. Each OB adds one penalty stroke; the replayed shot is counted as another drive or approach. Mulligans are shown but never counted.
+- The hole being played counts toward totals and analysis only once it has a putt, so a tee shot alone never reads as an eagle. A hole finished without a putt (chip-in) counts once the player moves to another hole.
 - Pars default to 4 and can be set to 3, 4 or 5 per hole. Hole-by-hole pars for the course were not available from public sources.
-- The round is saved to one localStorage key (`fairway-note:round:v1`) so it survives reloads, and is removed by "새 라운드 시작". Nothing is sent over the network; there is no account, analytics, service worker, sessionStorage, IndexedDB or cookie. A CSP meta tag sets `connect-src 'none'` and limits scripts and images to the same origin.
+- The round is saved to one localStorage key (`fairway-note:round:v1`) so it survives reloads, and is removed by "새 라운드 시작". Nothing is sent over the network; there is no account, analytics, service worker, sessionStorage, IndexedDB or cookie. A CSP meta tag sets `connect-src 'none'` and limits scripts, styles and images to the same origin with no inline style elements (bar widths are set through the CSSOM, which CSP allows).
 - If storage is unavailable, the app keeps working in memory and says so.
+- A round saved on an earlier day is offered to continue or replace on load. A save from another tab replaces the open tab's round through the `storage` event, so tabs do not silently overwrite each other.
 
 Out of scope: round history, playing partners, GPS distances, sharing, other languages.
 
@@ -23,18 +25,21 @@ Analysis covers played holes only:
 - putts per hole, one-putts, three-putts or worse
 - greens in regulation: at least one putt after drives + approaches + OBs ≤ par − 2
 - score distribution, average per par, best and worst hole (omitted when every hole has the same score against par)
-- strokes lost per area against a regulation pattern of one tee shot, par − 3 approaches and two putts, plus OB penalties; the area with the most lost strokes is named
+- strokes lost per area against a regulation pattern of one tee shot, par − 3 approaches and two putts, plus OB penalties. Each hole adds only its own excess, so a better-than-regulation hole never offsets a loss elsewhere. Every area tied for the most lost strokes is named.
 
 ## UI
 
 - Mobile first, light theme for outdoor reading, system fonts, `word-break: keep-all` for Korean.
 - A sticky summary bar keeps total strokes, score against par, holes played, putts, OBs and mulligans visible.
 - Hole tabs in two rows of nine show each hole's strokes coloured by score.
-- Counter buttons are at least 52px tall. Minus is disabled at zero.
+- Counter buttons are at least 52px tall. Minus is disabled at zero and plus at 15. White on the accent colours keeps at least 4.5:1 contrast.
+- One polite live region announces each change ("3번 홀 퍼터 2, 5타") and each hole change; counters and other text are rewritten only when their value changes.
+- The par picker is a radio group with roving tabindex and arrow keys.
+- `scroll-margin-top` on the hole card and `scroll-padding-top` on the page keep the hole title and focused controls below the sticky summary.
 - The scorecard splits into front and back nine tables so it fits 360px without horizontal scrolling. Hole numbers jump to that hole.
 - The link back to the site (`../../`) is always visible in the header.
 
 ## Verification
 
 - Vitest unit tests for the model and storage.
-- Playwright Chromium e2e for tapping and totals, analysis text, reload and reset, broken saved data, navigation, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.
+- Playwright Chromium e2e for tapping and totals, holes in progress and chip-ins, analysis text, reload and reset, broken saved data, storage failure, earlier-day rounds, another tab's save, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.

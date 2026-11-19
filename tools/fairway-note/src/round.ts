@@ -54,6 +54,16 @@ export function played(h: Hole): boolean {
   return strokes(h) > 0;
 }
 
+/**
+ * A hole counts toward totals and analysis once it is finished: holed with a putt, or left for
+ * another hole (a chip-in has no putt). The hole being played without a putt yet is in progress,
+ * so a tee shot alone never shows as an eagle.
+ */
+export function finished(round: Round, index: number): boolean {
+  const h = round.holes[index];
+  return played(h) && (h.putts > 0 || index !== round.current);
+}
+
 /** Green in regulation: on the green (at least one putt) in par minus two shots. */
 export function gir(h: Hole): boolean {
   return h.putts > 0 && h.driver + h.approach + h.ob <= h.par - 2;
@@ -70,11 +80,13 @@ export interface Totals {
   mulligan: number;
 }
 
-export function totals(holes: Hole[]): Totals {
+/** Totals of the finished holes in [start, end). Mulligans count on every hole. */
+export function totals(round: Round, start = 0, end = round.holes.length): Totals {
   const t: Totals = { holes: 0, par: 0, strokes: 0, putts: 0, driver: 0, approach: 0, ob: 0, mulligan: 0 };
-  for (const h of holes) {
+  for (let i = start; i < end; i++) {
+    const h = round.holes[i];
     t.mulligan += h.mulligan;
-    if (!played(h)) continue;
+    if (!finished(round, i)) continue;
     t.holes += 1;
     t.par += h.par;
     t.strokes += strokes(h);
@@ -119,16 +131,17 @@ export interface Analysis {
   girHoles: number;
   distribution: Record<ScoreName, number>;
   byPar: { par: Par; holes: number; average: number }[];
-  /** Strokes over a regulation pattern (one tee shot, par−3 approaches, two putts) per area. */
+  /** Strokes over a regulation pattern (one tee shot, par−3 approaches, two putts) per area, never offset by a better hole. */
   lost: Record<Area, number>;
-  worstArea: Area | null;
+  /** Areas with the most lost strokes; several when tied, empty when nothing was lost. */
+  worstAreas: Area[];
   best: { hole: number; toPar: number } | null;
   worst: { hole: number; toPar: number } | null;
 }
 
 export function analyze(round: Round): Analysis {
   const holes = round.holes;
-  const all = totals(holes);
+  const all = totals(round);
   const distribution: Record<ScoreName, number> = { eagle: 0, birdie: 0, par: 0, bogey: 0, double: 0, triple: 0 };
   const lost: Record<Area, number> = { driver: 0, approach: 0, putts: 0, penalty: 0 };
   let onePutts = 0;
@@ -138,15 +151,15 @@ export function analyze(round: Round): Analysis {
   let worst: { hole: number; toPar: number } | null = null;
 
   for (const [i, h] of holes.entries()) {
-    if (!played(h)) continue;
+    if (!finished(round, i)) continue;
     const diff = strokes(h) - h.par;
     distribution[scoreName(diff)] += 1;
     if (h.putts === 1) onePutts += 1;
     if (h.putts >= 3) threePutts += 1;
     if (gir(h)) girHoles += 1;
-    lost.driver += h.driver - 1;
-    lost.approach += h.approach - (h.par - 3);
-    lost.putts += h.putts - 2;
+    lost.driver += Math.max(0, h.driver - 1);
+    lost.approach += Math.max(0, h.approach - (h.par - 3));
+    lost.putts += Math.max(0, h.putts - 2);
     lost.penalty += h.ob;
     if (!best || diff < best.toPar) best = { hole: i + 1, toPar: diff };
     if (!worst || diff > worst.toPar) worst = { hole: i + 1, toPar: diff };
@@ -155,20 +168,18 @@ export function analyze(round: Round): Analysis {
   const spread = best !== null && worst !== null && best.toPar !== worst.toPar;
 
   const byPar = PARS.map((par) => {
-    const list = holes.filter((h) => h.par === par && played(h));
+    const list = holes.filter((h, i) => h.par === par && finished(round, i));
     const sum = list.reduce((s, h) => s + strokes(h), 0);
     return { par, holes: list.length, average: list.length ? sum / list.length : 0 };
   });
 
-  let worstArea: Area | null = null;
-  for (const area of Object.keys(lost) as Area[]) {
-    if (lost[area] > 0 && (worstArea === null || lost[area] > lost[worstArea])) worstArea = area;
-  }
+  const most = Math.max(...Object.values(lost));
+  const worstAreas = most > 0 ? (Object.keys(lost) as Area[]).filter((area) => lost[area] === most) : [];
 
   return {
     totals: all,
-    front: totals(holes.slice(0, 9)),
-    back: totals(holes.slice(9)),
+    front: totals(round, 0, 9),
+    back: totals(round, 9),
     toPar: all.strokes - all.par,
     puttsPerHole: all.holes ? all.putts / all.holes : 0,
     onePutts,
@@ -177,7 +188,7 @@ export function analyze(round: Round): Analysis {
     distribution,
     byPar,
     lost,
-    worstArea,
+    worstAreas,
     best: spread ? best : null,
     worst: spread ? worst : null,
   };

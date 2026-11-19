@@ -8,6 +8,14 @@ function isCount(v: unknown): v is number {
   return Number.isInteger(v) && (v as number) >= 0 && (v as number) <= MAX_COUNT;
 }
 
+/** A real calendar date written as YYYY-MM-DD. */
+function isDate(v: unknown): v is string {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}
+
 function parseHole(v: unknown): Hole | null {
   if (typeof v !== 'object' || v === null) return null;
   const o = v as Record<string, unknown>;
@@ -31,7 +39,7 @@ export function parseRound(text: string | null): Round | null {
   }
   if (typeof o !== 'object' || o === null) return null;
   const r = o as Record<string, unknown>;
-  if (r.version !== 1 || typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) return null;
+  if (r.version !== 1 || !isDate(r.date)) return null;
   if (!Array.isArray(r.holes) || r.holes.length !== HOLE_COUNT) return null;
   const holes = r.holes.map(parseHole);
   if (holes.some((h) => h === null)) return null;

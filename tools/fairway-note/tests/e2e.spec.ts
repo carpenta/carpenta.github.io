@@ -9,6 +9,18 @@ async function tap(page: Page, key: string, times = 1) {
 
 const count = (page: Page, key: string) => page.locator(`.counter-${key} output`);
 
+// Any console error or uncaught exception (CSP violations are reported as console errors) fails the test.
+test.beforeEach(async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', (error) => errors.push(error.message));
+  (testInfo as unknown as { pageErrors: string[] }).pageErrors = errors;
+});
+
+test.afterEach(async ({}, testInfo) => {
+  expect((testInfo as unknown as { pageErrors: string[] }).pageErrors).toEqual([]);
+});
+
 test('records holes by tapping and totals them without network or other storage', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => {
@@ -134,4 +146,127 @@ test('links back to the site and fits a 360px screen', async ({ page }) => {
   await expect(page.locator('#analysis .headline')).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBe(0);
+});
+
+test('keeps a hole in progress out of the score until it is putted', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+  await expect(page.locator('#hole-name')).toContainText('진행 중');
+  await expect(page.locator('#hole-topar')).toHaveText('');
+  await expect(page.locator('#sum-strokes')).toHaveText('0');
+  await expect(page.locator('#sum-holes')).toHaveText('0/18');
+  await expect(page.locator('#hole-tabs button').first()).toHaveClass(/in-progress/);
+  await expect(page.locator('#analysis')).toContainText('홀을 기록하면');
+
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  await expect(page.locator('#hole-name')).toHaveText('파');
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+});
+
+test('counts a chip-in once the player moves to the next hole', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'approach', 2);
+  await expect(page.locator('#sum-strokes')).toHaveText('0');
+  await page.locator('#next-hole').click();
+  await expect(page.locator('#sum-strokes')).toHaveText('3');
+  await expect(page.locator('#sum-topar')).toHaveText('-1');
+});
+
+test('a mulligan alone does not start a hole', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'mulligan');
+  await expect(page.locator('#sum-mulligan')).toHaveText('1');
+  await expect(page.locator('#hole-tabs .tab-score').first()).toHaveText('·');
+  await expect(page.locator('#hole-name')).toHaveText('아직 기록 없음');
+  await expect(page.locator('#analysis')).toContainText('홀을 기록하면');
+});
+
+test('stops counting at 15', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'approach', 15);
+  await expect(count(page, 'approach')).toHaveText('15');
+  await expect(page.getByRole('button', { name: '어프로치 하나 더하기' })).toBeDisabled();
+});
+
+test('keeps the hole title visible below the summary after jumping from the scorecard', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await page.getByRole('button', { name: '12번 홀로 가기' }).click();
+  await expect(page.locator('#hole-title')).toHaveText('12번 홀');
+  const summary = await page.locator('.summary').boundingBox();
+  const title = await page.locator('#hole-title').boundingBox();
+  const par = await page.locator('.par-pick').boundingBox();
+  expect(title!.y).toBeGreaterThanOrEqual(summary!.y + summary!.height);
+  expect(par!.y).toBeGreaterThanOrEqual(summary!.y + summary!.height);
+});
+
+test('moves the par selection with arrow keys', async ({ page }) => {
+  await page.goto('/');
+  const radios = page.locator('.par-pick button');
+  await expect(radios.nth(1)).toHaveAttribute('tabindex', '0');
+  await expect(radios.nth(0)).toHaveAttribute('tabindex', '-1');
+  await radios.nth(1).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Par 5' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Par 5' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Par 3' })).toBeFocused();
+  await expect(page.locator('.scorecard .par-row td').first()).toHaveText('3');
+});
+
+test('announces taps in one live region', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[aria-live]')).toHaveCount(1);
+  await tap(page, 'putts');
+  await expect(page.locator('#announce')).toHaveText('1번 홀 퍼터 1, 1타');
+  await page.locator('#next-hole').click();
+  await expect(page.locator('#announce')).toHaveText('2번 홀, Par 4');
+});
+
+test('says so when the round cannot be saved', async ({ page }) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => { throw new DOMException('denied', 'SecurityError'); };
+  });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await expect(page.locator('#save-state')).toContainText('저장할 수 없습니다');
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+});
+
+test('offers to continue or replace a round from an earlier day', async ({ page }) => {
+  await page.goto('/');
+  const old = await page.evaluate((key) => {
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    holes[0] = { par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 };
+    const value = JSON.stringify({ version: 1, date: '2026-01-01', current: 1, holes });
+    localStorage.setItem(key, value);
+    return value;
+  }, STORAGE_KEY);
+  expect(old).toContain('2026-01-01');
+  await page.reload();
+  await expect(page.locator('#stale')).toBeVisible();
+  await expect(page.locator('#stale-text')).toContainText('2026년 1월 1일');
+  await page.locator('#stale-keep').click();
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+
+  await page.reload();
+  await page.locator('#stale-new').click();
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('0');
+  await page.reload();
+  await expect(page.locator('#stale')).toBeHidden();
+});
+
+test('follows a round saved in another tab', async ({ context }) => {
+  const first = await context.newPage();
+  const second = await context.newPage();
+  await first.goto('/');
+  await second.goto('/');
+  await tap(first, 'driver');
+  await tap(first, 'putts', 2);
+  await expect(second.locator('#sum-strokes')).toHaveText('3');
 });

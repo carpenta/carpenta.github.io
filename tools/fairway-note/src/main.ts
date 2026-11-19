@@ -7,7 +7,10 @@ import {
   SCORE_LABELS,
   analyze,
   bump,
+  finished,
   formatToPar,
+  localDate,
+  MAX_COUNT,
   newRound,
   played,
   scoreName,
@@ -21,7 +24,7 @@ import {
   type ScoreName,
   type Totals,
 } from './round';
-import { clearRound, loadRound, saveRound } from './storage';
+import { STORAGE_KEY, clearRound, loadRound, saveRound } from './storage';
 
 const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
   driver: { label: '드라이버', hint: '티샷. OB 뒤 다시 친 티샷도' },
@@ -45,8 +48,23 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, 
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-let round: Round = loadRound() ?? newRound();
+/** Writes text only when it changes, so screen readers and layout are not disturbed on every tap. */
+function setText(el: Element, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}
+
+function announce(text: string): void {
+  const live = $('announce');
+  // Clearing first makes a repeated message (same count twice) be read again.
+  live.textContent = '';
+  requestAnimationFrame(() => (live.textContent = text));
+}
+
+const loaded = loadRound();
+let round: Round = loaded ?? newRound();
 let saved = saveRound(round);
+/** A round left from an earlier day, offered to continue or replace on load. */
+let stale = loaded !== null && loaded.date !== localDate() && loaded.holes.some((x) => played(x) || x.mulligan > 0);
 
 function hole(): Hole {
   return round.holes[round.current];
@@ -71,6 +89,7 @@ function go(index: number): void {
   if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
   update({ ...round, current: index });
   $('hole-card').scrollIntoView({ block: 'nearest' });
+  announce(`${index + 1}번 홀, Par ${hole().par}`);
 }
 
 function toParClass(toPar: number): string {
@@ -87,7 +106,7 @@ function buildCounters(): void {
       h('div', { class: `counter counter-${key}`, 'data-key': key },
         h('div', { class: 'counter-label' }, h('b', {}, label), h('span', {}, hint)),
         h('button', { type: 'button', class: 'step minus', 'data-delta': '-1', 'aria-label': `${label} 하나 빼기` }, '−'),
-        h('output', { class: 'count', 'aria-live': 'polite', 'aria-label': label }, '0'),
+        h('output', { class: 'count', 'aria-label': label }, '0'),
         h('button', { type: 'button', class: 'step plus', 'data-delta': '1', 'aria-label': `${label} 하나 더하기` }, '+'),
       ),
     );
@@ -96,40 +115,45 @@ function buildCounters(): void {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
     if (!button) return;
     const key = button.closest<HTMLElement>('.counter')!.dataset.key as Counter;
+    const before = hole();
     setHole((x) => bump(x, key, Number(button.dataset.delta)));
+    if (hole() === before) return;
     navigator.vibrate?.(8);
+    announce(`${round.current + 1}번 홀 ${COUNTER_TEXT[key].label} ${hole()[key]}, ${strokes(hole())}타`);
   });
 }
 
 function renderHole(): void {
   const cur = hole();
   const n = round.current + 1;
-  $('hole-title').textContent = `${n}번 홀`;
+  setText($('hole-title'), `${n}번 홀`);
   for (const button of document.querySelectorAll<HTMLButtonElement>('.par-pick button')) {
     const on = Number(button.dataset.par) === cur.par;
     button.setAttribute('aria-checked', String(on));
+    button.tabIndex = on ? 0 : -1;
   }
   const s = strokes(cur);
-  $('hole-strokes').textContent = String(s);
+  setText($('hole-strokes'), String(s));
   const topar = $('hole-topar');
   const name = $('hole-name');
-  if (played(cur)) {
-    topar.textContent = formatToPar(s - cur.par);
+  if (finished(round, round.current)) {
+    setText(topar, formatToPar(s - cur.par));
     topar.className = `topar ${toParClass(s - cur.par)}`;
-    name.textContent = SCORE_LABELS[scoreName(s - cur.par)];
+    setText(name, SCORE_LABELS[scoreName(s - cur.par)]);
   } else {
-    topar.textContent = '';
-    name.textContent = '아직 기록 없음';
+    setText(topar, '');
+    setText(name, played(cur) ? '진행 중 · 퍼트를 넣으면 스코어가 정해집니다' : '아직 기록 없음');
   }
   for (const row of document.querySelectorAll<HTMLElement>('.counter')) {
     const key = row.dataset.key as Counter;
-    row.querySelector('output')!.textContent = String(cur[key]);
+    setText(row.querySelector('output')!, String(cur[key]));
     row.querySelector<HTMLButtonElement>('.minus')!.disabled = cur[key] === 0;
+    row.querySelector<HTMLButtonElement>('.plus')!.disabled = cur[key] === MAX_COUNT;
   }
   $<HTMLButtonElement>('prev-hole').disabled = round.current === 0;
   const next = $<HTMLButtonElement>('next-hole');
   next.disabled = round.current === HOLE_COUNT - 1;
-  next.textContent = round.current === HOLE_COUNT - 1 ? '마지막 홀' : `${n + 1}번 홀 ▶`;
+  setText(next, round.current === HOLE_COUNT - 1 ? '마지막 홀' : `${n + 1}번 홀 ▶`);
 }
 
 /* ---------- tabs and summary ---------- */
@@ -139,11 +163,14 @@ function renderTabs(): void {
   list.replaceChildren(
     ...round.holes.map((x, i) => {
       const s = strokes(x);
-      const button = h('button', { type: 'button', 'data-hole': String(i), 'aria-label': `${i + 1}번 홀${played(x) ? `, ${s}타` : ''}` },
+      const done = finished(round, i);
+      const state = done ? `, ${s}타` : played(x) ? `, 진행 중 ${s}타` : '';
+      const button = h('button', { type: 'button', 'data-hole': String(i), 'aria-label': `${i + 1}번 홀${state}` },
         h('span', { class: 'tab-no' }, String(i + 1)),
         h('span', { class: 'tab-score' }, played(x) ? String(s) : '·'),
       );
-      if (played(x)) button.classList.add(toParClass(s - x.par));
+      if (done) button.classList.add(toParClass(s - x.par));
+      else if (played(x)) button.classList.add('in-progress');
       if (i === round.current) button.setAttribute('aria-current', 'true');
       return h('li', {}, button);
     }),
@@ -168,7 +195,8 @@ function cardTable(caption: string, start: number, t: Totals): HTMLTableElement 
   const sumLabel = start === 0 ? 'OUT' : 'IN';
   const row = (label: string, cells: (string | Node)[], total: string, cls = '') =>
     h('tr', cls ? { class: cls } : {}, h('th', { scope: 'row' }, label), ...cells.map((c) => h('td', {}, c)), h('td', { class: 'sum' }, total));
-  const dash = (x: Hole, v: number) => (played(x) ? String(v) : '');
+  const done = (i: number) => finished(round, start + i);
+  const dash = (i: number, v: number) => (done(i) ? String(v) : '');
   return h('table', { class: 'scorecard' },
     h('caption', {}, caption),
     h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, '홀'),
@@ -176,13 +204,13 @@ function cardTable(caption: string, start: number, t: Totals): HTMLTableElement 
       h('th', { scope: 'col', class: 'sum' }, sumLabel))),
     h('tbody', {},
       row('Par', holes.map((x) => String(x.par)), String(holes.reduce((s, x) => s + x.par, 0)), 'par-row'),
-      row('타수', holes.map((x) => {
-        if (!played(x)) return '';
+      row('타수', holes.map((x, i) => {
+        if (!done(i)) return '';
         const s = strokes(x);
         return h('span', { class: `mark ${toParClass(s - x.par)}` }, String(s));
       }), t.holes ? String(t.strokes) : '', 'strokes-row'),
-      row('퍼트', holes.map((x) => dash(x, x.putts)), t.holes ? String(t.putts) : ''),
-      row('OB', holes.map((x) => (x.ob ? String(x.ob) : '')), t.ob ? String(t.ob) : ''),
+      row('퍼트', holes.map((x, i) => dash(i, x.putts)), t.holes ? String(t.putts) : ''),
+      row('OB', holes.map((x, i) => (done(i) && x.ob ? String(x.ob) : '')), t.ob ? String(t.ob) : ''),
       row('멀리건', holes.map((x) => (x.mulligan ? String(x.mulligan) : '')), t.mulligan ? String(t.mulligan) : ''),
     ),
   );
@@ -213,8 +241,9 @@ function bar(label: string, value: number, max: number, text: string, cls = ''):
 function insights(a: Analysis): string[] {
   const t = a.totals;
   const out: string[] = [];
-  if (a.worstArea) {
-    out.push(`기준(티샷 1, 어프로치 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${AREA_LABELS[a.worstArea]}입니다 (+${a.lost[a.worstArea]}타).`);
+  if (a.worstAreas.length) {
+    const names = a.worstAreas.map((k) => AREA_LABELS[k]).join('·');
+    out.push(`기준(티샷 1, 어프로치 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${names}입니다 (+${a.lost[a.worstAreas[0]]}타).`);
   } else {
     out.push('모든 영역이 기준 타수 안에 있습니다. 좋은 라운드입니다.');
   }
@@ -249,8 +278,8 @@ function renderAnalysis(a: Analysis): void {
     h('h3', {}, '스코어 분포'),
     h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
     h('h3', {}, '영역별 잃은 타수'),
-    h('p', { class: 'muted small' }, '홀마다 티샷 1번, 어프로치 Par−3번, 퍼트 2번을 기준으로 더 친 타수입니다.'),
-    h('div', { class: 'bars' }, ...(Object.keys(AREA_LABELS) as Area[]).map((k) => bar(AREA_LABELS[k], a.lost[k], maxLost, a.lost[k] > 0 ? `+${a.lost[k]}` : String(a.lost[k]), k === a.worstArea ? 'worst' : 'area'))),
+    h('p', { class: 'muted small' }, '홀마다 티샷 1번, 어프로치 Par−3번, 퍼트 2번을 기준으로 더 친 타수입니다. 기준보다 적게 친 홀이 다른 홀의 손실을 지우지 않습니다.'),
+    h('div', { class: 'bars' }, ...(Object.keys(AREA_LABELS) as Area[]).map((k) => bar(AREA_LABELS[k], a.lost[k], maxLost, a.lost[k] > 0 ? `+${a.lost[k]}` : '0', a.worstAreas.includes(k) ? 'worst' : 'area'))),
     h('h3', {}, 'Par별 평균'),
     h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {}, h('dt', {}, `Par ${p.par}`), h('dd', {}, p.holes ? `${one(p.average)}타 (${p.holes}홀)` : '—')))),
     a.best && a.worst
@@ -271,9 +300,11 @@ function render(): void {
   renderScorecard(a);
   renderAnalysis(a);
   const [y, m, d] = round.date.split('-').map(Number);
-  $('save-state').textContent = saved
+  setText($('save-state'), saved
     ? `${y}년 ${m}월 ${d}일 라운드 · 이 기기에만 자동 저장됩니다.`
-    : '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.';
+    : '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.');
+  $('stale').hidden = !stale;
+  if (stale) setText($('stale-text'), `${y}년 ${m}월 ${d}일에 기록하던 라운드입니다.`);
 }
 
 function bind(): void {
@@ -284,6 +315,16 @@ function bind(): void {
     const par = Number(button.dataset.par) as Par;
     if (PARS.includes(par)) setHole((x) => (x.par === par ? x : { ...x, par }));
   });
+  document.querySelector('.par-pick')!.addEventListener('keydown', (event) => {
+    const e = event as KeyboardEvent;
+    const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const i = PARS.indexOf(hole().par);
+    const par = PARS[(i + step + PARS.length) % PARS.length];
+    setHole((x) => ({ ...x, par }));
+    document.querySelector<HTMLButtonElement>(`.par-pick button[data-par="${par}"]`)!.focus();
+  });
   $('prev-hole').addEventListener('click', () => go(round.current - 1));
   $('next-hole').addEventListener('click', () => go(round.current + 1));
   for (const id of ['hole-tabs', 'scorecard']) {
@@ -292,11 +333,25 @@ function bind(): void {
       if (button) go(Number(button.dataset.hole));
     });
   }
-  $('new-round').addEventListener('click', () => {
-    if (!confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) return;
+  const startNew = () => {
+    stale = false;
     clearRound();
     update(newRound());
     window.scrollTo({ top: 0 });
+  };
+  $('new-round').addEventListener('click', () => {
+    if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
+  });
+  $('stale-new').addEventListener('click', startNew);
+  $('stale-keep').addEventListener('click', () => {
+    stale = false;
+    render();
+  });
+  // Another tab of this tool saved the round: show that instead of overwriting it on the next tap.
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY && event.key !== null) return;
+    round = loadRound() ?? newRound();
+    render();
   });
 }
 

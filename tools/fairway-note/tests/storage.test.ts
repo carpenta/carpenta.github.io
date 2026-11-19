@@ -33,6 +33,8 @@ describe('storage', () => {
       '[]',
       { ...good, version: 2 },
       { ...good, date: 'yesterday' },
+      { ...good, date: '2026-99-99' },
+      { ...good, date: '2026-02-30' },
       { ...good, holes: good.holes.slice(0, 9) },
       { ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, par: 6 } : h)) },
       { ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, putts: -1 } : h)) },
