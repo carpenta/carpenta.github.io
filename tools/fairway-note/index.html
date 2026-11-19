@@ -30,10 +30,10 @@
             <button class="round" type="button" id="prev-hole" aria-label="이전 홀">
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <h1 class="hole-title" id="hole-title">
+            <div class="hole-title">
               <svg viewBox="0 0 16 20" width="14" height="18" aria-hidden="true"><path d="M2.5 19V1.5" stroke="#17301A" stroke-width="2" stroke-linecap="round"/><path d="M3 2h10l-3 3.5L13 9H3z" fill="#2F7D3A"/></svg>
-              <span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span>
-            </h1>
+              <span class="hole-txt"><h1 class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></h1><span class="hole-sub" id="hole-sub" aria-hidden="true"></span></span>
+            </div>
             <button class="round" type="button" id="next-hole" aria-label="다음 홀로 이동">
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -48,6 +48,7 @@
           </p>
           <!-- The hole's handicap and layout note from the course data, as captions on the course -->
           <ul class="notes" id="hole-notes" aria-label="홀 특징" hidden></ul>
+          <span class="ver" id="app-version" aria-hidden="true"></span>
         </header>
 
         <div class="banners">
@@ -68,6 +69,8 @@
             <span class="bmark" id="bmark" data-mark="none" aria-hidden="true"><svg class="bm" id="bm" viewBox="0 0 40 40"></svg><b id="hole-strokes">–</b></span>
             <span class="badge-name" id="hole-name" aria-hidden="true">기록 전</span>
           </div>
+          <!-- The last tap can be taken back for a few seconds; over the club names, clear of every button -->
+          <div class="toast" id="toast" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">되돌리기</button></div>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
             <div class="clubs" id="clubs"></div>
 
@@ -137,24 +140,24 @@
           <div id="analysis"></div>
         </section>
 
-        <section class="box" aria-labelledby="send-title">
-          <h3 id="send-title">결과 보내기</h3>
-          <p id="send-note" class="muted small"></p>
-          <div id="send-actions" class="send-actions">
-            <a id="send-email" class="btn primary" href="mailto:">이메일로 보내기</a>
-            <button id="send-share" class="btn" type="button">공유하기</button>
-          </div>
-          <p id="send-status" class="muted small" role="status"></p>
-        </section>
+        <p id="save-state" class="muted save-line"></p>
+      </section>
 
-        <section class="box footer-actions">
-          <p id="save-state" class="muted"></p>
-          <button id="new-round" class="btn danger" type="button">새 라운드 시작</button>
+      <section class="view sc" id="hist-view" role="tabpanel" aria-labelledby="tab-hist" hidden>
+        <header class="sc-top plain">
+          <button class="round menu" type="button" data-menu aria-label="메뉴" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <div class="sc-title"><h2>지난 라운드</h2><p id="hist-sub"></p></div>
+          <span aria-hidden="true"></span>
+        </header>
+        <section class="box now" aria-labelledby="now-title">
+          <div><h3 id="now-title">지금 라운드</h3><p id="now-sub" class="muted"></p></div>
+          <p class="big" id="now-score"></p>
+          <button type="button" class="btn primary" id="now-continue">이어서 기록</button>
         </section>
-
-        <!-- Filled by renderHistory() and renderBackup(); each view can be mounted into any container. -->
+        <!-- Filled by renderHistory(); the view can be mounted into any container. -->
         <section id="history" class="box"></section>
-        <section id="backup" class="box"></section>
       </section>
     </div>
 
@@ -165,34 +168,102 @@
         </a>
         <div class="tabs" role="tablist">
           <button class="tab" type="button" role="tab" id="tab-card" aria-selected="false" aria-controls="card-view" tabindex="-1">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 12h17M9.2 5v14M14.8 5v14"/></svg>
+            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 12h17M9.2 5v14M14.8 5v14"/></svg></span>
             <span class="tab-label">스코어카드</span>
           </button>
           <button class="tab" type="button" role="tab" id="tab-entry" aria-selected="true" aria-controls="entry" tabindex="0">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></span>
             <span class="tab-label">기록</span>
           </button>
+          <button class="tab" type="button" role="tab" id="tab-hist" aria-selected="false" aria-controls="hist-view" tabindex="-1">
+            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg></span>
+            <span class="tab-label">지난 라운드</span>
+          </button>
         </div>
-        <span class="ver" id="app-version"></span>
       </div>
     </nav>
 
-    <dialog id="menu" class="sheet-dialog" aria-labelledby="menu-title">
+    <dialog id="menu" class="sheet-dialog menu-sheet" aria-labelledby="menu-title">
       <div class="grab" aria-hidden="true"></div>
-      <h2 id="menu-title">메뉴</h2>
-      <dl class="menu-info">
-        <dt>코스</dt><dd id="course-name">에버리스 골프리조트 새별·레이크</dd>
-        <dt>홀 그림</dt><dd>직접 그린 안내용 그림이에요. 실제 배치는 공식 홀 안내를 보세요.</dd>
-        <dt>홀 이동</dt><dd>기록 화면을 왼쪽이나 오른쪽으로 밀어도 돼요.</dd>
-        <dt>Par</dt><dd>스코어카드의 파 수정에서 바꿔요.</dd>
-        <dt>버전</dt><dd id="menu-version"></dd>
-      </dl>
-      <div class="mulligan">
-        <p class="mulligan-label"><b>이 홀 멀리건</b><span>표시만 하고 타수에 넣지 않아요</span></p>
-        <button id="mulligan-minus" class="step-sm" type="button" aria-label="멀리건 하나 빼기">−</button>
-        <output id="mulligan-count" class="step-count" aria-label="멀리건">0</output>
-        <button id="mulligan-plus" class="step-sm plus" type="button" aria-label="멀리건 하나 더하기">+</button>
-      </div>
+      <div class="menu-head"><h2 id="menu-title">메뉴</h2><span>Fairway Note</span></div>
+      <ul class="menu-list">
+        <li>
+          <button class="mi" type="button" id="mi-new" aria-expanded="false" aria-controls="mp-new">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="mi-t"><b>새 라운드</b><small><span id="new-sub"></span></small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-new" hidden>
+            <p id="new-question"></p>
+            <div class="row"><button type="button" class="btn primary" id="new-round">새 라운드 시작</button><button type="button" class="btn" data-collapse>취소</button></div>
+          </div>
+        </li>
+        <li>
+          <button class="mi" type="button" id="mi-course" aria-expanded="false" aria-controls="mp-course">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4"/><path d="M6 4h11l-3 4 3 4H6"/></svg></span>
+            <span class="mi-t"><b>코스 바꾸기</b><small><span id="course-name">에버리스 골프리조트 새별·레이크</span></small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-course" hidden>
+            <p>기록한 타수는 그대로 두고, 코스와 홀마다 Par를 고른 코스의 공식 값으로 바꿔요. 새 라운드로 시작하려면 위의 새 라운드를 쓰세요.</p>
+            <div class="row"><button type="button" class="btn primary" id="change-course">다른 코스 고르기</button></div>
+          </div>
+        </li>
+        <li>
+          <button class="mi" type="button" id="mi-send" aria-expanded="false" aria-controls="mp-send">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg></span>
+            <span class="mi-t"><b>결과 보내기</b><small>이메일, 공유</small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-send" hidden>
+            <p id="send-note" class="muted"></p>
+            <div id="send-actions" class="row">
+              <a id="send-email" class="btn primary" href="mailto:">이메일로 보내기</a>
+              <button id="send-share" class="btn" type="button">공유하기</button>
+            </div>
+            <p id="send-status" class="muted small" role="status"></p>
+          </div>
+        </li>
+        <li>
+          <button class="mi" type="button" id="mi-backup" aria-expanded="false" aria-controls="mp-backup">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/></svg></span>
+            <span class="mi-t"><b>백업과 복원</b><small>기록을 파일로 옮겨요</small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-backup" hidden>
+            <!-- Filled by renderBackup(). -->
+            <section id="backup" class="backup"></section>
+          </div>
+        </li>
+        <li>
+          <button class="mi" type="button" id="mi-mulligan" aria-expanded="false" aria-controls="mp-mulligan">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 0 8 8"/><path d="M20 4v4h-4"/></svg></span>
+            <span class="mi-t"><b>이 홀 멀리건</b><small><span id="mulligan-sub">표시만 하고 타수에 넣지 않아요</span></small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-mulligan" hidden>
+            <div class="mulligan">
+              <p class="mulligan-label"><b>멀리건</b><span>표시만 하고 타수에 넣지 않아요</span></p>
+              <button id="mulligan-minus" class="step-sm" type="button" aria-label="멀리건 하나 빼기">−</button>
+              <output id="mulligan-count" class="step-count" aria-label="멀리건">0</output>
+              <button id="mulligan-plus" class="step-sm plus" type="button" aria-label="멀리건 하나 더하기">+</button>
+            </div>
+          </div>
+        </li>
+        <li>
+          <button class="mi" type="button" id="mi-about" aria-expanded="false" aria-controls="mp-about">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></span>
+            <span class="mi-t"><b>앱 정보</b><small><span id="menu-version"></span></small></span>
+            <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="mpanel" id="mp-about" hidden>
+            <p>Fairway Note <span id="about-version"></span></p>
+            <p class="muted">인터넷이 없어도 기록할 수 있어요. 기록은 이 기기에만 저장돼요.</p>
+            <p class="muted">홀 그림은 직접 그린 안내용 그림이에요. 실제 배치는 공식 홀 안내를 보세요.</p>
+            <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
+          </div>
+        </li>
+      </ul>
       <button id="menu-close" class="menu-close" type="button">닫기</button>
     </dialog>
 

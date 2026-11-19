@@ -32,16 +32,17 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS } from './icons';
-import { courseShape, courseSvg, layoutBend, type CourseFrame } from './course-art';
+import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
 import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadPrefs, loadRound, preserveUnreadable, requestPersistence, savePrefs, saveRound, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
-import { VERSION, VERSION_LABEL } from './version';
+import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
+import { hasFinishedHole } from './history';
 import { renderBackup } from './backup-view';
 
 type Penalty = (typeof PENALTIES)[number];
@@ -148,12 +149,12 @@ function setHoleAt(index: number, patch: (h: Hole) => Hole, changed?: string): b
 
 const setHole = (patch: (h: Hole) => Hole, changed?: string) => setHoleAt(round.current, patch, changed);
 
-/* ---------- views: 스코어카드 and 기록 ---------- */
+/* ---------- views: 스코어카드, 기록 and 지난 라운드 ---------- */
 
-type View = 'card' | 'entry';
-const VIEWS: View[] = ['card', 'entry'];
-const TAB_ID: Record<View, string> = { card: 'tab-card', entry: 'tab-entry' };
-const PANEL_ID: Record<View, string> = { card: 'card-view', entry: 'entry' };
+type View = 'card' | 'entry' | 'hist';
+const VIEWS: View[] = ['card', 'entry', 'hist'];
+const TAB_ID: Record<View, string> = { card: 'tab-card', entry: 'tab-entry', hist: 'tab-hist' };
+const PANEL_ID: Record<View, string> = { card: 'card-view', entry: 'entry', hist: 'hist-view' };
 /** Kept in memory: a reload opens 기록. */
 let view: View = 'entry';
 
@@ -166,7 +167,9 @@ function show(next: View, focusTab = false): void {
     tab.tabIndex = v === view ? 0 : -1;
     $(PANEL_ID[v]).hidden = v !== view;
   }
-  if (changed && view === 'card') $('card-view').scrollTop = 0;
+  if (changed) hideToast();
+  if (changed && view !== 'entry') $(PANEL_ID[view]).scrollTop = 0;
+  if (view === 'hist') renderNow();
   drawCourse();
   scrollHint();
   if (focusTab) $(TAB_ID[view]).focus();
@@ -176,8 +179,9 @@ function bindViews(): void {
   for (const v of VIEWS) $(TAB_ID[v]).addEventListener('click', () => show(v));
   $('views').addEventListener('keydown', (event) => {
     const e = event as KeyboardEvent;
-    const other: View = view === 'entry' ? 'card' : 'entry';
-    const target = ({ ArrowLeft: other, ArrowRight: other, Home: VIEWS[0], End: VIEWS[VIEWS.length - 1] } as Record<string, View>)[e.key];
+    const at = VIEWS.indexOf(view);
+    const step = (n: number) => VIEWS[(at + n + VIEWS.length) % VIEWS.length];
+    const target = ({ ArrowLeft: step(-1), ArrowRight: step(1), Home: VIEWS[0], End: VIEWS[VIEWS.length - 1] } as Record<string, View>)[e.key];
     if (!target || !(e.target as HTMLElement).matches('[role="tab"]')) return;
     e.preventDefault();
     show(target, true);
@@ -188,6 +192,7 @@ function bindViews(): void {
 
 function go(index: number): void {
   if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
+  hideToast();
   update({ ...round, current: index });
   $('sheet').scrollTop = 0;
   scrollHint();
@@ -202,39 +207,43 @@ function slide(el: HTMLElement, x: number, ms = 0, fade = false): void {
 }
 
 /** A copy of the swiped sheet that carries on off screen while the next hole slides in. Hidden from assistive tech. */
-function leaveGhost(wrap: HTMLElement, dir: number): void {
-  const box = wrap.getBoundingClientRect();
-  const ghost = wrap.cloneNode(true) as HTMLElement;
+function leaveGhost(sheet: HTMLElement, dir: number): void {
+  const box = sheet.getBoundingClientRect();
+  const ghost = sheet.cloneNode(true) as HTMLElement;
   ghost.removeAttribute('style');
   for (const el of [ghost, ...ghost.querySelectorAll('[id]')]) el.removeAttribute('id');
-  ghost.querySelector('.badge')?.classList.remove('celebrate', 'settle');
   ghost.classList.add('ghost');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.inert = true;
   Object.assign(ghost.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
   $('entry').append(ghost);
-  ghost.querySelector('.sheet')!.scrollTop = $('sheet').scrollTop;
+  ghost.scrollTop = sheet.scrollTop;
   requestAnimationFrame(() => slide(ghost, -dir * window.innerWidth * 0.45, 160, true));
   window.setTimeout(() => ghost.remove(), 260);
 }
 
-/** One hole on or back. The new hole's sheet slides in from the side it comes from; a swipe's sheet carries on out. */
+/**
+ * One hole on or back. Only the sheet moves: the new hole's slides in from the side it comes from, and a swiped one
+ * carries on out; the badge and the chips stay put.
+ */
 function changeHole(dir: 1 | -1, swiped = false): void {
-  const wrap = $('sheet-wrap');
+  const sheet = $('sheet');
   const target = round.current + dir;
   if (target < 0 || target >= HOLE_COUNT) {
-    slide(wrap, 0, 180);
+    slide(sheet, 0, 180);
     return;
   }
   const motion = !reducedMotion();
-  if (motion && swiped) leaveGhost(wrap, dir);
+  if (motion && swiped) leaveGhost(sheet, dir);
   // Back in place before the new hole renders, so the drawn course measures the sheet where it rests.
-  slide(wrap, 0);
+  slide(sheet, 0);
   go(target);
   if (swiped) navigator.vibrate?.(8);
   if (!motion) return;
-  slide(wrap, dir * window.innerWidth * 0.3, 0, true);
-  requestAnimationFrame(() => requestAnimationFrame(() => slide(wrap, 0, 220)));
+  $('sheet-wrap').classList.remove('more');
+  slide(sheet, dir * window.innerWidth * 0.3, 0, true);
+  requestAnimationFrame(() => requestAnimationFrame(() => slide(sheet, 0, 220)));
+  window.setTimeout(scrollHint, 260);
 }
 
 /** "다음 홀", or the scorecard after the last hole. */
@@ -246,11 +255,11 @@ function goNext(): void {
 /** A sideways swipe on 기록 changes the hole; a mostly vertical one is left to scroll the sheet. */
 function bindSwipe(): void {
   const entry = $('entry');
-  const wrap = $('sheet-wrap');
+  const sheet = $('sheet');
   let drag: { x: number; y: number; id: number; on: boolean; t: number } | null = null;
   let swallow = false;
   entry.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if ((e.pointerType === 'mouse' && e.button !== 0) || (e.target as Element).closest('.toast')) return;
     drag = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false, t: performance.now() };
   });
   entry.addEventListener('pointermove', (e) => {
@@ -269,7 +278,7 @@ function bindSwipe(): void {
     }
     // At the first and last hole the sheet only gives a little.
     const edge = (dx > 0 && round.current === 0) || (dx < 0 && round.current === HOLE_COUNT - 1);
-    slide(wrap, edge ? dx * 0.25 : dx);
+    slide(sheet, edge ? dx * 0.25 : dx);
   });
   const end = (e: PointerEvent, cancel: boolean) => {
     if (!drag || e.pointerId !== drag.id) return;
@@ -280,7 +289,7 @@ function bindSwipe(): void {
     const speed = dx / Math.max(1, performance.now() - d.t);
     if (!cancel && (dx < -72 || speed < -0.6)) changeHole(1, true);
     else if (!cancel && (dx > 72 || speed > 0.6)) changeHole(-1, true);
-    else slide(wrap, 0, 180);
+    else slide(sheet, 0, 180);
     window.setTimeout(() => (swallow = false), 60);
   };
   entry.addEventListener('pointerup', (e) => end(e, false));
@@ -312,13 +321,15 @@ function drawCourse(): void {
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
     frame.right = $('badge').getBoundingClientRect().left - 6;
   }
-  const bend = layoutBend(holeInfo(roundCourse(round), round.current)?.layout);
-  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), hole().par, round.current, bend].join(',');
+  const layout = holeInfo(roundCourse(round), round.current)?.layout;
+  const bend = layoutBend(layout);
+  const island = layoutIsland(layout);
+  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), hole().par, round.current, bend, island].join(',');
   if (svg.dataset.key === key) return;
   svg.dataset.key = key;
   svg.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
   // Static markup from course-art.ts, built from numbers only.
-  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend), frame);
+  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island), frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */
@@ -346,8 +357,11 @@ function buildClubs(): void {
     plus.innerHTML = `<span>${PLUS}</span>`;
     const minus = h('button', { type: 'button', class: 'step minus', 'aria-label': `${label} 하나 빼기` });
     minus.innerHTML = `<span>${MINUS}</span>`;
+    // The count, with the club's icon beside it for screens where the names step aside.
+    const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}` }, '0'));
+    num.insertAdjacentHTML('afterbegin', CLUB_ICONS[key].replace('<svg', '<svg class="pill-ico"'));
     box.append(h('div', { class: `club club-${key}`, 'data-key': key }, name,
-      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}` }, plus, h('span', { class: 'count', id: `count-${key}` }, '0'), minus)));
+      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}` }, plus, num, minus)));
   }
   box.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
@@ -372,11 +386,48 @@ function buildPens(): void {
   $('pen-undo').addEventListener('click', undoPenalty);
 }
 
-/** One stroke more or less on a club, a penalty or a mulligan; the hole's score follows. */
-function count(key: Counter, delta: number): boolean {
+/* ---------- undo: the last + or − or penalty can be taken back for four seconds ---------- */
+
+/** The hole as it was before the last change, and its penalty order. Not saved. */
+let undoable: { index: number; hole: Hole; added: Penalty[] } | null = null;
+let toastTimer = 0;
+
+function showToast(text: string, before: NonNullable<typeof undoable>): void {
+  undoable = before;
+  const toast = $('toast');
+  setText($('toast-msg'), text);
+  toast.hidden = false;
+  replay(toast, 'show');
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(hideToast, 4000);
+}
+
+function hideToast(): void {
+  window.clearTimeout(toastTimer);
+  undoable = null;
+  $('toast').hidden = true;
+}
+
+function restore(): void {
+  const before = undoable;
+  if (!before) return;
+  hideToast();
+  added.set(before.index, before.added);
+  setHoleAt(before.index, () => before.hole);
+  announce('되돌렸어요');
+}
+
+/**
+ * One stroke more or less on a club, a penalty or a mulligan; the hole's score follows. A club or penalty change can
+ * be taken back from the toast; `order` is the penalty order to bring back with it.
+ */
+function count(key: Counter, delta: number, order: Penalty[] = added.get(round.current) ?? []): boolean {
+  const index = round.current;
+  const before = hole();
   if (!setHole((x) => bump(x, key, delta), key)) return false;
   navigator.vibrate?.(8);
   announce(`${round.current + 1}번 홀 ${LABELS[key]} ${hole()[key]}, ${strokes(hole())}타`);
+  if (key !== 'mulligan') showToast(`${LABELS[key]} ${delta > 0 ? '+1' : '−1'}`, { index, hole: before, added: [...order] });
   return true;
 }
 
@@ -398,7 +449,7 @@ function undoPenalty(): void {
   const order = added.get(round.current) ?? [];
   const at = order.lastIndexOf(key);
   if (at >= 0) added.set(round.current, [...order.slice(0, at), ...order.slice(at + 1)]);
-  count(key, -1);
+  count(key, -1, order);
 }
 
 /** 미스샷 steps 헛스윙 → 뒤땅/토핑 → none; like every tee result it replaces the one before. */
@@ -461,6 +512,8 @@ function renderEntry(a: Analysis, changed?: string): void {
   setText($('total-holes'), `, ${a.totals.holes}홀`);
   const info = holeInfo(roundCourse(round), i);
   setChip('hole-distance', distanceLabel(info));
+  // Under the hole number when 상세 on a short screen hides the chips.
+  setText($('hole-sub'), [`Par ${cur.par}`, distanceLabel(info)].filter(Boolean).join(' · '));
   // The handicap and the layout note's phrases ("내리막, 블라인드 티샷") as captions under the chips, in 기본 only.
   const captions = [...(info?.si ? [`HDCP ${info.si}`] : []), ...(info?.layout ?? '').split(/\s*[,，]\s*/).filter(Boolean)];
   const notes = $('hole-notes');
@@ -501,7 +554,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(bmark, 'data-mark', mark);
   bmark.classList.toggle('two', s >= 10);
   const badge = $('badge');
-  setAttr(badge, 'data-tone', done ? toneOf(d) : 'none');
+  setAttr(badge, 'data-tone', done ? toneOf(d) : played(cur) ? 'progress' : 'none');
   setText($('hole-name'), name);
   setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타, ${name}` : '이 홀 아직 기록 전');
   const markKey = `${i}:${mark}`;
@@ -522,7 +575,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   lastMark = markKey;
 
   // 기본 / 상세
-  setAttr($('sheet'), 'data-mode', mode);
+  setAttr($('entry'), 'data-mode', mode);
   $('detail').hidden = mode !== 'detail';
   for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-mode]')) setAttr(button, 'aria-pressed', String(button.dataset.mode === mode));
   const tag = teeTag(cur);
@@ -772,7 +825,28 @@ function renderMenu(): void {
   setText($('mulligan-count'), String(cur.mulligan));
   $<HTMLButtonElement>('mulligan-minus').disabled = cur.mulligan === 0;
   $<HTMLButtonElement>('mulligan-plus').disabled = cur.mulligan >= MAX_COUNT;
+  setText($('mulligan-sub'), `${round.current + 1}번 홀 ${cur.mulligan}개 · 타수에 넣지 않아요`);
   setText($('menu-version'), VERSION_LABEL);
+  setText($('about-version'), VERSION_LABEL);
+  setText($('new-question'), newRoundQuestion(round));
+  setText($('new-sub'), hasFinishedHole(round) ? '지금 라운드는 지난 라운드에 남아요' : '끝낸 홀이 없으면 남기지 않아요');
+}
+
+/** Opens one item's panel (or none), closing the others. */
+function openItem(id: string | null): void {
+  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi')) {
+    const on = item.id === `mi-${id}`;
+    setAttr(item, 'aria-expanded', String(on));
+    $(item.getAttribute('aria-controls')!).hidden = !on;
+  }
+}
+
+/** 코스 바꾸기: the round moves to another course or nine order; its strokes stay and each hole takes that course's par. */
+function changeCourse(choice: CourseChoice): void {
+  const setup = roundSetup(choice);
+  savePrefs(choice);
+  update({ ...round, course: setup.course, holes: round.holes.map((x, i) => (x.par === setup.pars[i] ? x : { ...x, par: setup.pars[i] })) });
+  announce(`코스를 ${courseLabel(setup.course)}로 바꿨어요`);
 }
 
 function bindMenu(): void {
@@ -781,13 +855,50 @@ function bindMenu(): void {
     button.addEventListener('click', () => {
       menuOpener = button;
       renderMenu();
+      openItem(null);
       menu.showModal();
     });
   }
+  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi')) {
+    item.addEventListener('click', () => openItem(item.getAttribute('aria-expanded') === 'true' ? null : item.id.slice(3)));
+  }
+  for (const button of document.querySelectorAll<HTMLButtonElement>('#menu [data-collapse]')) {
+    button.addEventListener('click', () => {
+      openItem(null);
+      $('mi-new').focus();
+    });
+  }
   $('menu-close').addEventListener('click', () => menu.close());
+  // A tap on the dim backdrop, outside the sheet, closes it.
+  menu.addEventListener('click', (event) => {
+    const r = menu.getBoundingClientRect();
+    if (event.target === menu && (event.clientY < r.top || event.clientY > r.bottom || event.clientX < r.left || event.clientX > r.right)) menu.close();
+  });
   menu.addEventListener('close', () => menuOpener?.focus());
   $('mulligan-plus').addEventListener('click', () => count('mulligan', 1));
   $('mulligan-minus').addEventListener('click', () => count('mulligan', -1));
+  // The panel is the question; the course picker still lets the player go back.
+  $('new-round').addEventListener('click', () => {
+    menu.close();
+    openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
+  });
+  $('change-course').addEventListener('click', () => {
+    menu.close();
+    openPicker({ mode: 'new', initial: loadPrefs(), title: '코스 바꾸기', startLabel: '이 코스로 바꾸기', onStart: changeCourse });
+  });
+}
+
+/* ---------- 지난 라운드: this round, then the kept ones ---------- */
+
+function renderNow(a: Analysis = analyze(round)): void {
+  const t = a.totals;
+  setText($('now-sub'), `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
+  const score = $('now-score');
+  setText(score, t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
+  score.classList.toggle('under', t.holes > 0 && a.toPar < 0);
+  score.classList.toggle('none', !t.holes);
+  const kept = document.querySelectorAll('#history-list > li').length;
+  setText($('hist-sub'), kept ? `보관한 라운드 ${kept}개` : '아직 보관한 라운드가 없어요');
 }
 
 /**
@@ -796,6 +907,7 @@ function bindMenu(): void {
  */
 function startRound(choice: CourseChoice): void {
   if (!keepBeforeNewRound(round)) return;
+  hideToast();
   stale = false;
   editPar = false;
   savePrefs(choice);
@@ -825,6 +937,7 @@ function render(changed?: string): void {
   renderSend(a);
   renderCourse();
   renderMenu();
+  renderNow(a);
   const message = saveMessage();
   setText($('save-state'), message.text);
   const notice = $('notice');
@@ -843,7 +956,8 @@ function bind(): void {
   bindDetail();
   bindMenu();
   setText($('app-version'), VERSION_LABEL);
-  $('app-version').setAttribute('aria-label', `버전 ${VERSION}`);
+  $('toast-undo').addEventListener('click', restore);
+  $('now-continue').addEventListener('click', () => show('entry'));
   bindSwipe();
   $('prev-hole').addEventListener('click', () => changeHole(-1));
   $('next-hole').addEventListener('click', () => changeHole(1));
@@ -933,6 +1047,7 @@ const lent: Page = {
   current: () => round,
   replace: (next) => {
     stale = false;
+    hideToast();
     added.clear();
     celebrated.clear();
     update(next);
@@ -944,3 +1059,6 @@ const lent: Page = {
 };
 renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
+// The 지난 라운드 header counts the kept rounds; the list changes on keeping, deleting and importing.
+new MutationObserver(() => renderNow()).observe($('history-list'), { childList: true });
+renderNow();

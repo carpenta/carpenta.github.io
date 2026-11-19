@@ -1,4 +1,4 @@
-/* v5: TheGrint-style hole entry in our grass tones, over our own drawing of the hole (design/v5.html). */
+/* v6: TheGrint-style hole entry in our grass tones, over our own drawing of the hole (design/v6.html). */
 :root {
   --turf: #2f7d3a;
   --fairway: #5baa4f;
@@ -31,7 +31,7 @@
   --count: 56px;
   --pill-pad: 8px;
   /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
-  --pill-base: 424px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
+  --pill-base: 434px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
   --pen: 52px;
   --mode-h: 40px;
   --next-h: 52px;
@@ -65,16 +65,20 @@ svg { display: block; }
   display: flex; flex-direction: column;
   padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
 }
-.view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 
 /* ---------- top bar: light controls floating on the course ---------- */
 .top {
-  flex: none; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
+  flex: none; position: relative; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
   display: grid; grid-template-columns: 48px auto 1fr; column-gap: 8px; row-gap: 14px; align-items: center;
 }
 /* Horizontal swipes change the hole; vertical ones still scroll the sheet, and pinch zoom still works.
    The sheet scrolls on its own, so it says the same for touches that start on it. */
 #entry, #entry .sheet { touch-action: pan-y pinch-zoom; }
+/* The pills take what the screen leaves (or a fixed height in 상세); the count follows, so it keeps 8px clear of + and −. */
+#entry { --pill-h: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h)), var(--pill-max))); }
+/* The sheet slides sideways between holes; nothing scrolls the page sideways meanwhile. */
+#entry { overflow-x: clip; }
 .round {
   width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
   background: var(--white); color: var(--ink); box-shadow: var(--float);
@@ -90,11 +94,17 @@ svg { display: block; }
 .switcher .round:active { background: var(--pill); }
 .switcher .round:disabled { background: transparent; color: var(--off-ink); }
 .hole-title { display: flex; align-items: center; gap: 3px; padding: 0 4px; font-weight: 800; white-space: nowrap; }
-.hole-title svg { flex: none; margin-right: 3px; }
+.hole-title > svg { flex: none; margin-right: 3px; }
+.hole-txt { display: flex; flex-direction: column; align-items: flex-start; }
+.hole-main { display: flex; align-items: baseline; gap: 2px; margin: 0; font: inherit; }
 .hole-n { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
-.hole-u { font-size: 17px; font-weight: 700; padding-top: 6px; }
-.hole-title.two .hole-n { font-size: 28px; }
-.hole-title.two .hole-u { font-size: 15px; }
+.hole-u { font-size: 17px; font-weight: 700; }
+/* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
+.hole-sub { display: none; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 15px; }
+/* The version, quietly, at the top right of 기록 (and in the menu's 앱 정보). */
+.ver { position: absolute; top: max(12px, calc(env(safe-area-inset-top) + 4px)); right: var(--m); font-size: 13px; font-weight: 600; color: rgb(255 255 255 / .78); }
+#hole-title.two .hole-n { font-size: 28px; }
+#hole-title.two .hole-u { font-size: 15px; }
 .info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - var(--badge)); }
 .chip .lbl { font-weight: 600; color: var(--muted); }
 .chip {
@@ -110,20 +120,22 @@ svg { display: block; }
   height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center;
   background: rgb(12 32 14 / .62); color: #e8f3e2; font-size: 13px; font-weight: 600; white-space: nowrap;
 }
-/* main.ts sets --notes-h on #entry to the captions' height. */
+/* main.ts sets --notes-h on #entry to the captions' height: two rows on tall screens, one below 700px, none below 620px. */
+.notes { max-height: 54px; overflow: hidden; }
+@media (max-height: 699px) { .notes { max-height: 24px; } }
 @media (max-height: 619px) { .notes { display: none; } }
 .banners { flex: none; display: grid; gap: 8px; margin: 10px var(--m) 0; }
 .banners:not(:has(> :not([hidden]))) { display: none; }
 .spacer { flex: 1 1 0; min-height: 4px; }
 
 /* ---------- the sheet ---------- */
-.sheet-wrap { position: relative; flex: 0 1 auto; min-height: 0; margin: 0 var(--m); display: flex; flex-direction: column; will-change: transform; -webkit-user-select: none; user-select: none; }
-/* The swiped sheet carrying on off screen (main.ts sets its box). */
-.sheet-wrap.ghost { position: fixed; z-index: 2; margin: 0; pointer-events: none; }
+.sheet-wrap { position: relative; flex: 0 1 auto; min-height: 0; margin: 0 var(--m); display: flex; flex-direction: column; -webkit-user-select: none; user-select: none; }
+/* Only the sheet slides between holes; the badge and the chips stay put. The swiped sheet carries on off screen as a copy (main.ts sets its box). */
+.sheet.ghost { position: fixed; z-index: 2; margin: 0; pointer-events: none; }
 .sheet {
   flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   background: var(--white); border-radius: 32px; box-shadow: 0 12px 32px rgb(8 28 10 / .32);
-  padding: var(--sheet-pt) 16px 10px; scrollbar-width: none;
+  padding: var(--sheet-pt) 16px var(--sheet-pb, 16px); scrollbar-width: none; will-change: transform;
 }
 .sheet::-webkit-scrollbar { display: none; }
 /* A white fade at the bottom says there is more below; drawn over the sheet, so it adds no scroll. */
@@ -143,6 +155,9 @@ svg { display: block; }
 .badge[data-tone='under'] { background: var(--red); }
 .badge[data-tone='par'] { background: var(--turf); }
 .badge-name { font-size: 13px; font-weight: 700; line-height: 1; white-space: nowrap; }
+/* Nothing recorded yet: the badge stays quiet. */
+.badge[data-tone='none'] .badge-name { color: #cfe3c9; font-weight: 600; }
+.badge[data-tone='none'] .bmark b { font-weight: 600; color: #9fba98; }
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
 .bmark { width: 44px; height: 40px; }
@@ -167,10 +182,14 @@ svg { display: block; }
 /* Row A: three tall pill steppers. The count sits in its own row between the round buttons. */
 .clubs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; }
 .club { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 6px; font-size: 15px; font-weight: 700; white-space: nowrap; }
-.club-lbl svg { width: 20px; height: 20px; color: var(--turf); }
+.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 8px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+.club-lbl svg, .pill-ico { color: var(--turf); }
+.club-lbl svg { width: 20px; height: 20px; }
+/* The count, with a small club icon beside it where the club names step aside. */
+.num-row { display: flex; align-items: center; gap: 4px; }
+.pill-ico { display: none; flex: none; width: 16px; height: 16px; }
 .pill {
-  width: 100%; max-width: 104px; height: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h)), var(--pill-max)));
+  width: 100%; max-width: 104px; height: var(--pill-h);
   border-radius: 999px; background: var(--pill);
   display: grid; grid-template-rows: var(--step) minmax(0, 1fr) var(--step); justify-items: center; align-items: center; padding: var(--pill-pad) 0;
 }
@@ -181,16 +200,17 @@ svg { display: block; }
 }
 .step:active:not(:disabled) span { background: var(--tint); box-shadow: 0 1px 2px rgb(23 48 26 / .18); }
 .step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
-.count { font-size: var(--count); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
+.count { font-size: clamp(22px, calc((var(--pill-h) - 2 * var(--pill-pad) - 2 * var(--step) - 16px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
 .count.zero { color: #6e856c; }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
 
 /* 상세: the pills shrink, then one tee line, one row of five directions and the penalty line. */
-.sheet[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-fixed: 138px; --pen: 48px; padding-top: 14px; padding-bottom: 6px; }
-@media (min-height: 660px) { .sheet[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
-.sheet[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
-.sheet[data-mode='detail'] .step span { width: 44px; height: 44px; }
+#entry[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-fixed: 138px; --pen: 48px; }
+#entry[data-mode='detail'] .sheet { padding-top: 14px; padding-bottom: 6px; }
+@media (min-height: 660px) { #entry[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
+#entry[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
+#entry[data-mode='detail'] .step span { width: 44px; height: 44px; }
 .detail { margin-top: 8px; }
 .tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
 /* "티샷" and its result side by side, or the result under it when the chips leave too little room (360px). */
@@ -215,12 +235,12 @@ svg { display: block; }
 
 /* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke.
    기본 keeps the two centred with "빼기" in its own slot to the right; 상세 packs them under the pad. */
-.pens { display: grid; grid-template-columns: 1fr 72px 72px 1fr; column-gap: 24px; margin-top: 12px; }
+.pens { display: grid; grid-template-columns: 1fr 72px 72px 1fr; column-gap: 24px; margin-top: 16px; }
 .pens .pen[data-pen='ob'] { grid-column: 2; }
 .pens .pen[data-pen='hazard'] { grid-column: 3; }
-.sheet[data-mode='detail'] .pens { grid-template-columns: 1fr 48px 48px 1fr; column-gap: 22px; margin-top: 10px; }
+#entry[data-mode='detail'] .pens { grid-template-columns: 1fr 48px 48px 1fr; column-gap: 22px; margin-top: 10px; }
 .pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.sheet[data-mode='detail'] .pen { width: 48px; gap: 2px; }
+#entry[data-mode='detail'] .pen { width: 48px; gap: 2px; }
 .pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
 .pen:active:not(:disabled) .pen-icon { background: var(--pill); }
 .pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
@@ -235,7 +255,7 @@ svg { display: block; }
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   font-size: 13px; font-weight: 700; line-height: 16px; color: var(--turf); white-space: nowrap;
 }
-.sheet[data-mode='detail'] .undo { margin-left: -4px; gap: 2px; }
+#entry[data-mode='detail'] .undo { margin-left: -4px; gap: 2px; }
 .undo .u-ico { width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
 .undo:active .u-ico { background: var(--tint); }
 
@@ -248,32 +268,44 @@ svg { display: block; }
 .next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--turf); color: #fff; font-size: 17px; font-weight: 700; box-shadow: var(--float); }
 .next:active { background: #276b31; }
 
+/* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. It sits over the club names at the
+   sheet's top, where nothing can be pressed, so a tap meant for a button never lands on it. */
+.toast {
+  position: absolute; z-index: 4; top: -20px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; height: 48px; padding: 0 0 0 18px; border-radius: 999px;
+  background: var(--deep); color: #fff; box-shadow: 0 8px 22px rgb(8 28 10 / .4);
+  font-size: 15px; font-weight: 600; white-space: nowrap;
+}
+.toast button { height: 48px; padding: 0 16px; border-radius: 999px; color: #9ed583; font-weight: 700; }
+.toast button:active { background: rgb(255 255 255 / .1); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.toast.show { animation: toast-in .16s ease-out; }
+
 /* ---------- bottom tab bar ---------- */
 .tabbar {
   position: fixed; z-index: 5; left: 0; right: 0; bottom: 0;
-  padding: 0 max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left));
+  padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
   background: var(--deep); display: flex; justify-content: center;
 }
-.bar { position: relative; width: 100%; max-width: 480px; display: flex; justify-content: center; }
-.tabs { display: grid; grid-template-columns: repeat(2, 112px); column-gap: 12px; }
-.tab { height: var(--tabbar); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--tab-ink); font-weight: 600; }
+/* 스코어카드 · 기록 · 지난 라운드, with 기록 in the centre; the way home at the left, balanced by an empty column. */
+.bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; }
+.tabs { grid-column: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 4px; }
+.tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; }
+.tab .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
+.tab[aria-selected='true'] .ti { background: rgb(91 170 79 / .2); }
 .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tab-label { font-size: 13px; }
+.tab-label { font-size: 13px; white-space: nowrap; }
 .tab[aria-selected='true'] { color: var(--fairway); font-weight: 700; }
-.ver { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--tab-ink); padding: 2px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px #3a5a40; }
 /* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
    The top right belongs to the score badge. */
-.home-link {
-  position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
-  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--tab-ink);
-}
+.home-link { grid-column: 1; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--tab-ink); }
 .home-link:active { background: rgb(255 255 255 / .08); }
-@media (max-width: 359px) { .tabs { grid-template-columns: repeat(2, minmax(0, 96px)); } }
 
 /* ---------- 스코어카드 ---------- */
 .sc { --m: 10px; background: var(--paper); overflow-y: auto; scrollbar-width: none; }
 .sc::-webkit-scrollbar { display: none; }
 .sc-top { flex: none; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px; }
+.sc-top.plain { grid-template-columns: 48px minmax(0, 1fr) 48px; }
 .sc-title { text-align: center; min-width: 0; }
 .edit {
   height: 48px; min-width: 76px; padding: 0 14px; border-radius: 999px; background: var(--white); box-shadow: var(--float);
@@ -283,14 +315,14 @@ svg { display: block; }
 .edit-hint { margin: 12px 2px 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
 .sc-title h2 { font-size: 17px; font-weight: 700; }
 .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 32px; padding: 14px 10px 16px; box-shadow: 0 8px 24px rgb(23 48 26 / .12); }
-.sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 4px 0 14px; border-bottom: 1.5px solid var(--line); }
+.sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 32px; padding: 16px 10px; box-shadow: 0 8px 24px rgb(23 48 26 / .12); }
+.sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0 0 14px; border-bottom: 1.5px solid var(--line); }
 .sum div { text-align: center; min-width: 0; }
 .sum dt { font-size: 13px; color: var(--muted); }
-.sum dd { margin: 2px 0 0; font-size: 22px; font-weight: 800; }
+.sum dd { margin: 4px 0 0; font-size: 22px; font-weight: 800; }
 .under { color: var(--red); }
-.nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 2px 8px; }
-.nine-h h3 { font-size: 17px; font-weight: 600; }
+.nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 2px 8px; }
+.nine-h h3 { font-size: 17px; font-weight: 700; }
 .nine-h span { font-size: 13px; color: var(--muted); }
 .tbl { display: grid; grid-template-columns: 28px repeat(5, minmax(0, 1fr)); column-gap: 8px; }
 .tbl + .tbl { margin-top: 8px; }
@@ -323,8 +355,8 @@ button.col:active { background: var(--tint); }
 .m[data-mark='bogey']::before { width: 27px; height: 27px; border-width: 2px; border-radius: 2px; }
 .m[data-mark='double']::before { width: 24px; height: 24px; border-width: 1.5px; border-radius: 1px; }
 .m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; border-radius: 2px; }
-.tot { display: flex; align-items: baseline; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1.5px solid var(--line); }
-.tot h3 { font-size: 17px; font-weight: 600; }
+.tot { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line); }
+.tot h3 { font-size: 17px; font-weight: 700; }
 .tot span { font-size: 13px; color: var(--muted); }
 .tot b { margin-left: auto; font-size: 22px; font-weight: 800; }
 .tot b + b { margin-left: 8px; min-width: 52px; text-align: right; }
@@ -332,7 +364,8 @@ button.col:active { background: var(--tint); }
 .par-source a { color: var(--turf); font-weight: 600; }
 
 .box { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 24px; padding: 16px; box-shadow: 0 8px 24px rgb(23 48 26 / .10); }
-.box h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+.box h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: 13px; text-align: center; }
 .box h4, .past h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .lost-bars li { display: grid; grid-template-columns: 64px 1fr 32px; align-items: center; gap: 8px; font-size: 13px; }
@@ -364,12 +397,21 @@ button.col:active { background: var(--tint); }
 .send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
 .send-actions .btn.primary { color: #fff; }
 #send-status:empty { display: none; }
-.footer-actions { display: grid; gap: 10px; }
 
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
 .box h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-#backup { margin-bottom: 24px; }
-.topar.score-eagle, .topar.score-birdie { color: var(--red); }
+/* 지난 라운드: this round first, then the kept ones; the view's header already names it, so the list's own heading steps aside. */
+.now { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; align-items: center; }
+.now h3 { margin: 0; }
+.now p { font-size: 13px; margin-top: 2px; }
+.now .big { margin: 0; font-size: 22px; font-weight: 800; text-align: right; white-space: nowrap; }
+.now .big.under { color: var(--red); }
+.now .big.none { font-size: 15px; font-weight: 600; color: var(--muted); }
+.now .btn { grid-column: 1 / -1; }
+#hist-view #history-title { display: none; }
+#hist-view #history { margin-bottom: 24px; }
+.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: 800; vertical-align: middle; }
+.topar.score-eagle, .topar.score-birdie { background: #f8dedb; color: #9e2c21; }
 .history-trends { margin: 8px 0 12px; }
 .history-trends .metrics { margin: 0; }
 .trend-note { margin: 8px 0 0; }
@@ -378,16 +420,16 @@ button.col:active { background: var(--tint); }
 .spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
 .spark-line { display: block; width: 100%; height: 32px; overflow: visible; }
 .spark-line polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.history-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+.history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
 .past-item {
-  width: 100%; min-height: 56px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline;
-  padding: 8px 12px; border-radius: 14px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); text-align: left;
+  width: 100%; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center;
+  padding: 10px 4px; border-radius: 12px; text-align: left;
 }
 .past-item:active { background: var(--tint); }
-.past-when { font-weight: 700; }
-.past-score { font-size: 18px; font-weight: 800; text-align: right; white-space: nowrap; }
-.past-score .topar { font-size: 14px; }
+.past-when { font-size: 17px; font-weight: 700; }
+.past-score { font-size: 20px; font-weight: 800; text-align: right; white-space: nowrap; }
 .past-where, .past-meta { font-size: 13px; color: var(--muted); }
 .past-meta { text-align: right; white-space: nowrap; }
 #history-empty { margin: 4px 0 0; }
@@ -434,10 +476,31 @@ html.past-open { overflow: hidden; }
 .sheet-dialog::backdrop { background: rgb(8 24 10 / .45); }
 .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
 .sheet-dialog h2 { font-size: 17px; font-weight: 700; }
-.menu-info { margin: 12px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; font-size: 15px; }
-.menu-info dt { color: var(--muted); }
-.menu-info dd { margin: 0; font-weight: 600; }
-.mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 36px 48px; align-items: center; gap: 8px; margin: 18px 0 0; }
+/* The menu: one list, each item opening its own panel. */
+.menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: 0 -8px 32px rgb(8 28 10 / .25); }
+.menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 8px; }
+.menu-head h2 { font-size: 22px; font-weight: 800; }
+.menu-head span { font-size: 13px; color: var(--muted); }
+.menu-list { list-style: none; margin: 0; padding: 0; }
+.menu-list li + li { border-top: 1px solid var(--line); }
+.mi { width: 100%; min-height: 64px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: 14px; }
+.mi:active { background: var(--tint); }
+.mi .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; color: var(--turf); }
+.mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.mi-t { min-width: 0; }
+.mi b { display: block; font-size: 17px; font-weight: 700; }
+.mi small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi .chev { color: var(--off-ink); transition: transform .16s; }
+.mi[aria-expanded='true'] .chev { transform: rotate(90deg); }
+.mpanel { padding: 0 4px 14px 56px; font-size: 15px; line-height: 1.45; }
+.mpanel p + p { margin-top: 6px; }
+.mpanel .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.mpanel .row .btn { display: inline-grid; place-items: center; padding: 0 16px; text-decoration: none; color: inherit; }
+.mpanel .row .btn.primary { color: #fff; }
+.mpanel .small { margin: 8px 0 0; }
+.backup > h2 { display: none; }
+.backup .muted.small { margin: 0; }
+.mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 36px 48px; align-items: center; gap: 8px; margin: 4px 0 0; }
 .mulligan-label b { display: block; font-size: 15px; }
 .mulligan-label span { display: block; font-size: 13px; color: var(--muted); }
 .step-sm { width: 48px; height: 48px; border-radius: 50%; background: var(--white); box-shadow: var(--lift); font-size: 24px; font-weight: 700; }
@@ -465,10 +528,38 @@ html.past-open { overflow: hidden; }
   .club-lbl { height: 18px; margin-bottom: 4px; }
   .pens { margin-top: 8px; }
   .modes { margin-top: 14px; }
-  .sheet { padding-bottom: 8px; }
+  .sheet { --sheet-pb: 8px; }
+  .ver { display: none; }
+  /* 상세 on a short screen: the club names and the chip row step aside so the 벌타 row and the toggle fit. */
+  #entry[data-mode='detail'] { --pill-fixed: 128px; --count: 22px; --pill-pad: 0px; --badge: 70px; --overlap: 4px; }
+  #entry[data-mode='detail'] .bmark b { font-size: 24px; }
+  #entry[data-mode='detail'] .bm { width: 32px; height: 32px; }
+  #entry[data-mode='detail'] .info, #entry[data-mode='detail'] .toast { display: none; }
+  #entry[data-mode='detail'] .top { row-gap: 0; padding-top: max(4px, env(safe-area-inset-top)); }
+  #entry[data-mode='detail'] .hole-sub { display: block; }
+  #entry[data-mode='detail'] .hole-n { font-size: 26px; }
+  #entry[data-mode='detail'] .hole-u { font-size: 15px; }
+  #entry[data-mode='detail'] .club-lbl { display: none; }
+  #entry[data-mode='detail'] .pill-ico { display: block; }
+  #entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
+  #entry[data-mode='detail'] .pens { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+  #entry[data-mode='detail'] .pen { width: auto; height: 48px; flex-direction: row; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint); }
+  #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
+  #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon { width: 30px; height: 40px; background: transparent; box-shadow: none; }
+  #entry[data-mode='detail'] .pen-icon svg { transform: scale(.82); }
+  #entry[data-mode='detail'] .pen-count { top: -6px; right: -6px; }
+  #entry[data-mode='detail'] .undo { width: 48px; margin: 0; }
+  #entry[data-mode='detail'] .undo > span:last-child { display: none; }
+}
+/* 600–650px tall (360×640): 상세 trades the club names for small icons beside the counts. */
+@media (min-height: 600px) and (max-height: 650px) {
+  :root { --count: 48px; }
+  #entry[data-mode='detail'] .club-lbl { display: none; }
+  #entry[data-mode='detail'] .pill-ico { display: block; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .badge.settle, .count.bump, .badge.celebrate, .badge.celebrate .bm *, .badge.celebrate::after { animation: none; }
+  .badge.settle, .count.bump, .badge.celebrate, .badge.celebrate .bm *, .badge.celebrate::after, .toast.show { animation: none; }
+  .mi .chev { transition: none; }
 }
 
 /* ---------- course picker: a full-screen dialog ---------- */

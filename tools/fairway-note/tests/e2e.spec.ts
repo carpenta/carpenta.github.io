@@ -19,7 +19,7 @@ async function tap(page: Page, key: string, times = 1) {
 }
 
 const count = (page: Page, key: string) => page.locator(`#count-${key}`);
-const tab = (page: Page, name: '기록' | '스코어카드') => page.getByRole('tab', { name });
+const tab = (page: Page, name: '기록' | '스코어카드' | '지난 라운드') => page.getByRole('tab', { name });
 const next = (page: Page) => page.locator('#go-next');
 const sideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
@@ -34,9 +34,19 @@ async function showEntry(page: Page) {
   await expect(page.locator('#entry')).toBeVisible();
 }
 
-async function menu(page: Page) {
+/** Opens the menu, and one of its items when given (새 라운드, 결과 보내기, 백업과 복원, 이 홀 멀리건 …). */
+async function menu(page: Page, item?: string) {
   await page.getByRole('button', { name: '메뉴' }).click();
   await expect(page.locator('#menu')).toBeVisible();
+  if (item) {
+    await page.locator('#menu .mi', { hasText: item }).click();
+    await expect(page.locator('#menu .mi', { hasText: item })).toHaveAttribute('aria-expanded', 'true');
+  }
+}
+
+async function closeMenu(page: Page) {
+  await page.locator('#menu-close').click();
+  await expect(page.locator('#menu')).toBeHidden();
 }
 
 const oldRound = (holes: Record<number, Record<string, number>>, extra: Record<string, unknown> = {}) => {
@@ -237,9 +247,17 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await expect(card).toBeFocused();
   await expect(page.locator('#card-view')).toBeVisible();
   await page.keyboard.press('End');
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await expect(tab(page, '지난 라운드')).toBeFocused();
+  // The arrows go round the three tabs.
+  await page.keyboard.press('ArrowRight');
+  await expect(card).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v5');
+  await expect(page.locator('#app-version')).toHaveText('v6');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -253,15 +271,21 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
   await expect(page.locator('#scorecard [data-hole="11"]')).toHaveAttribute('aria-current', 'true');
 });
 
-test('keeps mulligans and the version in the menu', async ({ page }) => {
+test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v5');
+  await expect(page.locator('#menu-version')).toHaveText('v6');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
+  // Every item is a 48px button that opens its own panel and closes the one open before.
+  for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v6');
+  await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
+  await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
   await expect(page.locator('#mulligan-count')).toHaveText('1');
-  await page.getByRole('button', { name: '닫기' }).click();
-  await expect(page.locator('#menu')).toBeHidden();
+  await expect(page.locator('#mulligan-sub')).toHaveText('1번 홀 1개 · 타수에 넣지 않아요');
+  await closeMenu(page);
   // A mulligan alone does not record the hole.
   await expect(page.locator('#hole-name')).toHaveText('기록 전');
   expect((await stored(page)).holes[0].mulligan).toBe(1);
@@ -307,6 +331,29 @@ test('changes pars in 파 수정 on the scorecard, one tap per step from 3 to 5'
   await expect(page.locator('#hole-name')).toHaveText('파');
 });
 
+test('moves the round to another course from the menu, keeping its strokes', async ({ page }) => {
+  await open(page);
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await menu(page, '코스 바꾸기');
+  await page.getByRole('button', { name: '다른 코스 고르기' }).click();
+  await expect(page.locator('#picker-title')).toHaveText('코스 바꾸기');
+  // Lake first, then Saebyul: hole 3 becomes 레이크 3, a par 4.
+  await page.locator('#picker-chosen').getByRole('radio', { name: '레이크' }).first().click();
+  await page.locator('#picker-chosen').getByRole('radio', { name: '새별' }).nth(1).click();
+  await page.getByRole('button', { name: '이 코스로 바꾸기' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 레이크·새별');
+  expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, putts: 2 });
+  expect((await stored(page)).holes[2].par).toBe(4);
+  await expect(page.locator('#announce')).toContainText('레이크·새별');
+  // The picker is the plain one again next time.
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  await expect(page.locator('#picker-title')).toHaveText('코스 선택');
+  await expect(page.getByRole('button', { name: '이 코스로 시작' })).toBeVisible();
+});
+
 test('draws the hole behind the screen by its par, new for each hole', async ({ page }) => {
   await open(page);
   const course = page.locator('#course');
@@ -322,6 +369,12 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await expect(course.locator('.fairway')).toHaveCount(0);
   // Everis publishes this par 3's length.
   await expect(page.locator('#hole-distance')).toHaveText('151m');
+  await expect(course.locator('.water')).toHaveCount(0);
+  // 새별 7 is an island green by the course's own guide: the only hole drawn with water.
+  await showCard(page);
+  await page.locator('#scorecard [data-hole="6"]').click();
+  await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
+  await expect(course.locator('.water')).toHaveCount(1);
 });
 
 test.describe('with hole notes in the course data', () => {
@@ -369,16 +422,17 @@ test('keeps the round after reload and starts a new one on request', async ({ pa
   await expect(page.locator('#hole-title')).toHaveText('5번 홀');
   await expect(page.locator('#sum-strokes')).toHaveText('3');
 
-  await showCard(page);
-  page.once('dialog', (dialog) => dialog.dismiss());
+  // The menu's 새 라운드 says what will happen; its 취소 and the picker's 취소 both keep the round.
+  await menu(page, '새 라운드');
+  await expect(page.locator('#new-question')).toHaveText('지금 라운드를 지난 라운드에 보관하고 새로 시작할까요?');
+  await page.locator('#mp-new').getByRole('button', { name: '취소' }).click();
+  await expect(page.locator('#mp-new')).toBeHidden();
+  await page.locator('#menu .mi', { hasText: '새 라운드' }).click();
   await page.locator('#new-round').click();
+  await expect(page.locator('#menu')).toBeHidden();
+  await page.locator('#picker-cancel').click();
   await expect(page.locator('#sum-strokes')).toHaveText('3');
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('#new-round').click();
-  // Cancelling the course picker keeps the round.
-  await page.getByRole('button', { name: '취소' }).click();
-  await expect(page.locator('#sum-strokes')).toHaveText('3');
-  page.once('dialog', (dialog) => dialog.accept());
+  await menu(page, '새 라운드');
   await page.locator('#new-round').click();
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await expect(page.locator('#entry')).toBeVisible();
@@ -466,6 +520,40 @@ test('swipes sideways to the next or previous hole without pressing the button i
   // A plain tap still counts.
   await tap(page, 'driver');
   await expect(count(page, 'driver')).toHaveText('1');
+});
+
+test('takes the last tap back from the toast for four seconds, over no button', async ({ page }) => {
+  await page.clock.install();
+  await page.setViewportSize({ width: 375, height: 667 });
+  await open(page);
+  const toast = page.locator('#toast');
+  await tap(page, 'driver');
+  await tap(page, 'ob');
+  await expect(toast).toBeVisible();
+  await expect(page.locator('#toast-msg')).toHaveText('OB +1');
+  // It covers the club names, not a button: every control of the sheet is clear of it.
+  const box = (await toast.boundingBox())!;
+  for (const control of await page.locator('#sheet button').all()) {
+    const b = await control.boundingBox();
+    if (!b) continue;
+    const apart = b.x + b.width <= box.x || box.x + box.width <= b.x || b.y + b.height <= box.y || box.y + box.height <= b.y;
+    expect(apart, await control.getAttribute('aria-label') ?? (await control.textContent()) ?? '').toBe(true);
+  }
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(toast).toBeHidden();
+  await expect(page.locator('#stake-ob .pen-count')).toHaveClass(/zero/);
+  await expect(page.locator('#announce')).toHaveText('되돌렸어요');
+  expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, ob: 0 });
+  // A minus can be taken back too, and the toast leaves on its own after four seconds or on a hole change.
+  await page.getByRole('button', { name: '드라이버 하나 빼기' }).click();
+  await expect(page.locator('#toast-msg')).toHaveText('드라이버 −1');
+  await page.clock.fastForward(4100);
+  await expect(toast).toBeHidden();
+  await tap(page, 'putts');
+  await expect(toast).toBeVisible();
+  await page.locator('#next-hole').click();
+  await expect(toast).toBeHidden();
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
 });
 
 test('keeps a hole in progress out of the score until it is putted, and counts a chip-in once the player moves on', async ({ page }) => {
@@ -658,9 +746,9 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       await page.locator('#stake-ob').tap();
       await page.locator('.club-driver .plus').tap();
       await check();
-      if (height < 660) return;
-      // 상세 fits on a 667px screen as well, with every direction a 48px target.
+      // 상세 fits as well (on 553px the chips step aside for Par and length under the hole number), with every direction a 48px target.
       await page.getByRole('button', { name: '상세', exact: true }).tap();
+      if (height < 600) await expect(page.locator('#hole-sub')).toHaveText('Par 4 · 376m');
       await check();
       for (const button of await page.locator('#pad button').all()) {
         const box = (await button.boundingBox())!;
@@ -673,8 +761,8 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       await tab(page, '스코어카드').tap();
       await page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
       const tabs = (await page.locator('#views').boundingBox())!;
-      const button = (await page.locator('#new-round').boundingBox())!;
-      expect(button.y + button.height).toBeLessThanOrEqual(tabs.y);
+      const last = (await page.locator('#save-state').boundingBox())!;
+      expect(last.y + last.height).toBeLessThanOrEqual(tabs.y);
       expect(await sideScroll(page)).toBe(0);
       await expect(page.locator('.home-link')).toBeVisible();
     });
@@ -809,13 +897,13 @@ test('sends the round by email, shares it, or copies it', async ({ page, context
     Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
   });
   await open(page);
-  await showCard(page);
+  await menu(page, '결과 보내기');
   await expect(page.locator('#send-actions')).toBeHidden();
-  await showEntry(page);
+  await closeMenu(page);
   await tap(page, 'driver');
   await tap(page, 'approach');
   await tap(page, 'putts', 2);
-  await showCard(page);
+  await menu(page, '결과 보내기');
   const url = new URL((await page.getByRole('link', { name: '이메일로 보내기' }).getAttribute('href'))!);
   expect(url.protocol).toBe('mailto:');
   expect(url.searchParams.get('subject')).toMatch(/^에버리스 골프리조트 새별·레이크 \d{4}년 \d{1,2}월 \d{1,2}일 라운드 4타 \(E\)$/);
@@ -833,7 +921,7 @@ test('shares the round with the phone share sheet', async ({ page }) => {
   await open(page);
   await tap(page, 'driver');
   await tap(page, 'putts', 2);
-  await showCard(page);
+  await menu(page, '결과 보내기');
   await page.getByRole('button', { name: '공유하기' }).click();
   const shared = await page.evaluate(() => (window as unknown as { shared: { title: string; text: string }[] }).shared);
   expect(shared[0].title).toContain('3타 (-1)');
@@ -925,8 +1013,8 @@ test.describe('course picker', () => {
     await expect(page.locator('#par-source a')).toHaveText('공식 스코어카드');
     await page.reload();
     await expect(page.locator('#picker')).toBeHidden();
-    await tab(page, '스코어카드').tap();
-    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: '메뉴' }).tap();
+    await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
     await page.locator('#new-round').tap();
     await expect(page.locator('#picker-label')).toHaveText('에버리스 골프리조트 새별·파인');
   });
@@ -974,10 +1062,16 @@ async function openRound(page: Page) {
   await open(page);
 }
 
-/** Shows the past rounds and the backup controls. */
+/** Shows the 지난 라운드 tab. */
 async function showPast(page: Page) {
-  await showCard(page);
+  await tab(page, '지난 라운드').click();
   await expect(page.locator('#history')).toBeVisible();
+}
+
+/** Opens the menu's 백업과 복원. */
+async function showBackup(page: Page) {
+  await menu(page, '백업과 복원');
+  await expect(page.locator('#backup')).toBeVisible();
 }
 
 /** Finishes the hole on screen in 4 (a drive, an approach, two putts) and moves to the next hole. */
@@ -996,12 +1090,11 @@ function accept(page: Page): Promise<string> {
   }));
 }
 
-/** Starts a new round from the scorecard, accepting the question and the course the picker offers, and gives back the question. */
+/** Starts a new round from the menu with the course the picker offers, and gives back what the menu said would happen. */
 async function startNewRound(page: Page): Promise<string> {
-  await showCard(page);
-  const asked = accept(page);
+  await menu(page, '새 라운드');
+  const question = (await page.locator('#new-question').textContent())!;
   await page.locator('#new-round').click();
-  const question = await asked;
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await expect(page.locator('#picker')).toBeHidden();
   return question;
@@ -1170,7 +1263,7 @@ test('saves a backup file and restores it in a fresh browser', async ({ page, br
   await startNewRound(page);
   await tap(page, 'driver');
   await tap(page, 'putts', 2);
-  await showPast(page);
+  await showBackup(page);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '백업 파일 저장' }).click()]);
   expect(download.suggestedFilename()).toMatch(/^fairway-note-backup-\d{4}-\d{2}-\d{2}\.json$/);
   const file = testInfo.outputPath(download.suggestedFilename());
@@ -1193,7 +1286,7 @@ test('saves a backup file and restores it in a fresh browser', async ({ page, br
   other.on('pageerror', (error) => errors.push(error.message));
   await openRound(other);
   await expect(pastItems(other)).toHaveCount(0);
-  await showPast(other);
+  await showBackup(other);
   const chooser = other.waitForEvent('filechooser');
   await other.getByRole('button', { name: '백업 파일 가져오기' }).click();
   // This browser has nothing to lose, but the backup's round in progress still only replaces it when the player agrees.
@@ -1280,6 +1373,7 @@ test('shows past rounds and saves a backup offline after the first visit', async
   await pastItems(page).first().click();
   await expect(page.locator('#past .scorecard')).toHaveCount(2);
   await page.getByRole('button', { name: '닫기' }).click();
+  await showBackup(page);
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '백업 파일 저장' }).click()]);
   expect(JSON.parse(readFileSync((await download.path())!, 'utf8')).history).toHaveLength(1);
   await context.setOffline(false);
@@ -1291,9 +1385,9 @@ test('leaves the past rounds alone while holes are tapped', async ({ page }) => 
   await startNewRound(page);
   await page.locator('#history-list li').first().evaluate((li) => li.setAttribute('data-mark', 'kept'));
   await parHole(page);
-  await menu(page);
+  await menu(page, '이 홀 멀리건');
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
-  await page.getByRole('button', { name: '닫기' }).click();
+  await closeMenu(page);
   await expect(page.locator('#history-list li[data-mark="kept"]')).toHaveCount(1);
 });
 
@@ -1336,7 +1430,7 @@ test('shares the backup file where the browser can share files', async ({ page }
   });
   await openRound(page);
   await parHole(page);
-  await showPast(page);
+  await showBackup(page);
   await page.getByRole('button', { name: '백업 파일 공유' }).click();
   await expect(page.locator('#backup-status')).toHaveText('백업 파일을 공유했습니다.');
   const shared = await page.evaluate(() => (window as unknown as { sharedFiles: { name: string; type: string; text: string }[] }).sharedFiles);
@@ -1351,7 +1445,7 @@ test('offers no file sharing where the browser cannot share files', async ({ pag
     Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value: undefined });
   });
   await openRound(page);
-  await showPast(page);
+  await showBackup(page);
   await expect(page.getByRole('button', { name: '백업 파일 저장' })).toBeVisible();
   await expect(page.locator('#backup-share')).toBeHidden();
 });
@@ -1364,7 +1458,7 @@ for (const [width, height] of [[375, 553], [360, 640]]) {
       await openRound(page);
       // 82, 84, 80, 86, 81, 83, 79 strokes on 1–7 October.
       await seedHistory(page, [10, 12, 8, 14, 9, 11, 7]);
-      await tab(page, '스코어카드').tap();
+      await tab(page, '지난 라운드').tap();
       await expect(page.locator('#history')).toBeVisible();
       const sideways = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       await expect(pastItems(page)).toHaveCount(7);
@@ -1378,14 +1472,11 @@ for (const [width, height] of [[375, 553], [360, 640]]) {
       await expect(trendsBox.locator('[role="img"]')).toHaveAttribute('aria-label', '최근 7라운드 타수: 82, 84, 80, 86, 81, 83, 79');
       expect(await sideways()).toBe(0);
       for (const item of await pastItems(page).all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      // The end of the view stays clear of the tab bar.
-      await page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      // The end of the list stays clear of the tab bar.
+      await page.locator('#hist-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
       const bar = (await page.locator('#views').boundingBox())!;
-      for (const name of ['백업 파일 저장', '백업 파일 가져오기']) {
-        const button = (await page.getByRole('button', { name }).boundingBox())!;
-        expect(button.y + button.height, name).toBeLessThanOrEqual(bar.y);
-        expect(button.height, name).toBeGreaterThanOrEqual(44);
-      }
+      const lastItem = (await pastItems(page).last().boundingBox())!;
+      expect(lastItem.y + lastItem.height).toBeLessThanOrEqual(bar.y);
 
       await pastItems(page).first().tap();
       const dialog = page.locator('#past');
@@ -1406,6 +1497,15 @@ for (const [width, height] of [[375, 553], [360, 640]]) {
       expect(remove.y + remove.height).toBeLessThanOrEqual(height);
       await close.tap();
       await expect(dialog).toBeHidden();
+      // The backup buttons sit in the menu, inside the screen.
+      await page.getByRole('button', { name: '메뉴' }).tap();
+      await page.locator('#menu .mi', { hasText: '백업과 복원' }).tap();
+      for (const name of ['백업 파일 저장', '백업 파일 가져오기']) {
+        const button = (await page.getByRole('button', { name }).boundingBox())!;
+        expect(button.y + button.height, name).toBeLessThanOrEqual(height);
+        expect(button.height, name).toBeGreaterThanOrEqual(44);
+      }
+      expect(await page.locator('#menu').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
     });
   });
 }
