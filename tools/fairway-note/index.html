@@ -41,13 +41,13 @@
           <p class="info" id="hole-info">
             <span class="chip" id="hole-par">Par 4</span>
             <span class="chip" id="hole-distance" hidden></span>
-            <span class="chip" id="hole-si" hidden></span>
             <span class="chip" id="total-chip" hidden><span class="lbl">합계</span><span id="total-v"></span><span class="sr-only" id="total-holes"></span></span>
-            <span class="chip" id="hole-layout" hidden></span>
-            <a class="chip link" id="hole-guide" target="_blank" rel="noopener noreferrer" hidden>공식 홀 안내
-              <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <a class="chip icon" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
           </p>
+          <!-- The hole's handicap and layout note from the course data, as captions on the course -->
+          <ul class="notes" id="hole-notes" aria-label="홀 특징" hidden></ul>
         </header>
 
         <div class="banners">

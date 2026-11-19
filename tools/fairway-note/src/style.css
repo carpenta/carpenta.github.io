@@ -30,7 +30,8 @@
   --step: 52px;
   --count: 56px;
   --pill-pad: 8px;
-  --pill-h: clamp(150px, calc(100dvh - 424px), 204px);
+  /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
+  --pill-base: 424px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
   --pen: 52px;
   --mode-h: 40px;
   --next-h: 52px;
@@ -94,15 +95,23 @@ svg { display: block; }
 .hole-u { font-size: 17px; font-weight: 700; padding-top: 6px; }
 .hole-title.two .hole-n { font-size: 28px; }
 .hole-title.two .hole-u { font-size: 15px; }
-.info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; flex-wrap: wrap; gap: 5px; max-width: calc(100% - var(--badge)); }
+.info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - var(--badge)); }
 .chip .lbl { font-weight: 600; color: var(--muted); }
 .chip {
-  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
   background: rgb(255 255 255 / .94); box-shadow: var(--float);
   font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; text-decoration: none;
 }
-.chip.link { position: relative; color: var(--turf); }
-.chip.link::after { content: ''; position: absolute; inset: -10px -2px; }   /* a 48px tall touch area */
+.chip.icon { position: relative; width: 28px; padding: 0; justify-content: center; color: var(--turf); }
+.chip.icon::after { content: ''; position: absolute; inset: -10px; }   /* a 48px touch area */
+/* The hole's handicap and layout note: quiet captions on the course, under the chips. 기본 only, and only where there is room. */
+.notes { grid-column: 1 / -1; grid-row: 3; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; padding: 0; list-style: none; max-width: calc(100% - var(--badge)); }
+.notes li {
+  height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center;
+  background: rgb(12 32 14 / .62); color: #e8f3e2; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+/* main.ts sets --notes-h on #entry to the captions' height. */
+@media (max-height: 619px) { .notes { display: none; } }
 .banners { flex: none; display: grid; gap: 8px; margin: 10px var(--m) 0; }
 .banners:not(:has(> :not([hidden]))) { display: none; }
 .spacer { flex: 1 1 0; min-height: 4px; }
@@ -161,7 +170,8 @@ svg { display: block; }
 .club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 6px; font-size: 15px; font-weight: 700; white-space: nowrap; }
 .club-lbl svg { width: 20px; height: 20px; color: var(--turf); }
 .pill {
-  width: 100%; max-width: 104px; height: var(--pill-h); border-radius: 999px; background: var(--pill);
+  width: 100%; max-width: 104px; height: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h)), var(--pill-max)));
+  border-radius: 999px; background: var(--pill);
   display: grid; grid-template-rows: var(--step) minmax(0, 1fr) var(--step); justify-items: center; align-items: center; padding: var(--pill-pad) 0;
 }
 .step { width: 100%; height: var(--step); display: grid; place-items: center; border-radius: calc(var(--step) / 2); }
@@ -177,8 +187,8 @@ svg { display: block; }
 .count.bump { animation: bump .12s ease-out; }
 
 /* 상세: the pills shrink, then one tee line, one row of five directions and the penalty line. */
-.sheet[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-h: 138px; --pen: 48px; padding-top: 14px; padding-bottom: 6px; }
-@media (min-height: 660px) { .sheet[data-mode='detail'] { --count: 30px; --pill-h: 144px; } }
+.sheet[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-fixed: 138px; --pen: 48px; padding-top: 14px; padding-bottom: 6px; }
+@media (min-height: 660px) { .sheet[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
 .sheet[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
 .sheet[data-mode='detail'] .step span { width: 44px; height: 44px; }
 .detail { margin-top: 8px; }
@@ -449,7 +459,7 @@ html.past-open { overflow: hidden; }
 @media (max-height: 599px) {
   :root {
     --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 5px;
-    --pill-h: clamp(140px, calc(100dvh - 400px), 176px);
+    --pill-base: 400px; --pill-min: 140px; --pill-max: 176px;
     --pen: 48px; --mode-h: 36px; --next-h: 48px; --next-m: 8px;
   }
   .club-lbl { height: 18px; margin-bottom: 4px; }

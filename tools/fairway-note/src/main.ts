@@ -296,11 +296,19 @@ function bindSwipe(): void {
 
 /* ---------- the drawn course behind the screen ---------- */
 
+/** The pills give the captions under the chips the room they take, one row or two (none where CSS hides them). */
+function fitNotes(): void {
+  const rows = $('hole-notes').getBoundingClientRect().height;
+  $('entry').style.setProperty('--notes-h', `${rows ? Math.ceil(rows) + 8 : 0}px`);
+}
+
 function drawCourse(): void {
   const svg = document.getElementById('course')!;
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
   if (view === 'entry') {
-    frame.bandTop = $('hole-info').getBoundingClientRect().bottom + 6;
+    // The open band starts under the captions when they show, else under the chips.
+    const notes = $('hole-notes').getBoundingClientRect();
+    frame.bandTop = (notes.height ? notes.bottom : $('hole-info').getBoundingClientRect().bottom) + 6;
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
     frame.right = $('badge').getBoundingClientRect().left - 6;
   }
@@ -453,9 +461,16 @@ function renderEntry(a: Analysis, changed?: string): void {
   setText($('total-holes'), `, ${a.totals.holes}홀`);
   const info = holeInfo(roundCourse(round), i);
   setChip('hole-distance', distanceLabel(info));
-  const si = (info as { si?: unknown } | null)?.si;
-  setChip('hole-si', typeof si === 'number' ? `HDCP ${si}` : null);
-  setChip('hole-layout', info?.layout ?? null);
+  // The handicap and the layout note's phrases ("내리막, 블라인드 티샷") as captions under the chips, in 기본 only.
+  const captions = [...(info?.si ? [`HDCP ${info.si}`] : []), ...(info?.layout ?? '').split(/\s*[,，]\s*/).filter(Boolean)];
+  const notes = $('hole-notes');
+  const withNotes = mode === 'basic' && captions.length > 0;
+  notes.hidden = !withNotes;
+  if (notes.dataset.key !== captions.join('|')) {
+    notes.dataset.key = captions.join('|');
+    notes.replaceChildren(...captions.map((c, k) => h('li', k === 0 && info?.si ? { class: 'si' } : {}, c)));
+  }
+  fitNotes();
   const guide = $<HTMLAnchorElement>('hole-guide');
   if (info?.guideUrl) setAttr(guide, 'href', info.guideUrl);
   else guide.removeAttribute('href');
@@ -866,6 +881,7 @@ function bind(): void {
     update(round);
   });
   window.addEventListener('resize', () => {
+    fitNotes();
     drawCourse();
     scrollHint();
   });

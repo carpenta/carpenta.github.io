@@ -331,16 +331,26 @@ test.describe('with hole notes in the course data', () => {
     await open(page);
     // Everis 새별 1 as its own hole guide gives it: one length with no tee name, the handicap and a short note.
     await expect(page.locator('#hole-distance')).toHaveText('381m');
-    await expect(page.locator('#hole-si')).toHaveText('HDCP 3');
-    await expect(page.locator('#hole-layout')).toHaveText('내리막, 블라인드 티샷, 좌우 OB');
-    const guide = page.getByRole('link', { name: /공식 홀 안내/ });
+    // The handicap and the note's phrases are captions under the chips; the guide is an icon chip with a 48px target.
+    await expect(page.locator('#hole-notes li')).toHaveText(['HDCP 3', '내리막', '블라인드 티샷', '좌우 OB']);
+    const guide = page.getByRole('link', { name: '공식 홀 안내, 새 창' });
+    const target = (await guide.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const after = getComputedStyle(el, '::after');
+      return { w: r.width - 2 * parseFloat(after.left), h: r.height - 2 * parseFloat(after.top) };
+    }));
+    expect(Math.min(target.w, target.h)).toBeGreaterThanOrEqual(48);
     await expect(guide).toHaveAttribute('href', /^https:\/\/[^/]+\//);
     await expect(guide).toHaveAttribute('target', '_blank');
     await expect(guide).toHaveAttribute('rel', 'noopener noreferrer');
     // 레이크 1 (hole 10) bends right, so its green sits right of a straight hole's.
     await showCard(page);
     await page.locator('#scorecard [data-hole="9"]').click();
-    await expect(page.locator('#hole-layout')).toHaveText('우 도그렉, 그린 뒤 내리막');
+    await expect(page.locator('#hole-notes li')).toHaveText(['HDCP 5', '우 도그렉', '그린 뒤 내리막']);
+    // 상세 leaves the captions out to make room.
+    await page.getByRole('button', { name: '상세', exact: true }).click();
+    await expect(page.locator('#hole-notes')).toBeHidden();
+    await page.getByRole('button', { name: '기본', exact: true }).click();
     const straight = await page.evaluate(() => innerWidth * 0.47);
     await expect.poll(async () => {
       const box = (await page.locator('#course .green').boundingBox())!;
@@ -635,8 +645,9 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
         }
         // The badge rises into the open corner, clear of the hole switcher and the chips.
         const badge = (await page.locator('#badge').boundingBox())!;
-        for (const selector of ['.switcher', '#hole-info']) {
-          const b = (await page.locator(selector).boundingBox())!;
+        for (const selector of ['.switcher', '#hole-info', '#hole-notes']) {
+          const b = await page.locator(selector).boundingBox();
+          if (!b) continue;
           const apart = b.x + b.width <= badge.x || badge.x + badge.width <= b.x || b.y + b.height <= badge.y || badge.y + badge.height <= b.y;
           expect(apart, selector).toBe(true);
         }
@@ -729,7 +740,7 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
       return { selector, size: parseFloat(style.fontSize), contrast: (a + 0.05) / (b + 0.05) };
     });
   }, selectors);
-  const checks = await measure(['.club-lbl', '#hole-par', '#total-chip .lbl', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
+  const checks = await measure(['.club-lbl', '#hole-par', '#total-chip .lbl', '#hole-notes li', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
   await showCard(page);
   checks.push(...await measure(['.sum dt', '.rowlbl span', '.col .pr', '.nine-h span', '.metrics dt']));
   for (const { selector, size, contrast } of checks) {
