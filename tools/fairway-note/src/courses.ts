@@ -4,8 +4,8 @@ import type { CourseChoice } from './storage';
 
 /** A hole's length from one tee, as the course publishes it. */
 export interface TeeLength {
-  /** The tee as the course names it, e.g. "화이트". */
-  tee: string;
+  /** The tee as the course names it, e.g. "화이트". Missing when the course publishes a single length with no tee name. */
+  tee?: string;
   length: number;
   unit: 'm' | 'yd';
 }
@@ -18,6 +18,11 @@ export interface HoleInfo {
   layout?: string;
   /** The hole's page in the course's official hole guide (https). */
   guideUrl?: string;
+  /**
+   * The hole's stroke index (handicap) as published: 1–9 within its nine, or 1–18 when the course pairs nines
+   * into 1–18. Missing when the course's values are duplicated or unclear.
+   */
+  si?: number;
 }
 
 export interface Nine {
