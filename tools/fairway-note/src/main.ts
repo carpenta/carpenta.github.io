@@ -5,16 +5,21 @@ import {
   HOLE_COUNT,
   PARS,
   SCORE_LABELS,
+  SHOT_TAGS,
+  TAG_LABELS,
   analyze,
   bump,
   finished,
   formatToPar,
   isStale,
+  isTagged,
   MAX_COUNT,
   newRound,
   played,
   scoreName,
+  setTag,
   strokes,
+  tagAt,
   type Analysis,
   type Area,
   type Counter,
@@ -22,11 +27,13 @@ import {
   type Par,
   type Round,
   type ScoreName,
+  type ShotTag,
+  type Tagged,
   type Totals,
 } from './round';
 import { COUNTER_ICONS } from './icons';
 import { registerOffline } from './offline';
-import { dateLabel, insights, mailtoHref, reportSubject, reportText } from './report';
+import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
 import { trackSummaryHeight } from './layout';
 import { keepScreenOn } from './wake';
@@ -71,7 +78,9 @@ const kept = preserveUnreadable();
 let round: Round = loaded ?? newRound();
 let saved = kept !== 'failed';
 /** Shown until the first edit when an unreadable saved value was copied aside. */
-let rescued = kept === 'kept';
+let rescued = kept === 'kept' && loaded === null;
+/** Shown until the first edit when the round loaded but shot details it could not read were left out (the original is kept aside). */
+let trimmed = kept === 'kept' && loaded !== null;
 /** Set when the saved copy was removed or replaced elsewhere; this tab's round is kept and saved on the next edit. */
 let detached = false;
 let persistAsked = false;
@@ -87,6 +96,7 @@ function update(next: Round): void {
   saved = saveRound(round);
   if (saved) detached = false;
   rescued = false;
+  trimmed = false;
   if (saved && !persistAsked) {
     persistAsked = true;
     requestPersistence();
@@ -105,6 +115,7 @@ function setHole(patch: (h: Hole) => Hole): void {
 
 function go(index: number): void {
   if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
+  closeTray();
   update({ ...round, current: index });
   showHoleCard();
   announce(`${index + 1}번 홀, Par ${hole().par}`);
@@ -128,24 +139,129 @@ function buildCounters(): void {
   const box = $('counters');
   for (const key of COUNTERS) {
     const { label, hint } = COUNTER_TEXT[key];
+    const output = h('output', { class: 'count', 'aria-label': label }, '0');
     box.append(
       h('div', { class: `counter counter-${key}`, 'data-key': key },
         h('div', { class: 'counter-label' }, h('b', {}, label), h('span', {}, hint)),
         h('button', { type: 'button', class: 'step minus', 'data-delta': '-1', 'aria-label': `${label} 하나 빼기` }, '−'),
-        h('output', { class: 'count', 'aria-label': label }, '0'),
+        isTagged(key) ? h('button', { type: 'button', class: 'count-btn', 'aria-label': `${label} 샷 세부 보기` }, output) : output,
         plusButton(key, label),
       ),
     );
   }
   box.addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
+    const target = event.target as HTMLElement;
+    const countButton = target.closest<HTMLButtonElement>('button.count-btn');
+    if (countButton) {
+      const key = countButton.closest<HTMLElement>('.counter')!.dataset.key as Tagged;
+      const n = hole()[key];
+      if (!n) return;
+      // The first tap opens the last shot; each further tap steps back one shot, wrapping around.
+      const index = tray?.key === key ? (tray.index - 1 + n) % n : n - 1;
+      openTray(key, index);
+      renderTray();
+      return;
+    }
+    const button = target.closest<HTMLButtonElement>('button.step');
     if (!button) return;
     const key = button.closest<HTMLElement>('.counter')!.dataset.key as Counter;
+    const delta = Number(button.dataset.delta);
     const before = hole();
-    setHole((x) => bump(x, key, Number(button.dataset.delta)));
-    if (hole() === before) return;
+    // The stroke is recorded exactly as without details; the chips only follow it.
+    if (delta > 0 && isTagged(key) && before[key] < MAX_COUNT) openTray(key, before[key]);
+    else closeTray();
+    setHole((x) => bump(x, key, delta));
+    if (hole() === before) {
+      closeTray();
+      renderTray();
+      return;
+    }
     navigator.vibrate?.(8);
     announce(`${round.current + 1}번 홀 ${COUNTER_TEXT[key].label} ${hole()[key]}, ${strokes(hole())}타`);
+  });
+}
+
+/* ---------- shot details ---------- */
+
+/** The shot whose detail chips are showing, if any. Not saved: a reload or another hole closes the chips. */
+let tray: { key: Tagged; index: number } | null = null;
+let trayTimer = 0;
+/** Chips close on their own this long after the last tap on them; ignoring them is fine. */
+const TRAY_MS = 6000;
+
+function openTray(key: Tagged, index: number): void {
+  tray = { key, index };
+  armTray();
+}
+
+function armTray(): void {
+  clearTimeout(trayTimer);
+  trayTimer = window.setTimeout(() => {
+    tray = null;
+    renderTray();
+  }, TRAY_MS);
+}
+
+function closeTray(): void {
+  tray = null;
+  clearTimeout(trayTimer);
+}
+
+function renderTray(): void {
+  const box = $('shot-tray');
+  const cur = hole();
+  if (tray && tray.index >= cur[tray.key]) closeTray();
+  for (const row of document.querySelectorAll<HTMLElement>('.counter')) {
+    row.classList.toggle('tagging', row.dataset.key === tray?.key);
+    const key = row.dataset.key as Counter;
+    if (!isTagged(key)) continue;
+    const count = row.querySelector<HTMLButtonElement>('.count-btn')!;
+    count.disabled = cur[key] === 0;
+    count.classList.toggle('has-tags', (cur.tags?.[key] ?? []).some((t) => t !== null));
+  }
+  if (!tray) {
+    box.hidden = true;
+    box.removeAttribute('aria-label');
+    delete box.dataset.key;
+    return;
+  }
+  const { key, index } = tray;
+  box.setAttribute('aria-label', `${COUNTER_TEXT[key].label} ${index + 1}번째 샷 세부`);
+  // Rebuilt only when the counter changes, so a chip keeps focus after it is tapped.
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    box.replaceChildren(
+      h('span', { class: 'tray-shot', 'aria-hidden': 'true' }, h('b', {}, COUNTER_TEXT[key].label), h('span', { class: 'tray-no' })),
+      ...(SHOT_TAGS[key] as readonly string[]).map((tag) =>
+        h('button', { type: 'button', class: tag.startsWith('ob-') ? 'chip ob' : 'chip', 'data-tag': tag }, (TAG_LABELS[key] as Record<string, string>)[tag])),
+    );
+  }
+  setText(box.querySelector('.tray-no')!, `${index + 1}번째`);
+  const chosen = tagAt(cur, key, index);
+  for (const chip of box.querySelectorAll<HTMLButtonElement>('.chip')) chip.setAttribute('aria-pressed', String(chip.dataset.tag === chosen));
+  box.hidden = false;
+}
+
+function bindTray(): void {
+  $('shot-tray').addEventListener('click', (event) => {
+    if (!tray) return;
+    const chip = (event.target as HTMLElement).closest<HTMLButtonElement>('button.chip');
+    // A tap on the tray around the chips closes it, giving back the title and par.
+    if (!chip) {
+      closeTray();
+      renderTray();
+      return;
+    }
+    const { key, index } = tray;
+    const tag = chip.dataset.tag as ShotTag;
+    const next = tagAt(hole(), key, index) === tag ? null : tag;
+    const obBefore = hole().ob;
+    armTray();
+    setHole((x) => setTag(x, key, index, next as ShotTag<typeof key> | null));
+    navigator.vibrate?.(8);
+    const name = next === null ? '지움' : (TAG_LABELS[key] as Record<string, string>)[next];
+    const ob = hole().ob !== obBefore ? `, OB ${hole().ob}, ${strokes(hole())}타` : '';
+    announce(`${COUNTER_TEXT[key].label} ${index + 1}번째 ${name}${ob}`);
   });
 }
 
@@ -304,6 +420,9 @@ function renderAnalysis(a: Analysis): void {
       : '',
     h('h3', {}, '정리'),
     h('ul', { class: 'insights' }, ...insights(a).map((s) => h('li', {}, s))),
+    ...(a.details
+      ? [h('h3', {}, '샷 세부'), h('ul', { class: 'insights details' }, ...detailLines(a).map((s) => h('li', {}, s)))]
+      : []),
   );
 }
 
@@ -350,6 +469,7 @@ async function shareReport(): Promise<void> {
 function render(): void {
   const a = analyze(round);
   renderHole();
+  renderTray();
   renderTabs();
   renderSummary(a);
   renderScorecard(a);
@@ -361,13 +481,16 @@ function render(): void {
       ? '저장된 기록이 다른 탭에서 지워졌거나 읽을 수 없습니다. 이 탭의 기록은 다음 입력 때 다시 저장됩니다.'
       : rescued
         ? '저장된 기록을 읽을 수 없어 새 라운드로 시작합니다. 원래 값은 이 기기에 따로 보관했습니다.'
-        : `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`);
+        : trimmed
+          ? '저장된 세부 기록 일부를 읽을 수 없어 빼고 불러왔습니다. 원래 값은 이 기기에 따로 보관했습니다.'
+          : `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`);
   $('stale').hidden = !stale;
   if (stale) setText($('stale-text'), `${dateLabel(round.date)}에 기록하던 라운드입니다.`);
 }
 
 function bind(): void {
   buildCounters();
+  bindTray();
   document.querySelector('.par-pick')!.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-par]');
     if (!button) return;
@@ -415,11 +538,13 @@ function bind(): void {
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY && event.key !== null) return;
     const next = loadRound();
+    closeTray();
     if (next) {
       round = next;
       saved = true;
       detached = false;
       rescued = false;
+      trimmed = false;
       stale = isStale(next);
     } else {
       detached = true;

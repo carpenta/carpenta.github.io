@@ -50,15 +50,18 @@
       </nav>
 
       <section id="hole-card" class="hole-card" aria-labelledby="hole-title">
-        <div class="hole-head">
-          <h2 id="hole-title">1번 홀</h2>
-          <div class="par-pick" role="radiogroup" aria-label="파">
-            <button type="button" data-par="3" role="radio">Par 3</button>
-            <button type="button" data-par="4" role="radio">Par 4</button>
-            <button type="button" data-par="5" role="radio">Par 5</button>
+        <div id="hole-top" class="hole-top">
+          <div class="hole-head">
+            <h2 id="hole-title">1번 홀</h2>
+            <div class="par-pick" role="radiogroup" aria-label="파">
+              <button type="button" data-par="3" role="radio">Par 3</button>
+              <button type="button" data-par="4" role="radio">Par 4</button>
+              <button type="button" data-par="5" role="radio">Par 5</button>
+            </div>
           </div>
+          <p class="hole-score"><b id="hole-strokes">0</b>타 <span id="hole-topar" class="topar"></span> <span id="hole-name" class="score-name"></span></p>
+          <div id="shot-tray" class="shot-tray" role="group" hidden></div>
         </div>
-        <p class="hole-score"><b id="hole-strokes">0</b>타 <span id="hole-topar" class="topar"></span> <span id="hole-name" class="score-name"></span></p>
         <div id="counters" class="counters"></div>
         <nav class="hole-move" aria-label="홀 이동">
           <button id="prev-hole" class="btn" type="button">◀ 이전 홀</button>

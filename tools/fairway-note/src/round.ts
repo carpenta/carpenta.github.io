@@ -15,6 +15,29 @@ export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'mulligan'] as con
 export type Counter = (typeof COUNTERS)[number];
 export const MAX_COUNT = 15;
 
+/** Counters whose shots can carry an optional detail tag. */
+export const TAGGED = ['driver', 'approach', 'putts'] as const;
+export type Tagged = (typeof TAGGED)[number];
+
+/** Detail chips per counter, in display order. Stored values; labels are in TAG_LABELS. */
+export const SHOT_TAGS = {
+  driver: ['fairway', 'left', 'right', 'ob-left', 'ob-right', 'whiff', 'mishit'],
+  approach: ['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff'],
+  putts: ['in', 'short', 'long', 'left', 'right'],
+} as const satisfies Record<Tagged, readonly string[]>;
+export type ShotTag<K extends Tagged = Tagged> = (typeof SHOT_TAGS)[K][number];
+
+export const TAG_LABELS: { [K in Tagged]: Record<ShotTag<K>, string> } = {
+  driver: { fairway: '페어웨이', left: '좌', right: '우', 'ob-left': '좌 OB', 'ob-right': '우 OB', whiff: '헛스윙', mishit: '뒤땅/토핑' },
+  approach: { green: '온그린', short: '짧음', long: '김', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙' },
+  putts: { in: '들어감', short: '짧음', long: '김', left: '좌', right: '우' },
+};
+
+const OB_TAGS: readonly string[] = ['ob-left', 'ob-right'];
+
+/** Per-shot tags: entry i belongs to shot i of that counter. Never longer than the count; no trailing nulls. */
+export type ShotTags = { [K in Tagged]?: (ShotTag<K> | null)[] };
+
 export interface Hole {
   par: Par;
   driver: number;
@@ -22,6 +45,10 @@ export interface Hole {
   putts: number;
   ob: number;
   mulligan: number;
+  /** Optional shot details. Missing when nothing is tagged, and in rounds saved before tags existed. */
+  tags?: ShotTags;
+  /** How many of the OB penalties were added by choosing an OB tag, so clearing the tag can take them back. */
+  obByTag?: number;
 }
 
 export interface Round {
@@ -47,9 +74,73 @@ export function newRound(now = new Date()): Round {
   return { version: 1, date: localDate(now), current: 0, holes: COURSE_PARS.map((par) => emptyHole(par)) };
 }
 
+export function isTagged(key: Counter): key is Tagged {
+  return (TAGGED as readonly string[]).includes(key);
+}
+
+export function isShotTag<K extends Tagged>(key: K, tag: unknown): tag is ShotTag<K> {
+  return (SHOT_TAGS[key] as readonly unknown[]).includes(tag);
+}
+
+export function tagAt<K extends Tagged>(hole: Hole, key: K, index: number): ShotTag<K> | null {
+  return (hole.tags?.[key]?.[index] as ShotTag<K> | undefined) ?? null;
+}
+
+/** Writes one counter's tag list, keeping the hole free of empty lists, trailing nulls and a zero OB link. */
+function withTags<K extends Tagged>(hole: Hole, key: K, list: (ShotTag<K> | null)[], ob = hole.ob, obByTag = hole.obByTag ?? 0): Hole {
+  const trimmed = list.slice(0, hole[key]);
+  while (trimmed.length && trimmed[trimmed.length - 1] === null) trimmed.pop();
+  const tags: ShotTags = { ...hole.tags };
+  if (trimmed.length) (tags as Record<K, (ShotTag<K> | null)[]>)[key] = trimmed;
+  else delete tags[key];
+  const out: Hole = { ...hole, ob };
+  delete out.tags;
+  delete out.obByTag;
+  if (Object.keys(tags).length) out.tags = tags;
+  const link = Math.min(obByTag, ob);
+  if (link > 0) out.obByTag = link;
+  return out;
+}
+
+const obTagCount = (hole: Hole) => (hole.tags?.driver ?? []).filter((t) => t !== null && OB_TAGS.includes(t)).length;
+
+/**
+ * Tags shot `index` of a counter (null clears it). An OB tag adds one OB penalty unless the OB counter already
+ * covers every OB-tagged tee shot; clearing it takes back only a penalty a tag added.
+ */
+export function setTag<K extends Tagged>(hole: Hole, key: K, index: number, tag: ShotTag<K> | null): Hole {
+  if (!Number.isInteger(index) || index < 0 || index >= hole[key]) return hole;
+  if (tag !== null && !isShotTag(key, tag)) return hole;
+  const before = tagAt(hole, key, index);
+  if (before === tag) return hole;
+  const list = Array.from({ length: Math.max(index + 1, hole.tags?.[key]?.length ?? 0) }, (_, i) => tagAt(hole, key, i));
+  list[index] = tag;
+  let ob = hole.ob;
+  let link = hole.obByTag ?? 0;
+  const wasOb = before !== null && OB_TAGS.includes(before);
+  const isOb = tag !== null && OB_TAGS.includes(tag);
+  if (isOb && !wasOb && ob < obTagCount(hole) + 1 && ob < MAX_COUNT) {
+    ob += 1;
+    link += 1;
+  } else if (wasOb && !isOb && link > 0) {
+    ob -= 1;
+    link -= 1;
+  }
+  return withTags(hole, key, list, ob, link);
+}
+
 export function bump(hole: Hole, key: Counter, delta: number): Hole {
   const next = Math.min(MAX_COUNT, Math.max(0, hole[key] + delta));
-  return next === hole[key] ? hole : { ...hole, [key]: next };
+  if (next === hole[key]) return hole;
+  let out: Hole = { ...hole, [key]: next };
+  if (next < hole[key] && isTagged(key) && (hole.tags?.[key]?.length ?? 0) > next) {
+    // The last shot goes with its tag, and with any OB penalty that tag added.
+    for (let i = hole[key] - 1; i >= next; i--) out = setTag({ ...out, [key]: i + 1 }, key, i, null);
+    out = withTags({ ...out, [key]: next }, key, out.tags?.[key] ?? []);
+  } else if (key === 'ob' && (out.obByTag ?? 0) > next) {
+    out = withTags(out, 'driver', out.tags?.driver ?? []);
+  }
+  return out;
 }
 
 /** Strokes on the card: every shot plus one penalty stroke per OB. */
@@ -155,6 +246,27 @@ export interface Analysis {
   worstAreas: Area[];
   best: { hole: number; toPar: number } | null;
   worst: { hole: number; toPar: number } | null;
+  /** Tag counts on finished holes; null when no finished hole has a tag. */
+  details: Details | null;
+}
+
+export type Details = { [K in Tagged]: Partial<Record<ShotTag<K>, number>> };
+
+function details(round: Round): Details | null {
+  const out: Details = { driver: {}, approach: {}, putts: {} };
+  let any = false;
+  for (const [i, h] of round.holes.entries()) {
+    if (!finished(round, i)) continue;
+    for (const key of TAGGED) {
+      const counts = out[key] as Record<string, number>;
+      for (const tag of h.tags?.[key] ?? []) {
+        if (tag === null) continue;
+        counts[tag] = (counts[tag] ?? 0) + 1;
+        any = true;
+      }
+    }
+  }
+  return any ? out : null;
 }
 
 export function analyze(round: Round): Analysis {
@@ -209,6 +321,7 @@ export function analyze(round: Round): Analysis {
     worstAreas,
     best: spread ? best : null,
     worst: spread ? worst : null,
+    details: details(round),
   };
 }
 

@@ -666,3 +666,159 @@ test('offers to reopen when a new version is waiting', async ({ page }) => {
     writeFileSync(swPath, original);
   }
 });
+
+/* ---------- shot details ---------- */
+
+const tray = (page: Page) => page.locator('#shot-tray');
+const chip = (page: Page, name: string) => tray(page).getByRole('button', { name, exact: true });
+
+test('tags the shot just added without slowing the tap', async ({ page }) => {
+  await page.goto('/');
+  await expect(tray(page)).toBeHidden();
+  await tap(page, 'driver');
+  // The stroke is recorded by the tap alone; the chips are optional.
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+  await expect(tray(page)).toBeVisible();
+  await expect(tray(page)).toHaveAttribute('aria-label', '드라이버 1번째 샷 세부');
+  await expect(tray(page).getByRole('button')).toHaveText(['페어웨이', '좌', '우', '좌 OB', '우 OB', '헛스윙', '뒤땅/토핑']);
+
+  await chip(page, '좌 OB').click();
+  await expect(chip(page, '좌 OB')).toHaveAttribute('aria-pressed', 'true');
+  await expect(count(page, 'ob')).toHaveText('1');
+  await expect(page.locator('#hole-strokes')).toHaveText('2');
+  // Changing OB side never counts the OB twice; tapping the chosen chip again clears it and its OB.
+  await chip(page, '우 OB').click();
+  await expect(count(page, 'ob')).toHaveText('1');
+  await chip(page, '우 OB').click();
+  await expect(count(page, 'ob')).toHaveText('0');
+  await expect(chip(page, '우 OB')).toHaveAttribute('aria-pressed', 'false');
+  await chip(page, '우').click();
+
+  await tap(page, 'approach');
+  await expect(tray(page)).toHaveAttribute('aria-label', '어프로치 1번째 샷 세부');
+  await expect(tray(page).getByRole('button')).toHaveText(['온그린', '짧음', '김', '좌', '우', '벙커', '해저드', '헛스윙']);
+  await chip(page, '벙커').click();
+  // Minus removes the last stroke with its tag, and closes the chips.
+  await page.getByRole('button', { name: '어프로치 하나 빼기' }).click();
+  await expect(tray(page)).toBeHidden();
+  await tap(page, 'putts');
+  await expect(tray(page).getByRole('button')).toHaveText(['들어감', '짧음', '김', '좌', '우']);
+  await chip(page, '들어감').click();
+  await page.locator('#next-hole').click();
+  await expect(tray(page)).toBeHidden();
+
+  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).holes[0], STORAGE_KEY);
+  expect(saved).toEqual({ par: 4, driver: 1, approach: 0, putts: 1, ob: 0, mulligan: 0, tags: { driver: ['right'], putts: ['in'] } });
+});
+
+test('closes the chips after a few seconds, or when another counter is tapped', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/');
+  await tap(page, 'driver');
+  await expect(tray(page)).toBeVisible();
+  await page.clock.fastForward(3000);
+  await chip(page, '페어웨이').click();
+  // A chip tap keeps them open a little longer.
+  await page.clock.fastForward(3000);
+  await expect(tray(page)).toBeVisible();
+  await page.clock.fastForward(4000);
+  await expect(tray(page)).toBeHidden();
+  await expect(page.locator('#hole-strokes')).toBeVisible();
+
+  await tap(page, 'putts');
+  await expect(tray(page)).toBeVisible();
+  await tap(page, 'ob');
+  await expect(tray(page)).toBeHidden();
+  await tap(page, 'mulligan');
+  await expect(tray(page)).toBeHidden();
+});
+
+test('revisits earlier shots by tapping the count', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await chip(page, '들어감').click();
+  await tap(page, 'ob');
+  await expect(tray(page)).toBeHidden();
+
+  const putts = page.getByRole('button', { name: '퍼터 샷 세부 보기' });
+  await putts.click();
+  await expect(tray(page)).toHaveAttribute('aria-label', '퍼터 2번째 샷 세부');
+  await expect(chip(page, '들어감')).toHaveAttribute('aria-pressed', 'true');
+  await putts.click();
+  await expect(tray(page)).toHaveAttribute('aria-label', '퍼터 1번째 샷 세부');
+  await expect(chip(page, '들어감')).toHaveAttribute('aria-pressed', 'false');
+  await chip(page, '짧음').click();
+  await expect(page.locator('.counter-putts .count-btn')).toHaveClass(/has-tags/);
+  await expect(page.locator('.counter-driver .count-btn')).not.toHaveClass(/has-tags/);
+  await expect(page.getByRole('button', { name: '어프로치 샷 세부 보기' })).toBeDisabled();
+
+  await page.locator('#next-hole').click();
+  const analysis = page.locator('#analysis');
+  await expect(analysis.locator('.details')).toContainText('퍼트: 들어감 1 · 짧음 1');
+  const body = new URL(await page.locator('#send-email').getAttribute('href') as string).searchParams.get('body')!;
+  expect(body).toContain('[샷 세부]');
+  expect(body).toContain('1번 Par4: 4타 (E) 드1 어0 퍼2 OB 1 · 퍼 짧음, 들어감');
+});
+
+test('shows no detail section for a round without tags', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await page.locator('#next-hole').click();
+  await expect(page.locator('#analysis .headline')).toBeVisible();
+  await expect(page.locator('#analysis .details')).toHaveCount(0);
+});
+
+test('loads a round with unreadable tags, keeping its scores and the original value', async ({ page }) => {
+  await page.goto('/');
+  const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+  holes[0] = { ...holes[0], driver: 1, putts: 2, tags: { driver: ['slice'], putts: [null, 'in'] } } as typeof holes[0];
+  const value = JSON.stringify({ version: 1, date: '2026-11-19', current: 1, holes, lastEdited: Date.now() });
+  await page.evaluate(([key, v]) => localStorage.setItem(key, v), [STORAGE_KEY, value]);
+  await page.reload();
+  await expect(page.locator('#sum-strokes')).toHaveText('3');
+  await expect(page.locator('#save-state')).toContainText('세부 기록 일부');
+  await tap(page, 'driver');
+  const stored = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
+  expect(Object.entries(stored).filter(([k]) => k.startsWith('fairway-note:corrupt:')).map(([, v]) => v)).toEqual([value]);
+  expect(JSON.parse(stored[STORAGE_KEY]).holes[0].tags).toEqual({ putts: [null, 'in'] });
+});
+
+for (const [width, height] of [[375, 553], [320, 568]]) {
+  test.describe(`shot chips on a ${width}×${height} phone`, () => {
+  test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('show without moving any button or covering the hole bar', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#next-hole').click();
+    const boxes = async () => {
+      const out: Record<string, { x: number; y: number; width: number; height: number }> = {};
+      for (const key of ['driver', 'approach', 'putts', 'ob', 'mulligan']) {
+        for (const side of ['minus', 'plus']) out[`${key} ${side}`] = (await page.locator(`.counter-${key} .${side}`).boundingBox())!;
+      }
+      return out;
+    };
+    for (const key of ['driver', 'approach', 'putts']) {
+      await tap(page, key);
+      await expect(tray(page)).toBeVisible();
+      const open = await boxes();
+      // Tapping the tray around the chips closes it. Nothing moves either way, so the next tap lands where it aims.
+      await tray(page).dispatchEvent('click');
+      await expect(tray(page)).toBeHidden();
+      const before = await boxes();
+      expect(open).toEqual(before);
+      await page.getByRole('button', { name: `${{ driver: '드라이버', approach: '어프로치', putts: '퍼터' }[key]} 샷 세부 보기` }).click();
+      await expect(tray(page)).toBeVisible();
+      const bar = (await page.locator('.hole-move').boundingBox())!;
+      for (const box of Object.values(before)) expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+      const summary = (await page.locator('.summary').boundingBox())!;
+      const trayBox = (await tray(page).boundingBox())!;
+      expect(trayBox.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+      expect(trayBox.x + trayBox.width).toBeLessThanOrEqual(width);
+      for (const c of await tray(page).getByRole('button').all()) expect((await c.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    }
+  });
+  });
+}

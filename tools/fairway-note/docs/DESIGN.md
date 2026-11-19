@@ -13,8 +13,9 @@ Static GitHub Pages application for keeping one 18-hole golf round on a phone. E
 - Saved rounds carry `lastEdited` (ms). A round whose last edit is at least 12 hours old (or, for rounds saved without `lastEdited`, one from an earlier date) is offered to continue or replace on load; replacing asks for confirmation, and continuing saves the round so the offer does not return. A round that crosses midnight is not offered. A save from another tab replaces the open tab's round through the `storage` event, so tabs do not silently overwrite each other. If another tab removes the saved round, the open tab keeps its round in memory and says it will be saved again on the next edit.
 
 - After the first visit the app opens and records without a connection (see Offline).
+- Optional shot details (see Shot details). A + tap records the stroke on its own, exactly as before; details never block or slow entry.
 
-Out of scope: round history, playing partners, GPS distances, sharing, other languages.
+Out of scope: round history, playing partners, GPS distances, other languages, putt distances.
 
 ## Architecture
 
@@ -23,7 +24,7 @@ TypeScript + Vite, no runtime dependencies, no UI framework.
 - `src/round.ts` — pure model: the `Round` and `Hole` types, counter bounds (0–15), strokes, played (a hole with at least one stroke or penalty), green in regulation, totals and `analyze()`.
 - `src/report.ts` — the plain-text report, its subject and the `mailto:` link, plus the analysis notes shown on the page.
 - `src/icons.ts` — static SVG icons for each counter's + button (driver head, iron, putter, OB stake, retry).
-- `src/storage.ts` — validates and restores a saved round. Any malformed value (wrong version, hole count, par or count) is ignored and a new round starts, after the value is copied aside. Storage exceptions are caught.
+- `src/storage.ts` — validates and restores a saved round. Any malformed value (wrong version, hole count, par or count) is ignored and a new round starts, after the value is copied aside. Malformed shot details alone do not reject the round: they are dropped, the counts are kept, and the original value is copied aside before the first save. Storage exceptions are caught.
 - `src/offline.ts` — registers the service worker and shows the update prompt.
 - `scripts/service-worker.ts` — builds `dist/sw.js`; a small plugin in `vite.config.ts` calls it after the build.
 - `src/main.ts` — renders the summary bar, hole tabs, hole card, scorecard and analysis from the current round after every change, using DOM nodes rather than HTML strings.
@@ -33,6 +34,14 @@ Analysis covers played holes only:
 - greens in regulation: at least one putt after drives + approaches + OBs ≤ par − 2
 - score distribution, average per par, best and worst hole (omitted when every hole has the same score against par)
 - strokes lost per area against a regulation pattern of one tee shot, par − 3 approaches and two putts, plus OB penalties. Each hole adds only its own excess, so a better-than-regulation hole never offsets a loss elsewhere. Every area tied for the most lost strokes is named.
+
+## Shot details
+
+- Drives, approaches and putts can carry one tag per shot. Tags per counter: drive `fairway left right ob-left ob-right whiff mishit`, approach `green short long left right bunker hazard whiff`, putt `in short long left right`. Visible labels are Korean (`TAG_LABELS` in `src/round.ts`).
+- Storage: optional `tags` on a hole, `{ driver?, approach?, putts? }`, each an array aligned with that counter's shots (entry i is shot i), never longer than the count and without trailing nulls; a hole with no tags has no field. `obByTag` counts the OB penalties added by OB tags. The round stays `version: 1`: older rounds read unchanged. An older build of the app reads newer rounds but drops the tags when it saves.
+- An OB tag adds one OB penalty only if the OB counter does not already cover every OB-tagged drive, so an OB counted by hand is never counted twice; switching left/right OB changes nothing. Clearing an OB tag removes a penalty only if a tag added one (`obByTag`), so tag-then-clear is an exact undo. Minus on a counter drops its last shot's tag and any penalty that tag added. Minus on OB keeps `obByTag` no larger than the OB count.
+- UI: after a + on a tagged counter, a chip tray for that shot is laid over the hole title, par picker and score line (absolutely positioned, two rows at most on 320px), and the counter gets an inset ring. Nothing moves, so the next tap lands where the player aims, and the 375×553 card still fits above the hole bar. The tray closes on another counter tap, a minus, a hole change, a tap on the tray outside the chips, or 6 seconds after the last tap on it. Chips are 40px toggle buttons with `aria-pressed`; the tray is a labelled group ("드라이버 2번째 샷 세부"). Tapping a count opens that counter's last shot and each further tap steps back one shot; a dot under the count marks a counter with tags on this hole. The tray state is not saved.
+- Analysis and report: `analyze()` adds tag counts over finished holes (`details`, null without tags). The page and the text report show a "샷 세부" section only when tags exist: counts per counter, drive direction left/right with OB, a note when putts were mostly short or mostly long, and the number of whiffs. Report hole lines append that hole's tags.
 
 ## Offline
 
@@ -62,5 +71,5 @@ Analysis covers played holes only:
 
 ## Verification
 
-- Vitest unit tests for the model, storage and the generated worker (precache list, build ID, install with `cache: 'reload'`, no self-activation, `SKIP_WAITING`, old cache clean-up, cache-first answers and requests left to the network), run against a fake worker global.
-- Playwright Chromium e2e, including a 375×600 touch phone (one-screen layout, tap entry, bar clearance), 375×553 and 390×664 phones (whole hole card visible after moving holes), label size and contrast, minus button states, the wake lock with and without support, 320px width and the manifest, for tapping and totals, + button icons, the email link, the share sheet and its clipboard fallback, holes in progress and chip-ins, analysis text, reload and reset, broken or newer saved data kept aside, no save on open, storage failure, stale rounds (confirm, continue, crossing midnight with a fixed clock), another tab's save and removal, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px; offline reload after the first visit with styles and tap entry working, the built worker's precache list, and the update prompt when a new worker is waiting (it reloads into the new worker and keeps the round).
+- Vitest unit tests for the model (including shot tags and OB linking), storage (tags round-trip, old rounds, malformed tags dropped and kept aside) and the generated worker (precache list, build ID, install with `cache: 'reload'`, no self-activation, `SKIP_WAITING`, old cache clean-up, cache-first answers and requests left to the network), run against a fake worker global.
+- Playwright Chromium e2e, including a 375×600 touch phone (one-screen layout, tap entry, bar clearance), 375×553 and 390×664 phones (whole hole card visible after moving holes), label size and contrast, minus button states, the wake lock with and without support, 320px width and the manifest, for tapping and totals, + button icons, the email link, the share sheet and its clipboard fallback, holes in progress and chip-ins, analysis text, reload and reset, broken or newer saved data kept aside, no save on open, storage failure, stale rounds (confirm, continue, crossing midnight with a fixed clock), another tab's save and removal, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px; shot details (one-tap entry with optional chips, OB linking, closing rules and the 6-second timeout with a fake clock, revisiting by count, analysis and email text, no section without tags, malformed saved tags, and unchanged button positions with the tray open at 375×553 and 320×568); offline reload after the first visit with styles and tap entry working, the built worker's precache list, and the update prompt when a new worker is waiting (it reloads into the new worker and keeps the round).
