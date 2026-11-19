@@ -51,7 +51,7 @@ h1, h2, h3, p { margin: 0; }
   color: #fff;
 }
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand svg { width: 26px; height: 26px; flex: none; fill: #f2c94c; stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; }
+.brand svg { width: 30px; height: 30px; flex: none; }
 .app-name { font-size: 12px; opacity: .8; letter-spacing: .02em; }
 .brand h1 { font-size: 18px; line-height: 1.2; }
 .home-link { margin-left: auto; color: #fff; opacity: .85; font-size: 13px; white-space: nowrap; }
