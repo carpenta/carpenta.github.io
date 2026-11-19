@@ -24,6 +24,8 @@ import {
   type ScoreName,
   type Totals,
 } from './round';
+import { COUNTER_ICONS } from './icons';
+import { dateLabel, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadRound, saveRound } from './storage';
 
 const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
@@ -115,7 +117,7 @@ function buildCounters(): void {
         h('div', { class: 'counter-label' }, h('b', {}, label), h('span', {}, hint)),
         h('button', { type: 'button', class: 'step minus', 'data-delta': '-1', 'aria-label': `${label} 하나 빼기` }, '−'),
         h('output', { class: 'count', 'aria-label': label }, '0'),
-        h('button', { type: 'button', class: 'step plus', 'data-delta': '1', 'aria-label': `${label} 하나 더하기` }, '+'),
+        plusButton(key, label),
       ),
     );
   }
@@ -129,6 +131,13 @@ function buildCounters(): void {
     navigator.vibrate?.(8);
     announce(`${round.current + 1}번 홀 ${COUNTER_TEXT[key].label} ${hole()[key]}, ${strokes(hole())}타`);
   });
+}
+
+function plusButton(key: Counter, label: string): HTMLButtonElement {
+  const button = h('button', { type: 'button', class: 'step plus', 'data-delta': '1', 'aria-label': `${label} 하나 더하기` });
+  // Static icon markup from icons.ts, never user input.
+  button.innerHTML = `${COUNTER_ICONS[key]}<span class="plus-mark" aria-hidden="true">+</span>`;
+  return button;
 }
 
 function renderHole(): void {
@@ -246,22 +255,6 @@ function bar(label: string, value: number, max: number, text: string, cls = ''):
   return h('div', { class: 'bar-row' }, h('span', { class: 'bar-label' }, label), h('span', { class: 'bar-track' }, fill), h('span', { class: 'bar-value' }, text));
 }
 
-function insights(a: Analysis): string[] {
-  const t = a.totals;
-  const out: string[] = [];
-  if (a.worstAreas.length) {
-    const names = a.worstAreas.map((k) => AREA_LABELS[k]).join('·');
-    out.push(`기준(티샷 1, 어프로치 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${names}입니다 (+${a.lost[a.worstAreas[0]]}타).`);
-  } else {
-    out.push('모든 영역이 기준 타수 안에 있습니다. 좋은 라운드입니다.');
-  }
-  if (a.threePutts) out.push(`3퍼트 이상이 ${a.threePutts}홀 있습니다. 첫 퍼트 거리감을 맞추면 바로 줄일 수 있는 타수입니다.`);
-  if (t.ob) out.push(`OB ${t.ob}회로 벌타 ${t.ob}타가 더해졌습니다. 다시 친 샷까지 치면 OB 하나에 보통 2타를 잃습니다.`);
-  if (t.mulligan) out.push(`멀리건 ${t.mulligan}회를 썼습니다. 멀리건 없이 쳤다면 스코어가 더 나왔을 수 있습니다.`);
-  out.push(`그린 적중(GIR)은 ${a.girHoles}/${t.holes}홀 (${pct(a.girHoles, t.holes)}%)입니다.`);
-  return out;
-}
-
 function renderAnalysis(a: Analysis): void {
   const box = $('analysis');
   const t = a.totals;
@@ -298,6 +291,44 @@ function renderAnalysis(a: Analysis): void {
   );
 }
 
+/* ---------- send ---------- */
+
+const canShare = typeof navigator.share === 'function';
+const canCopy = typeof navigator.clipboard?.writeText === 'function';
+
+function renderSend(a: Analysis): void {
+  const ready = a.totals.holes > 0;
+  $('send-actions').hidden = !ready;
+  setText($('send-note'), ready
+    ? '이메일은 휴대폰 메일 앱이 열리고 스코어카드와 분석이 본문에 채워집니다. 받는 사람은 메일 앱에서 넣으세요.'
+    : '홀을 끝내면 스코어카드와 분석을 이메일이나 메신저로 보낼 수 있습니다.');
+  if (ready) $<HTMLAnchorElement>('send-email').href = mailtoHref(round);
+  const share = $<HTMLButtonElement>('send-share');
+  share.hidden = !canShare && !canCopy;
+  setText(share, canShare ? '공유하기' : '결과 복사');
+}
+
+async function shareReport(): Promise<void> {
+  const text = reportText(round);
+  const status = $('send-status');
+  if (canShare) {
+    try {
+      await navigator.share({ title: reportSubject(round), text });
+      setText(status, '');
+    } catch (error) {
+      // Closing the share sheet is not an error worth showing.
+      if ((error as DOMException).name !== 'AbortError') setText(status, '공유하지 못했습니다. 이메일로 보내기를 써 주세요.');
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    setText(status, '결과를 복사했습니다. 메신저나 메모에 붙여 넣으세요.');
+  } catch {
+    setText(status, '복사하지 못했습니다. 이메일로 보내기를 써 주세요.');
+  }
+}
+
 /* ---------- everything ---------- */
 
 function render(): void {
@@ -307,12 +338,12 @@ function render(): void {
   renderSummary(a);
   renderScorecard(a);
   renderAnalysis(a);
-  const [y, m, d] = round.date.split('-').map(Number);
+  renderSend(a);
   setText($('save-state'), saved
-    ? `${y}년 ${m}월 ${d}일 라운드 · 이 기기에만 자동 저장됩니다.`
+    ? `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`
     : '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.');
   $('stale').hidden = !stale;
-  if (stale) setText($('stale-text'), `${y}년 ${m}월 ${d}일에 기록하던 라운드입니다.`);
+  if (stale) setText($('stale-text'), `${dateLabel(round.date)}에 기록하던 라운드입니다.`);
 }
 
 function bind(): void {
@@ -351,6 +382,7 @@ function bind(): void {
     if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
   });
   $('stale-new').addEventListener('click', startNew);
+  $('send-share').addEventListener('click', () => void shareReport());
   $('stale-keep').addEventListener('click', () => {
     stale = false;
     render();

@@ -8,6 +8,7 @@ Static GitHub Pages application for keeping one 18-hole golf round on a phone. E
 - The hole being played counts toward totals and analysis only once it has a putt, so a tee shot alone never reads as an eagle. A hole finished without a putt (chip-in) counts once the player moves to another hole.
 - Pars default to 4 and can be set to 3, 4 or 5 per hole. Hole-by-hole pars for the course were not available from public sources.
 - The round is saved to one localStorage key (`fairway-note:round:v1`) so it survives reloads, and is removed by "새 라운드 시작". Nothing is sent over the network; there is no account, analytics, service worker, sessionStorage, IndexedDB or cookie. A CSP meta tag sets `connect-src 'none'` and limits scripts, styles and images to the same origin with no inline style elements (bar widths are set through the CSSOM, which CSP allows).
+- Results leave the device only when the player asks: "이메일로 보내기" is a `mailto:` link with the subject and a plain-text report (totals, finished holes, analysis) and no recipient, which hands the text to the phone's mail app; "공유하기" calls the Web Share API, falling back to copying the report to the clipboard. The app itself makes no request.
 - If storage is unavailable, the app keeps working in memory and says so.
 - A round saved on an earlier day is offered to continue or replace on load. A save from another tab replaces the open tab's round through the `storage` event, so tabs do not silently overwrite each other.
 
@@ -18,6 +19,8 @@ Out of scope: round history, playing partners, GPS distances, sharing, other lan
 TypeScript + Vite, no runtime dependencies, no UI framework.
 
 - `src/round.ts` — pure model: the `Round` and `Hole` types, counter bounds (0–15), strokes, played (a hole with at least one stroke or penalty), green in regulation, totals and `analyze()`.
+- `src/report.ts` — the plain-text report, its subject and the `mailto:` link, plus the analysis notes shown on the page.
+- `src/icons.ts` — static SVG icons for each counter's + button (driver head, iron, putter, OB stake, retry).
 - `src/storage.ts` — validates and restores a saved round. Any malformed value (wrong version, hole count, par or count) is ignored and a new round starts. Storage exceptions are caught.
 - `src/main.ts` — renders the summary bar, hole tabs, hole card, scorecard and analysis from the current round after every change, using DOM nodes rather than HTML strings.
 
@@ -45,4 +48,4 @@ Analysis covers played holes only:
 ## Verification
 
 - Vitest unit tests for the model and storage.
-- Playwright Chromium e2e, including a 375×600 touch phone (one-screen layout, tap entry, bar clearance), 320px width and the manifest, for tapping and totals, holes in progress and chip-ins, analysis text, reload and reset, broken saved data, storage failure, earlier-day rounds, another tab's save, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.
+- Playwright Chromium e2e, including a 375×600 touch phone (one-screen layout, tap entry, bar clearance), 320px width and the manifest, for tapping and totals, + button icons, the email link, the share sheet and its clipboard fallback, holes in progress and chip-ins, analysis text, reload and reset, broken saved data, storage failure, earlier-day rounds, another tab's save, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.

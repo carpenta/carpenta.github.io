@@ -295,3 +295,16 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   .summary { position: static; }
   html { scroll-padding-top: 8px; }
 }
+
+/* + buttons carry the counter's club icon with a small plus. */
+.step.plus { position: relative; display: grid; place-items: center; }
+.step.plus svg { width: 30px; height: 30px; }
+.step.plus .icon-band { stroke: var(--accent); }
+.plus-mark { position: absolute; top: 3px; right: 5px; font-size: 15px; font-weight: 700; line-height: 1; }
+
+.send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.send-actions[hidden] { display: none; }
+.send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
+.send-actions .btn.primary { color: #fff; }
+.send-actions .btn[hidden] { display: none; }
+#send-status:empty { display: none; }
