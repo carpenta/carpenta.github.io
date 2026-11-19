@@ -1,4 +1,4 @@
-import { COUNTERS, HOLE_COUNT, MAX_COUNT, PARS, TAGGED, isShotTag, type Hole, type Par, type Round, type RoundCourse, type ShotTags } from './round';
+import { COUNTERS, HOLE_COUNTS, MAX_COUNT, PARS, TAGGED, isShotTag, type Hole, type Par, type Round, type RoundCourse, type ShotTags } from './round';
 
 export const STORAGE_KEY = 'fairway-note:round:v1';
 /** Unreadable saved values are copied to `<prefix><timestamp>` before the round key is written. */
@@ -108,11 +108,12 @@ export function readRound(text: string | null): { round: Round; lossy: boolean }
   if (typeof o !== 'object' || o === null) return null;
   const r = o as Record<string, unknown>;
   if (r.version !== 1 || !isDate(r.date)) return null;
-  if (!Array.isArray(r.holes) || r.holes.length !== HOLE_COUNT) return null;
+  // 18 holes, or 9 for a round of one nine.
+  if (!Array.isArray(r.holes) || !HOLE_COUNTS.includes(r.holes.length)) return null;
   const read = r.holes.map(parseHole);
   if (read.some((h) => h === null)) return null;
   const holes = (read as { hole: Hole; lossy: boolean }[]).map((x) => x.hole);
-  const current = Number.isInteger(r.current) && (r.current as number) >= 0 && (r.current as number) < HOLE_COUNT ? (r.current as number) : 0;
+  const current = Number.isInteger(r.current) && (r.current as number) >= 0 && (r.current as number) < holes.length ? (r.current as number) : 0;
   const round: Round = { version: 1, date: r.date, current, holes };
   if (typeof r.lastEdited === 'number' && Number.isFinite(r.lastEdited) && r.lastEdited > 0) round.lastEdited = r.lastEdited;
   // Rounds saved before courses could be chosen have none and keep their pars; a broken one is unreadable.
@@ -121,6 +122,8 @@ export function readRound(text: string | null): { round: Round; lossy: boolean }
     if (!course) return null;
     round.course = course;
   }
+  // A 9-hole round names its one nine and no back nine; nine holes of an 18-hole course is a broken round.
+  if (holes.length === 9 && round.course?.back !== '') return null;
   return { round, lossy: read.some((x) => x!.lossy) };
 }
 export function store(): KV | null {
@@ -213,6 +216,8 @@ export interface CourseChoice {
   front: string;
   back: string;
   name?: string;
+  /** 9 for a round of one nine (`front`, then `back` is unused); missing for 18 holes. */
+  holes?: 9;
 }
 
 export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
@@ -222,6 +227,7 @@ export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
     if (!(o.course === null || isText(o.course)) || !isText(o.front) || !isText(o.back)) return null;
     const choice: CourseChoice = { course: o.course, front: o.front, back: o.back };
     if (isText(o.name)) choice.name = o.name;
+    if (o.holes === 9) choice.holes = 9;
     return choice;
   } catch {
     return null;

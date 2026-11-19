@@ -1,4 +1,6 @@
 export const HOLE_COUNT = 18;
+/** A round is 18 holes, or 9 when one nine is played on its own (v11). */
+export const HOLE_COUNTS: readonly number[] = [9, HOLE_COUNT];
 export const DEFAULT_PAR = 4;
 export const PARS = [3, 4, 5] as const;
 export type Par = (typeof PARS)[number];
@@ -30,6 +32,12 @@ export function roundCourse(round: Pick<Round, 'course'>): RoundCourse {
 export function courseLabel(c: RoundCourse): string {
   const nines = c.front === c.back ? c.front : [c.front, c.back].filter(Boolean).join('·');
   return nines ? `${c.name} ${nines}` : c.name;
+}
+
+/** The course label of a round, with "9홀" after it for a round of one nine: "에버리스 골프리조트 새별 9홀". */
+export function roundLabel(round: Pick<Round, 'course' | 'holes'>): string {
+  const label = courseLabel(roundCourse(round));
+  return round.holes.length === 9 ? `${label} 9홀` : label;
 }
 
 /** Counted items on a hole. OB and hazard add one penalty stroke each; mulligans are noted but never counted. */

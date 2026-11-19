@@ -66,24 +66,31 @@ export function defaultNines(course: Course): [string, string] {
 
 /** The remembered choice if it still matches the bundle, otherwise the closest valid one. */
 export function resolveChoice(choice: CourseChoice | null): CourseChoice {
-  if (choice && choice.course === null) return { course: null, front: '', back: '', name: choice.name ?? '' };
+  // A round of one nine is kept as a choice too (v11); 18 holes is the default and is not written.
+  const nine = choice?.holes === 9 ? { holes: 9 as const } : {};
+  if (choice && choice.course === null) return { course: null, front: '', back: '', name: choice.name ?? '', ...nine };
   const course = findCourse(choice?.course ?? null);
   if (!course || !choice) return { ...DEFAULT_CHOICE };
   const [front, back] = defaultNines(course);
   const has = (id: string) => course.nines.some((n) => n.id === id);
-  return { course: course.id, front: has(choice.front) ? choice.front : front, back: has(choice.back) ? choice.back : back };
+  return { course: course.id, front: has(choice.front) ? choice.front : front, back: has(choice.back) ? choice.back : back, ...nine };
 }
 
-/** The course and pars a new round starts with. A course typed in by hand starts at par 4 everywhere. */
+/**
+ * The course and pars a new round starts with: two nines, or one for a 9-hole round (its back nine name is empty).
+ * A course typed in by hand starts at par 4 everywhere.
+ */
 export function roundSetup(choice: CourseChoice): { course: RoundCourse; pars: Par[] } {
   const resolved = resolveChoice(choice);
+  const count = resolved.holes === 9 ? 9 : HOLE_COUNT;
   const course = findCourse(resolved.course);
   if (!course) {
     const name = (resolved.name ?? '').trim().slice(0, MAX_CUSTOM_NAME) || CUSTOM_NAME;
-    return { course: { id: null, name, front: '', back: '' }, pars: Array<Par>(HOLE_COUNT).fill(4) };
+    return { course: { id: null, name, front: '', back: '' }, pars: Array<Par>(count).fill(4) };
   }
   const nine = (id: string) => course.nines.find((n) => n.id === id)!;
   const front = nine(resolved.front);
+  if (count === 9) return { course: { id: course.id, name: course.name.ko, front: front.name.ko, back: '' }, pars: [...front.par] };
   const back = nine(resolved.back);
   return { course: { id: course.id, name: course.name.ko, front: front.name.ko, back: back.name.ko }, pars: [...front.par, ...back.par] };
 }

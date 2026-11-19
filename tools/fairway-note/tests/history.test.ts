@@ -266,6 +266,8 @@ describe('course name', () => {
   it('names the round’s own course, and Everis 새별·레이크 for rounds saved before courses could be chosen', () => {
     expect(courseName(newRound())).toBe('에버리스 골프리조트 새별·레이크');
     expect(courseName({ ...newRound(), course: undefined })).toBe('에버리스 골프리조트 새별·레이크');
+    // A round of one nine says so.
+    expect(courseName(newRound(new Date(), { course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' }, pars: [4, 4, 5, 3, 4, 4, 3, 5, 4] }))).toBe('에버리스 골프리조트 새별 9홀');
     expect(courseName({ ...newRound(), course: { id: null, name: '다른 골프장', front: 'A', back: 'B' } })).toBe('다른 골프장 A·B');
   });
 

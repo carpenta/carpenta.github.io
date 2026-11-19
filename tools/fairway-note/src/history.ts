@@ -1,4 +1,4 @@
-import { COUNTERS, HOLE_COUNT, TAGGED, analyze, courseLabel, finished, played, roundCourse, type Analysis, type Round } from './round';
+import { COUNTERS, HOLE_COUNT, TAGGED, analyze, finished, played, roundLabel, type Analysis, type Round } from './round';
 import { keepAside, readRound, store } from './storage';
 
 /** Past rounds, in the order they were kept. The round being recorded stays in its own key. */
@@ -216,5 +216,5 @@ export function trends(entries: Entry[]): Trends {
 
 /** The course shown for a past round, as the page shows it: its own course, or Everis 새별·레이크 for rounds saved before courses could be chosen. */
 export function courseName(round: Round): string {
-  return courseLabel(roundCourse(round));
+  return roundLabel(round);
 }

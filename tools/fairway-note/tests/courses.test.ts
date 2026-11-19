@@ -227,6 +227,20 @@ describe('choosing a course', () => {
     expect(roundSetup({ course: null, front: '', back: '' }).course.name).toBe('직접 입력');
   });
 
+  it('plays one nine as a 9-hole round, by its front nine, for a listed or an unlisted course', () => {
+    const everis = findCourse('everis')!;
+    const nine = roundSetup({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 });
+    expect(nine.course).toEqual({ id: 'everis', name: everis.name.ko, front: '레이크', back: '' });
+    expect(nine.pars).toEqual(everis.nines[1].par);
+    expect(resolveChoice({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 })).toEqual({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 });
+    const typed = roundSetup({ course: null, front: '', back: '', name: '동네', holes: 9 });
+    expect(typed.course).toEqual({ id: null, name: '동네', front: '', back: '' });
+    expect(typed.pars).toEqual(Array(9).fill(4));
+    expect(resolveChoice({ course: null, front: '', back: '', name: '동네', holes: 9 }).holes).toBe(9);
+    // Anything else is 18 holes, written as no field.
+    expect(resolveChoice({ course: 'everis', front: 'lake', back: 'saebyul', holes: 7 as 9 })).toEqual({ course: 'everis', front: 'lake', back: 'saebyul' });
+  });
+
   it('falls back when a remembered course or nine is no longer bundled', () => {
     expect(resolveChoice(null)).toEqual(DEFAULT_CHOICE);
     expect(resolveChoice({ course: 'gone', front: 'a', back: 'b' })).toEqual(DEFAULT_CHOICE);

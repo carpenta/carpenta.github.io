@@ -83,3 +83,17 @@ describe('report', () => {
     expect(url.searchParams.get('body')).toBe(reportText(r));
   });
 });
+
+describe('a 9-hole round', () => {
+  it('reads as one nine: "9홀" after the course, holes out of 9, no 전반·후반 line', () => {
+    const r = newRound(new Date(2026, 10, 20), { course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' }, pars: [4, 4, 5, 3, 4, 4, 3, 5, 4] });
+    r.holes[0] = hole(4, 1, 1, 2);
+    r.holes[1] = hole(4, 1, 2, 2);
+    r.current = 2;
+    expect(reportSubject(r)).toBe('에버리스 골프리조트 새별 9홀 2026년 11월 20일 라운드 9타 (+1)');
+    const text = reportText(r);
+    expect(text).toContain('에버리스 골프리조트 새별 9홀 · 2026년 11월 20일');
+    expect(text).toContain('· 2/9홀');
+    expect(text).not.toContain('전반');
+  });
+});

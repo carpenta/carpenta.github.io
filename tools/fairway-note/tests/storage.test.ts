@@ -134,6 +134,29 @@ describe('storage', () => {
     expect(saveDisplay({ big: true }, null)).toBe(false);
   });
 
+  it('reads a 9-hole round and keeps 18 or 9 holes only', () => {
+    const nine = { ...newRound(new Date(2026, 10, 20), { course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' }, pars: [4, 4, 5, 3, 4, 4, 3, 5, 4] }), current: 8 };
+    const read = parseRound(JSON.stringify(nine));
+    expect(read?.holes).toHaveLength(9);
+    expect(read?.current).toBe(8);
+    expect(read?.course).toEqual({ id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' });
+    // A current hole past the ninth falls back to the first.
+    expect(parseRound(JSON.stringify({ ...nine, current: 12 }))?.current).toBe(0);
+    for (const n of [0, 8, 10, 17, 19]) expect(parseRound(JSON.stringify({ ...nine, holes: Array.from({ length: n }, () => nine.holes[0]) })), String(n)).toBeNull();
+    // Nine holes with a back nine named, or with no course at all (the old default is two nines), are broken.
+    expect(parseRound(JSON.stringify({ ...nine, course: { ...nine.course, back: '레이크' } }))).toBeNull();
+    const { course: _course, ...noCourse } = nine;
+    expect(parseRound(JSON.stringify(noCourse))).toBeNull();
+  });
+
+  it('remembers a 9-hole choice in the prefs key', () => {
+    const kv = memory();
+    savePrefs({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 }, kv);
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 });
+    kv.setItem(PREFS_KEY, JSON.stringify({ course: 'everis', front: 'lake', back: 'saebyul', holes: 12 }));
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'lake', back: 'saebyul' });
+  });
+
   it('falls back to the first hole for a bad current hole', () => {
     expect(parseRound(JSON.stringify({ ...newRound(), current: 99 }))?.current).toBe(0);
   });

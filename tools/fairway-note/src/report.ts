@@ -1,4 +1,4 @@
-import { AREA_LABELS, HOLE_COUNT, SCORE_LABELS, SHOT_TAGS, TAGGED, TAG_LABELS, analyze, courseLabel, finished, formatToPar, roundCourse, strokes, type Analysis, type Hole, type Round, type ScoreName, type Tagged } from './round';
+import { AREA_LABELS, SCORE_LABELS, SHOT_TAGS, TAGGED, TAG_LABELS, analyze, finished, formatToPar, roundLabel, strokes, type Analysis, type Hole, type Round, type ScoreName, type Tagged } from './round';
 
 const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 const one = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
@@ -70,7 +70,7 @@ export function dateLabel(date: string): string {
 export function reportSubject(round: Round): string {
   const a = analyze(round);
   const score = a.totals.holes ? ` ${a.totals.strokes}타 (${formatToPar(a.toPar)})` : '';
-  return `${courseLabel(roundCourse(round))} ${dateLabel(round.date)} 라운드${score}`;
+  return `${roundLabel(round)} ${dateLabel(round.date)} 라운드${score}`;
 }
 
 /** The round as plain text for email or sharing: summary, hole by hole, then analysis. */
@@ -78,14 +78,15 @@ export function reportText(round: Round): string {
   const a = analyze(round);
   const t = a.totals;
   const lines: string[] = [];
-  lines.push(`${courseLabel(roundCourse(round))} · ${dateLabel(round.date)}`);
+  lines.push(`${roundLabel(round)} · ${dateLabel(round.date)}`);
   if (!t.holes) {
     lines.push('', '아직 끝낸 홀이 없습니다.');
     return lines.join('\n');
   }
   lines.push(
-    `총 ${t.strokes}타 (${formatToPar(a.toPar)}) · ${t.holes}/${HOLE_COUNT}홀`,
-    `전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`,
+    `총 ${t.strokes}타 (${formatToPar(a.toPar)}) · ${t.holes}/${round.holes.length}홀`,
+    // A round of one nine has no nines to compare.
+    ...(round.holes.length === 9 ? [] : [`전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`]),
     `퍼트 ${t.putts} · OB ${t.ob}${t.hazard ? ` · 해저드 ${t.hazard}` : ''} · 멀리건 ${t.mulligan}`,
     '',
     '[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + 벌타(OB·해저드)',
