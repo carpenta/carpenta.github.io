@@ -392,3 +392,97 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 .count-btn { position: relative; display: grid; place-items: center; height: 100%; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
 .count-btn:disabled { cursor: default; }
 .count-btn.has-tags::after { content: ''; position: absolute; bottom: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--green); }
+
+/* Course picker: a full-screen dialog, list in the middle, the chosen course and start at the bottom. */
+.course-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand > div { min-width: 0; }
+.par-source { margin: 0; }
+.par-source a { color: var(--green); font-weight: 600; }
+.picker {
+  width: 100%;
+  max-width: 640px;
+  height: 100%;
+  max-height: none;
+  margin: 0 auto;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+.picker[open] { display: flex; flex-direction: column; gap: 8px; }
+.picker::backdrop { background: var(--bg); }
+.picker-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.picker-head h2 { font-size: 20px; }
+.picker-head .btn { min-height: 44px; }
+.picker-head .btn[hidden] { display: none; }
+.picker-search {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+}
+.picker-search:focus-visible, .picker-chosen input:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.picker-areas, .nine-pick { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.chip, .nine-pick button {
+  flex: none;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 15px;
+  cursor: pointer;
+}
+.chip[aria-pressed='true'], .nine-pick button[aria-checked='true'] { background: var(--green); border-color: var(--green); color: #fff; font-weight: 700; }
+.picker-list {
+  flex: 1;
+  min-height: 96px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.picker-list .course {
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+.picker-list .course b { display: block; font-size: 16px; line-height: 1.3; }
+.picker-list .course span { display: block; font-size: 13px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-list .course[aria-pressed='true'] { border: 2px solid var(--green); background: var(--green-soft); }
+.picker-list .custom { border-style: dashed; }
+.picker-list .empty { padding: 8px 4px; font-size: 14px; }
+.picker-foot { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.picker-label { font-weight: 700; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-chosen { display: grid; gap: 6px; }
+.picker-chosen .small { margin: 0; }
+.picker-chosen input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+}
+.nine-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nine-label { flex: none; width: 2.4em; font-size: 14px; font-weight: 600; color: var(--muted); }
+.nine-pick { min-width: 0; }
+.nine-fixed { flex: 1; min-width: 0; font-size: 15px; }
+.nine-row .swap { flex: none; min-height: 40px; padding: 6px 12px; font-size: 14px; }
+.picker-foot > .btn { min-height: 52px; }
