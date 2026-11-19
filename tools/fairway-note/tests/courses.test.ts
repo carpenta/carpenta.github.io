@@ -42,13 +42,23 @@ describe('bundled courses', () => {
     expect(everis.nines.map((n) => n.name.ko)).toEqual(['새별', '레이크', '파인']);
     expect(everis.source).toContain('shinangolf.com');
   });
+
+  it('leaves out the Gyeongsang nines whose official tables did not hold up (research confidence medium)', () => {
+    expect(findCourse('seorabeol-gc')!.nines.map((n) => n.id)).not.toContain('lake');
+    expect(findCourse('seven-valley-cc')!.nines.map((n) => n.id)).toEqual(['valley']);
+    expect(findCourse('seogyeong-tani-cc')!.nines.map((n) => n.id)).not.toContain('baekho');
+  });
 });
 
 describe('bundled hole notes', () => {
   const noted = COURSES.flatMap((c) => c.nines.filter((n) => n.holes).map((n) => ({ c, n, holes: n.holes! })));
 
-  it('come nine to a nine with only the HoleInfo fields, and nines without notes have no holes field', () => {
-    expect(noted.length).toBeGreaterThan(30);
+  const nine = (course: string, id: string) => findCourse(course)!.nines.find((n) => n.id === id)!;
+  const holesWithLengths = (course: string) => findCourse(course)!.nines.flatMap((n) => n.holes ?? []).filter((h) => h?.distances).length;
+
+  it('come nine to a nine with only the HoleInfo fields, in every area, and nines without notes have no holes field', () => {
+    expect(noted.length).toBeGreaterThan(100);
+    for (const a of AREAS) expect(noted.some(({ c }) => c.area === a), a).toBe(true);
     for (const { c, n, holes } of noted) {
       const where = `${c.id}/${n.id}`;
       expect(Object.keys(n).sort(), where).toEqual(['holes', 'id', 'name', 'par']);
@@ -57,7 +67,7 @@ describe('bundled hole notes', () => {
       for (const h of holes) {
         if (h === null) continue;
         expect(Object.keys(h).length, where).toBeGreaterThan(0);
-        for (const key of Object.keys(h)) expect(['distances', 'guideUrl', 'layout'], where).toContain(key);
+        for (const key of Object.keys(h)) expect(['distances', 'guideUrl', 'layout', 'si'], where).toContain(key);
       }
     }
     for (const c of COURSES) {
@@ -76,19 +86,21 @@ describe('bundled hole notes', () => {
         expect(h.guideUrl, c.id).not.toMatch(DENIED);
       }
     }
-    expect(links).toBeGreaterThan(100);
+    expect(links).toBeGreaterThan(500);
   });
 
-  it('give one length per named tee, in m or yd, that fits the hole’s par', () => {
+  it('give one length per named tee, or a single length with no tee name, in m or yd that fits the hole’s par', () => {
     for (const { c, n, holes } of noted) {
       holes.forEach((h, i) => {
         if (h?.distances === undefined) return;
         const where = `${c.id}/${n.id}#${i + 1}`;
+        const tees = h.distances.map((d) => d.tee);
         expect(h.distances.length, where).toBeGreaterThan(0);
-        expect(new Set(h.distances.map((d) => d.tee)).size, where).toBe(h.distances.length);
+        if (tees.includes(undefined)) expect(h.distances, where).toHaveLength(1);
+        else expect(new Set(tees).size, where).toBe(tees.length);
         const [low, high] = PAR_RANGE_M[n.par[i]];
         for (const d of h.distances) {
-          expect(d.tee.trim(), where).not.toBe('');
+          if (d.tee !== undefined) expect(d.tee.trim(), where).not.toBe('');
           expect(['m', 'yd'], where).toContain(d.unit);
           const metres = d.unit === 'yd' ? d.length * 0.9144 : d.length;
           expect(metres, where).toBeGreaterThanOrEqual(low);
@@ -100,14 +112,43 @@ describe('bundled hole notes', () => {
     }
   });
 
-  it('list the white or regular tee first when a hole has one, so the card shows it', () => {
+  it('list the tee most players start from first, with both its greens, and keep each tee’s greens together', () => {
+    const starts = ['화이트', '화이트1', '레귤러', '블루', '프런트'];
+    const base = (tee: string) => tee.replace(/ (?:A|B|좌|우)그린$/, '');
     for (const { holes } of noted) {
       for (const h of holes) {
-        const tees = h?.distances?.map((d) => d.tee) ?? [];
-        const start = tees.find((t) => t === '화이트') ?? tees.find((t) => t.startsWith('레귤러'));
-        if (start) expect(tees[0], tees.join(' ')).toBe(start);
+        const tees = (h?.distances ?? []).flatMap((d) => (d.tee === undefined ? [] : [base(d.tee)]));
+        const start = starts.find((t) => tees.includes(t));
+        if (start) expect(tees.slice(0, tees.filter((t) => t === start).length).every((t) => t === start), tees.join(' ')).toBe(true);
+        for (const t of new Set(tees)) expect(tees.lastIndexOf(t) - tees.indexOf(t) + 1, tees.join(' ')).toBe(tees.filter((x) => x === t).length);
       }
     }
+  });
+
+  it('name tees a course only numbers by that number, highest first', () => {
+    const numbered = noted.flatMap(({ holes }) => holes).filter((h) => h?.distances?.every((d) => /^\d+티$/.test(d.tee ?? '')));
+    expect(numbered.length).toBeGreaterThan(0);
+    for (const h of numbered) {
+      const numbers = h!.distances!.map((d) => Number.parseInt(d.tee!, 10));
+      expect(numbers).toEqual([...numbers].sort((a, b) => b - a));
+    }
+  });
+
+  it('give stroke indexes 1–9 once each in a nine, or 1–18 once each with another nine of the course', () => {
+    const run = (values: number[], k: number) => values.length === k && new Set(values).size === k && values.every((v) => v >= 1 && v <= k);
+    let nines = 0;
+    for (const c of COURSES) {
+      const rated = c.nines.filter((n) => n.holes?.some((h) => h?.si !== undefined));
+      for (const n of rated) {
+        nines += 1;
+        const si = n.holes!.map((h) => h?.si);
+        expect(si.every((v) => Number.isInteger(v)), `${c.id}/${n.id}`).toBe(true);
+        const values = si as number[];
+        const ok = run(values, 9) || rated.some((o) => o !== n && run([...values, ...o.holes!.map((h) => h!.si!)], 18));
+        expect(ok, `${c.id}/${n.id} ${values.join(',')}`).toBe(true);
+      }
+    }
+    expect(nines).toBeGreaterThan(50);
   });
 
   it('keep layout notes to three short phrases within 40 characters', () => {
@@ -123,17 +164,31 @@ describe('bundled hole notes', () => {
     }
   });
 
-  it('leave out lengths from a course whose pages give them in two units', () => {
-    const cypress = findCourse('cypress')!;
-    expect(cypress.nines.some((n) => n.holes)).toBe(true);
-    expect(cypress.nines.flatMap((n) => n.holes ?? []).some((h) => h?.distances)).toBe(false);
+  it('leave out lengths whose unit the course’s own pages do not state clearly', () => {
+    // Cypress gives the same numbers in m and in yd; Ansung's card prints no unit; Haeundae's research has none.
+    for (const course of ['cypress', 'ansung', 'haeundae-cc']) expect(holesWithLengths(course), course).toBe(0);
+    // Their other notes stay: Cypress's handicaps do not depend on the unit.
+    expect(nine('cypress', 'west').holes!.every((h) => h?.si !== undefined)).toBe(true);
   });
 
-  it('give every Everis hole a link to its official guide', () => {
+  it('leave out every length of a Gyeongsang nine whose own pages disagree about them', () => {
+    for (const [course, id] of [['daegu-cc', 'west'], ['a-one-cc', 'west'], ['gaya-cc', 'sineo'], ['yangsan-cc', 'nuri']]) {
+      expect(nine(course, id).holes?.some((h) => h?.distances) ?? false, `${course}/${id}`).toBe(false);
+    }
+    expect(nine('daegu-cc', 'east').holes!.some((h) => h?.distances)).toBe(true);
+  });
+
+  it('give every Everis hole its official guide link and its one published length, and the handicaps that add up', () => {
     for (const n of findCourse('everis')!.nines) {
       expect(n.holes, n.id).toHaveLength(9);
-      for (const h of n.holes!) expect(h?.guideUrl, n.id).toMatch(/^https:\/\/www\.shinangolf\.com\//);
+      for (const h of n.holes!) {
+        expect(h?.guideUrl, n.id).toMatch(/^https:\/\/www\.shinangolf\.com\//);
+        expect(h?.distances, n.id).toEqual([{ length: expect.any(Number), unit: 'm' }]);
+      }
     }
+    expect(nine('everis', 'saebyul').holes!.map((h) => h!.si!).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // 파인's page lists handicap 7 twice, so it carries none.
+    expect(nine('everis', 'pine').holes!.some((h) => h?.si !== undefined)).toBe(false);
   });
 
   it('name doglegs both ways, so drawn holes bend', () => {
