@@ -62,6 +62,12 @@ describe('storage', () => {
     expect(read.holes[0].par).toBe(3);
   });
 
+  it('keeps both the round course and its shot details', () => {
+    const r = newRound(new Date(2026, 10, 19), { course: { id: 'everis', name: '에버리스 골프리조트', front: '파인', back: '새별' }, pars: Array(18).fill(4) });
+    r.holes[0] = { ...r.holes[0], driver: 1, putts: 2, tags: { driver: ['left'], putts: [null, 'in'] } };
+    expect(parseRound(JSON.stringify(r))).toEqual(r);
+  });
+
   it('treats a round with a broken course as unreadable, so it is kept aside', () => {
     const good = newRound(new Date(2026, 10, 19));
     for (const course of [null, 'everis', { ...good.course, id: 3 }, { ...good.course, name: '' }, { ...good.course, front: 1 }, { ...good.course, name: 'x'.repeat(81) }]) {
