@@ -88,6 +88,16 @@ export function courseSource(course: RoundCourse): Course | null {
   return findCourse(course.id) ?? null;
 }
 
+/**
+ * The par a round's course publishes for hole `index` (0-17), found by the nine names the round keeps: par 4 on a
+ * course typed in by hand, null when the bundle no longer has those nines. 파 수정 marks the holes changed from it.
+ */
+export function publishedPar(course: RoundCourse, index: number, courses: readonly Course[] = COURSES): Par | null {
+  if (course.id === null) return 4;
+  const nine = courses.find((x) => x.id === course.id)?.nines.find((n) => n.name.ko === (index < 9 ? course.front : course.back));
+  return nine?.par[index % 9] ?? null;
+}
+
 const MAX_LAYOUT = 40;
 
 function isHttps(url: string): boolean {

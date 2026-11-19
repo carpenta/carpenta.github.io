@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COURSES, distanceLabel, holeInfo, type Course } from '../src/courses';
+import { COURSES, distanceLabel, holeInfo, publishedPar, type Course } from '../src/courses';
 import { courseShape, courseSvg, layoutBend, type CourseFrame } from '../src/course-art';
 import type { RoundCourse } from '../src/round';
 
@@ -69,6 +69,20 @@ describe('hole notes', () => {
     expect(distanceLabel(holeInfo(round, 3, [course]))).toBe('White 165yd');
     expect(distanceLabel({ layout: '우 도그렉' })).toBeNull();
     expect(distanceLabel(null)).toBeNull();
+  });
+});
+
+describe('published par, for 파 수정', () => {
+  it('reads each half from the nine the round keeps, also when one nine is played twice', () => {
+    expect(publishedPar(round, 2, [course])).toBe(5);
+    expect(publishedPar(round, 11, [course])).toBe(4);
+    expect(publishedPar({ ...round, back: '동' }, 11, [course])).toBe(5);
+  });
+
+  it('is par 4 on a course typed in by hand, and unknown when the bundle lost the course or nine', () => {
+    expect(publishedPar({ id: null, name: '동네 골프장', front: '', back: '' }, 0, [course])).toBe(4);
+    expect(publishedPar({ ...round, id: 'gone' }, 0, [course])).toBeNull();
+    expect(publishedPar({ ...round, front: '없는 코스' }, 0, [course])).toBeNull();
   });
 });
 
