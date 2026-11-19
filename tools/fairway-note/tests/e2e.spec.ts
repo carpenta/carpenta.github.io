@@ -270,3 +270,62 @@ test('follows a round saved in another tab', async ({ context }) => {
   await tap(first, 'putts', 2);
   await expect(second.locator('#sum-strokes')).toHaveText('3');
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 375, height: 600 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('records a hole by touch with every counter and the hole bar on one screen', async ({ page }) => {
+    await page.goto('/');
+    // Moving to a hole places its card under the summary; do the same for the first hole.
+    await page.locator('#hole-tabs button').nth(1).tap();
+    await page.locator('#prev-hole').tap();
+    await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+    const summary = (await page.locator('.summary').boundingBox())!;
+    const bar = (await page.locator('.hole-move').boundingBox())!;
+    expect(bar.y + bar.height).toBeCloseTo(600, 0);
+    for (const key of ['driver', 'approach', 'putts', 'ob', 'mulligan']) {
+      const plus = (await page.locator(`.counter-${key} .plus`).boundingBox())!;
+      expect(plus.y).toBeGreaterThanOrEqual(summary.y + summary.height);
+      expect(plus.y + plus.height / 2).toBeLessThan(bar.y);
+      expect(plus.height).toBeGreaterThanOrEqual(48);
+      expect(plus.width).toBeGreaterThanOrEqual(48);
+    }
+    await page.locator('.counter-driver .plus').tap();
+    await page.locator('.counter-approach .plus').tap();
+    await page.locator('.counter-putts .plus').tap();
+    await page.locator('.counter-putts .plus').tap();
+    await expect(page.locator('#hole-strokes')).toHaveText('4');
+    await page.locator('#next-hole').tap();
+    await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+    await expect(page.locator('#sum-strokes')).toHaveText('4');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+  });
+
+  test('keeps the end of the page clear of the hole bar', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const bar = (await page.locator('.hole-move').boundingBox())!;
+    const button = (await page.locator('#new-round').boundingBox())!;
+    expect(button.y + button.height).toBeLessThanOrEqual(bar.y);
+  });
+
+  test('fits a 320px screen', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto('/');
+    await page.locator('.counter-ob .plus').tap();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+  });
+});
+
+test('can be added to the home screen', async ({ page, request }) => {
+  await page.goto('/');
+  const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(href).toBe('./manifest.webmanifest');
+  const manifest = await (await request.get(href!)).json();
+  expect(manifest).toMatchObject({ short_name: 'Fairway Note', start_url: './', scope: './', display: 'standalone' });
+  for (const icon of [...manifest.icons.map((i: { src: string }) => i.src), 'apple-touch-icon.png']) {
+    const response = await request.get(icon);
+    expect(response.status(), icon).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+  }
+});

@@ -8,6 +8,12 @@
     <meta name="theme-color" content="#1f5a3a" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Fairway Note" />
+    <meta name="format-detection" content="telephone=no" />
     <title>Fairway Note — 에버리스 동코스 스코어 노트</title>
   </head>
   <body>
@@ -54,10 +60,10 @@
         </div>
         <p class="hole-score"><b id="hole-strokes">0</b>타 <span id="hole-topar" class="topar"></span> <span id="hole-name" class="score-name"></span></p>
         <div id="counters" class="counters"></div>
-        <div class="hole-move">
+        <nav class="hole-move" aria-label="홀 이동">
           <button id="prev-hole" class="btn" type="button">◀ 이전 홀</button>
           <button id="next-hole" class="btn primary" type="button">다음 홀 ▶</button>
-        </div>
+        </nav>
       </section>
 
       <section class="card" aria-labelledby="card-title">

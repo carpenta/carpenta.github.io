@@ -88,8 +88,16 @@ function setHole(patch: (h: Hole) => Hole): void {
 function go(index: number): void {
   if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
   update({ ...round, current: index });
-  $('hole-card').scrollIntoView({ block: 'nearest' });
+  showHoleCard();
   announce(`${index + 1}번 홀, Par ${hole().par}`);
+}
+
+/** Brings the whole hole card between the sticky summary and the fixed hole bar, if it is not already there. */
+function showHoleCard(): void {
+  const card = $('hole-card').getBoundingClientRect();
+  const top = document.querySelector('.summary')!.getBoundingClientRect().bottom;
+  const bottom = document.querySelector('.hole-move')!.getBoundingClientRect().top;
+  if (card.top < top || card.bottom > bottom) $('hole-card').scrollIntoView({ block: 'start' });
 }
 
 function toParClass(toPar: number): string {

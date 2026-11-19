@@ -34,6 +34,9 @@ Analysis covers played holes only:
 - Hole tabs in two rows of nine show each hole's strokes coloured by score.
 - Counter buttons are at least 52px tall. Minus is disabled at zero and plus at 15. White on the accent colours keeps at least 4.5:1 contrast.
 - One polite live region announces each change ("3번 홀 퍼터 2, 5타") and each hole change; counters and other text are rewritten only when their value changes.
+- Previous/next hole buttons sit in a fixed bottom bar padded for the home indicator. Changing hole scrolls the hole card just under the sticky summary when it is not fully visible, so at 375×600 every counter and the bar fit on one screen. The page keeps bottom padding equal to the bar. On screens 440px tall or less (landscape) the summary is not sticky.
+- `touch-action: manipulation`, no tap highlight and no text selection on buttons, so rapid taps never zoom or select. Safe-area insets pad the header, page and bar.
+- A web app manifest and PNG icons (rendered once by `scripts/make-icons.mjs`) let the page open standalone from the home screen.
 - The par picker is a radio group with roving tabindex and arrow keys.
 - `scroll-margin-top` on the hole card and `scroll-padding-top` on the page keep the hole title and focused controls below the sticky summary.
 - The scorecard splits into front and back nine tables so it fits 360px without horizontal scrolling. Hole numbers jump to that hole.
@@ -42,4 +45,4 @@ Analysis covers played holes only:
 ## Verification
 
 - Vitest unit tests for the model and storage.
-- Playwright Chromium e2e for tapping and totals, holes in progress and chip-ins, analysis text, reload and reset, broken saved data, storage failure, earlier-day rounds, another tab's save, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.
+- Playwright Chromium e2e, including a 375×600 touch phone (one-screen layout, tap entry, bar clearance), 320px width and the manifest, for tapping and totals, holes in progress and chip-ins, analysis text, reload and reset, broken saved data, storage failure, earlier-day rounds, another tab's save, navigation and the sticky-summary offset, the par radio keys, the live region, no console errors or CSP violations, no external requests, no storage beyond the round key, the back link and no horizontal scroll at 360px.
