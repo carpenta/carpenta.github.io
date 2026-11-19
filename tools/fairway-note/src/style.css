@@ -347,3 +347,48 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   cursor: pointer;
 }
 .update-prompt:disabled { opacity: .7; cursor: default; }
+
+/* Optional shot details: chips for the shot just added, laid over the hole title, par and score line.
+   Positioned absolutely so showing them never moves a counter or grows the card. */
+.hole-top { position: relative; display: flow-root; }
+.shot-tray {
+  position: absolute;
+  inset: -4px -4px 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 10px;
+}
+.shot-tray[hidden] { display: none; }
+.tray-shot { flex: none; padding-right: 2px; font-size: 12px; line-height: 1.15; color: var(--muted); text-align: center; }
+.tray-shot b { display: block; color: var(--ink); font-size: 13px; }
+.chip {
+  flex: none;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1.5px solid var(--green);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip[aria-pressed='true'] { background: var(--green); color: #fff; }
+.chip.ob { border-color: var(--accent); color: var(--accent); }
+.chip.ob[aria-pressed='true'] { background: var(--accent); color: #fff; }
+.chip:active { transform: scale(.96); }
+/* The counter whose shot the chips belong to. An inset ring, so nothing moves. */
+.counter.tagging { box-shadow: inset 0 0 0 2px var(--green); }
+
+/* Tapping a count opens the chips for that counter's shots; a dot shows a counter with tags on this hole. */
+.count-btn { position: relative; display: grid; place-items: center; height: 100%; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
+.count-btn:disabled { cursor: default; }
+.count-btn.has-tags::after { content: ''; position: absolute; bottom: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--green); }
