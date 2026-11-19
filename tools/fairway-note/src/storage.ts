@@ -95,7 +95,7 @@ export function parseRound(text: string | null): Round | null {
 }
 
 /** The saved round, and whether reading it dropped shot details (then the original is copied aside before saving). */
-function readRound(text: string | null): { round: Round; lossy: boolean } | null {
+export function readRound(text: string | null): { round: Round; lossy: boolean } | null {
   if (!text) return null;
   let o: unknown;
   try {
@@ -121,7 +121,7 @@ function readRound(text: string | null): { round: Round; lossy: boolean } | null
   }
   return { round, lossy: read.some((x) => x!.lossy) };
 }
-function store(): KV | null {
+export function store(): KV | null {
   try {
     return window.localStorage;
   } catch {
@@ -146,6 +146,17 @@ function corruptKeys(kv: KV): string[] {
   return keys.sort((a, b) => Number(a.slice(CORRUPT_PREFIX.length)) - Number(b.slice(CORRUPT_PREFIX.length)));
 }
 
+/** Copies `raw` to `<CORRUPT_PREFIX><timestamp>` unless an identical copy exists, keeping the newest MAX_CORRUPT. Throws when storage refuses. */
+export function keepAside(kv: KV, raw: string, now = Date.now()): void {
+  const keys = corruptKeys(kv);
+  if (keys.some((k) => kv.getItem(k) === raw)) return;
+  let key = `${CORRUPT_PREFIX}${now}`;
+  while (kv.getItem(key) !== null) key = `${CORRUPT_PREFIX}${++now}`;
+  kv.setItem(key, raw);
+  keys.push(key);
+  for (const old of keys.slice(0, Math.max(0, keys.length - MAX_CORRUPT))) kv.removeItem(old);
+}
+
 /**
  * Copies a stored value this version cannot read (broken, or from a newer version) aside so it is never lost.
  * A round that reads only by dropping shot details it does not know is copied aside too, before it is saved over.
@@ -157,13 +168,7 @@ export function preserveUnreadable(kv: KV | null = store(), now = Date.now()): '
     const raw = kv.getItem(STORAGE_KEY);
     const read = raw === null ? null : readRound(raw);
     if (raw === null || (read !== null && !read.lossy)) return 'none';
-    const keys = corruptKeys(kv);
-    if (keys.some((k) => kv.getItem(k) === raw)) return 'kept';
-    let key = `${CORRUPT_PREFIX}${now}`;
-    while (kv.getItem(key) !== null) key = `${CORRUPT_PREFIX}${++now}`;
-    kv.setItem(key, raw);
-    keys.push(key);
-    for (const old of keys.slice(0, Math.max(0, keys.length - MAX_CORRUPT))) kv.removeItem(old);
+    keepAside(kv, raw, now);
     return 'kept';
   } catch {
     return 'failed';
