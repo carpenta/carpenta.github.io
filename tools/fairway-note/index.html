@@ -157,6 +157,18 @@
           <button type="button" class="btn primary" id="now-continue">이어서 기록</button>
         </section>
         <!-- Filled by renderHistory(); the view can be mounted into any container. -->
+        <!-- Right after a round is kept from the summary: a calm reminder to save a backup file. Never a pop-up. -->
+        <section class="box home-card" id="backup-card" aria-labelledby="bk-h" hidden>
+          <div class="nc-head">
+            <span class="nc-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 4v10.5M8 10.5l4 4 4-4M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <h3 id="bk-h">라운드를 보관했어요</h3>
+          </div>
+          <p class="hc-text" id="bk-text">기록은 이 기기에만 있어요. 폰을 바꾸거나 브라우저가 기록을 지울 때를 대비해 백업 파일을 저장해 두세요.</p>
+          <div class="nc-row">
+            <button type="button" class="btn primary" id="bk-save">백업 파일 저장</button>
+            <button type="button" class="btn" id="bk-later">나중에</button>
+          </div>
+        </section>
         <!-- Once a round is kept: one calm line about the home screen, the steps behind 방법 보기. Never on 기록. -->
         <section class="box home-card" id="home-card" aria-labelledby="home-h" hidden>
           <div class="nc-head">

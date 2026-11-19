@@ -1162,6 +1162,7 @@ function keepFinishedRound(): void {
   clearRound();
   round = newRound(new Date(), roundSetup(resolveChoice(loadPrefs())));
   roundless = true;
+  backupNudge = 'ask';
   render();
   show('hist', true);
   announce('지난 라운드에 보관했어요. 다음 라운드는 코스를 고르고 시작해요');
@@ -1398,8 +1399,33 @@ function renderNow(a: Analysis = analyze(round)): void {
   score.classList.toggle('none', !t.holes);
   const kept = document.querySelectorAll('#history-list > li').length;
   setText($('hist-sub'), kept ? `보관한 라운드 ${kept}개` : '아직 보관한 라운드가 없어요');
-  // The home-screen card: once a round is kept, until 알겠어요, and not when opened from the home screen.
-  $('home-card').hidden = !kept || homeSeen || standalone();
+  // The backup reminder after keeping a round; the home-screen card otherwise (once a round is kept, until 알겠어요,
+  // and not when opened from the home screen). Never both at once.
+  const card = $('backup-card');
+  card.hidden = backupNudge === null;
+  setText($('bk-h'), backupNudge === 'saved' ? '백업 파일을 저장했어요' : '라운드를 보관했어요');
+  setText($('bk-text'), backupNudge === 'saved' ? '폰을 바꾸면 메뉴의 백업과 복원에서 이 파일을 열면 돼요.' : '기록은 이 기기에만 있어요. 폰을 바꾸거나 브라우저가 기록을 지울 때를 대비해 백업 파일을 저장해 두세요.');
+  $('bk-save').hidden = backupNudge === 'saved';
+  setText($('bk-later'), backupNudge === 'saved' ? '닫기' : '나중에');
+  $('home-card').hidden = !kept || homeSeen || standalone() || backupNudge !== null;
+}
+
+/** Set when a round is kept from the summary; cleared with 나중에 or 닫기. In memory only. */
+let backupNudge: 'ask' | 'saved' | null = null;
+
+function bindBackupCard(): void {
+  $('bk-save').addEventListener('click', () => {
+    // The same download as the menu's 백업과 복원.
+    $('backup-save').click();
+    backupNudge = 'saved';
+    renderNow();
+    $('bk-later').focus();
+  });
+  $('bk-later').addEventListener('click', () => {
+    backupNudge = null;
+    renderNow();
+    $('tab-hist').focus();
+  });
 }
 
 let homeSeen = loadDisplay().home;
@@ -1483,6 +1509,7 @@ function bind(): void {
   $('toast-undo').addEventListener('click', restore);
   $('now-continue').addEventListener('click', () => show('entry'));
   bindHomeCard();
+  bindBackupCard();
   bindSummary();
   setText($('picker-version'), VERSION_LABEL);
   bindSwipe();

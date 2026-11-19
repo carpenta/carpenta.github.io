@@ -662,6 +662,17 @@ test('once a round is kept, 지난 라운드 suggests the home screen in one lin
   await page.getByRole('button', { name: '그대로 마치기' }).click();
   await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
   await expect(page.locator('#hist-view')).toBeVisible();
+  // First a calm backup reminder, alone; saving downloads the backup file and says so.
+  const reminder = page.locator('#backup-card');
+  await expect(reminder).toBeVisible();
+  await expect(page.locator('#bk-h')).toHaveText('라운드를 보관했어요');
+  await expect(card).toBeHidden();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: '백업 파일 저장' }).first().click();
+  expect((await download).suggestedFilename()).toMatch(/^fairway-note-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  await expect(page.locator('#bk-h')).toHaveText('백업 파일을 저장했어요');
+  await page.getByRole('button', { name: '닫기', exact: true }).click();
+  await expect(reminder).toBeHidden();
   await expect(card).toBeVisible();
   await expect(card.locator('h3')).toHaveText('홈 화면에 추가하면 기록이 더 오래 남아요');
   await expect(page.locator('#hc-more')).toBeHidden();
