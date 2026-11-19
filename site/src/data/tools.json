@@ -22,10 +22,10 @@
   {
     "slug": "fairway-note",
     "kind": "built",
-    "title": { "ko": "Fairway Note — 에버리스 새별·레이크 스코어 노트", "en": "Fairway Note — golf score notes for Everis Saebyul and Lake" },
+    "title": { "ko": "Fairway Note — 골프 스코어 노트", "en": "Fairway Note — golf score notes" },
     "description": {
-      "ko": "라운드 중 홀마다 드라이버·어프로치·퍼트·OB·멀리건을 탭으로 세고, 합계와 라운드 분석을 바로 봅니다.",
-      "en": "Tap to count drives, approaches, putts, OBs and mulligans on each hole during a round, with live totals and a round analysis."
+      "ko": "골프장을 고르면 공식 Par로 시작하고, 라운드 중 홀마다 드라이버·어프로치·퍼트·OB·멀리건을 탭으로 세며 합계와 라운드 분석을 바로 봅니다.",
+      "en": "Pick a course to start from its official pars, then tap to count drives, approaches, putts, OBs and mulligans on each hole, with live totals and a round analysis."
     },
     "tags": ["Golf", "Scorecard"]
   }
