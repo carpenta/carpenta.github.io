@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COURSES, distanceLabel, holeInfo, publishedPar, type Course } from '../src/courses';
-import { courseShape, courseSvg, layoutBend, type CourseFrame } from '../src/course-art';
+import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from '../src/course-art';
 import type { RoundCourse } from '../src/round';
 
 /** A course with notes on some holes of its first nine and none on its second. Synthetic: not bundled. */
@@ -148,6 +148,14 @@ describe('drawn course behind the screen', () => {
     // A bent green still stays left of the badge.
     const bent = courseShape(4, 0, frame, 1);
     expect(bent.green.cx + bent.green.rx * 0.75).toBeLessThanOrEqual(frame.right + 0.5);
+  });
+
+  it('puts water round the green only where the note names an island green', () => {
+    expect(layoutIsland('아일랜드 홀')).toBe(true);
+    expect(layoutIsland('좌우 해저드, 좌측 벙커')).toBe(false);
+    expect(layoutIsland(undefined)).toBe(false);
+    expect(courseSvg(courseShape(3, 6, frame, 0, true), frame)).toContain('class="water"');
+    expect(courseSvg(courseShape(3, 6, frame, 0), frame)).not.toContain('class="water"');
   });
 
   it('leaves the flag out when the open band is too short to show it whole', () => {

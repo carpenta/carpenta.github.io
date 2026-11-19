@@ -11,6 +11,11 @@ export function layoutBend(layout: string | undefined): Bend {
   return m[1] === '좌' || m[1] === '왼' ? -1 : 1;
 }
 
+/** An island green named in a hole's layout note ("아일랜드 홀"): the only water the drawing shows. */
+export function layoutIsland(layout: string | undefined): boolean {
+  return /아일랜드/.test(layout ?? '');
+}
+
 /** The screen the course is drawn behind, in CSS pixels. */
 export interface CourseFrame {
   width: number;
@@ -22,7 +27,7 @@ export interface CourseFrame {
   right: number;
 }
 
-/** Our own plan of a hole, tee at the bottom of the screen and green at the top. No bunkers or water are invented. */
+/** Our own plan of a hole, tee at the bottom of the screen and green at the top. No bunkers are drawn, and water only round an island green the note names. */
 export interface CourseShape {
   /** `outline` scales the green's radius at eight points round it, so each hole's green looks its own. */
   green: { cx: number; cy: number; rx: number; ry: number; outline: number[] };
@@ -31,6 +36,8 @@ export interface CourseShape {
   tee: { x: number; y: number; width: number };
   /** The fairway's outline, from in front of the tee to in front of the green; null on a par 3. */
   fairway: [number, number][] | null;
+  /** Water round the green, for an island green. */
+  water: boolean;
 }
 
 // Per-hole variety without inventing features: where the pin stands and the outline of the green.
@@ -40,7 +47,7 @@ const GREENS = [[1, 0.92, 1.06, 0.95, 1.02, 0.9, 1.04, 0.97], [0.95, 1.05, 0.92,
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 
-export function courseShape(par: Par, index: number, frame: CourseFrame, bend: Bend): CourseShape {
+export function courseShape(par: Par, index: number, frame: CourseFrame, bend: Bend, island = false): CourseShape {
   const { width: W, height: H, bandTop, bandBottom, right } = frame;
   const i = ((index % PIN.length) + PIN.length) % PIN.length;
   const k = par === 3 ? 0 : par === 4 ? 1 : 2;
@@ -77,6 +84,7 @@ export function courseShape(par: Par, index: number, frame: CourseFrame, bend: B
     pin: band >= 30 ? { x: cx + rx * PIN[i][0], y: pinY, pole } : null,
     tee,
     fairway,
+    water: island,
   };
 }
 
@@ -117,6 +125,10 @@ export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
     const a = (j / g.outline.length) * Math.PI * 2;
     return [g.cx + Math.cos(a) * g.rx * r * s, g.cy + Math.sin(a) * g.ry * r * s];
   });
+  if (shape.water) {
+    out.push(`<path class="water" d="${smooth(ring(1.75))}" fill="#5E9DC2"/>`);
+    out.push(`<path d="${smooth(ring(1.62))}" fill="none" stroke="#7FB4D3" stroke-width="3"/>`);
+  }
   out.push(`<path d="${smooth(ring(1.14))}" fill="#74B95E"/>`);
   out.push(`<path class="green" d="${smooth(ring(1))}" fill="url(#course-dome)"/>`);
   if (pin) {
