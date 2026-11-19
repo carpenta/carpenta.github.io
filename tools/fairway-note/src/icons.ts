@@ -12,6 +12,8 @@ export const COUNTER_ICONS: Record<Counter, string> = {
   putts: `<svg viewBox="0 0 24 24" ${STROKE} aria-hidden="true"><path d="M15 3 13.4 15.5"/><rect x="5" y="15.5" width="13.5" height="4.5" rx="1.6" fill="currentColor"/></svg>`,
   // OB: the white out-of-bounds stake.
   ob: `<svg viewBox="0 0 24 24" ${STROKE} aria-hidden="true"><path d="M10 4h4v12.5L12 20l-2-3.5z" fill="currentColor"/><path d="M9 7.5h6" class="icon-band"/><path d="M6 21h12"/></svg>`,
+  // Hazard: the penalty area stake standing at the water's edge.
+  hazard: `<svg viewBox="0 0 24 24" ${STROKE} aria-hidden="true"><path d="M10 3h4v11.5L12 18l-2-3.5z" fill="currentColor"/><path d="M4 21c1.3-1.1 2.7-1.1 4 0s2.7 1.1 4 0 2.7-1.1 4 0 2.7 1.1 4 0"/></svg>`,
   // Mulligan: hit it again.
   mulligan: `<svg viewBox="0 0 24 24" ${STROKE} aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"/><path d="M4.5 3.5v4.2h4.2"/></svg>`,
 };

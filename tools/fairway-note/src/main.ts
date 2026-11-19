@@ -50,6 +50,7 @@ const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
   approach: { label: '어프로치', hint: '두 번째 샷부터 그린 전까지' },
   putts: { label: '퍼터', hint: '그린 위 퍼트' },
   ob: { label: 'OB', hint: '1벌타가 타수에 더해짐' },
+  hazard: { label: '해저드', hint: '1벌타가 타수에 더해짐' },
   mulligan: { label: '멀리건', hint: '표시만, 타수에 넣지 않음' },
 };
 

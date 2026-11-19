@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newRound, type Hole } from '../src/round';
 import { dateLabel, mailtoHref, reportSubject, reportText } from '../src/report';
 
-const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, mulligan });
+const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
 
 function sample() {
   const r = newRound(new Date(2026, 10, 19));

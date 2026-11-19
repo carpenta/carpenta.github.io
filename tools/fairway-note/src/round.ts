@@ -32,8 +32,10 @@ export function courseLabel(c: RoundCourse): string {
   return nines ? `${c.name} ${nines}` : c.name;
 }
 
-/** Counted items on a hole. OB adds one penalty stroke each; mulligans are noted but never counted. */
-export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'mulligan'] as const;
+/** Counted items on a hole. OB and hazard add one penalty stroke each; mulligans are noted but never counted. */
+export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'hazard', 'mulligan'] as const;
+/** Penalties: each adds one stroke. */
+export const PENALTIES = ['ob', 'hazard'] as const;
 export type Counter = (typeof COUNTERS)[number];
 export const MAX_COUNT = 15;
 
@@ -66,6 +68,8 @@ export interface Hole {
   approach: number;
   putts: number;
   ob: number;
+  /** Penalty area drops, one penalty stroke each. Rounds saved before it existed read as 0. */
+  hazard: number;
   mulligan: number;
   /** Optional shot details. Missing when nothing is tagged, and in rounds saved before tags existed. */
   tags?: ShotTags;
@@ -86,7 +90,7 @@ export interface Round {
 }
 
 export function emptyHole(par: Par = DEFAULT_PAR): Hole {
-  return { par, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 };
+  return { par, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0 };
 }
 
 export function localDate(now = new Date()): string {
@@ -167,9 +171,9 @@ export function bump(hole: Hole, key: Counter, delta: number): Hole {
   return out;
 }
 
-/** Strokes on the card: every shot plus one penalty stroke per OB. */
+/** Strokes on the card: every shot plus one penalty stroke per OB and per hazard. */
 export function strokes(h: Hole): number {
-  return h.driver + h.approach + h.putts + h.ob;
+  return h.driver + h.approach + h.putts + h.ob + h.hazard;
 }
 
 /** A hole counts as played once a shot or penalty is entered. Mulligans alone do not. */
@@ -197,9 +201,9 @@ export function finished(round: Round, index: number): boolean {
   return played(h) && (h.putts > 0 || index !== round.current);
 }
 
-/** Green in regulation: on the green (at least one putt) in par minus two shots. */
+/** Green in regulation: on the green (at least one putt) in par minus two strokes, penalty strokes included. */
 export function gir(h: Hole): boolean {
-  return h.putts > 0 && h.driver + h.approach + h.ob <= h.par - 2;
+  return h.putts > 0 && h.driver + h.approach + h.ob + h.hazard <= h.par - 2;
 }
 
 export interface Totals {
@@ -210,12 +214,13 @@ export interface Totals {
   driver: number;
   approach: number;
   ob: number;
+  hazard: number;
   mulligan: number;
 }
 
 /** Totals of the finished holes in [start, end). Mulligans count on every hole. */
 export function totals(round: Round, start = 0, end = round.holes.length): Totals {
-  const t: Totals = { holes: 0, par: 0, strokes: 0, putts: 0, driver: 0, approach: 0, ob: 0, mulligan: 0 };
+  const t: Totals = { holes: 0, par: 0, strokes: 0, putts: 0, driver: 0, approach: 0, ob: 0, hazard: 0, mulligan: 0 };
   for (let i = start; i < end; i++) {
     const h = round.holes[i];
     t.mulligan += h.mulligan;
@@ -227,6 +232,7 @@ export function totals(round: Round, start = 0, end = round.holes.length): Total
     t.driver += h.driver;
     t.approach += h.approach;
     t.ob += h.ob;
+    t.hazard += h.hazard;
   }
   return t;
 }
@@ -251,7 +257,7 @@ export function scoreName(toPar: number): ScoreName {
 }
 
 export type Area = 'driver' | 'approach' | 'putts' | 'penalty';
-export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '어프로치', putts: '퍼트', penalty: 'OB 벌타' };
+export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '어프로치', putts: '퍼트', penalty: '벌타' };
 
 export interface Analysis {
   totals: Totals;
@@ -264,7 +270,7 @@ export interface Analysis {
   girHoles: number;
   distribution: Record<ScoreName, number>;
   byPar: { par: Par; holes: number; average: number }[];
-  /** Strokes over a regulation pattern (one tee shot, par−3 approaches, two putts) per area, never offset by a better hole. */
+  /** Strokes over a regulation pattern (one tee shot, par−3 approaches, two putts) per area, never offset by a better hole. Penalties are OB and hazard strokes. */
   lost: Record<Area, number>;
   /** Areas with the most lost strokes; several when tied, empty when nothing was lost. */
   worstAreas: Area[];
@@ -314,7 +320,7 @@ export function analyze(round: Round): Analysis {
     lost.driver += Math.max(0, h.driver - 1);
     lost.approach += Math.max(0, h.approach - (h.par - 3));
     lost.putts += Math.max(0, h.putts - 2);
-    lost.penalty += h.ob;
+    lost.penalty += h.ob + h.hazard;
     if (!best || diff < best.toPar) best = { hole: i + 1, toPar: diff };
     if (!worst || diff > worst.toPar) worst = { hole: i + 1, toPar: diff };
   }

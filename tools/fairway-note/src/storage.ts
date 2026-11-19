@@ -72,8 +72,10 @@ function parseHole(v: unknown): { hole: Hole; lossy: boolean } | null {
   if (!PARS.includes(o.par as Par)) return null;
   const hole = { par: o.par as Par } as Hole;
   for (const key of COUNTERS) {
-    if (!isCount(o[key])) return null;
-    hole[key] = o[key] as number;
+    // Rounds saved before the hazard counter have none. Any count present must be valid: it is part of the score.
+    const v = key === 'hazard' && o[key] === undefined ? 0 : o[key];
+    if (!isCount(v)) return null;
+    hole[key] = v;
   }
   const lossy = readTags(hole, o);
   return { hole, lossy };
