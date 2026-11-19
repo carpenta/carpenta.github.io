@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SHOT_TAGS, analyze, bump, emptyHole, newRound, setTag, strokes, tagAt, type Hole, type Round } from '../src/round';
+import { SHOT_TAGS, TAG_LABELS, analyze, bump, emptyHole, newRound, setTag, setTeeTag, strokes, tagAt, teeTag, type Hole, type Round } from '../src/round';
 import { detailLines, reportText } from '../src/report';
 import { CORRUPT_PREFIX, STORAGE_KEY, loadRound, parseRound, preserveUnreadable, saveRound } from '../src/storage';
 
@@ -81,10 +81,38 @@ describe('shot tags', () => {
     expect(setTag(noOb, 'driver', 0, null)).toEqual(shots(emptyHole(), 1));
   });
 
-  it('offers the agreed chips per counter', () => {
-    expect(SHOT_TAGS.driver).toEqual(['fairway', 'left', 'right', 'ob-left', 'ob-right', 'whiff', 'mishit']);
+  it('offers the agreed chips per counter, with the 상세 pad directions for drives', () => {
+    expect(SHOT_TAGS.driver).toEqual(['fairway', 'left', 'right', 'far-left', 'far-right', 'long', 'short', 'ob-left', 'ob-right', 'whiff', 'mishit']);
     expect(SHOT_TAGS.approach).toEqual(['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff']);
     expect(SHOT_TAGS.putts).toEqual(['in', 'short', 'long', 'left', 'right']);
+    expect(TAG_LABELS.driver).toMatchObject({ 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음' });
+  });
+});
+
+describe('tee shot on the 상세 pad', () => {
+  it('tags the first drive, counting the tee shot when none is counted yet', () => {
+    const right = setTeeTag(emptyHole(), 'right');
+    expect(right).toEqual({ ...shots(emptyHole(), 1), tags: { driver: ['right'] } });
+    expect(teeTag(right)).toBe('right');
+    expect(teeTag(emptyHole())).toBeNull();
+    // A second drive is not touched: the pad is about the tee shot.
+    const two = setTeeTag(shots(emptyHole(), 2), 'far-left');
+    expect(two.tags).toEqual({ driver: ['far-left'] });
+    expect(two.driver).toBe(2);
+  });
+
+  it('changes or clears the tee result without changing the count', () => {
+    const h = setTeeTag(emptyHole(), 'long');
+    expect(setTeeTag(h, 'whiff')).toEqual({ ...shots(emptyHole(), 1), tags: { driver: ['whiff'] } });
+    expect(setTeeTag(h, null)).toEqual(shots(emptyHole(), 1));
+    const untouched = emptyHole();
+    expect(setTeeTag(untouched, null)).toBe(untouched);
+  });
+
+  it('takes back an OB the tee shot tag added when the direction changes, as a chip would', () => {
+    const ob = setTag(shots(emptyHole(), 1), 'driver', 0, 'ob-right');
+    expect(ob.ob).toBe(1);
+    expect(setTeeTag(ob, 'right').ob).toBe(0);
   });
 });
 
@@ -169,6 +197,18 @@ describe('detail analysis', () => {
     expect(text).toContain('- 티샷 방향: 좌 2 (OB 1) · 우 1 (OB 0)');
     expect(text).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2 · 드 좌 · 퍼 짧음');
     expect(text).toContain('2번 Par4: 6타 (+2) 드2 어1 퍼2 OB 1 · 드 좌 OB, 페어웨이');
+  });
+
+  it('counts far left and far right with left and right in the tee direction', () => {
+    const r = newRound(new Date(2026, 10, 19));
+    r.holes[0] = setTeeTag(shots(emptyHole(), 1, 1, 2), 'far-left');
+    r.holes[1] = setTeeTag(shots(emptyHole(), 1, 1, 2), 'left');
+    r.holes[2] = setTeeTag(shots(emptyHole(), 1, 1, 2), 'far-right');
+    r.current = 3;
+    const lines = detailLines(analyze(r));
+    expect(lines).toContain('티샷: 좌 1 · 많이 좌 1 · 많이 우 1');
+    expect(lines).toContain('티샷 방향: 좌 2 (OB 0) · 우 1 (OB 0)');
+    expect(reportText(r)).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2 · 드 많이 좌');
   });
 
   it('counts whiffs and misses in the report', () => {

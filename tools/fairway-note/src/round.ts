@@ -45,14 +45,18 @@ export type Tagged = (typeof TAGGED)[number];
 
 /** Detail chips per counter, in display order. Stored values; labels are in TAG_LABELS. */
 export const SHOT_TAGS = {
-  driver: ['fairway', 'left', 'right', 'ob-left', 'ob-right', 'whiff', 'mishit'],
+  // far-left, far-right, long and short came with the tee-shot pad of the 상세 card.
+  driver: ['fairway', 'left', 'right', 'far-left', 'far-right', 'long', 'short', 'ob-left', 'ob-right', 'whiff', 'mishit'],
   approach: ['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff'],
   putts: ['in', 'short', 'long', 'left', 'right'],
 } as const satisfies Record<Tagged, readonly string[]>;
 export type ShotTag<K extends Tagged = Tagged> = (typeof SHOT_TAGS)[K][number];
 
 export const TAG_LABELS: { [K in Tagged]: Record<ShotTag<K>, string> } = {
-  driver: { fairway: '페어웨이', left: '좌', right: '우', 'ob-left': '좌 OB', 'ob-right': '우 OB', whiff: '헛스윙', mishit: '뒤땅/토핑' },
+  driver: {
+    fairway: '페어웨이', left: '좌', right: '우', 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음',
+    'ob-left': '좌 OB', 'ob-right': '우 OB', whiff: '헛스윙', mishit: '뒤땅/토핑',
+  },
   approach: { green: '온그린', short: '짧음', long: '김', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙' },
   putts: { in: '들어감', short: '짧음', long: '김', left: '좌', right: '우' },
 };
@@ -157,6 +161,17 @@ export function setTag<K extends Tagged>(hole: Hole, key: K, index: number, tag:
   return withTags(hole, key, list, ob, link);
 }
 
+/** The tee shot's result on the 상세 pad: the first drive's tag. */
+export function teeTag(hole: Hole): ShotTag<'driver'> | null {
+  return tagAt(hole, 'driver', 0);
+}
+
+/** Sets the tee shot's result (null clears it). A result with no drive counted yet counts the tee shot first. */
+export function setTeeTag(hole: Hole, tag: ShotTag<'driver'> | null): Hole {
+  if (tag === null) return hole.driver ? setTag(hole, 'driver', 0, null) : hole;
+  return setTag(hole.driver ? hole : bump(hole, 'driver', 1), 'driver', 0, tag);
+}
+
 export function bump(hole: Hole, key: Counter, delta: number): Hole {
   const next = Math.min(MAX_COUNT, Math.max(0, hole[key] + delta));
   if (next === hole[key]) return hole;
@@ -246,6 +261,15 @@ export const SCORE_LABELS: Record<ScoreName, string> = {
   double: '더블 보기',
   triple: '트리플 이상',
 };
+
+/** A hole's score in the words golfers use, for the score badge: 홀인원, 알바트로스 … 쿼드러플 보기, then +n. */
+export function scoreWord(strokes: number, par: number): string {
+  if (strokes === 1) return '홀인원';
+  const d = strokes - par;
+  if (d <= -3) return '알바트로스';
+  const words: Record<number, string> = { [-2]: '이글', [-1]: '버디', 0: '파', 1: '보기', 2: '더블 보기', 3: '트리플 보기', 4: '쿼드러플 보기' };
+  return words[d] ?? `+${d}`;
+}
 
 export function scoreName(toPar: number): ScoreName {
   if (toPar <= -2) return 'eagle';

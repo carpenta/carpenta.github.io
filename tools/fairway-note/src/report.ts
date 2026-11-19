@@ -36,8 +36,8 @@ export function detailLines(a: Analysis): string[] {
     if (key === 'driver') {
       const obL = d.driver['ob-left'] ?? 0;
       const obR = d.driver['ob-right'] ?? 0;
-      const left = (d.driver.left ?? 0) + obL;
-      const right = (d.driver.right ?? 0) + obR;
+      const left = (d.driver.left ?? 0) + (d.driver['far-left'] ?? 0) + obL;
+      const right = (d.driver.right ?? 0) + (d.driver['far-right'] ?? 0) + obR;
       if (left + right) out.push(`티샷 방향: 좌 ${left} (OB ${obL}) · 우 ${right} (OB ${obR})`);
     }
     if (key === 'putts') {

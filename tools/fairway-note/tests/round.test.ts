@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
+import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, scoreWord, strokes, totals, type Hole, type Round } from '../src/round';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
 
@@ -90,6 +90,14 @@ describe('hole', () => {
   it('names scores against par', () => {
     expect([-3, -2, -1, 0, 1, 2, 3, 6].map(scoreName)).toEqual(['eagle', 'eagle', 'birdie', 'par', 'bogey', 'double', 'triple', 'triple']);
     expect([0, 3, -2].map(formatToPar)).toEqual(['E', '+3', '-2']);
+  });
+
+  it('words a hole score as golfers say it, for the score badge', () => {
+    expect(scoreWord(1, 3)).toBe('홀인원');
+    expect(scoreWord(1, 4)).toBe('홀인원');
+    expect(scoreWord(2, 5)).toBe('알바트로스');
+    expect([2, 3, 4, 5, 6, 7, 8].map((s) => scoreWord(s, 4))).toEqual(['이글', '버디', '파', '보기', '더블 보기', '트리플 보기', '쿼드러플 보기']);
+    expect(scoreWord(9, 4)).toBe('+5');
   });
 });
 
