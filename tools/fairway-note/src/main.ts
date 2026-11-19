@@ -49,6 +49,8 @@ type Penalty = (typeof PENALTIES)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'none';
 
 const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건' };
+/** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
+const labelOf = (key: Counter, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
 const PLUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const MINUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 /** The OB stake is white with a dark band, the hazard stake red, as on a course. */
@@ -159,6 +161,11 @@ const PANEL_ID: Record<View, string> = { card: 'card-view', entry: 'entry', hist
 let view: View = 'entry';
 
 function show(next: View, focusTab = false): void {
+  // With no round yet (one was just kept), 기록 and 스코어카드 open the course picker over 지난 라운드.
+  if (roundless && next !== 'hist') {
+    pickFirst();
+    return;
+  }
   const changed = next !== view;
   view = next;
   for (const v of VIEWS) {
@@ -246,9 +253,9 @@ function changeHole(dir: 1 | -1, swiped = false): void {
   window.setTimeout(scrollHint, 260);
 }
 
-/** "다음 홀", or the scorecard after the last hole. */
+/** "다음 홀", or the round summary after the last hole. */
 function goNext(): void {
-  if (round.current === HOLE_COUNT - 1) show('card');
+  if (round.current === HOLE_COUNT - 1) openSummary($('go-next'));
   else changeHole(1);
 }
 
@@ -426,8 +433,9 @@ function count(key: Counter, delta: number, order: Penalty[] = added.get(round.c
   const before = hole();
   if (!setHole((x) => bump(x, key, delta), key)) return false;
   navigator.vibrate?.(8);
-  announce(`${round.current + 1}번 홀 ${LABELS[key]} ${hole()[key]}, ${strokes(hole())}타`);
-  if (key !== 'mulligan') showToast(`${LABELS[key]} ${delta > 0 ? '+1' : '−1'}`, { index, hole: before, added: [...order] });
+  const label = labelOf(key, hole().par);
+  announce(`${round.current + 1}번 홀 ${label} ${hole()[key]}, ${strokes(hole())}타`);
+  if (key !== 'mulligan') showToast(`${label} ${delta > 0 ? '+1' : '−1'}`, { index, hole: before, added: [...order] });
   return true;
 }
 
@@ -541,6 +549,10 @@ function renderEntry(a: Analysis, changed?: string): void {
     const club = document.querySelector(`.club-${key}`)!;
     club.querySelector<HTMLButtonElement>('.plus')!.disabled = n >= MAX_COUNT;
     club.querySelector<HTMLButtonElement>('.minus')!.disabled = n === 0;
+    const label = labelOf(key, cur.par);
+    setText(club.querySelector('.club-name')!, label);
+    setAttr(club.querySelector('.plus')!, 'aria-label', `${label} 하나 더하기`);
+    setAttr(club.querySelector('.minus')!, 'aria-label', `${label} 하나 빼기`);
   }
 
   // The badge: the hole's computed score with its scorecard mark.
@@ -888,13 +900,102 @@ function bindMenu(): void {
   });
 }
 
+/* ---------- 라운드 마치기: a summary of what the recorded holes say ---------- */
+
+/** Set once a round is kept from the summary: no round until a course is chosen, as on a first visit. */
+let roundless = false;
+let summaryOpener: HTMLElement | null = null;
+
+function renderSummary(): void {
+  const a = analyze(round);
+  const t = a.totals;
+  setText($('sum-sub'), `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  setAttr($('sum-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
+  setText($('sum-total'), String(t.strokes));
+  const vs = $('sum-vs');
+  setText(vs, t.holes ? `파 대비 ${toParText(a.toPar)}` : '기록한 홀이 없어요');
+  vs.classList.toggle('under', t.holes > 0 && a.toPar < 0);
+  setText($('sum-count'), t.holes === HOLE_COUNT ? '18홀을 모두 기록했어요' : `${t.holes}홀 기록, 남은 홀은 계산에 넣지 않아요`);
+  const d = a.distribution;
+  const marks: [Mark, string, number][] = [['eagle', '이글', d.eagle], ['birdie', '버디', d.birdie], ['par', '파', d.par], ['bogey', '보기', d.bogey], ['double', '더블 이상', d.double + d.triple]];
+  $('sum-marks').replaceChildren(...marks.map(([m, label, n]) => h('li', {},
+    h('span', { class: 'm', 'data-mark': m, 'data-tone': m === 'eagle' || m === 'birdie' ? 'under' : m === 'par' ? 'par' : 'over' }, h('b', {}, String(n))),
+    h('small', {}, label))));
+  const done = round.holes.map((x, i) => ({ x, i })).filter(({ i }) => finished(round, i));
+  const drives = done.filter(({ x }) => x.par >= 4 && teeTag(x) !== null);
+  const hit = drives.filter(({ x }) => teeTag(x) === 'fairway').length;
+  const nine = (n: typeof a.front) => (n.holes ? [`${n.strokes}타`, toParText(n.strokes - n.par)] : ['–', '기록 전']);
+  const best = a.best ? round.holes[a.best.hole - 1] : null;
+  const stat = (label: string, value: string, small = '') => h('div', {}, h('dt', {}, label), h('dd', {}, value, small ? h('small', {}, small) : null));
+  $('sum-stats').replaceChildren(
+    stat('전반', ...nine(a.front) as [string, string]),
+    stat('후반', ...nine(a.back) as [string, string]),
+    stat('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
+    stat('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
+    stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷을 고르면'),
+    stat('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
+    stat('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
+  );
+  setText($('sum-insight'), !t.holes
+    ? '홀을 기록하면 어디서 타수를 잃었는지 보여요.'
+    : a.worstAreas.length
+      ? `타수를 가장 많이 잃은 곳: ${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')} +${a.lost[a.worstAreas[0]]}`
+      : '기준보다 잃은 타수가 없어요.');
+  $<HTMLAnchorElement>('sum-mail').href = mailtoHref(round);
+  $('sum-share').hidden = !canShare && !canCopy;
+  setAttr($('sum-share'), 'aria-label', canShare ? '공유' : '결과 복사');
+  $<HTMLButtonElement>('sum-archive').disabled = t.holes === 0;
+}
+
+function openSummary(from: HTMLElement): void {
+  summaryOpener = from;
+  hideToast();
+  setText($('sum-status'), '');
+  renderSummary();
+  $<HTMLDialogElement>('summary').showModal();
+}
+
+/** 지난 라운드에 보관: the round joins the past rounds and the app waits, as on a first visit, for the next course. */
+function keepFinishedRound(): void {
+  if (!keepBeforeNewRound(round)) return;
+  summaryOpener = $('tab-hist');
+  $<HTMLDialogElement>('summary').close();
+  hideToast();
+  stale = false;
+  editPar = false;
+  added.clear();
+  celebrated.clear();
+  clearRound();
+  round = newRound(new Date(), roundSetup(resolveChoice(loadPrefs())));
+  roundless = true;
+  render();
+  show('hist', true);
+  announce('지난 라운드에 보관했어요. 다음 라운드는 코스를 고르고 시작해요');
+}
+
+/** With no round, 기록 and 스코어카드 start with the course picker; 닫기 stays on 지난 라운드. */
+function pickFirst(): void {
+  openPicker({ mode: 'new', initial: loadPrefs(), cancelLabel: '닫기', onStart: startRound });
+}
+
+function bindSummary(): void {
+  const dialog = $<HTMLDialogElement>('summary');
+  $('sum-close').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => summaryOpener?.focus());
+  $('sum-share').addEventListener('click', () => void shareReport(round, $('sum-status')));
+  $('sum-archive').addEventListener('click', keepFinishedRound);
+  $('finish-round').addEventListener('click', () => openSummary($('finish-round')));
+}
+
 /* ---------- 지난 라운드: this round, then the kept ones ---------- */
 
 function renderNow(a: Analysis = analyze(round)): void {
   const t = a.totals;
-  setText($('now-sub'), `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
+  setText($('now-title'), roundless ? '다음 라운드' : '지금 라운드');
+  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
+  setText($('now-continue'), roundless ? '코스 고르고 시작' : '이어서 기록');
   const score = $('now-score');
-  setText(score, t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
+  setText(score, roundless ? '' : t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
   score.classList.toggle('under', t.holes > 0 && a.toPar < 0);
   score.classList.toggle('none', !t.holes);
   const kept = document.querySelectorAll('#history-list > li').length;
@@ -906,7 +1007,8 @@ function renderNow(a: Analysis = analyze(round)): void {
  * through here, so a round with a finished hole moves to the past rounds first; if it cannot be kept, the player decides.
  */
 function startRound(choice: CourseChoice): void {
-  if (!keepBeforeNewRound(round)) return;
+  if (!roundless && !keepBeforeNewRound(round)) return;
+  roundless = false;
   hideToast();
   stale = false;
   editPar = false;
@@ -958,6 +1060,8 @@ function bind(): void {
   setText($('app-version'), VERSION_LABEL);
   $('toast-undo').addEventListener('click', restore);
   $('now-continue').addEventListener('click', () => show('entry'));
+  bindSummary();
+  setText($('picker-version'), VERSION_LABEL);
   bindSwipe();
   $('prev-hole').addEventListener('click', () => changeHole(-1));
   $('next-hole').addEventListener('click', () => changeHole(1));
@@ -1011,6 +1115,7 @@ function bind(): void {
       rescued = false;
       trimmed = false;
       stale = isStale(next);
+      roundless = false;
       // Another tab started the round while this one was still choosing the first course.
       if (pickerOpen() === 'first') closePicker();
     } else {

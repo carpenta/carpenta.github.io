@@ -257,7 +257,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v6');
+  await expect(page.locator('#app-version')).toHaveText('v7');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -274,12 +274,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v6');
+  await expect(page.locator('#menu-version')).toHaveText('v7');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v6');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v7');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -350,7 +350,7 @@ test('moves the round to another course from the menu, keeping its strokes', asy
   // The picker is the plain one again next time.
   await menu(page, '새 라운드');
   await page.locator('#new-round').click();
-  await expect(page.locator('#picker-title')).toHaveText('코스 선택');
+  await expect(page.locator('#picker-title')).toHaveText('어디서 치세요?');
   await expect(page.getByRole('button', { name: '이 코스로 시작' })).toBeVisible();
 });
 
@@ -479,7 +479,76 @@ test('moves between holes, stops at the ends and ends the round on the last hole
   await expect(page.getByRole('button', { name: '드라이버 하나 빼기' })).toBeDisabled();
   await expect(next(page)).toHaveText('라운드 마치기');
   await next(page).click();
-  await expect(page.locator('#card-view')).toBeVisible();
+  await expect(page.locator('#summary')).toBeVisible();
+  await expect(page.locator('#sum-vs')).toHaveText('기록한 홀이 없어요');
+  await page.getByRole('button', { name: '요약 닫기' }).click();
+  await expect(page.locator('#summary')).toBeHidden();
+  await expect(next(page)).toBeFocused();
+});
+
+test('sums up the round on 라운드 마치기 and keeps it among past rounds, then waits for the next course', async ({ page }) => {
+  await open(page);
+  // 1: par in 4; 2: birdie in 3 with a fairway tee shot; 3 (par 5): 7 with an OB.
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  await next(page).click();
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await page.getByRole('button', { name: '페어웨이' }).click();
+  await tap(page, 'approach');
+  await tap(page, 'putts');
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  await next(page).click();
+  await tap(page, 'driver');
+  await tap(page, 'ob');
+  await tap(page, 'approach', 3);
+  await tap(page, 'putts', 2);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  const summary = page.locator('#summary');
+  await expect(summary).toBeVisible();
+  await expect(page.locator('#sum-total')).toHaveText('14');
+  await expect(page.locator('#sum-vs')).toHaveText('파 대비 +1');
+  await expect(page.locator('#sum-count')).toHaveText('3홀 기록, 남은 홀은 계산에 넣지 않아요');
+  await expect(page.locator('#sum-marks li')).toHaveText(['0이글', '1버디', '1파', '0보기', '1더블 이상']);
+  await expect(page.locator('#sum-stats')).toContainText('전반14타+1');
+  await expect(page.locator('#sum-stats')).toContainText('페어웨이 안착1/1100%');
+  await expect(page.locator('#sum-stats')).toContainText('벌타OB 1해저드 0');
+  await expect(page.locator('#sum-stats')).toContainText('베스트 홀2번 홀버디');
+  await expect(page.locator('#sum-insight')).toContainText('타수를 가장 많이 잃은 곳');
+  const mail = new URL((await page.locator('#sum-mail').getAttribute('href'))!);
+  expect(mail.protocol).toBe('mailto:');
+  expect(await sideScroll(page)).toBe(0);
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await expect(summary).toBeHidden();
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await expect(page.locator('#history-list .past-item')).toHaveCount(1);
+  await expect(page.locator('#now-title')).toHaveText('다음 라운드');
+  // Nothing is saved as a round until the next course is chosen; 기록 opens the picker, and 닫기 stays here.
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBeNull();
+  await tab(page, '기록').click();
+  await expect(page.locator('#picker')).toBeVisible();
+  await page.getByRole('button', { name: '닫기' }).click();
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await page.getByRole('button', { name: '코스 고르고 시작' }).click();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#entry')).toBeVisible();
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  await expect(page.locator('#history-list .past-item')).toHaveCount(1);
+});
+
+test('calls the first column 티샷 on a par 3', async ({ page }) => {
+  await open(page);
+  await expect(page.locator('.club-driver .club-name')).toHaveText('드라이버');
+  for (let i = 0; i < 3; i++) await page.locator('#next-hole').click();
+  await expect(page.locator('#hole-par')).toHaveText('Par 3');
+  await expect(page.locator('.club-driver .club-name')).toHaveText('티샷');
+  await page.getByRole('button', { name: '티샷 하나 더하기' }).click();
+  await expect(page.locator('#announce')).toHaveText('4번 홀 티샷 1, 1타');
+  await expect(page.locator('#toast-msg')).toHaveText('티샷 +1');
+  expect((await stored(page)).holes[3].driver).toBe(1);
+  await page.locator('#next-hole').click();
+  await expect(page.locator('.club-driver .club-name')).toHaveText('드라이버');
 });
 
 test('swipes sideways to the next or previous hole without pressing the button it started on', async ({ page }) => {

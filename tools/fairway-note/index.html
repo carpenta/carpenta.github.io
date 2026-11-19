@@ -140,6 +140,7 @@
           <div id="analysis"></div>
         </section>
 
+        <button class="sc-finish" type="button" id="finish-round">라운드 마치기</button>
         <p id="save-state" class="muted save-line"></p>
       </section>
 
@@ -267,12 +268,37 @@
       <button id="menu-close" class="menu-close" type="button">닫기</button>
     </dialog>
 
+    <dialog id="summary" class="sheet-dialog sum-sheet" aria-labelledby="sum-title">
+      <div class="grab" aria-hidden="true"></div>
+      <header class="sum-head">
+        <div><h2 id="sum-title">라운드 요약</h2><p id="sum-sub"></p></div>
+        <button class="sum-close" type="button" id="sum-close" aria-label="요약 닫기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+      </header>
+      <div class="sum-hero">
+        <div class="sum-ring" id="sum-ring" data-tone="over"><b id="sum-total">0</b><span>타</span></div>
+        <div class="sum-hero-txt"><p class="big" id="sum-vs"></p><p id="sum-count"></p></div>
+      </div>
+      <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
+      <dl class="sum-stats" id="sum-stats"></dl>
+      <p class="sum-insight" id="sum-insight"></p>
+      <p id="sum-status" class="muted small" role="status"></p>
+      <div class="sum-actions">
+        <button type="button" id="sum-share" aria-label="공유"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>
+        <button type="button" class="primary" id="sum-archive">지난 라운드에 보관</button>
+      </div>
+    </dialog>
+
     <dialog id="picker" class="picker" aria-labelledby="picker-title">
       <div class="picker-head">
-        <h2 id="picker-title">코스 선택</h2>
+        <p class="pk-brand"><span>Fairway Note</span><span id="picker-version"></span></p>
+        <h2 id="picker-title">어디서 치세요?</h2>
         <button id="picker-cancel" class="btn" type="button">취소</button>
       </div>
-      <input id="picker-search" class="picker-search" type="search" placeholder="골프장 이름 · 초성(ㅇㅂㄹㅅ) · 지역" aria-label="골프장 검색" autocomplete="off" enterkeyhint="search" />
+      <label class="pk-search">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <input id="picker-search" class="picker-search" type="search" placeholder="골프장 이름, 지역, 초성(ㅇㅂㄹㅅ)" aria-label="골프장 검색" autocomplete="off" enterkeyhint="search" />
+      </label>
       <div id="picker-areas" class="picker-areas" role="group" aria-label="지역"></div>
       <ul id="picker-list" class="picker-list" aria-label="골프장"></ul>
       <div class="picker-foot">
