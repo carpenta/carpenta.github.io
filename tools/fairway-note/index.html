@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="에버리스 동코스 라운드에서 홀마다 드라이버·어프로치·퍼트·OB·멀리건을 탭으로 세고 합계와 분석을 보는 스코어 노트." />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#1f5a3a" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Fairway Note — 에버리스 동코스 스코어 노트</title>
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21V3l10 4-10 4" /></svg>
+        <div>
+          <p class="app-name">Fairway Note</p>
+          <h1 id="course-name">에버리스 동코스</h1>
+        </div>
+      </div>
+      <a class="home-link" href="../../">carpenta.github.io</a>
+    </header>
+
+    <main>
+      <section class="summary" aria-label="라운드 합계">
+        <div class="stat big"><span class="label">총타</span><b id="sum-strokes">0</b><span id="sum-topar" class="topar">E</span></div>
+        <div class="stat"><span class="label">홀</span><b id="sum-holes">0/18</b></div>
+        <div class="stat"><span class="label">퍼트</span><b id="sum-putts">0</b></div>
+        <div class="stat"><span class="label">OB</span><b id="sum-ob">0</b></div>
+        <div class="stat"><span class="label">멀리건</span><b id="sum-mulligan">0</b></div>
+      </section>
+
+      <nav class="hole-nav" aria-label="홀 선택">
+        <ol id="hole-tabs"></ol>
+      </nav>
+
+      <section id="hole-card" class="hole-card" aria-labelledby="hole-title">
+        <div class="hole-head">
+          <h2 id="hole-title">1번 홀</h2>
+          <div class="par-pick" role="radiogroup" aria-label="파">
+            <button type="button" data-par="3" role="radio">Par 3</button>
+            <button type="button" data-par="4" role="radio">Par 4</button>
+            <button type="button" data-par="5" role="radio">Par 5</button>
+          </div>
+        </div>
+        <p class="hole-score"><b id="hole-strokes">0</b>타 <span id="hole-topar" class="topar"></span> <span id="hole-name" class="score-name"></span></p>
+        <div id="counters" class="counters"></div>
+        <div class="hole-move">
+          <button id="prev-hole" class="btn" type="button">◀ 이전 홀</button>
+          <button id="next-hole" class="btn primary" type="button">다음 홀 ▶</button>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="card-title">
+        <h2 id="card-title">스코어카드</h2>
+        <div id="scorecard"></div>
+      </section>
+
+      <section class="card" aria-labelledby="analysis-title">
+        <h2 id="analysis-title">라운드 분석</h2>
+        <div id="analysis"></div>
+      </section>
+
+      <section class="card footer-actions">
+        <p id="save-state" class="muted" role="status"></p>
+        <button id="new-round" class="btn danger" type="button">새 라운드 시작</button>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
