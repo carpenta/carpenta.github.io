@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 
 const STORAGE_KEY = 'fairway-note:round:v1';
@@ -631,25 +633,34 @@ test('precaches every built file under the tool path', async ({ request }) => {
 });
 
 test('offers to reopen when a new version is waiting', async ({ page }) => {
-  await page.goto('/');
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
-  await page.reload();
-  const prompt = page.getByRole('button', { name: '새 버전이 있습니다 · 다시 열기' });
-  await expect(prompt).toHaveCount(0);
-  await tap(page, 'driver');
+  // The next deploy is the same ./sw.js URL with different bytes, as on GitHub Pages. The preview
+  // server reads dist/ from disk and the browser cannot be intercepted for its worker fetch, so the
+  // built file is changed in place and restored afterwards.
+  const swPath = fileURLToPath(new URL('../dist/sw.js', import.meta.url));
+  const original = readFileSync(swPath, 'utf8');
+  try {
+    await page.goto('/');
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.reload();
+    const prompt = page.getByRole('button', { name: '새 버전이 있습니다 · 다시 열기' });
+    await expect(prompt).toHaveCount(0);
+    await tap(page, 'driver');
 
-  // A new worker script for the same scope stands in for the next deploy; it installs and waits.
-  await page.evaluate(async () => { await navigator.serviceWorker.register('./sw.js?next'); });
-  await expect(prompt).toBeVisible();
-  expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting !== null)).toBe(true);
-  // The prompt does not block the page.
-  await tap(page, 'putts');
-  await expect(page.locator('#hole-strokes')).toHaveText('2');
+    writeFileSync(swPath, `${original}\n// next deploy\n`);
+    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())!.update(); });
+    await expect(prompt).toBeVisible();
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting !== null)).toBe(true);
+    // The prompt does not block the page.
+    await tap(page, 'putts');
+    await expect(page.locator('#hole-strokes')).toHaveText('2');
 
-  const reloaded = page.waitForEvent('load');
-  await prompt.click();
-  await reloaded;
-  await expect(page.locator('#hole-strokes')).toHaveText('2');
-  expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toMatch(/\/sw\.js\?next$/);
-  await expect(prompt).toHaveCount(0);
+    const reloaded = page.waitForEvent('load');
+    await prompt.click();
+    await reloaded;
+    await expect(page.locator('#hole-strokes')).toHaveText('2');
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting)).toBeNull();
+    await expect(prompt).toHaveCount(0);
+  } finally {
+    writeFileSync(swPath, original);
+  }
 });
