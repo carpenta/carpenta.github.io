@@ -602,3 +602,54 @@ test('copies the round when the browser cannot share', async ({ page, context })
   await expect(page.locator('#send-status')).toContainText('복사했습니다');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 3타 (-1)');
 });
+
+test('opens and records offline after the first visit', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.summary')!).position)).toBe('sticky');
+  await expect(page.locator('.counter-driver .plus svg')).toBeVisible();
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await expect(count(page, 'driver')).toHaveText('1');
+  await expect(page.locator('#hole-strokes')).toHaveText('3');
+  await context.setOffline(false);
+});
+
+test('precaches every built file under the tool path', async ({ request }) => {
+  const source = await (await request.get('sw.js')).text();
+  for (const file of ['index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) {
+    expect(source).toContain(`"${file}"`);
+  }
+  expect(source).toMatch(/"assets\/[^"]+\.js"/);
+  expect(source).toMatch(/"assets\/[^"]+\.css"/);
+  expect(source).not.toMatch(/"\//);
+  expect(source).toMatch(/fairway-note-[0-9a-f]{12}/);
+});
+
+test('offers to reopen when a new version is waiting', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.reload();
+  const prompt = page.getByRole('button', { name: '새 버전이 있습니다 · 다시 열기' });
+  await expect(prompt).toHaveCount(0);
+  await tap(page, 'driver');
+
+  // A new worker script for the same scope stands in for the next deploy; it installs and waits.
+  await page.evaluate(async () => { await navigator.serviceWorker.register('./sw.js?next'); });
+  await expect(prompt).toBeVisible();
+  expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.waiting !== null)).toBe(true);
+  // The prompt does not block the page.
+  await tap(page, 'putts');
+  await expect(page.locator('#hole-strokes')).toHaveText('2');
+
+  const reloaded = page.waitForEvent('load');
+  await prompt.click();
+  await reloaded;
+  await expect(page.locator('#hole-strokes')).toHaveText('2');
+  expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toMatch(/\/sw\.js\?next$/);
+  await expect(prompt).toHaveCount(0);
+});

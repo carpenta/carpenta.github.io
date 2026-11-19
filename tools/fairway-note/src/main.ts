@@ -25,6 +25,7 @@ import {
   type Totals,
 } from './round';
 import { COUNTER_ICONS } from './icons';
+import { registerOffline } from './offline';
 import { dateLabel, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
 import { trackSummaryHeight } from './layout';
@@ -431,3 +432,4 @@ bind();
 render();
 trackSummaryHeight();
 keepScreenOn();
+registerOffline();

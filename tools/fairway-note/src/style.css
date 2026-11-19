@@ -324,3 +324,26 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 .send-actions .btn.primary { color: #fff; }
 .send-actions .btn[hidden] { display: none; }
 #send-status:empty { display: none; }
+
+/* A new version is waiting: a small prompt above the hole bar that never blocks the page. */
+.update-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bar) + 10px);
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: calc(100vw - 24px);
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(0 0 0 / .2);
+  cursor: pointer;
+}
+.update-prompt:disabled { opacity: .7; cursor: default; }
