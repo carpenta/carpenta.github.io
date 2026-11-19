@@ -516,6 +516,9 @@ test('sums up the round on 라운드 마치기 and keeps it among past rounds, t
   await expect(page.locator('#sum-stats')).toContainText('벌타OB 1해저드 0');
   await expect(page.locator('#sum-stats')).toContainText('베스트 홀2번 홀버디');
   await expect(page.locator('#sum-insight')).toContainText('타수를 가장 많이 잃은 곳');
+  // The whole summary fits a 375×667 screen.
+  await page.setViewportSize({ width: 375, height: 667 });
+  expect(await summary.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
   const mail = new URL((await page.locator('#sum-mail').getAttribute('href'))!);
   expect(mail.protocol).toBe('mailto:');
   expect(await sideScroll(page)).toBe(0);

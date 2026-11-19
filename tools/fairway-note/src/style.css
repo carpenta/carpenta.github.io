@@ -630,12 +630,12 @@ html.past-open { overflow: hidden; }
 }
 
 /* ---------- round summary: what the recorded holes say ---------- */
-.sum-sheet { max-height: 96dvh; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 32px rgb(8 28 10 / .3); }
+.sum-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 32px rgb(8 28 10 / .3); }
 .sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: center; }
 .sum-head h2 { font-size: 22px; font-weight: 800; }
 .sum-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .sum-close { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); display: grid; place-items: center; }
-.sum-hero { margin-top: 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; }
+.sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; }
 .sum-ring {
   width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line);
@@ -647,19 +647,19 @@ html.past-open { overflow: hidden; }
 .sum-hero-txt .big { font-size: 22px; font-weight: 800; }
 .sum-hero-txt .big.under { color: var(--red); }
 .sum-hero-txt p + p { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.sum-marks { margin: 12px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.sum-marks { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .sum-marks li { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 14px; background: var(--paper); }
 .sum-marks small { font-size: 13px; color: var(--muted); white-space: nowrap; }
-.sum-stats { margin: 12px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.sum-stats div { padding: 9px 12px; border-radius: 16px; background: var(--paper); min-width: 0; }
+.sum-stats { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sum-stats div { padding: 7px 12px; border-radius: 16px; background: var(--paper); min-width: 0; }
 .sum-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .sum-stats dt { font-size: 13px; color: var(--muted); }
 .sum-stats dd { margin: 3px 0 0; font-size: 17px; font-weight: 800; }
 .sum-stats dd small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
-.sum-insight { margin-top: 10px; padding: 11px 14px; border-radius: 16px; background: var(--sand-tint); font-size: 15px; font-weight: 700; }
+.sum-insight { margin-top: 8px; padding: 10px 14px; border-radius: 16px; background: var(--sand-tint); font-size: 15px; font-weight: 700; }
 #sum-status { margin: 8px 0 0; }
 #sum-status:empty { display: none; }
-.sum-actions { margin-top: 12px; display: grid; grid-template-columns: 52px 52px minmax(0, 1fr); gap: 8px; }
+.sum-actions { margin-top: 10px; display: grid; grid-template-columns: 52px 52px minmax(0, 1fr); gap: 8px; }
 .sum-actions > * { height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: 700; color: var(--turf); display: grid; place-items: center; text-decoration: none; }
 .sum-actions .primary { background: var(--turf); color: #fff; font-size: 17px; }
 .sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
