@@ -228,11 +228,41 @@ export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
   }
 }
 
-/** Remembers the course choice. Failing to remember it never affects the round. */
+/** Remembers the course choice, keeping the display settings beside it. Failing to remember it never affects the round. */
 export function savePrefs(choice: CourseChoice, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    kv.setItem(PREFS_KEY, JSON.stringify(choice));
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...choice, ...(loadDisplay(kv).big ? { big: true } : {}) }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Display settings, kept in the prefs key beside the course choice: 큰 글씨. */
+export interface Display {
+  big: boolean;
+}
+
+function prefsObject(kv: KV | null): Record<string, unknown> {
+  try {
+    const o = JSON.parse(kv?.getItem(PREFS_KEY) ?? 'null') as unknown;
+    return typeof o === 'object' && o !== null && !Array.isArray(o) ? (o as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function loadDisplay(kv: KV | null = store()): Display {
+  return { big: prefsObject(kv).big === true };
+}
+
+/** Saves the display settings without touching the remembered course. */
+export function saveDisplay(display: Display, kv: KV | null = store()): boolean {
+  try {
+    if (!kv) return false;
+    const { big: _old, ...rest } = prefsObject(kv);
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...(display.big ? { big: true } : {}) }));
     return true;
   } catch {
     return false;

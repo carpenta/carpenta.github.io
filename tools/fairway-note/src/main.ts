@@ -35,7 +35,7 @@ import { CLUB_ICONS } from './icons';
 import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
 import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
-import { STORAGE_KEY, clearRound, loadPrefs, loadRound, preserveUnreadable, requestPersistence, savePrefs, saveRound, type CourseChoice } from './storage';
+import { STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
@@ -375,13 +375,120 @@ function buildClubs(): void {
     const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}` }, '0'));
     num.insertAdjacentHTML('afterbegin', CLUB_ICONS[key].replace('<svg', '<svg class="pill-ico"'));
     box.append(h('div', { class: `club club-${key}`, 'data-key': key }, name,
-      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}` }, plus, num, minus)));
+      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}`, 'aria-describedby': 'lp-hint' }, plus, num, minus)));
   }
   box.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
     if (!button || button.disabled) return;
     count(button.closest<HTMLElement>('.club')!.dataset.key as Tagged, button.classList.contains('plus') ? 1 : -1);
   });
+  bindNumPick();
+}
+
+/* ---------- long-press a count: set it straight to 0 … 5+ ---------- */
+
+let press: { pill: HTMLElement; key: Tagged; id: number; x: number; y: number; timer: number; fired: boolean } | null = null;
+let pickKey: Tagged | null = null;
+/**
+ * The press that opened the picker is still held, or was let go a moment ago. Its release lands on the picker's
+ * backdrop (the modal covers the + and − buttons, so it never counts a stroke) and must not close it.
+ */
+let holding = false;
+let releasedAt = 0;
+
+function cancelPress(): void {
+  if (!press) return;
+  window.clearTimeout(press.timer);
+  press.pill.classList.remove('pressing');
+  press = null;
+}
+
+/** 3으로, 2로: the particle a spoken number takes. */
+const toParticle = (n: number) => ([0, 3, 6].includes(n % 10) ? '으로' : '로');
+
+/** Sets a club's count; 5+ keeps a count already above five. Can be taken back from the toast like a tap. */
+function setCount(key: Tagged, n: number): void {
+  const index = round.current;
+  const before = hole();
+  const target = n === 5 ? Math.max(5, before[key]) : n;
+  if (target === before[key]) return;
+  if (!setHole((x) => bump(x, key, target - x[key]), key)) return;
+  navigator.vibrate?.(8);
+  const label = labelOf(key, hole().par);
+  announce(`${index + 1}번 홀 ${label} ${hole()[key]}, ${strokes(hole())}타`);
+  showToast(`${label} ${target}${toParticle(target)}`, { index, hole: before, added: [...(added.get(index) ?? [])] });
+}
+
+function openNumPick(key: Tagged, pill: HTMLElement): void {
+  pickKey = key;
+  hideToast();
+  const cur = hole();
+  setText($('np-title'), `${labelOf(key, cur.par)} 몇 번 쳤나요?`);
+  $('np-row').replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('button', {
+    type: 'button', 'data-np': String(n), 'aria-pressed': String(n === 5 ? cur[key] >= 5 : cur[key] === n), 'aria-label': n === 5 ? '5번 이상' : `${n}번`,
+  }, n === 5 ? '5+' : String(n))));
+  const dialog = $<HTMLDialogElement>('numpick');
+  dialog.showModal();
+  // Over the pill, or under it near the top of the screen. CSSOM, allowed by the CSP.
+  const r = pill.getBoundingClientRect();
+  const ch = dialog.offsetHeight;
+  const top = r.top - ch - 8 < 8 ? r.bottom + 8 : r.top - ch - 8;
+  dialog.style.top = `${Math.round(Math.min(top, window.innerHeight - ch - 8))}px`;
+  navigator.vibrate?.(15);
+  (dialog.querySelector<HTMLElement>('[aria-pressed="true"]') ?? dialog.querySelector<HTMLElement>('button'))!.focus();
+}
+
+function bindNumPick(): void {
+  const dialog = $<HTMLDialogElement>('numpick');
+  // A tap on the dim backdrop closes it, but not the release of the press that opened it.
+  dialog.addEventListener('click', (event) => {
+    const r = dialog.getBoundingClientRect();
+    const outside = event.clientY < r.top || event.clientY > r.bottom || event.clientX < r.left || event.clientX > r.right;
+    if (event.target === dialog && outside && !holding && Date.now() - releasedAt > 150) dialog.close();
+  });
+  dialog.addEventListener('close', () => {
+    if (pickKey) document.querySelector<HTMLElement>(`.club-${pickKey} .plus`)?.focus({ preventScroll: true });
+    pickKey = null;
+  });
+  $('np-row').addEventListener('click', (event) => {
+    const b = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-np]');
+    if (!b || !pickKey) return;
+    const key = pickKey;
+    dialog.close();
+    setCount(key, Number(b.dataset.np));
+  });
+  const clubs = $('clubs');
+  clubs.addEventListener('pointerdown', (e) => {
+    const pill = (e.target as HTMLElement).closest<HTMLElement>('.pill');
+    if (!pill || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    cancelPress();
+    pill.classList.add('pressing');
+    const key = pill.closest<HTMLElement>('.club')!.dataset.key as Tagged;
+    const p = { pill, key, id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0, fired: false };
+    p.timer = window.setTimeout(() => {
+      p.fired = true;
+      pill.classList.remove('pressing');
+      holding = true;
+      openNumPick(key, pill);
+    }, 500);
+    press = p;
+  });
+  // Moving away (a swipe or a scroll) is not a long press.
+  document.addEventListener('pointermove', (e) => {
+    if (press && !press.fired && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress();
+  });
+  const end = (e: PointerEvent) => {
+    if (!press || e.pointerId !== press.id) return;
+    if (press.fired) {
+      holding = false;
+      releasedAt = Date.now();
+    }
+    cancelPress();
+  };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+  // No copy menu or text selection on a held count.
+  clubs.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 function buildPens(): void {
@@ -864,11 +971,17 @@ function renderMenu(): void {
 
 /** Opens one item's panel (or none), closing the others. */
 function openItem(id: string | null): void {
-  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi')) {
+  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi[aria-controls]')) {
     const on = item.id === `mi-${id}`;
     setAttr(item, 'aria-expanded', String(on));
     $(item.getAttribute('aria-controls')!).hidden = !on;
   }
+}
+
+/** 큰 글씨: numbers and labels about 1.15 times larger, for reading at arm's length in sunlight. */
+function applyBig(on: boolean): void {
+  document.body.classList.toggle('big', on);
+  setAttr($('mi-big'), 'aria-checked', String(on));
 }
 
 /** 코스 바꾸기: the round moves to another course or nine order; its strokes stay and each hole takes that course's par. */
@@ -889,9 +1002,18 @@ function bindMenu(): void {
       menu.showModal();
     });
   }
-  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi')) {
+  for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi[aria-controls]')) {
     item.addEventListener('click', () => openItem(item.getAttribute('aria-expanded') === 'true' ? null : item.id.slice(3)));
   }
+  // 큰 글씨: a switch, remembered in the prefs key.
+  const big = $('mi-big');
+  big.addEventListener('click', () => {
+    const on = big.getAttribute('aria-checked') !== 'true';
+    applyBig(on);
+    saveDisplay({ big: on });
+    render();
+    announce(on ? '큰 글씨를 켰어요' : '큰 글씨를 껐어요');
+  });
   for (const button of document.querySelectorAll<HTMLButtonElement>('#menu [data-collapse]')) {
     button.addEventListener('click', () => {
       openItem(null);
@@ -1333,6 +1455,7 @@ function bind(): void {
   });
 }
 
+applyBig(loadDisplay().big);
 bind();
 render();
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.

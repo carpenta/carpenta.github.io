@@ -543,6 +543,73 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   await expect(page.locator('#hole-title')).toHaveText('2번 홀');
 });
 
+/** Holds the pointer on a club's count until the 0 … 5+ picker opens, then lets go. */
+async function longPress(page: Page, key: string) {
+  const box = (await page.locator(`#count-${key}`).boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(page.locator('#numpick')).toBeVisible();
+  await page.mouse.up();
+}
+
+test('a long press on a count sets it straight to 0 … 5+, and the toast takes it back', async ({ page }) => {
+  await open(page);
+  await longPress(page, 'driver');
+  await expect(page.locator('#np-title')).toHaveText('드라이버 몇 번 쳤나요?');
+  await expect(page.locator('#np-row button')).toHaveText(['0', '1', '2', '3', '4', '5+']);
+  await expect(page.getByRole('button', { name: '0번', exact: true })).toBeFocused();
+  // Letting go is not a stroke.
+  await expect(count(page, 'driver')).toHaveText('0');
+  await page.getByRole('button', { name: '3번', exact: true }).click();
+  await expect(page.locator('#numpick')).toBeHidden();
+  await expect(count(page, 'driver')).toHaveText('3');
+  await expect(page.locator('#hole-strokes')).toHaveText('3');
+  await expect(page.locator('#toast-msg')).toHaveText('드라이버 3으로');
+  await expect(page.getByRole('button', { name: '드라이버 하나 더하기' })).toBeFocused();
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(count(page, 'driver')).toHaveText('0');
+  // 5+ is five; a short tap still counts one; Escape leaves the count as it was.
+  await longPress(page, 'putts');
+  await page.getByRole('button', { name: '5번 이상' }).click();
+  await expect(count(page, 'putts')).toHaveText('5');
+  await tap(page, 'putts');
+  await expect(count(page, 'putts')).toHaveText('6');
+  await longPress(page, 'putts');
+  await expect(page.getByRole('button', { name: '5번 이상' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#numpick')).toBeHidden();
+  await expect(count(page, 'putts')).toHaveText('6');
+  expect((await stored(page)).holes[0].putts).toBe(6);
+});
+
+test('큰 글씨 in the menu makes the numbers larger, stays after a reload, and still fits small phones', async ({ page }) => {
+  await open(page);
+  const size = () => page.locator('#count-driver').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const before = await size();
+  await menu(page);
+  const sw = page.getByRole('switch', { name: /큰 글씨/ });
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await closeMenu(page);
+  expect(await size()).toBeGreaterThan(before);
+  // Kept in the prefs key beside the course choice.
+  const prefs = JSON.parse((await page.evaluate((key) => localStorage.getItem(key), PREFS_KEY))!);
+  expect(prefs.big).toBe(true);
+  expect(prefs.course).toBeTruthy();
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/big/);
+  for (const [width, height] of [[375, 667], [375, 553], [360, 640]]) {
+    await page.setViewportSize({ width, height });
+    expect(await sideScroll(page), `${width}×${height}`).toBe(0);
+    expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight), `${width}×${height}`).toBeLessThanOrEqual(1);
+  }
+  // 앱 정보 says what the app promises.
+  await menu(page, '앱 정보');
+  await expect(page.locator('#mp-about .promise li')).toHaveCount(4);
+  await expect(page.locator('#mp-about')).toContainText('계정, 광고, 구독이 없어요.');
+});
+
 test('finishing with one whole nine offers a 9-hole round, and its summary leaves the other nine out', async ({ page }) => {
   await open(page);
   await seed(page, Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i, { driver: 1, approach: 1, putts: 2 }])), 8);

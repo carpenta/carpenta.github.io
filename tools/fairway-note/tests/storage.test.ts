@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newRound } from '../src/round';
-import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadPrefs, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
+import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadDisplay, loadPrefs, saveDisplay, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
 
 function memory() {
   const map = new Map<string, string>();
@@ -110,6 +110,22 @@ describe('storage', () => {
     }
     expect(loadPrefs(null)).toBeNull();
     expect(savePrefs({ course: 'everis', front: 'a', back: 'b' }, null)).toBe(false);
+  });
+
+  it('keeps 큰 글씨 beside the course choice in the same key, each saved without losing the other', () => {
+    const kv = memory();
+    expect(loadDisplay(kv)).toEqual({ big: false });
+    expect(saveDisplay({ big: true }, kv)).toBe(true);
+    expect(loadDisplay(kv)).toEqual({ big: true });
+    expect(loadPrefs(kv)).toBeNull();
+    savePrefs({ course: 'everis', front: 'pine', back: 'lake' }, kv);
+    expect(loadDisplay(kv)).toEqual({ big: true });
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'pine', back: 'lake' });
+    saveDisplay({ big: false }, kv);
+    expect(JSON.parse(kv.getItem(PREFS_KEY)!)).toEqual({ course: 'everis', front: 'pine', back: 'lake' });
+    kv.setItem(PREFS_KEY, '[1]');
+    expect(loadDisplay(kv)).toEqual({ big: false });
+    expect(saveDisplay({ big: true }, null)).toBe(false);
   });
 
   it('falls back to the first hole for a bad current hole', () => {

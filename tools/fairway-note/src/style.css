@@ -723,6 +723,61 @@ button.scell:active { background: var(--tint); }
 .check-actions button { height: 52px; border-radius: 999px; background: var(--tint); color: var(--turf); font-size: 17px; font-weight: 700; }
 .check-actions .primary { background: var(--turf); color: #fff; }
 
+/* ---------- long-press a count: a one-row 0 … 5+ picker ---------- */
+.pill { -webkit-touch-callout: none; }
+.pill.pressing .count { transform: scale(.9); transition: transform .4s ease-out; }
+.numpick {
+  position: fixed; inset: auto 0 auto 0; margin: 0 auto; width: max-content; max-width: calc(100vw - 16px);
+  padding: 10px; border: 0; border-radius: 24px; background: var(--white); color: var(--ink); box-shadow: 0 12px 32px rgb(8 28 10 / .35);
+}
+.numpick::backdrop { background: rgb(8 24 10 / .32); }
+.np-h { padding: 2px 6px 8px; font-size: 15px; font-weight: 700; }
+.np-row { display: flex; gap: 8px; }
+.np-row button { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); font-size: 22px; font-weight: 800; color: var(--ink); }
+.np-row button:active { background: var(--pill); }
+.np-row button[aria-pressed='true'] { background: var(--turf); color: #fff; }
+@media (max-width: 369px) { .np-row { gap: 6px; } .np-row button { width: 44px; height: 44px; } }
+
+/* ---------- 메뉴: the 큰 글씨 switch, 앱 정보 ---------- */
+.mi.tg { grid-template-columns: 40px minmax(0, 1fr) 44px; }
+.sw { position: relative; width: 44px; height: 26px; border-radius: 13px; background: var(--off); box-shadow: inset 0 0 0 1.5px #7e917c; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(23 48 26 / .35); transition: transform .16s; }
+.mi[aria-checked='true'] .sw { background: var(--turf); box-shadow: none; }
+.mi[aria-checked='true'] .sw::after { transform: translateX(18px); }
+.mpanel .ab-h { font-size: 15px; font-weight: 700; }
+.mpanel .ab-h ~ .ab-h { margin-top: 14px; }
+.promise { margin: 6px 0 0; padding: 0 0 0 20px; display: grid; gap: 4px; }
+.promise li::marker { color: var(--turf); }
+.mpanel .ab-foot { margin-top: 12px; }
+
+/* ---------- 큰 글씨: about 1.15 times ---------- */
+body.big { --count: 64px; --pill-base: 444px; }
+body.big .hole-n { font-size: 40px; }
+body.big .hole-u { font-size: 20px; }
+body.big #hole-title.two .hole-n { font-size: 32px; }
+body.big #hole-title.two .hole-u { font-size: 17px; }
+body.big .chip { height: 32px; padding: 0 10px; font-size: 15px; }
+body.big .chip.icon { width: 32px; padding: 0; }
+body.big .notes { max-height: 28px; }
+body.big .notes li { height: 28px; font-size: 15px; }
+body.big .club-lbl { height: 22px; font-size: 17px; }
+body.big .pen-lbl, body.big .undo { font-size: 15px; line-height: 18px; }
+body.big .mode { font-size: 17px; }
+body.big .next { font-size: 20px; }
+body.big .toast { font-size: 17px; }
+body.big .tab-label { font-size: 15px; }
+body.big .sc-title h2 { font-size: 20px; }
+body.big .badge-name, body.big .rowlbl span, body.big .col > span, body.big .legend, body.big .mi small, body.big .sum-marks small,
+body.big .check-list small, body.big .strip-note, body.big .scell .sc-no { font-size: 15px; }
+body.big .m b { font-size: 22px; }
+body.big .mi b, body.big .tot h3 { font-size: 20px; }
+@media (max-height: 599px) {
+  /* Short screens: bigger letters, the same heights */
+  body.big { --count: 44px; --pill-base: 404px; }
+  body.big .chip { height: 28px; }
+  body.big .club-lbl { height: 18px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .hole-chev { transition: none; }
+  .hole-chev, .pill.pressing .count, .sw::after { transition: none; }
 }
