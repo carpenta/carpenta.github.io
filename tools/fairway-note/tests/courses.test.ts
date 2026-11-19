@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AREAS, COURSES, DEFAULT_CHOICE, choseong, courseSource, defaultNines, findCourse, resolveChoice, roundSetup, searchCourses } from '../src/courses';
-import { layoutBend } from '../src/hole-art';
+import { layoutBend } from '../src/course-art';
 import { COURSE_PARS, DEFAULT_COURSE, HOLE_COUNT } from '../src/round';
 
 const DENIED = /golfpass|hole19|18birdies|golfingrecord|golfzon|smartscore|kakao|openstreetmap|data\.go\.kr/;
