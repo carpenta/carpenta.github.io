@@ -6,8 +6,7 @@ import { chromium } from '@playwright/test';
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <rect width="24" height="24" fill="#1F5A3A"/>
   <g transform="translate(2.4 2.4) scale(.8)">
-    <path d="M8 19V5l9 3.5L8 12" fill="#F2C94C" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
-    <ellipse cx="12" cy="19.5" rx="6" ry="1.5" fill="#7FBF7F"/>
+    <path d="M16.4 3 15.2 10.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M14.4 9.8 16.2 10.4c.6 3.3.4 6.6-.6 8.6-.8 1.6-3.6 2.2-8.4 1.6-2-.2-2.8-1.6-2.1-3l1.1-2.1c.4-.8 1.3-1.2 2.2-1 2.8.5 4.6-.4 6-4.7z" fill="#F2C94C" stroke="#fff" stroke-width="1" stroke-linejoin="round"/><path d="M7.4 16.4h6.6M7 17.9h7.1M7.2 19.3h6.6" stroke="#1F5A3A" stroke-width=".55" stroke-linecap="round" opacity=".5"/>
   </g>
 </svg>`;
 

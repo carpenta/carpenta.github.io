@@ -1,0 +1,76 @@
+import { AREA_LABELS, COURSE_NAME, HOLE_COUNT, SCORE_LABELS, analyze, finished, formatToPar, strokes, type Analysis, type Round, type ScoreName } from './round';
+
+const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
+const one = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
+
+/** Plain-language notes on the round, shared by the page and the report. */
+export function insights(a: Analysis): string[] {
+  const t = a.totals;
+  const out: string[] = [];
+  if (a.worstAreas.length) {
+    const names = a.worstAreas.map((k) => AREA_LABELS[k]).join('·');
+    out.push(`기준(티샷 1, 어프로치 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${names}입니다 (+${a.lost[a.worstAreas[0]]}타).`);
+  } else {
+    out.push('모든 영역이 기준 타수 안에 있습니다. 좋은 라운드입니다.');
+  }
+  if (a.threePutts) out.push(`3퍼트 이상이 ${a.threePutts}홀 있습니다. 첫 퍼트 거리감을 맞추면 바로 줄일 수 있는 타수입니다.`);
+  if (t.ob) out.push(`OB ${t.ob}회로 벌타 ${t.ob}타가 더해졌습니다. 다시 친 샷까지 치면 OB 하나에 보통 2타를 잃습니다.`);
+  if (t.mulligan) out.push(`멀리건 ${t.mulligan}회를 썼습니다. 멀리건 없이 쳤다면 스코어가 더 나왔을 수 있습니다.`);
+  out.push(`그린 적중(GIR)은 ${a.girHoles}/${t.holes}홀 (${pct(a.girHoles, t.holes)}%)입니다.`);
+  return out;
+}
+
+export function dateLabel(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
+export function reportSubject(round: Round): string {
+  const a = analyze(round);
+  const score = a.totals.holes ? ` ${a.totals.strokes}타 (${formatToPar(a.toPar)})` : '';
+  return `${COURSE_NAME} ${dateLabel(round.date)} 라운드${score}`;
+}
+
+/** The round as plain text for email or sharing: summary, hole by hole, then analysis. */
+export function reportText(round: Round): string {
+  const a = analyze(round);
+  const t = a.totals;
+  const lines: string[] = [];
+  lines.push(`${COURSE_NAME} · ${dateLabel(round.date)}`);
+  if (!t.holes) {
+    lines.push('', '아직 끝낸 홀이 없습니다.');
+    return lines.join('\n');
+  }
+  lines.push(
+    `총 ${t.strokes}타 (${formatToPar(a.toPar)}) · ${t.holes}/${HOLE_COUNT}홀`,
+    `전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`,
+    `퍼트 ${t.putts} · OB ${t.ob} · 멀리건 ${t.mulligan}`,
+    '',
+    '[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + OB',
+  );
+  round.holes.forEach((h, i) => {
+    if (!finished(round, i)) return;
+    const s = strokes(h);
+    const extra = [h.ob ? `OB ${h.ob}` : '', h.mulligan ? `멀리건 ${h.mulligan}` : ''].filter(Boolean).join(' ');
+    lines.push(`${i + 1}번 Par${h.par}: ${s}타 (${formatToPar(s - h.par)}) 드${h.driver} 어${h.approach} 퍼${h.putts}${extra ? ` ${extra}` : ''}`);
+  });
+  const dist = (Object.keys(SCORE_LABELS) as ScoreName[])
+    .filter((k) => a.distribution[k])
+    .map((k) => `${SCORE_LABELS[k]} ${a.distribution[k]}`)
+    .join(' · ');
+  lines.push(
+    '',
+    '[분석]',
+    `평균 퍼트 ${one(a.puttsPerHole)}개 · 1퍼트 ${a.onePutts}홀 · 3퍼트 이상 ${a.threePutts}홀`,
+    `그린 적중 ${a.girHoles}/${t.holes} (${pct(a.girHoles, t.holes)}%)`,
+    `분포: ${dist}`,
+    `Par별 평균: ${a.byPar.filter((p) => p.holes).map((p) => `Par${p.par} ${one(p.average)}타`).join(' · ')}`,
+    ...insights(a).map((s) => `- ${s}`),
+  );
+  return lines.join('\n');
+}
+
+/** A mailto: link that opens the mail app with the report filled in; the recipient is left to the user. */
+export function mailtoHref(round: Round): string {
+  return `mailto:?subject=${encodeURIComponent(reportSubject(round))}&body=${encodeURIComponent(reportText(round))}`;
+}

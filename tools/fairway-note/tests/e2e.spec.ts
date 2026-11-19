@@ -329,3 +329,57 @@ test('can be added to the home screen', async ({ page, request }) => {
     expect(response.headers()['content-type']).toBe('image/png');
   }
 });
+
+test('shows a club icon on each + button', async ({ page }) => {
+  await page.goto('/');
+  for (const key of ['driver', 'approach', 'putts', 'ob', 'mulligan']) {
+    const plus = page.locator(`.counter-${key} .plus`);
+    await expect(plus.locator('svg')).toBeVisible();
+    await expect(plus.locator('.plus-mark')).toHaveText('+');
+  }
+});
+
+test('sends the round by email through the mail app', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#send-actions')).toBeHidden();
+  await expect(page.locator('#send-note')).toContainText('홀을 끝내면');
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  const email = page.getByRole('link', { name: '이메일로 보내기' });
+  await expect(email).toBeVisible();
+  const href = (await email.getAttribute('href'))!;
+  const url = new URL(href);
+  expect(url.protocol).toBe('mailto:');
+  expect(url.pathname).toBe('');
+  expect(url.searchParams.get('subject')).toMatch(/^에버리스 동코스 \d{4}년 \d{1,2}월 \d{1,2}일 라운드 4타 \(E\)$/);
+  expect(url.searchParams.get('body')).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2');
+});
+
+test('shares the round with the phone share sheet', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { shared: unknown[] }).shared = [];
+    navigator.share = async (data) => { (window as unknown as { shared: unknown[] }).shared.push(data); };
+  });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await page.getByRole('button', { name: '공유하기' }).click();
+  const shared = await page.evaluate(() => (window as unknown as { shared: { title: string; text: string }[] }).shared);
+  expect(shared).toHaveLength(1);
+  expect(shared[0].title).toContain('3타 (-1)');
+  expect(shared[0].text).toContain('1번 Par4: 3타 (-1) 드1 어0 퍼2');
+});
+
+test('copies the round when the browser cannot share', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
+  });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await page.getByRole('button', { name: '결과 복사' }).click();
+  await expect(page.locator('#send-status')).toContainText('복사했습니다');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 3타 (-1)');
+});
