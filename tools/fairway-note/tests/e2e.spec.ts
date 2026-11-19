@@ -54,6 +54,8 @@ test('records holes by tapping and totals them without network or other storage'
   await expect(page.locator('#hole-strokes')).toHaveText('6');
 
   await page.locator('#next-hole').click();
+  // Hole 3 on 새별 is a par 5; changing it to par 3 takes 2 off the front nine's par 36.
+  await expect(page.locator('.par-pick [aria-checked="true"]')).toHaveText('Par 5');
   await page.getByRole('radio', { name: 'Par 3' }).click();
   await tap(page, 'driver');
   await tap(page, 'putts');
@@ -68,7 +70,7 @@ test('records holes by tapping and totals them without network or other storage'
   await expect(page.locator('#hole-tabs li').nth(1)).toHaveText('26');
 
   const front = page.locator('.scorecard').first();
-  await expect(front.locator('.par-row .sum')).toHaveText('35');
+  await expect(front.locator('.par-row .sum')).toHaveText('34');
   await expect(front.locator('.strokes-row .sum')).toHaveText('12');
 
   expect(requests).toEqual([]);
@@ -167,7 +169,7 @@ test('links back to the site and fits a 360px screen', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('Fairway Note');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Fairway Note');
-  await expect(page.locator('#course-name')).toHaveText('에버리스 동코스');
+  await expect(page.locator('#course-name')).toHaveText('에버리스 새별·레이크');
   const home = page.locator('a.home-link');
   await expect(home).toBeVisible();
   await expect(home).toHaveAttribute('href', '../../');
@@ -573,7 +575,7 @@ test('sends the round by email through the mail app', async ({ page }) => {
   const url = new URL(href);
   expect(url.protocol).toBe('mailto:');
   expect(url.pathname).toBe('');
-  expect(url.searchParams.get('subject')).toMatch(/^에버리스 동코스 \d{4}년 \d{1,2}월 \d{1,2}일 라운드 4타 \(E\)$/);
+  expect(url.searchParams.get('subject')).toMatch(/^에버리스 새별·레이크 \d{4}년 \d{1,2}월 \d{1,2}일 라운드 4타 \(E\)$/);
   expect(url.searchParams.get('body')).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2');
 });
 
