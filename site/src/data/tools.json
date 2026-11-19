@@ -22,7 +22,7 @@
   {
     "slug": "fairway-note",
     "kind": "built",
-    "title": { "ko": "Fairway Note — 에버리스 동코스 스코어 노트", "en": "Fairway Note — golf score notes for Everis East" },
+    "title": { "ko": "Fairway Note — 에버리스 새별·레이크 스코어 노트", "en": "Fairway Note — golf score notes for Everis Saebyul and Lake" },
     "description": {
       "ko": "라운드 중 홀마다 드라이버·어프로치·퍼트·OB·멀리건을 탭으로 세고, 합계와 라운드 분석을 바로 봅니다.",
       "en": "Tap to count drives, approaches, putts, OBs and mulligans on each hole during a round, with live totals and a round analysis."

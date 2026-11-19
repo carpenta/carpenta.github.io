@@ -1,8 +1,14 @@
-export const COURSE_NAME = '에버리스 동코스';
+export const COURSE_NAME = '에버리스 새별·레이크';
 export const HOLE_COUNT = 18;
 export const DEFAULT_PAR = 4;
 export const PARS = [3, 4, 5] as const;
 export type Par = (typeof PARS)[number];
+
+/**
+ * Pars for Everis Golf Resort, 새별 (front, holes 1-9) then 레이크 (back, holes 10-18), from the
+ * operator's scorecard (shinangolf.com/club/course/everis, checked 2026-11-19). Editable per hole.
+ */
+export const COURSE_PARS: readonly Par[] = [4, 4, 5, 3, 4, 4, 3, 5, 4, 4, 3, 4, 4, 5, 5, 3, 4, 4];
 
 /** Counted items on a hole. OB adds one penalty stroke each; mulligans are noted but never counted. */
 export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'mulligan'] as const;
@@ -38,7 +44,7 @@ export function localDate(now = new Date()): string {
 }
 
 export function newRound(now = new Date()): Round {
-  return { version: 1, date: localDate(now), current: 0, holes: Array.from({ length: HOLE_COUNT }, () => emptyHole()) };
+  return { version: 1, date: localDate(now), current: 0, holes: COURSE_PARS.map((par) => emptyHole(par)) };
 }
 
 export function bump(hole: Hole, key: Counter, delta: number): Hole {
