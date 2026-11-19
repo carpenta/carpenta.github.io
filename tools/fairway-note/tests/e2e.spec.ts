@@ -150,7 +150,7 @@ test('shows the hole score in the badge with its scorecard mark, red under par, 
   await expect(mark).toHaveAttribute('data-mark', 'eagle');
   await expect(shape.locator('circle')).toHaveCount(2);
   await expect(page.locator('#hole-name')).toHaveText('이글');
-  await expect(badge).toHaveAttribute('aria-label', '이 홀 2타, 이글');
+  await expect(badge).toHaveAttribute('aria-label', '이 홀 2타 이글');
   // Back to par and under again: the moment plays again.
   await tap(page, 'putts', 2);
   await expect(badge).toHaveClass(/settle/);
@@ -260,7 +260,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v11');
+  await expect(page.locator('#app-version')).toHaveText('v12');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -277,12 +277,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v11');
+  await expect(page.locator('#menu-version')).toHaveText('v12');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v11');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v12');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -554,7 +554,7 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   // Now 1 + 2 + 4 = 7 strokes: 트리플 보기 on this par 4 (Everis 새별 2).
   expect(par).toBe(4);
   await expect(page.locator('#hole-name')).toHaveText('트리플');
-  await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 7타, 트리플 보기');
+  await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 7타 트리플 보기');
   // Escape closes the strip and keeps the hole.
   await holeBtn.click();
   await page.keyboard.press('Escape');
@@ -746,6 +746,109 @@ test('a 9-hole round from the picker: one nine on every screen, saved and kept a
   // The next round offers nine holes again.
   await page.getByRole('button', { name: '코스 고르고 시작' }).click();
   await expect(len.getByRole('button', { name: '9홀' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+/** Presses Tab `times` times and checks focus never leaves `dialog` for the page behind it. */
+async function focusStaysIn(page: Page, dialog: string, times = 12) {
+  for (let k = 0; k < times; k++) {
+    await page.keyboard.press('Tab');
+    const inside = await page.evaluate((id) => {
+      const el = document.activeElement;
+      return el === document.body || el === null || document.getElementById(id)!.contains(el);
+    }, dialog);
+    expect(inside, `Tab ${k + 1} in #${dialog}`).toBe(true);
+  }
+}
+
+test('names every control and value for screen readers, keeps focus in each popover and gives it back', async ({ page }) => {
+  await open(page);
+  // Each pill: a group named for its club, + and − by name, and the count read with the club.
+  for (const club of ['드라이버', '어프로치', '퍼터']) {
+    const group = page.getByRole('group', { name: club, exact: true });
+    await expect(group.getByRole('button', { name: `${club} 하나 더하기` })).toBeVisible();
+    await expect(group.getByRole('button', { name: `${club} 하나 빼기` })).toBeVisible();
+    await expect(group.getByText(`${club} 0`, { exact: true })).toBeAttached();
+  }
+  await tap(page, 'driver');
+  await tap(page, 'approach', 2);
+  await tap(page, 'putts', 2);
+  await expect(page.getByRole('group', { name: '어프로치', exact: true }).getByText('어프로치 2', { exact: true })).toBeAttached();
+  // The digit itself is hidden from screen readers, so nothing reads a bare "2".
+  await expect(page.locator('#count-approach')).toHaveAttribute('aria-hidden', 'true');
+  // The badge reads the hole's score in one phrase.
+  await expect(page.getByRole('img', { name: '이 홀 5타 보기' })).toBeVisible();
+
+  // The hole button names the hole and the progress the tick bar draws; the strip is a list of holes.
+  const holeBtn = page.getByRole('button', { name: /^1번 홀, Par 4\. 홀 목록, 1홀 기록$/ });
+  await expect(holeBtn).toBeVisible();
+  await expect(page.locator('#ticks')).toHaveAttribute('aria-hidden', 'true');
+  await holeBtn.click();
+  const strip = page.getByRole('dialog', { name: '홀 목록' });
+  await expect(strip).toBeVisible();
+  const list = strip.getByRole('list', { name: '홀 목록' });
+  await expect(list.getByRole('listitem')).toHaveCount(20);
+  await expect(list.getByRole('button', { name: '1번 홀 Par 4, 5타 보기' })).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(list.getByRole('button', { name: /^2번 홀 Par 4, 기록 없음$/ })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(list.getByRole('button', { name: /^18번 홀/ })).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(list.getByRole('button', { name: /^1번 홀/ })).toBeFocused();
+  await focusStaysIn(page, 'strip');
+  await page.keyboard.press('Escape');
+  await expect(strip).toBeHidden();
+  await expect(page.locator('#hole-btn')).toBeFocused();
+
+  // 홀 안내: focus moves in, stays in, and comes back to the chip.
+  const info = page.getByRole('button', { name: /^홀 안내/ });
+  await info.click();
+  await expect(page.getByRole('dialog', { name: '1번 홀 안내' })).toBeVisible();
+  await focusStaysIn(page, 'hole-pop');
+  await page.keyboard.press('Escape');
+  await expect(info).toBeFocused();
+
+  // The menu and the finish check do the same.
+  await page.getByRole('button', { name: '메뉴' }).click();
+  await focusStaysIn(page, 'menu');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: '메뉴' })).toBeFocused();
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await expect(page.getByRole('dialog', { name: '라운드를 마칠까요?' })).toBeVisible();
+  await focusStaysIn(page, 'check');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: '라운드 마치기' })).toBeFocused();
+});
+
+test('큰 글씨 keeps every target on 기록 at least 48px in both modes', async ({ page }) => {
+  await open(page);
+  await menu(page);
+  await page.getByRole('switch', { name: /큰 글씨/ }).click();
+  await closeMenu(page);
+  // A target's box, grown by an invisible ::after touch area where it has one.
+  const target = (selector: string) => page.locator(selector).first().evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const after = getComputedStyle(el, '::after');
+    const grow = (v: string) => (after.content !== 'none' && after.position === 'absolute' ? Math.max(0, -parseFloat(v) || 0) : 0);
+    return { w: r.width + grow(after.left) + grow(after.right), h: r.height + grow(after.top) + grow(after.bottom) };
+  });
+  const selectors = ['#prev-hole', '#next-hole', '#hole-btn', '#info-btn', '.club-driver .plus', '.club-driver .minus', '.club-putts .plus', '#stake-ob', '#stake-hazard', 'button[data-mode="basic"]', 'button[data-mode="detail"]', '#go-next', '#tab-card'];
+  for (const [width, height] of [[375, 667], [375, 553]]) {
+    await page.setViewportSize({ width, height });
+    for (const mode of ['기본', '상세']) {
+      await page.getByRole('button', { name: mode, exact: true }).click();
+      for (const selector of selectors) {
+        // 상세 on a short screen moves the header row aside (Par and length go under the hole number), 홀 안내 with it.
+        if (selector === '#info-btn' && mode === '상세' && height < 600) {
+          await expect(page.locator(selector)).toBeHidden();
+          continue;
+        }
+        const box = await target(selector);
+        expect(Math.min(box.w, box.h), `${selector} in ${mode} at ${width}×${height}`).toBeGreaterThanOrEqual(48);
+      }
+    }
+    await page.getByRole('button', { name: '기본', exact: true }).click();
+  }
 });
 
 test('finishing with one whole nine offers a 9-hole round, and its summary leaves the other nine out', async ({ page }) => {

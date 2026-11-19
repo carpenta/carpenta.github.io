@@ -384,7 +384,8 @@ function buildClubs(): void {
     const minus = h('button', { type: 'button', class: 'step minus', 'aria-label': `${label} 하나 빼기` });
     minus.innerHTML = `<span>${MINUS}</span>`;
     // The count, with the club's icon beside it for screens where the names step aside.
-    const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}` }, '0'));
+    // The digit is for the eye; screen readers read the club with it ("드라이버 2").
+    const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}`, 'aria-hidden': 'true' }, '0'), h('span', { class: 'sr-only', id: `count-label-${key}` }, `${label} 0`));
     num.insertAdjacentHTML('afterbegin', CLUB_ICONS[key].replace('<svg', '<svg class="pill-ico"'));
     // The long-press coach mark sits over the middle count (screen readers get it from #lp-hint).
     if (key === 'approach') {
@@ -683,7 +684,8 @@ function renderEntry(a: Analysis, changed?: string): void {
   $('clubs').classList.toggle('coached', coached);
   const holeBtn = $('hole-btn');
   holeBtn.classList.toggle('missed', missed.length > 0);
-  setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);
+  // The tick bar is drawn for the eye; its news is in the button's name.
+  setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록, ${a.totals.holes}홀 기록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);
   const info = holeInfo(roundCourse(round), i);
   // One row: Par, length and HDCP (only with the course's official handicap) as text in one pill.
   setChip('hole-distance', distanceLabel(info));
@@ -727,6 +729,7 @@ function renderEntry(a: Analysis, changed?: string): void {
     club.querySelector<HTMLButtonElement>('.plus')!.disabled = n >= MAX_COUNT;
     club.querySelector<HTMLButtonElement>('.minus')!.disabled = n === 0;
     const label = labelOf(key, cur.par);
+    setText($(`count-label-${key}`), `${label} ${n}`);
     setText(club.querySelector('.club-name')!, label);
     setAttr(club.querySelector('.plus')!, 'aria-label', `${label} 하나 더하기`);
     setAttr(club.querySelector('.minus')!, 'aria-label', `${label} 하나 빼기`);
@@ -746,7 +749,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(badge, 'data-tone', done ? toneOf(d) : played(cur) ? 'progress' : 'none');
   // The badge is a 96px circle: 트리플 보기 and 쿼드러플 보기 read 트리플 and 쿼드러플 there (the label keeps the full name).
   setText($('hole-name'), name.replace(/^(트리플|쿼드러플) 보기$/, '$1'));
-  setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타, ${name}` : '이 홀 아직 기록 전');
+  setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타 ${name}` : '이 홀 아직 기록 전');
   const markKey = `${i}:${mark}`;
   // Static markup from SHAPES; written only when the mark changes, so a drawing mark is not restarted.
   if (markKey !== lastMark) $('bm').innerHTML = SHAPES[mark];
@@ -1401,14 +1404,14 @@ function renderStrip(): void {
     const d = s - x.par;
     const st = k === round.current ? 'cur' : done ? 'done' : missed.includes(k) ? 'missed' : 'later';
     const what = done ? `${s}타 ${scoreWord(s, x.par)}` : played(x) ? `${s}타 진행 중` : st === 'missed' ? '기록 안 함' : '기록 없음';
-    cells.push(h('button', { type: 'button', class: 'scell', 'data-jump': String(k), 'data-st': st, 'aria-current': String(k === round.current), 'aria-label': `${k + 1}번 홀 Par ${x.par}, ${what}` },
-      h('span', { class: 'sc-no' }, String(k + 1)),
-      h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, played(x) ? String(s) : '–'))));
+    cells.push(h('li', {}, h('button', { type: 'button', class: 'scell', 'data-jump': String(k), 'data-st': st, 'aria-current': String(k === round.current), 'aria-label': `${k + 1}번 홀 Par ${x.par}, ${what}` },
+      h('span', { class: 'sc-no', 'aria-hidden': 'true' }, String(k + 1)),
+      h('span', { class: 'm', 'aria-hidden': 'true', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, played(x) ? String(s) : '–')))));
     if (k === 8 || k === 17) {
       const t = k === 8 ? a.front : a.back;
       // A 9-hole round has one subtotal, its total.
       const label = round.holes.length === 9 ? '합계' : k === 8 ? '전반' : '후반';
-      cells.push(h('span', { class: 'scell sub' }, h('span', { class: 'sc-no' }, label), h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')));
+      cells.push(h('li', {}, h('span', { class: 'scell sub' }, h('span', { class: 'sc-no' }, label), h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–'))));
     }
   });
   $('strip-row').replaceChildren(...cells);
@@ -1458,6 +1461,15 @@ function bindStrip(): void {
   dialog.addEventListener('close', () => {
     setAttr($('hole-btn'), 'aria-expanded', 'false');
     $('hole-btn').focus();
+  });
+  // Arrow keys, Home and End move along the holes.
+  $('strip-row').addEventListener('keydown', (event) => {
+    const cells = [...$('strip-row').querySelectorAll<HTMLButtonElement>('button[data-jump]')];
+    const at = cells.indexOf(document.activeElement as HTMLButtonElement);
+    const to = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: cells.length - 1 }[event.key];
+    if (at < 0 || to === undefined) return;
+    event.preventDefault();
+    cells[Math.max(0, Math.min(cells.length - 1, to))].focus();
   });
   $('strip-row').addEventListener('click', (event) => {
     const cell = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-jump]');
