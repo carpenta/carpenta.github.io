@@ -26,6 +26,9 @@ export interface PickerOptions {
   cancelLabel?: string;
   /** Called when that button closes the picker. */
   onCancel?: () => void;
+  /** Title and start button for another use of the picker, e.g. changing this round's course (default "코스 선택", "이 코스로 시작"). */
+  title?: string;
+  startLabel?: string;
 }
 
 let choice: CourseChoice = resolveChoice(null);
@@ -56,6 +59,8 @@ export function openPicker(options: PickerOptions): void {
   $<HTMLInputElement>('picker-search').value = '';
   $('picker-cancel').hidden = mode === 'first';
   $('picker-cancel').textContent = options.cancelLabel ?? '취소';
+  $('picker-title').textContent = options.title ?? '코스 선택';
+  $('picker-start').textContent = options.startLabel ?? '이 코스로 시작';
   renderAreas();
   renderList();
   renderChosen();
