@@ -1,4 +1,4 @@
-/* v4: TheGrint-style hole entry in our grass tones, over our own drawing of the hole (design/v4.html). */
+/* v5: TheGrint-style hole entry in our grass tones, over our own drawing of the hole (design/v5.html). */
 :root {
   --turf: #2f7d3a;
   --fairway: #5baa4f;
@@ -23,12 +23,18 @@
   --font: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   --m: clamp(12px, 4.8vw, 22px);   /* sheet side margin: the course shows around it */
   --tabbar: 56px;
-  --badge: 84px;
-  --overlap: 26px;
-  --sheet-pt: 30px;
-  --step: 48px;                    /* round + and −: 48px, so the count keeps 8px clear of both in the pill */
-  --count: clamp(32px, 5.4dvh, 46px);
-  --pill-h: clamp(140px, calc(100dvh - 512px), 212px);
+  --badge: 76px;
+  --overlap: 12px;
+  /* 기본 sizes (screens 600px and taller); the count keeps 8px clear of the round + and − */
+  --sheet-pt: 16px;
+  --step: 52px;
+  --count: 56px;
+  --pill-pad: 8px;
+  --pill-h: clamp(150px, calc(100dvh - 424px), 204px);
+  --pen: 52px;
+  --mode-h: 40px;
+  --next-h: 52px;
+  --next-m: 8px;
   color-scheme: light;
 }
 
@@ -63,19 +69,20 @@ svg { display: block; }
 /* ---------- top bar: light controls floating on the course ---------- */
 .top {
   flex: none; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
-  display: grid; grid-template-columns: 48px 1fr 48px; row-gap: 14px; align-items: center;
+  display: grid; grid-template-columns: 48px auto 1fr; column-gap: 8px; row-gap: 14px; align-items: center;
 }
+/* Horizontal swipes change the hole; vertical ones still scroll the sheet, and pinch zoom still works.
+   The sheet scrolls on its own, so it says the same for touches that start on it. */
+#entry, #entry .sheet { touch-action: pan-y pinch-zoom; }
 .round {
   width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
   background: var(--white); color: var(--ink); box-shadow: var(--float);
 }
 .round:active { background: var(--tint); }
 .menu { grid-column: 1; grid-row: 1; }
-/* The way back to the site: quiet, top right, on every screen width. */
-.home-link { position: absolute; z-index: 4; top: max(8px, env(safe-area-inset-top)); right: var(--m); color: var(--muted); }
 .switcher {
-  grid-column: 2; grid-row: 1; justify-self: center;
-  display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px;
+  grid-column: 2; grid-row: 1; justify-self: start;
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
   background: rgb(255 255 255 / .96); box-shadow: var(--float);
 }
 .switcher .round { box-shadow: none; background: var(--tint); }
@@ -85,7 +92,10 @@ svg { display: block; }
 .hole-title svg { flex: none; margin-right: 3px; }
 .hole-n { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
 .hole-u { font-size: 17px; font-weight: 700; padding-top: 6px; }
-.info { grid-column: 1 / -1; grid-row: 2; justify-self: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; max-width: 100%; }
+.hole-title.two .hole-n { font-size: 28px; }
+.hole-title.two .hole-u { font-size: 15px; }
+.info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; flex-wrap: wrap; gap: 5px; max-width: calc(100% - var(--badge)); }
+.chip .lbl { font-weight: 600; color: var(--muted); }
 .chip {
   display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 999px;
   background: rgb(255 255 255 / .94); box-shadow: var(--float);
@@ -93,17 +103,18 @@ svg { display: block; }
 }
 .chip.link { position: relative; color: var(--turf); }
 .chip.link::after { content: ''; position: absolute; inset: -10px -2px; }   /* a 48px tall touch area */
-.badge-room { flex: none; height: calc(var(--badge) - var(--overlap) + 4px); }
 .banners { flex: none; display: grid; gap: 8px; margin: 10px var(--m) 0; }
-.banners:not(:has(:not([hidden]))) { display: none; }
-.spacer { flex: 1 1 0; min-height: 0; }
+.banners:not(:has(> :not([hidden]))) { display: none; }
+.spacer { flex: 1 1 0; min-height: 4px; }
 
 /* ---------- the sheet ---------- */
-.sheet-wrap { position: relative; flex: 0 1 auto; min-height: 0; margin: 0 var(--m); display: flex; flex-direction: column; }
+.sheet-wrap { position: relative; flex: 0 1 auto; min-height: 0; margin: 0 var(--m); display: flex; flex-direction: column; will-change: transform; -webkit-user-select: none; user-select: none; }
+/* The swiped sheet carrying on off screen (main.ts sets its box). */
+.sheet-wrap.ghost { position: fixed; z-index: 2; margin: 0; pointer-events: none; }
 .sheet {
   flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   background: var(--white); border-radius: 32px; box-shadow: 0 12px 32px rgb(8 28 10 / .32);
-  padding: var(--sheet-pt) 18px 12px; scrollbar-width: none;
+  padding: var(--sheet-pt) 16px 10px; scrollbar-width: none;
 }
 .sheet::-webkit-scrollbar { display: none; }
 /* A white fade at the bottom says there is more below; drawn over the sheet, so it adds no scroll. */
@@ -113,41 +124,44 @@ svg { display: block; }
 }
 .sheet-wrap.more::after { opacity: 1; }
 
-/* The score badge: the hole's computed score, overlapping the sheet's top right. */
+/* The score badge: the hole's computed score, rising from the sheet's top right into the open corner. */
 .badge {
-  position: absolute; z-index: 3; right: -6px; top: calc(var(--overlap) - var(--badge));
+  position: absolute; z-index: 3; right: -6px; bottom: calc(100% - var(--overlap));
   width: var(--badge); height: var(--badge); border-radius: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: var(--deep); color: #fff; box-shadow: 0 0 0 4px var(--white), 0 8px 18px rgb(8 28 10 / .35);
 }
 .badge[data-tone='under'] { background: var(--red); }
 .badge[data-tone='par'] { background: var(--turf); }
-.badge-cap { font-size: 13px; font-weight: 600; color: #cfe3c9; line-height: 1; }
-.badge[data-tone='under'] .badge-cap, .badge[data-tone='par'] .badge-cap { color: #fff; }
 .badge-name { font-size: 13px; font-weight: 700; line-height: 1; white-space: nowrap; }
-/* Golf's own scorecard marks: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
+/* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
-.bmark { width: 44px; height: 36px; }
+.bmark { width: 44px; height: 40px; }
 .bmark b { position: relative; font-size: 30px; font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
 .bmark.two b { font-size: 22px; }
-.bmark::before, .bmark::after, .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
-.bmark[data-mark='birdie']::before { width: 34px; height: 34px; border-width: 2px; border-radius: 50%; }
-.bmark[data-mark='eagle']::before { width: 29px; height: 29px; border-width: 1.5px; border-radius: 50%; }
-.bmark[data-mark='eagle']::after { width: 36px; height: 36px; border-width: 1.5px; border-radius: 50%; }
-.bmark[data-mark='bogey']::before { width: 32px; height: 32px; border-width: 2px; border-radius: 2px; }
-.bmark[data-mark='double']::before { width: 28px; height: 28px; border-width: 1.5px; border-radius: 1px; }
-.bmark[data-mark='double']::after { width: 35px; height: 35px; border-width: 1.5px; border-radius: 2px; }
+.bm { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; overflow: visible; }
+.bm * { fill: none; stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
 @keyframes settle { from { transform: scale(1.1); } to { transform: scale(1); } }
 .badge.settle { animation: settle .16s ease-out; }
+/* Birdie or better: the mark draws itself once and the badge rings. */
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes ring { from { box-shadow: 0 0 0 0 rgb(255 255 255 / .75); } to { box-shadow: 0 0 0 18px rgb(255 255 255 / 0); } }
+.badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
+.badge.celebrate .bm * { stroke-dasharray: 1; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
+.badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
+.badge.celebrate::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; animation: ring .7s ease-out both; }
+/* The scorecard's smaller marks keep their CSS rings. */
+.m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
 /* Row A: three tall pill steppers. The count sits in its own row between the round buttons. */
 .clubs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; }
 .club { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.club-lbl { display: flex; align-items: center; gap: 4px; height: 22px; margin-bottom: 8px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 6px; font-size: 15px; font-weight: 700; white-space: nowrap; }
 .club-lbl svg { width: 20px; height: 20px; color: var(--turf); }
 .pill {
   width: 100%; max-width: 104px; height: var(--pill-h); border-radius: 999px; background: var(--pill);
-  display: grid; grid-template-rows: var(--step) minmax(0, 1fr) var(--step); justify-items: center; align-items: center; padding: 6px 0;
+  display: grid; grid-template-rows: var(--step) minmax(0, 1fr) var(--step); justify-items: center; align-items: center; padding: var(--pill-pad) 0;
 }
 .step { width: 100%; height: var(--step); display: grid; place-items: center; border-radius: calc(var(--step) / 2); }
 .step span {
@@ -161,44 +175,42 @@ svg { display: block; }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
 
-/* Row B (상세): tee-shot pad, miss-hit, divider and the penalty heading */
-.detail { margin-top: 18px; }
-.row-title { display: flex; align-items: baseline; justify-content: center; gap: 8px; font-size: 17px; font-weight: 600; }
-.row-title .val { font-size: 15px; font-weight: 700; color: var(--turf); }
-.row-title .val.none { color: var(--muted); font-weight: 600; }
-.pad {
-  margin: 10px auto 0; width: max-content;
-  display: grid; grid-template-columns: 48px 48px 64px 48px 48px; grid-template-rows: 48px 64px 48px;
-  column-gap: 8px; row-gap: 8px; align-items: center; justify-items: center;
+/* 상세: the pills shrink, then one tee line, one row of five directions and the penalty line. */
+.sheet[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-h: 138px; --pen: 48px; padding-top: 14px; padding-bottom: 6px; }
+@media (min-height: 660px) { .sheet[data-mode='detail'] { --count: 30px; --pill-h: 144px; } }
+.sheet[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
+.sheet[data-mode='detail'] .step span { width: 44px; height: 44px; }
+.detail { margin-top: 8px; }
+.tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
+/* "티샷" and its result side by side, or the result under it when the chips leave too little room (360px). */
+.tee-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; min-width: 0; font-size: 17px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+.tee-t .val { font-size: 15px; font-weight: 700; color: var(--turf); }
+.tee-t .val.none { color: var(--muted); font-weight: 600; }
+.tee-chips { display: flex; gap: 8px; flex: none; }
+.tchip {
+  position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  background: var(--tint); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap;
 }
-.dir { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
+.tchip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
+.tchip[aria-pressed='true'] { background: var(--fairway); }
+.tchip.miss { min-width: 80px; }
+.pad { margin-top: 8px; display: flex; justify-content: center; gap: 8px; }
+.dir { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
 .dir:active { background: var(--tint); }
-.dir[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
 .dir.far { background: var(--tint); box-shadow: none; }
-.dir.far[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
-.d-up { grid-area: 1 / 3; }
-.d-farl { grid-area: 2 / 1; }
-.d-l { grid-area: 2 / 2; }
-.d-c { grid-area: 2 / 3; width: 64px; height: 64px; font-size: 13px; font-weight: 800; background: #c9e5bf; box-shadow: var(--lift); }
-.d-r { grid-area: 2 / 4; }
-.d-farr { grid-area: 2 / 5; }
-.d-down { grid-area: 3 / 3; }
-.miss { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.miss-lbl { font-size: 13px; font-weight: 600; color: var(--muted); margin-right: 2px; }
-.toggle-pill { position: relative; height: 36px; padding: 0 14px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 15px; font-weight: 700; }
-.toggle-pill::after { content: ''; position: absolute; inset: -6px 0; }   /* a 48px touch area */
-.toggle-pill[aria-pressed='true'] { background: var(--fairway); }
-.divider { height: 1.5px; background: var(--line); margin: 18px 4px 6px; border: 0; }
-.pen-head { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 8px; }
+.dir[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
+.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: 800; background: #c9e5bf; }
 
-/* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke. */
-.pens { display: grid; grid-template-columns: 1fr 72px 72px 1fr; column-gap: 24px; margin-top: 10px; }
+/* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke.
+   기본 keeps the two centred with "빼기" in its own slot to the right; 상세 packs them under the pad. */
+.pens { display: grid; grid-template-columns: 1fr 72px 72px 1fr; column-gap: 24px; margin-top: 12px; }
 .pens .pen[data-pen='ob'] { grid-column: 2; }
 .pens .pen[data-pen='hazard'] { grid-column: 3; }
-.sheet[data-mode='detail'] .pens { margin-top: 0; }
-.sheet[data-mode='detail'] #undo-basic { display: none; }
-.pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.pen-icon { position: relative; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
+.sheet[data-mode='detail'] .pens { grid-template-columns: 1fr 48px 48px 1fr; column-gap: 22px; margin-top: 10px; }
+.pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sheet[data-mode='detail'] .pen { width: 48px; gap: 2px; }
+.pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
 .pen:active:not(:disabled) .pen-icon { background: var(--pill); }
 .pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
 .pen-lbl { font-size: 13px; font-weight: 700; line-height: 16px; text-align: center; white-space: nowrap; }
@@ -207,18 +219,22 @@ svg { display: block; }
   background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 800; line-height: 24px; text-align: center; box-shadow: 0 0 0 2px var(--white);
 }
 .pen-count.zero { display: none; }
-.undo { min-height: 48px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--turf); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.undo:active { background: var(--tint); }
-.pens .undo { grid-column: 4; justify-self: start; margin-left: -16px; min-width: 48px; padding: 0 6px; flex-direction: column; justify-content: flex-start; gap: 6px; line-height: 16px; }
-.pens .undo .u-ico { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
+.undo {
+  grid-column: 4; justify-self: start; margin-left: -12px; width: 56px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  font-size: 13px; font-weight: 700; line-height: 16px; color: var(--turf); white-space: nowrap;
+}
+.sheet[data-mode='detail'] .undo { margin-left: -4px; gap: 2px; }
+.undo .u-ico { width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
+.undo:active .u-ico { background: var(--tint); }
 
 /* 기본 / 상세 */
 .modes { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-.mode { position: relative; height: 40px; min-width: 96px; padding: 0 18px; border-radius: 999px; background: var(--tint); color: var(--muted); font-size: 15px; font-weight: 700; }
-.mode::after { content: ''; position: absolute; inset: -4px 0; }
+.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: 999px; background: var(--tint); color: var(--muted); font-size: 15px; font-weight: 700; }
+.mode::after { content: ''; position: absolute; inset: calc((var(--mode-h) - 48px) / 2) 0; }   /* a 48px touch area */
 .mode[aria-pressed='true'] { background: var(--fairway); color: var(--ink); }
 
-.next { flex: none; margin: 8px var(--m); height: 52px; border-radius: 999px; background: var(--turf); color: #fff; font-size: 17px; font-weight: 700; box-shadow: var(--float); }
+.next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--turf); color: #fff; font-size: 17px; font-weight: 700; box-shadow: var(--float); }
 .next:active { background: #276b31; }
 
 /* ---------- bottom tab bar ---------- */
@@ -227,18 +243,33 @@ svg { display: block; }
   padding: 0 max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left));
   background: var(--deep); display: flex; justify-content: center;
 }
-.tabs { position: relative; display: grid; grid-template-columns: repeat(2, 112px); width: 100%; max-width: 480px; justify-content: center; column-gap: 12px; }
+.bar { position: relative; width: 100%; max-width: 480px; display: flex; justify-content: center; }
+.tabs { display: grid; grid-template-columns: repeat(2, 112px); column-gap: 12px; }
 .tab { height: var(--tabbar); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--tab-ink); font-weight: 600; }
 .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tab-label { font-size: 13px; }
 .tab[aria-selected='true'] { color: var(--fairway); font-weight: 700; }
 .ver { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--tab-ink); padding: 2px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px #3a5a40; }
+/* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
+   The top right belongs to the score badge. */
+.home-link {
+  position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--tab-ink);
+}
+.home-link:active { background: rgb(255 255 255 / .08); }
+@media (max-width: 359px) { .tabs { grid-template-columns: repeat(2, minmax(0, 96px)); } }
 
 /* ---------- 스코어카드 ---------- */
 .sc { --m: 10px; background: var(--paper); overflow-y: auto; scrollbar-width: none; }
 .sc::-webkit-scrollbar { display: none; }
-.sc-top { flex: none; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px; }
+.sc-top { flex: none; display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px; }
 .sc-title { text-align: center; min-width: 0; }
+.edit {
+  height: 48px; min-width: 76px; padding: 0 14px; border-radius: 999px; background: var(--white); box-shadow: var(--float);
+  font-size: 15px; font-weight: 700; color: var(--turf); white-space: nowrap;
+}
+.edit.on { background: var(--turf); color: #fff; }
+.edit-hint { margin: 12px 2px 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
 .sc-title h2 { font-size: 17px; font-weight: 700; }
 .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 32px; padding: 14px 10px 16px; box-shadow: 0 8px 24px rgb(23 48 26 / .12); }
@@ -264,6 +295,11 @@ button.col:active { background: var(--tint); }
 .col.sub .no { background: var(--line); }
 .col[aria-current='true'] { box-shadow: inset 0 0 0 2.5px var(--turf); }
 .col[aria-current='true'] .no { background: var(--turf); color: #fff; }
+/* 파 수정: the par cell grows into a button that steps 3, 4, 5. */
+.editing .rowlbl span.pr-row, .editing .col > .pr { height: 52px; }
+.col > .par-btn { height: 50px; margin: 1px; border-radius: 12px; background: var(--tint); font-size: 17px; font-weight: 800; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--fairway); }
+.col > .par-btn:active { background: var(--pill); }
+.col > .par-btn.changed { background: var(--fairway); }
 .sub-v { font-size: 17px; font-weight: 800; }
 .m { width: 34px; height: 34px; color: var(--ink); }
 .m[data-tone='under'] { color: var(--red); }
@@ -345,11 +381,7 @@ button.col:active { background: var(--tint); }
 .step-sm.plus { background: var(--turf); color: #fff; }
 .step-sm:disabled { background: var(--off); color: var(--off-ink); box-shadow: none; }
 .step-count { text-align: center; font-size: 22px; font-weight: 800; }
-.menu-btn, .menu-close { margin-top: 14px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: 700; }
-.menu-btn { background: var(--white); box-shadow: inset 0 0 0 1.5px var(--line); }
-.par-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
-.par-options button { min-height: 56px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: 700; }
-.par-options button[aria-pressed='true'] { background: var(--fairway); }
+.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: 700; }
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
@@ -359,25 +391,21 @@ button.col:active { background: var(--tint); }
 }
 .update-prompt:disabled { opacity: .7; }
 
-/* Shorter screens (iPhone SE Safari 375×553, 360×640): the header packs left so the badge sits beside it. */
-@media (max-height: 650px) {
-  :root { --badge: 72px; --overlap: 12px; --sheet-pt: 12px; --count: 26px; --pill-h: clamp(128px, calc(100dvh - 414px), 176px); }
-  .sheet { padding-bottom: 8px; }
-  .pen { gap: 4px; }
-  .modes { margin-top: 8px; }
-  .top { grid-template-columns: 48px auto 1fr; column-gap: 8px; }
-  .switcher { justify-self: start; }
-  .info { grid-column: 2 / -1; justify-self: start; justify-content: flex-start; }
-  .badge-room { height: 4px; }
-  .badge-cap { display: none; }
-  .club-lbl { margin-bottom: 2px; }
-  .pill { padding: 4px 0; }
-  .step span { width: 44px; height: 44px; }
+@media (max-width: 369px) { :root { --badge: 72px; } }
+/* Short screens (iPhone SE Safari, 375×553). */
+@media (max-height: 599px) {
+  :root {
+    --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 5px;
+    --pill-h: clamp(140px, calc(100dvh - 400px), 176px);
+    --pen: 48px; --mode-h: 36px; --next-h: 48px; --next-m: 8px;
+  }
+  .club-lbl { height: 18px; margin-bottom: 4px; }
   .pens { margin-top: 8px; }
-  .pens .undo .u-ico, .pen-icon { width: 48px; height: 48px; }
+  .modes { margin-top: 14px; }
+  .sheet { padding-bottom: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .badge.settle, .count.bump { animation: none; }
+  .badge.settle, .count.bump, .badge.celebrate, .badge.celebrate .bm *, .badge.celebrate::after { animation: none; }
 }
 
 /* ---------- course picker: a full-screen dialog ---------- */

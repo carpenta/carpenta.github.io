@@ -37,7 +37,7 @@ import { registerOffline } from './offline';
 import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadPrefs, loadRound, preserveUnreadable, requestPersistence, savePrefs, saveRound, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
-import { courseSource, distanceLabel, holeInfo, resolveChoice, roundSetup } from './courses';
+import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION, VERSION_LABEL } from './version';
 
@@ -51,6 +51,15 @@ const MINUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true
 const STAKES: Record<Penalty, string> = {
   ob: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#fff" stroke="#17301A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.5h8v4.5H8z" fill="#17301A"/></svg>',
   hazard: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#C0392B" stroke="#8C2A20" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+};
+/** The badge's scorecard mark in a 40×40 box. pathLength 1 lets a birdie or better draw itself. */
+const SHAPES: Record<Mark, string> = {
+  none: '',
+  par: '',
+  birdie: '<circle cx="20" cy="20" r="17" pathLength="1"/>',
+  eagle: '<circle cx="20" cy="20" r="14" pathLength="1"/><circle cx="20" cy="20" r="19" pathLength="1"/>',
+  bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
+  double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
 };
 
 type Children = (Node | string | null | false)[];
@@ -114,6 +123,11 @@ let stale = loaded !== null && isStale(loaded);
 let mode: 'basic' | 'detail' = 'basic';
 /** Penalties in the order they were added on each hole, so "빼기" takes off the last one. Not saved. */
 const added = new Map<number, Penalty[]>();
+/** Holes whose birdie or better has had its moment, so it plays once until the score changes back. */
+const celebrated = new Set<number>();
+/** 파 수정 on the scorecard: each par cell becomes a button that steps 3, 4, 5. */
+let editPar = false;
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function hole(): Hole {
   return round.holes[round.current];
@@ -181,7 +195,7 @@ function bindViews(): void {
   });
 }
 
-/* ---------- moving between holes ---------- */
+/* ---------- moving between holes: the arrows, 다음 홀 and a swipe all slide ---------- */
 
 function go(index: number): void {
   if (index < 0 || index >= HOLE_COUNT || index === round.current) return;
@@ -191,10 +205,104 @@ function go(index: number): void {
   announce(`${index + 1}번 홀, Par ${hole().par}`);
 }
 
+/** Moves the sheet sideways; `ms` 0 jumps there. Inline styles set through CSSOM are allowed by the page's CSP. */
+function slide(el: HTMLElement, x: number, ms = 0, fade = false): void {
+  el.style.transition = ms ? `transform ${ms}ms cubic-bezier(.2, .8, .2, 1), opacity ${ms}ms ease-out` : 'none';
+  el.style.transform = x ? `translateX(${x}px)` : '';
+  el.style.opacity = fade ? '0' : '';
+}
+
+/** A copy of the swiped sheet that carries on off screen while the next hole slides in. Hidden from assistive tech. */
+function leaveGhost(wrap: HTMLElement, dir: number): void {
+  const box = wrap.getBoundingClientRect();
+  const ghost = wrap.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute('style');
+  for (const el of [ghost, ...ghost.querySelectorAll('[id]')]) el.removeAttribute('id');
+  ghost.querySelector('.badge')?.classList.remove('celebrate', 'settle');
+  ghost.classList.add('ghost');
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.inert = true;
+  Object.assign(ghost.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+  $('entry').append(ghost);
+  ghost.querySelector('.sheet')!.scrollTop = $('sheet').scrollTop;
+  requestAnimationFrame(() => slide(ghost, -dir * window.innerWidth * 0.45, 160, true));
+  window.setTimeout(() => ghost.remove(), 260);
+}
+
+/** One hole on or back. The new hole's sheet slides in from the side it comes from; a swipe's sheet carries on out. */
+function changeHole(dir: 1 | -1, swiped = false): void {
+  const wrap = $('sheet-wrap');
+  const target = round.current + dir;
+  if (target < 0 || target >= HOLE_COUNT) {
+    slide(wrap, 0, 180);
+    return;
+  }
+  const motion = !reducedMotion();
+  if (motion && swiped) leaveGhost(wrap, dir);
+  // Back in place before the new hole renders, so the drawn course measures the sheet where it rests.
+  slide(wrap, 0);
+  go(target);
+  if (swiped) navigator.vibrate?.(8);
+  if (!motion) return;
+  slide(wrap, dir * window.innerWidth * 0.3, 0, true);
+  requestAnimationFrame(() => requestAnimationFrame(() => slide(wrap, 0, 220)));
+}
+
 /** "다음 홀", or the scorecard after the last hole. */
 function goNext(): void {
   if (round.current === HOLE_COUNT - 1) show('card');
-  else go(round.current + 1);
+  else changeHole(1);
+}
+
+/** A sideways swipe on 기록 changes the hole; a mostly vertical one is left to scroll the sheet. */
+function bindSwipe(): void {
+  const entry = $('entry');
+  const wrap = $('sheet-wrap');
+  let drag: { x: number; y: number; id: number; on: boolean; t: number } | null = null;
+  let swallow = false;
+  entry.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false, t: performance.now() };
+  });
+  entry.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.on) {
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        drag.on = true;
+        swallow = true;
+        entry.setPointerCapture(e.pointerId);
+      } else {
+        if (Math.abs(dy) > 12) drag = null;
+        return;
+      }
+    }
+    // At the first and last hole the sheet only gives a little.
+    const edge = (dx > 0 && round.current === 0) || (dx < 0 && round.current === HOLE_COUNT - 1);
+    slide(wrap, edge ? dx * 0.25 : dx);
+  });
+  const end = (e: PointerEvent, cancel: boolean) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    if (!d.on) return;
+    const dx = e.clientX - d.x;
+    const speed = dx / Math.max(1, performance.now() - d.t);
+    if (!cancel && (dx < -72 || speed < -0.6)) changeHole(1, true);
+    else if (!cancel && (dx > 72 || speed > 0.6)) changeHole(-1, true);
+    else slide(wrap, 0, 180);
+    window.setTimeout(() => (swallow = false), 60);
+  };
+  entry.addEventListener('pointerup', (e) => end(e, false));
+  entry.addEventListener('pointercancel', (e) => end(e, true));
+  // A swipe that starts on a button must not also press it.
+  document.addEventListener('click', (e) => {
+    if (!swallow) return;
+    e.stopPropagation();
+    e.preventDefault();
+    swallow = false;
+  }, true);
 }
 
 /* ---------- the drawn course behind the screen ---------- */
@@ -259,12 +367,12 @@ function buildPens(): void {
     pen.querySelector('.pen-icon')!.insertAdjacentHTML('afterbegin', STAKES[key]);
     box.append(pen);
   }
-  box.append(h('button', { type: 'button', class: 'undo', id: 'undo-basic', hidden: '' }));
+  box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', hidden: '' }));
   box.addEventListener('click', (event) => {
     const pen = (event.target as HTMLElement).closest<HTMLButtonElement>('button.pen');
     if (pen && !pen.disabled) addPenalty(pen.dataset.pen as Penalty);
   });
-  for (const id of ['undo-basic', 'undo-detail']) $(id).addEventListener('click', undoPenalty);
+  $('pen-undo').addEventListener('click', undoPenalty);
 }
 
 /** One stroke more or less on a club, a penalty or a mulligan; the hole's score follows. */
@@ -296,17 +404,32 @@ function undoPenalty(): void {
   count(key, -1);
 }
 
+/** 미스샷 steps 헛스윙 → 뒤땅/토핑 → none; like every tee result it replaces the one before. */
+function nextMiss(tag: ShotTag<'driver'> | null): ShotTag<'driver'> | null {
+  return tag === 'whiff' ? 'mishit' : tag === 'mishit' ? null : 'whiff';
+}
+
+const isMiss = (tag: ShotTag<'driver'> | null): tag is 'whiff' | 'mishit' => tag === 'whiff' || tag === 'mishit';
+
+function setTee(next: ShotTag<'driver'> | null): void {
+  const drives = hole().driver;
+  if (!setHole((x) => setTeeTag(x, next), 'tee')) return;
+  navigator.vibrate?.(8);
+  const counted = hole().driver > drives ? `, 드라이버 ${hole().driver}` : '';
+  announce(`티샷 ${next === null ? '지움' : teeText(next, hole().par)}${counted}, ${strokes(hole())}타`);
+}
+
 function bindDetail(): void {
   $('detail').addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-tee]');
+    const target = event.target as HTMLElement;
+    if (target.closest('#tee-miss')) {
+      setTee(nextMiss(teeTag(hole())));
+      return;
+    }
+    const button = target.closest<HTMLButtonElement>('button[data-tee]');
     if (!button) return;
     const tag = button.dataset.tee as ShotTag<'driver'>;
-    const next = teeTag(hole()) === tag ? null : tag;
-    const drives = hole().driver;
-    if (!setHole((x) => setTeeTag(x, next), 'tee')) return;
-    navigator.vibrate?.(8);
-    const counted = hole().driver > drives ? `, 드라이버 ${hole().driver}` : '';
-    announce(`티샷 ${next === null ? '지움' : teeText(next, hole().par)}${counted}, ${strokes(hole())}타`);
+    setTee(teeTag(hole()) === tag ? null : tag);
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
     button.addEventListener('click', () => {
@@ -326,11 +449,19 @@ function teeText(tag: ShotTag<'driver'>, par: Par): string {
 
 let lastMark = '';
 
-function renderEntry(changed?: string): void {
+function renderEntry(a: Analysis, changed?: string): void {
   const cur = hole();
   const i = round.current;
   setText($('hole-n'), String(i + 1));
+  $('hole-title').classList.toggle('two', i >= 9);
   setText($('hole-par'), `Par ${cur.par}`);
+  // 합계: the finished holes against par, once there is one.
+  const total = $('total-chip');
+  total.hidden = a.totals.holes === 0;
+  const totalValue = $('total-v');
+  setText(totalValue, toParText(a.toPar));
+  totalValue.classList.toggle('under', a.toPar < 0);
+  setText($('total-holes'), `, ${a.totals.holes}홀`);
   const info = holeInfo(roundCourse(round), i);
   setChip('hole-distance', distanceLabel(info));
   const si = (info as { si?: unknown } | null)?.si;
@@ -370,7 +501,20 @@ function renderEntry(changed?: string): void {
   setText($('hole-name'), name);
   setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타, ${name}` : '이 홀 아직 기록 전');
   const markKey = `${i}:${mark}`;
-  if (changed && lastMark && lastMark !== markKey && mark !== 'none') replay(badge, 'settle');
+  // Static markup from SHAPES; written only when the mark changes, so a drawing mark is not restarted.
+  if (markKey !== lastMark) $('bm').innerHTML = SHAPES[mark];
+  const under = mark === 'birdie' || mark === 'eagle';
+  if (!under) celebrated.delete(i);
+  if (changed && under && !celebrated.has(i)) {
+    // A birdie or better: the mark draws itself and the badge rings, once.
+    celebrated.add(i);
+    badge.classList.remove('settle');
+    replay(badge, 'celebrate');
+    navigator.vibrate?.([12, 60, 18]);
+  } else if (changed && lastMark && lastMark !== markKey && mark !== 'none' && !under) {
+    badge.classList.remove('celebrate');
+    replay(badge, 'settle');
+  }
   lastMark = markKey;
 
   // 기본 / 상세
@@ -387,6 +531,11 @@ function renderEntry(changed?: string): void {
   const value = $('tee-val');
   setText(value, tag ? teeText(tag, cur.par) : '선택 안 함');
   value.classList.toggle('none', !tag);
+  const miss = $('tee-miss');
+  const missLabel = isMiss(tag) ? TAG_LABELS.driver[tag] : null;
+  setText(miss, missLabel ?? '미스샷');
+  setAttr(miss, 'aria-pressed', String(missLabel !== null));
+  setAttr(miss, 'aria-label', `미스샷 ${missLabel ?? '없음'}. 누를 때마다 헛스윙, 뒤땅/토핑, 없음 순서로 바뀌어요`);
 
   for (const key of PENALTIES) {
     const n = cur[key];
@@ -399,14 +548,13 @@ function renderEntry(changed?: string): void {
     setAttr(pen, 'aria-label', `${LABELS[key]} 하나 더하기${n ? ` (지금 ${n})` : ''}`);
   }
   const target = undoTarget();
-  for (const id of ['undo-basic', 'undo-detail']) {
-    const undo = $(id);
-    undo.hidden = target === null;
-    if (!target) continue;
-    const label = `${LABELS[target]} 빼기`;
-    if (undo.dataset.key !== `${id}:${target}`) {
-      undo.dataset.key = `${id}:${target}`;
-      undo.innerHTML = id === 'undo-basic' ? `<span class="u-ico">${MINUS}</span><span>${label}</span>` : `${MINUS}${label}`;
+  const undo = $('pen-undo');
+  undo.hidden = target === null;
+  if (target) {
+    if (undo.dataset.key !== target) {
+      undo.dataset.key = target;
+      // Static icon markup and a fixed label.
+      undo.innerHTML = `<span class="u-ico">${MINUS}</span><span>${LABELS[target]} 빼기</span>`;
     }
     setAttr(undo, 'aria-label', `${LABELS[target]} 하나 빼기`);
   }
@@ -415,21 +563,37 @@ function renderEntry(changed?: string): void {
 
 /* ---------- 스코어카드 ---------- */
 
-function holeColumn(i: number): HTMLButtonElement {
+/** A hole's column: a button that opens the hole, or in 파 수정 a column whose par cell is the button. */
+function holeColumn(i: number): HTMLElement {
   const x = round.holes[i];
   const done = finished(round, i);
   const s = strokes(x);
   const d = s - x.par;
-  const state = done ? `, ${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : ', 기록 없음';
-  return h('button', { type: 'button', class: 'col', 'data-hole': String(i), 'aria-current': String(i === round.current), 'aria-label': `${i + 1}번 홀로 가기, Par ${x.par}${state}` },
+  const published = publishedPar(roundCourse(round), i);
+  const par = editPar
+    ? h('button', { type: 'button', class: `par-btn${published !== null && x.par !== published ? ' changed' : ''}`, 'data-par-hole': String(i), 'aria-label': `${i + 1}번 홀 Par ${x.par}, 누르면 바뀜` }, String(x.par))
+    : h('span', { class: 'pr' }, String(x.par));
+  const cells = [
     h('span', { class: 'no' }, String(i + 1)),
-    h('span', { class: 'pr' }, String(x.par)),
+    par,
     h('span', { class: 'sc-row' }, h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, done ? String(s) : '–'))),
-    h('span', { class: 'pt' }, done ? String(x.putts) : ''));
+    h('span', { class: 'pt' }, done ? String(x.putts) : ''),
+  ];
+  if (editPar) return h('div', { class: 'col', 'aria-current': String(i === round.current) }, ...cells);
+  const state = done ? `, ${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : ', 기록 없음';
+  return h('button', { type: 'button', class: 'col', 'data-hole': String(i), 'aria-current': String(i === round.current), 'aria-label': `${i + 1}번 홀로 가기, Par ${x.par}${state}` }, ...cells);
+}
+
+/** 파 수정: Par 3 → 4 → 5 → 3, keeping focus on the same hole's button. */
+function cyclePar(index: number): void {
+  const next = PARS[(PARS.indexOf(round.holes[index].par) + 1) % PARS.length];
+  setHoleAt(index, (x) => ({ ...x, par: next }));
+  document.querySelector<HTMLButtonElement>(`button[data-par-hole="${index}"]`)?.focus();
+  announce(`${index + 1}번 홀 Par ${next}`);
 }
 
 function table(from: number, to: number, sub: string | null): HTMLElement {
-  const labels = h('div', { class: 'rowlbl', 'aria-hidden': 'true' }, h('span', {}, '홀'), h('span', {}, '파'), h('span', { class: 'sc-row' }, '타수'), h('span', {}, '퍼트'));
+  const labels = h('div', { class: 'rowlbl', 'aria-hidden': 'true' }, h('span', {}, '홀'), h('span', { class: 'pr-row' }, '파'), h('span', { class: 'sc-row' }, '타수'), h('span', {}, '퍼트'));
   const box = h('div', { class: 'tbl' }, labels);
   for (let i = from; i < to; i++) box.append(holeColumn(i));
   if (sub) {
@@ -445,6 +609,11 @@ function table(from: number, to: number, sub: string | null): HTMLElement {
 function renderCard(a: Analysis): void {
   const course = roundCourse(round);
   setText($('sc-sub'), `${course.name} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  $('sc-sheet').classList.toggle('editing', editPar);
+  const edit = $('edit-par');
+  setText(edit, editPar ? '완료' : '파 수정');
+  edit.classList.toggle('on', editPar);
+  $('edit-hint').hidden = !editPar;
   const t = a.totals;
   setText($('sum-strokes'), String(t.strokes));
   const topar = $('sum-topar');
@@ -569,11 +738,11 @@ function renderCourse(): void {
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.replaceChildren(...(source
-    ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인) · 메뉴에서 홀마다 바꿀 수 있습니다.`]
-    : ['직접 입력한 코스라 Par 4로 시작했습니다. 메뉴에서 홀마다 바꿀 수 있습니다.']));
+    ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인) · 파 수정에서 홀마다 바꿀 수 있습니다.`]
+    : ['직접 입력한 코스라 Par 4로 시작했습니다. 파 수정에서 홀마다 바꿀 수 있습니다.']));
 }
 
-/* ---------- menu: course, version, mulligans and par ---------- */
+/* ---------- menu: course, version and mulligans ---------- */
 
 let menuOpener: HTMLElement | null = null;
 
@@ -582,7 +751,6 @@ function renderMenu(): void {
   setText($('mulligan-count'), String(cur.mulligan));
   $<HTMLButtonElement>('mulligan-minus').disabled = cur.mulligan === 0;
   $<HTMLButtonElement>('mulligan-plus').disabled = cur.mulligan >= MAX_COUNT;
-  setText($('par-open'), `${round.current + 1}번 홀 Par 바꾸기 (지금 Par ${cur.par})`);
   setText($('menu-version'), VERSION_LABEL);
 }
 
@@ -596,46 +764,19 @@ function bindMenu(): void {
     });
   }
   $('menu-close').addEventListener('click', () => menu.close());
-  menu.addEventListener('close', () => {
-    if (!$<HTMLDialogElement>('par-dialog').open) menuOpener?.focus();
-  });
+  menu.addEventListener('close', () => menuOpener?.focus());
   $('mulligan-plus').addEventListener('click', () => count('mulligan', 1));
   $('mulligan-minus').addEventListener('click', () => count('mulligan', -1));
-  $('par-open').addEventListener('click', () => {
-    menu.close();
-    openPar(round.current);
-  });
-
-  const par = $<HTMLDialogElement>('par-dialog');
-  $('par-cancel').addEventListener('click', () => par.close());
-  par.addEventListener('close', () => menuOpener?.focus());
-  $('par-options').addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-par]');
-    if (!button) return;
-    const value = Number(button.dataset.par) as Par;
-    const index = Number(par.dataset.hole);
-    par.close();
-    if (PARS.includes(value) && setHoleAt(index, (x) => (x.par === value ? x : { ...x, par: value }))) announce(`${index + 1}번 홀 Par ${value}`);
-  });
-}
-
-function openPar(index: number): void {
-  const dialog = $<HTMLDialogElement>('par-dialog');
-  dialog.dataset.hole = String(index);
-  setText($('par-title'), `${index + 1}번 홀 Par`);
-  for (const button of document.querySelectorAll<HTMLButtonElement>('#par-options button')) {
-    setAttr(button, 'aria-pressed', String(Number(button.dataset.par) === round.holes[index].par));
-  }
-  dialog.showModal();
-  document.querySelector<HTMLButtonElement>('#par-options button[aria-pressed="true"]')?.focus();
 }
 
 /** Starts a new round on the chosen course and remembers the choice for next time. */
 function startRound(choice: CourseChoice): void {
   stale = false;
+  editPar = false;
   savePrefs(choice);
   clearRound();
   added.clear();
+  celebrated.clear();
   update(newRound(new Date(), roundSetup(choice)));
   show('entry');
 }
@@ -653,7 +794,7 @@ function saveMessage(): { text: string; problem: boolean } {
 
 function render(changed?: string): void {
   const a = analyze(round);
-  renderEntry(changed);
+  renderEntry(a, changed);
   renderCard(a);
   renderAnalysis(a);
   renderSend(a);
@@ -678,15 +819,27 @@ function bind(): void {
   bindMenu();
   setText($('app-version'), VERSION_LABEL);
   $('app-version').setAttribute('aria-label', `버전 ${VERSION}`);
-  $('prev-hole').addEventListener('click', () => go(round.current - 1));
-  $('next-hole').addEventListener('click', () => go(round.current + 1));
+  bindSwipe();
+  $('prev-hole').addEventListener('click', () => changeHole(-1));
+  $('next-hole').addEventListener('click', () => changeHole(1));
   $('go-next').addEventListener('click', goNext);
-  // A hole on the scorecard opens in 기록.
+  // A hole on the scorecard opens in 기록; in 파 수정 its par button steps the par instead.
   $('scorecard').addEventListener('click', (event) => {
-    const column = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-hole]');
+    const target = event.target as HTMLElement;
+    const par = target.closest<HTMLButtonElement>('button[data-par-hole]');
+    if (par) {
+      cyclePar(Number(par.dataset.parHole));
+      return;
+    }
+    const column = target.closest<HTMLButtonElement>('button[data-hole]');
     if (!column) return;
     go(Number(column.dataset.hole));
     show('entry');
+  });
+  $('edit-par').addEventListener('click', () => {
+    editPar = !editPar;
+    render();
+    announce(editPar ? '파 수정: 파를 누를 때마다 3, 4, 5 순서로 바뀌어요' : '파 수정 완료');
   });
   // The current round stays until a course is chosen; cancelling the picker keeps it.
   const startNew = () => openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
