@@ -46,7 +46,7 @@ import { hasFinishedHole } from './history';
 import { renderBackup } from './backup-view';
 
 type Penalty = (typeof PENALTIES)[number];
-type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'none';
+type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
 
 const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건' };
 /** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
@@ -66,7 +66,14 @@ const SHAPES: Record<Mark, string> = {
   eagle: '<circle cx="20" cy="20" r="14" pathLength="1"/><circle cx="20" cy="20" r="19" pathLength="1"/>',
   bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
   double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
+  // Triple bogey or worse: a filled square, so a big number stands out on the card.
+  triple: '<rect class="fill" x="3" y="3" width="34" height="34" rx="3" pathLength="1"/>',
 };
+/** The scorecard legend, as each result looks on a par 4. */
+const LEGEND: [Mark, string, number, string, string][] = [
+  ['eagle', 'under', 2, '이글', '두 겹 동그라미'], ['birdie', 'under', 3, '버디', '동그라미'], ['par', 'par', 4, '파', '표시 없음'],
+  ['bogey', 'over', 5, '보기', '네모'], ['double', 'over', 6, '더블', '두 겹 네모'], ['triple', 'over', 7, '트리플 이상', '채운 네모'],
+];
 
 function setAttr(el: Element, name: string, value: string): void {
   if (el.getAttribute(name) !== value) el.setAttribute(name, value);
@@ -86,7 +93,7 @@ function replay(el: Element, cls: string): void {
   el.classList.add(cls);
 }
 
-const markOf = (d: number): Mark => (d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double');
+const markOf = (d: number): Mark => (d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : d === 2 ? 'double' : 'triple');
 const toneOf = (d: number) => (d < 0 ? 'under' : d === 0 ? 'par' : 'over');
 /** Score against par as the scorecard reads it: 이븐, +2, −1. */
 const toParText = (n: number) => (n === 0 ? '이븐' : n > 0 ? `+${n}` : `−${-n}`);
@@ -255,7 +262,7 @@ function changeHole(dir: 1 | -1, swiped = false): void {
 
 /** "다음 홀", or the round summary after the last hole. */
 function goNext(): void {
-  if (round.current === HOLE_COUNT - 1) openSummary($('go-next'));
+  if (round.current === HOLE_COUNT - 1) requestFinish($('go-next'));
   else changeHole(1);
 }
 
@@ -511,13 +518,24 @@ function renderEntry(a: Analysis, changed?: string): void {
   setText($('hole-n'), String(i + 1));
   $('hole-title').classList.toggle('two', i >= 9);
   setText($('hole-par'), `Par ${cur.par}`);
-  // 합계: the finished holes against par, once there is one.
-  const total = $('total-chip');
-  total.hidden = a.totals.holes === 0;
-  const totalValue = $('total-v');
-  setText(totalValue, toParText(a.toPar));
-  totalValue.classList.toggle('under', a.toPar < 0);
-  setText($('total-holes'), `, ${a.totals.holes}홀`);
+  // Progress, once a hole is finished: the holes recorded ("7홀"), then the score against par ("+3").
+  const progN = $('prog-n');
+  const progP = $('prog-p');
+  progN.hidden = progP.hidden = a.totals.holes === 0;
+  if (progN.dataset.v !== String(a.totals.holes)) {
+    progN.dataset.v = String(a.totals.holes);
+    progN.replaceChildren(h('span', { class: 'sr-only' }, '기록한 홀 '), `${a.totals.holes}홀`);
+  }
+  if (progP.dataset.v !== String(a.toPar)) {
+    progP.dataset.v = String(a.toPar);
+    progP.replaceChildren(h('span', { class: 'sr-only' }, '파 대비 '), toParText(a.toPar));
+  }
+  progP.classList.toggle('under', a.toPar < 0);
+  // A hole behind you with nothing recorded: a quiet sand dot on the hole number, which opens the strip.
+  const missed = missedHoles();
+  const holeBtn = $('hole-btn');
+  holeBtn.classList.toggle('missed', missed.length > 0);
+  setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);
   const info = holeInfo(roundCourse(round), i);
   setChip('hole-distance', distanceLabel(info));
   // Under the hole number when 상세 on a short screen hides the chips.
@@ -909,27 +927,31 @@ let summaryOpener: HTMLElement | null = null;
 function renderSummary(): void {
   const a = analyze(round);
   const t = a.totals;
-  setText($('sum-sub'), `${courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  const nine = roundCheck().nine;
+  const [front, back] = nineNames();
+  const playedNine = nine === 'front' ? front : back;
+  setText($('sum-title'), nine ? '9홀 라운드 요약' : '라운드 요약');
+  setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : courseLabel(roundCourse(round))} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
   setAttr($('sum-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
   setText($('sum-total'), String(t.strokes));
   const vs = $('sum-vs');
   setText(vs, t.holes ? `파 대비 ${toParText(a.toPar)}` : '기록한 홀이 없어요');
   vs.classList.toggle('under', t.holes > 0 && a.toPar < 0);
-  setText($('sum-count'), t.holes === HOLE_COUNT ? '18홀을 모두 기록했어요' : `${t.holes}홀 기록, 남은 홀은 계산에 넣지 않아요`);
+  setText($('sum-count'), !t.holes ? '홀을 기록하면 여기에 보여요' : nine ? `${playedNine} 9홀을 모두 기록했어요` : t.holes === HOLE_COUNT ? '18홀을 모두 기록했어요' : `${t.holes}홀만 기록했어요. 기록한 홀만 계산해요`);
   const d = a.distribution;
-  const marks: [Mark, string, number][] = [['eagle', '이글', d.eagle], ['birdie', '버디', d.birdie], ['par', '파', d.par], ['bogey', '보기', d.bogey], ['double', '더블 이상', d.double + d.triple]];
+  const marks: [Mark, string, number][] = [['eagle', '이글', d.eagle], ['birdie', '버디', d.birdie], ['par', '파', d.par], ['bogey', '보기', d.bogey], ['double', '더블', d.double], ['triple', '트리플+', d.triple]];
   $('sum-marks').replaceChildren(...marks.map(([m, label, n]) => h('li', {},
     h('span', { class: 'm', 'data-mark': m, 'data-tone': m === 'eagle' || m === 'birdie' ? 'under' : m === 'par' ? 'par' : 'over' }, h('b', {}, String(n))),
-    h('small', {}, label))));
+    h('small', {}, m === 'triple' ? h('span', { 'aria-hidden': 'true' }, label) : label, m === 'triple' ? h('span', { class: 'sr-only' }, '트리플 이상') : null))));
   const done = round.holes.map((x, i) => ({ x, i })).filter(({ i }) => finished(round, i));
   const drives = done.filter(({ x }) => x.par >= 4 && teeTag(x) !== null);
   const hit = drives.filter(({ x }) => teeTag(x) === 'fairway').length;
-  const nine = (n: typeof a.front) => (n.holes ? [`${n.strokes}타`, toParText(n.strokes - n.par)] : ['–', '기록 전']);
+  const half = (n: typeof a.front) => (n.holes ? [`${n.strokes}타`, toParText(n.strokes - n.par)] : ['기록 없음', '']);
   const best = a.best ? round.holes[a.best.hole - 1] : null;
   const stat = (label: string, value: string, small = '') => h('div', {}, h('dt', {}, label), h('dd', {}, value, small ? h('small', {}, small) : null));
+  // A 9-hole round has no other nine to compare.
   $('sum-stats').replaceChildren(
-    stat('전반', ...nine(a.front) as [string, string]),
-    stat('후반', ...nine(a.back) as [string, string]),
+    ...(nine ? [] : [stat('전반', ...half(a.front) as [string, string]), stat('후반', ...half(a.back) as [string, string])]),
     stat('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
     stat('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
     stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷을 고르면'),
@@ -984,7 +1006,190 @@ function bindSummary(): void {
   dialog.addEventListener('close', () => summaryOpener?.focus());
   $('sum-share').addEventListener('click', () => void shareReport(round, $('sum-status')));
   $('sum-archive').addEventListener('click', keepFinishedRound);
-  $('finish-round').addEventListener('click', () => openSummary($('finish-round')));
+  $('finish-round').addEventListener('click', () => requestFinish($('finish-round')));
+  bindCheck();
+  bindStrip();
+}
+
+/** A tap on the dim backdrop, outside the dialog's box, closes it. */
+function closeOnBackdrop(dialog: HTMLDialogElement): void {
+  dialog.addEventListener('click', (event) => {
+    const r = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientY < r.top || event.clientY > r.bottom || event.clientX < r.left || event.clientX > r.right)) dialog.close();
+  });
+}
+
+/* ---------- 라운드 마치기: a quick check first, when something looks unfinished ---------- */
+
+/** The two nines' names, or 전반/후반 where the course has none. */
+function nineNames(): [string, string] {
+  const course = roundCourse(round);
+  return [course.front || '전반', course.back || '후반'];
+}
+
+/** Holes with nothing recorded, holes with strokes but no putt, and whether exactly one nine was played. */
+function roundCheck(): { blank: number[]; noPutt: number[]; nine: 'front' | 'back' | null } {
+  const blank: number[] = [];
+  const noPutt: number[] = [];
+  round.holes.forEach((x, k) => {
+    if (!played(x)) blank.push(k);
+    else if (x.putts === 0) noPutt.push(k);
+  });
+  const only = (from: number) => blank.length === 9 && blank.every((k) => k >= from && k < from + 9);
+  return { blank, noPutt, nine: only(9) ? 'front' : only(0) ? 'back' : null };
+}
+
+/** "3, 4번 홀", "10–18번 홀": runs of three or more read as a range. */
+function holeList(list: number[]): string {
+  const out: string[] = [];
+  for (let k = 0; k < list.length; k++) {
+    let j = k;
+    while (j + 1 < list.length && list[j + 1] === list[j] + 1) j += 1;
+    out.push(j >= k + 2 ? `${list[k] + 1}–${list[j] + 1}` : list.slice(k, j + 1).map((x) => x + 1).join(', '));
+    k = j;
+  }
+  return `${out.join(', ')}번 홀`;
+}
+
+/** 은 or 는, by whether the word ends in a final consonant. */
+const topic = (w: string) => {
+  const c = w.charCodeAt(w.length - 1) - 0xac00;
+  return c >= 0 && c < 11172 && c % 28 ? '은' : '는';
+};
+
+let checkOpener: HTMLElement | null = null;
+
+/**
+ * 라운드 마치기 from the last hole or the scorecard. With every hole recorded and putted, the summary opens straight
+ * away; otherwise a short list says what looks unfinished, with "그대로 마치기" or a way back to the first such hole.
+ * One whole nine and nothing on the other is a 9-hole round.
+ */
+function requestFinish(from: HTMLElement): void {
+  const c = roundCheck();
+  if (!c.blank.length && !c.noPutt.length) {
+    openSummary(from);
+    return;
+  }
+  checkOpener = from;
+  hideToast();
+  const [front, back] = nineNames();
+  const playedNine = c.nine === 'front' ? front : back;
+  const other = c.nine === 'front' ? back : front;
+  const items: [string, string, string][] = [];
+  if (c.blank.length && !c.nine) items.push(['blank', `기록 안 한 홀 ${c.blank.length}개`, `${holeList(c.blank)}. 그대로 마치면 기록한 홀만 계산해요.`]);
+  if (c.noPutt.length) items.push(['putt', `퍼트가 없는 홀 ${c.noPutt.length}개`, `${holeList(c.noPutt)}. 칩인으로 끝났다면 그대로 두세요.`]);
+  setText($('check-title'), c.nine ? '9홀 라운드로 마칠까요?' : '라운드를 마칠까요?');
+  setText($('check-sub'), c.nine ? `${playedNine} 9홀을 모두 기록했어요. ${other}${topic(other)} 기록이 없어요.` : `18홀 중 ${HOLE_COUNT - c.blank.length}홀을 기록했어요.`);
+  const list = $('check-list');
+  list.hidden = items.length === 0;
+  list.replaceChildren(...items.map(([kind, title, detail]) => {
+    const icon = h('span', { class: 'ci', 'aria-hidden': 'true' });
+    // Static markup: a dashed square for an empty hole, the putter for a missing putt.
+    icon.innerHTML = kind === 'blank'
+      ? '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="4.5" y="4.5" width="15" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.6"/></svg>'
+      : CLUB_ICONS.putts.replace('<svg', '<svg width="20" height="20"');
+    return h('li', {}, icon, h('span', {}, h('b', {}, title), h('small', {}, detail)));
+  }));
+  const go = c.nine ? (c.nine === 'front' ? 9 : 0) : c.blank.length ? c.blank[0] : c.noPutt[0];
+  setText($('check-finish'), c.nine ? '9홀 라운드로 마치기' : '그대로 마치기');
+  const back9 = $('check-go');
+  back9.dataset.hole = String(go);
+  setText(back9, c.nine ? `${other} 이어서 기록` : `${go + 1}번 홀 ${c.blank.includes(go) ? '기록하기' : '다시 보기'}`);
+  $<HTMLDialogElement>('check').showModal();
+  $('check-finish').focus();
+}
+
+function bindCheck(): void {
+  const dialog = $<HTMLDialogElement>('check');
+  closeOnBackdrop(dialog);
+  // Closed without a choice: focus goes back to the button that asked.
+  let next: (() => void) | null = null;
+  dialog.addEventListener('close', () => {
+    const then = next;
+    next = null;
+    if (then) then();
+    else checkOpener?.focus();
+  });
+  $('check-close').addEventListener('click', () => dialog.close());
+  $('check-finish').addEventListener('click', () => {
+    next = () => openSummary(checkOpener ?? $('finish-round'));
+    dialog.close();
+  });
+  $('check-go').addEventListener('click', () => {
+    const k = Number($('check-go').dataset.hole);
+    next = () => {
+      show('entry');
+      go(k);
+      $('hole-btn').focus();
+    };
+    dialog.close();
+  });
+}
+
+/* ---------- 홀 목록: every hole at a glance, opened from the hole number ---------- */
+
+/** Holes behind the furthest one played, other than this one, with nothing recorded: worth a look before the round ends. */
+function missedHoles(): number[] {
+  let last = -1;
+  round.holes.forEach((x, k) => {
+    if (played(x)) last = k;
+  });
+  const upto = Math.max(round.current, last);
+  return round.holes.map((_, k) => k).filter((k) => k < upto && k !== round.current && !played(round.holes[k]));
+}
+
+function renderStrip(): void {
+  const a = analyze(round);
+  const missed = missedHoles();
+  const cells: HTMLElement[] = [];
+  round.holes.forEach((x, k) => {
+    const s = strokes(x);
+    const done = finished(round, k);
+    const d = s - x.par;
+    const st = k === round.current ? 'cur' : done ? 'done' : missed.includes(k) ? 'missed' : 'later';
+    const what = done ? `${s}타 ${scoreWord(s, x.par)}` : played(x) ? `${s}타 진행 중` : st === 'missed' ? '기록 안 함' : '기록 없음';
+    cells.push(h('button', { type: 'button', class: 'scell', 'data-jump': String(k), 'data-st': st, 'aria-current': String(k === round.current), 'aria-label': `${k + 1}번 홀 Par ${x.par}, ${what}` },
+      h('span', { class: 'sc-no' }, String(k + 1)),
+      h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, played(x) ? String(s) : '–'))));
+    if (k === 8 || k === 17) {
+      const t = k === 8 ? a.front : a.back;
+      cells.push(h('span', { class: 'scell sub' }, h('span', { class: 'sc-no' }, k === 8 ? '전반' : '후반'), h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')));
+    }
+  });
+  $('strip-row').replaceChildren(...cells);
+  const note = $('strip-note');
+  note.classList.toggle('warn', missed.length > 0);
+  setText(note, missed.length ? `기록 안 한 홀 ${missed.length}개` : `${a.totals.holes}홀 기록`);
+}
+
+function openStrip(): void {
+  hideToast();
+  renderStrip();
+  const dialog = $<HTMLDialogElement>('strip');
+  // Just under the hole switcher, so the hole number and the strip read together. CSSOM, allowed by the CSP.
+  dialog.style.top = `${Math.round(document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom + 8)}px`;
+  dialog.showModal();
+  setAttr($('hole-btn'), 'aria-expanded', 'true');
+  const row = $('strip-row');
+  const here = row.querySelector<HTMLElement>('[aria-current="true"]')!;
+  row.scrollLeft = here.offsetLeft - (row.clientWidth - here.offsetWidth) / 2;
+  here.focus({ preventScroll: true });
+}
+
+function bindStrip(): void {
+  const dialog = $<HTMLDialogElement>('strip');
+  closeOnBackdrop(dialog);
+  $('hole-btn').addEventListener('click', openStrip);
+  dialog.addEventListener('close', () => {
+    setAttr($('hole-btn'), 'aria-expanded', 'false');
+    $('hole-btn').focus();
+  });
+  $('strip-row').addEventListener('click', (event) => {
+    const cell = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-jump]');
+    if (!cell) return;
+    dialog.close();
+    go(Number(cell.dataset.jump));
+  });
 }
 
 /* ---------- 지난 라운드: this round, then the kept ones ---------- */
@@ -1058,6 +1263,9 @@ function bind(): void {
   bindDetail();
   bindMenu();
   setText($('app-version'), VERSION_LABEL);
+  // 스코어카드 legend: how each result looks on a par 4.
+  $('legend').replaceChildren(h('li', { class: 'lg-cap' }, '파 4 기준'), ...LEGEND.map(([m, tone, n, label, shape]) => h('li', {},
+    h('span', { class: 'm', 'data-mark': m, 'data-tone': tone, 'aria-hidden': 'true' }, h('b', {}, String(n))), label, h('span', { class: 'sr-only' }, `, ${n}타 ${shape}`))));
   $('toast-undo').addEventListener('click', restore);
   $('now-continue').addEventListener('click', () => show('entry'));
   bindSummary();

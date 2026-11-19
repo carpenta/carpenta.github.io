@@ -30,10 +30,13 @@
             <button class="round" type="button" id="prev-hole" aria-label="이전 홀">
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <div class="hole-title">
-              <svg viewBox="0 0 16 20" width="14" height="18" aria-hidden="true"><path d="M2.5 19V1.5" stroke="#17301A" stroke-width="2" stroke-linecap="round"/><path d="M3 2h10l-3 3.5L13 9H3z" fill="#2F7D3A"/></svg>
-              <span class="hole-txt"><h1 class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></h1><span class="hole-sub" id="hole-sub" aria-hidden="true"></span></span>
-            </div>
+            <!-- The hole number opens the hole strip: every hole at a glance, skipped holes marked -->
+            <h1 class="hole-h">
+              <button class="hole-title" type="button" id="hole-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="strip">
+                <span class="hole-txt"><span class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></span><span class="hole-sub" id="hole-sub" aria-hidden="true"></span></span>
+                <svg class="hole-chev" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </h1>
             <button class="round" type="button" id="next-hole" aria-label="다음 홀로 이동">
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -41,7 +44,9 @@
           <p class="info" id="hole-info">
             <span class="chip" id="hole-par">Par 4</span>
             <span class="chip" id="hole-distance" hidden></span>
-            <span class="chip" id="total-chip" hidden><span class="lbl">합계</span><span id="total-v"></span><span class="sr-only" id="total-holes"></span></span>
+            <!-- Progress: holes recorded, then the score against par -->
+            <span class="chip" id="prog-n" hidden></span>
+            <span class="chip score" id="prog-p" hidden></span>
             <a class="chip icon" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>
               <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </a>
@@ -126,6 +131,7 @@
           <p class="edit-hint" id="edit-hint" hidden>파를 누를 때마다 3, 4, 5 순서로 바뀌어요. 다 고치면 완료를 누르세요.</p>
           <div id="scorecard"></div>
           <div class="tot"><h3>합계</h3><span id="tot-holes">0홀</span><b id="tot-strokes">0타</b><b id="tot-topar">이븐</b></div>
+          <ul class="legend" id="legend" aria-label="기호"></ul>
           <p id="par-source" class="par-source"></p>
         </section>
 
@@ -287,6 +293,26 @@
         <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>
         <button type="button" class="primary" id="sum-archive">지난 라운드에 보관</button>
       </div>
+    </dialog>
+
+    <!-- 라운드 마치기: a quick check before the summary, only when something looks unfinished -->
+    <dialog id="check" class="sheet-dialog sum-sheet check-sheet" aria-labelledby="check-title">
+      <div class="grab" aria-hidden="true"></div>
+      <header class="sum-head">
+        <div><h2 id="check-title">라운드를 마칠까요?</h2><p id="check-sub"></p></div>
+        <button class="sum-close" type="button" id="check-close" aria-label="닫기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+      </header>
+      <ul class="check-list" id="check-list"></ul>
+      <div class="check-actions">
+        <button type="button" class="primary" id="check-finish">그대로 마치기</button>
+        <button type="button" id="check-go"></button>
+      </div>
+    </dialog>
+
+    <!-- The hole strip, opened from the hole number -->
+    <dialog id="strip" class="strip" aria-labelledby="strip-title">
+      <div class="strip-head"><h2 id="strip-title">홀 목록</h2><p class="strip-note" id="strip-note"></p></div>
+      <div class="strip-row" id="strip-row"></div>
     </dialog>
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title">
