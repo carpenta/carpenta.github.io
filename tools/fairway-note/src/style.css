@@ -1,33 +1,37 @@
+/* Grass tones (design plan): Turf for the brand, primary button and selected states, Fairway, Rough and
+   Putting green for the drawn hole, Turf ink for text, under-par red for marks and the hazard stake. */
 :root {
-  --bg: #f3f6f1;
+  --bg: #f3f7ef;
   --surface: #ffffff;
-  --ink: #17251c;
-  /* Dark enough for labels in direct sunlight: 8:1 on white, 7.5:1 on --bg. */
-  --muted: #435249;
-  --line: #d9e2da;
-  --green: #1f5a3a;
-  --green-soft: #e3efe6;
-  --accent: #9a6508;
-  --danger: #b3261e;
-  --eagle: #7a3fb0;
-  --birdie: #1565c0;
-  --par: #2e7d32;
-  --bogey: #8a6d1f;
-  --double: #c2571a;
-  --triple: #b3261e;
+  --ink: #17301a;
+  /* Labels in direct sunlight: about 8:1 on white, 7.5:1 on --bg. */
+  --muted: #3d5640;
+  --line: #d5e2cf;
+  --turf: #2f7d3a;
+  --turf-soft: #e4f0df;
+  --fairway: #5baa4f;
+  --rough: #3e6b2e;
+  --putting: #8ccb6e;
+  --red: #c0392b;
+  --sand: #d9b45a;
+  /* Disabled: a lighter fill with the label kept, never opacity alone. */
+  --off-bg: #eef2ec;
+  --off-ink: #5f6f62;
   --radius: 14px;
-  --sans: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  --sans: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   color-scheme: light;
 }
 
 * { box-sizing: border-box; }
-/* --bar: height of the fixed hole bar at the bottom, including the home-indicator inset. */
+/* --tabs: the bottom tab bar on phones; --bar: everything fixed at the bottom of 기록 (다음 홀 and the tabs). */
 html {
-  --bar: calc(72px + env(safe-area-inset-bottom));
+  --tabs: calc(56px + env(safe-area-inset-bottom));
+  --next: 64px;
+  --bar: calc(var(--tabs) + var(--next));
   -webkit-text-size-adjust: 100%;
-  /* The sticky summary covers the top of the screen; scrolled-to and focused things stay below it.
-     --summary-h is the summary's measured height, set from layout.ts. */
-  scroll-padding-top: calc(var(--summary-h, 74px) + 4px);
+  /* On the scorecard the sticky totals cover the top of the screen; scrolled-to and focused things stay below
+     them. --summary-h is their measured height, set from layout.ts (0 while 기록 is showing). */
+  scroll-padding-top: calc(var(--summary-h, 0px) + 4px);
   scroll-padding-bottom: var(--bar);
   touch-action: manipulation;
 }
@@ -35,38 +39,303 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 var(--sans);
+  font: 16px/1.45 var(--sans);
   font-variant-numeric: tabular-nums;
 }
 html:lang(ko) body { word-break: keep-all; }
 button { font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
 a { -webkit-tap-highlight-color: transparent; }
 h1, h2, h3, p { margin: 0; }
+[hidden] { display: none !important; }
 
 .top {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
-  padding-top: max(12px, env(safe-area-inset-top));
-  background: var(--green);
+  padding: 6px max(14px, env(safe-area-inset-right)) 6px max(14px, env(safe-area-inset-left));
+  padding-top: max(6px, env(safe-area-inset-top));
+  background: var(--turf);
   color: #fff;
 }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand svg { width: 30px; height: 30px; flex: none; }
-.app-name { font-size: 19px; line-height: 1.15; letter-spacing: .01em; }
-.course-name { font-size: 13px; opacity: .9; }
-/* The way back to the site stays visible but small and low in the header, out of the way of a thumb reaching for the summary. */
-.home-link { margin-left: auto; align-self: flex-end; padding-left: 16px; color: #fff; opacity: .85; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand > div { min-width: 0; }
+.brand svg { width: 26px; height: 26px; flex: none; }
+.app-name { font-size: 17px; line-height: 1.15; }
+.course-name { font-size: 13px; line-height: 1.25; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The way back to the site stays visible but small and low in the header, out of the way of a thumb. */
+.home-link { margin-left: auto; align-self: flex-end; padding-left: 12px; color: #fff; opacity: .85; font-size: 12px; line-height: 1.2; white-space: nowrap; }
 
 main {
   max-width: 640px;
   margin: 0 auto;
-  padding: 12px max(12px, env(safe-area-inset-right)) calc(var(--bar) + 16px) max(12px, env(safe-area-inset-left));
+  padding: 8px max(8px, env(safe-area-inset-right)) calc(var(--tabs) + 16px) max(8px, env(safe-area-inset-left));
+}
+.view { display: grid; gap: 8px; }
+.card-view { gap: 12px; }
+
+/* ---------- 기록 / 스코어카드: a bottom tab bar on phones, a switch at the top on wide screens ---------- */
+.views {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
   display: grid;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  height: var(--tabs);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab svg { width: 24px; height: 24px; }
+.tab-label { font-size: 13px; line-height: 1.2; }
+.tab[aria-selected='true'] { color: var(--turf); box-shadow: inset 0 3px 0 var(--turf); }
+
+/* "다음 홀" sits right above the tab bar. */
+.entry { padding-bottom: var(--next); }
+.next-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--tabs);
+  z-index: 4;
+  padding: 6px max(12px, env(safe-area-inset-right), calc((100% - 616px) / 2)) 6px max(12px, env(safe-area-inset-left), calc((100% - 616px) / 2));
+  background: rgb(243 247 239 / .96);
+  border-top: 1px solid var(--line);
+}
+.next-bar .btn { width: 100%; min-height: 52px; font-size: 17px; }
+
+@media (min-width: 768px) {
+  html { --bar: 0px; }
+  .views {
+    position: static;
+    height: auto;
+    max-width: 640px;
+    margin: 12px auto 0;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .tab { flex-direction: row; gap: 8px; min-height: 48px; border-radius: 9px; }
+  .tab[aria-selected='true'] { background: var(--turf); color: #fff; box-shadow: none; }
+  main { padding-bottom: 24px; }
+  .entry { padding-bottom: 0; }
+  .next-bar { position: static; padding: 4px 0 0; background: none; border: 0; }
 }
 
+/* ---------- hole panel: the drawn hole, number, par, notes and score ---------- */
+.hole-panel {
+  display: grid;
+  grid-template-columns: 48px 44px minmax(0, 1fr) auto 48px;
+  align-items: center;
+  gap: 6px;
+}
+.nav-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+.nav-btn:disabled { background: var(--off-bg); color: var(--off-ink); cursor: default; }
+.hole-art-box svg { display: block; width: 44px; height: 73px; }
+.art-rough { fill: var(--rough); }
+.art-fairway { stroke: var(--fairway); }
+.art-green { fill: var(--putting); }
+.art-pin { stroke: #fff; }
+.art-flag { fill: var(--red); }
+.art-tee { fill: #e9f2e4; }
+.hole-text { min-width: 0; }
+.hole-text h2 { font-size: 22px; line-height: 1.15; }
+.hole-meta { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.hole-distance { font-weight: 400; color: var(--muted); }
+.hole-notes, .hole-run { font-size: 13px; line-height: 1.3; color: var(--muted); }
+.hole-notes a { color: var(--turf); font-weight: 600; }
+.hole-score { display: grid; justify-items: center; gap: 2px; min-width: 56px; }
+.score {
+  display: inline-grid;
+  place-items: center;
+  min-width: 48px;
+  height: 48px;
+  padding: 0 6px;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+.score-name { font-size: 13px; line-height: 1.2; color: var(--muted); text-align: center; }
+
+/* Golf's own scorecard marks: ◎ eagle, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. Red under par.
+   Rings are box shadows, so a mark never moves the number. */
+.mark-eagle, .mark-birdie { color: var(--red); border-radius: 50%; }
+.mark-birdie, .mark-bogey { box-shadow: 0 0 0 2px currentColor; }
+.mark-eagle, .mark-double, .mark-triple { box-shadow: 0 0 0 2px currentColor, 0 0 0 4px var(--bg), 0 0 0 6px currentColor; }
+.score.mark-eagle, .score.mark-birdie { aspect-ratio: 1; }
+
+/* ---------- the card: three clubs, then the stakes ---------- */
+.hole-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+.clubs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.club { display: grid; grid-template-rows: auto 48px 56px 48px; row-gap: 8px; min-width: 0; }
+.club-head { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; height: 20px; color: var(--ink); }
+.club-head svg { width: 20px; height: 20px; flex: none; }
+.club-name { font-size: 15px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.club .count {
+  position: relative;
+  border: 0;
+  border-radius: 10px;
+  background: var(--turf-soft);
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+.club .count:disabled { background: var(--off-bg); color: var(--off-ink); cursor: default; }
+/* A club with shot details on this hole. */
+.club .count.has-tags::after { content: ''; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--turf); }
+.club .plus, .club .minus { border-radius: 10px; font-size: 28px; font-weight: 600; line-height: 1; cursor: pointer; }
+.club .plus { border: 0; background: var(--turf); color: #fff; }
+.club .minus { border: 2px solid var(--turf); background: var(--surface); color: var(--turf); }
+.club .plus:disabled, .club .minus:disabled { border: 2px solid var(--line); background: var(--off-bg); color: var(--off-ink); cursor: default; }
+.club button:active:not(:disabled) { transform: scale(.96); }
+
+.stakes { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr) 48px 56px; gap: 8px; margin-top: 8px; }
+.stake {
+  position: relative;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* The OB stake is white with a dark band, the hazard stake red, as on a course. */
+.stake-ob { border: 2px solid var(--ink); border-top-width: 8px; background: #fff; color: var(--ink); }
+.stake-hazard { border: 2px solid var(--red); background: var(--red); color: #fff; }
+.stake:disabled { cursor: default; }
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  line-height: 22px;
+}
+.stake-hazard .badge { background: #fff; color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+.badge.zero { display: none; }
+.unstake {
+  min-height: 48px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+/* Hidden at zero but still taking its place, so nothing beside it moves. */
+.unstake.off { visibility: hidden; }
+.more { min-height: 48px; border: 1px solid var(--line); border-radius: 10px; background: none; color: var(--muted); font-size: 15px; cursor: pointer; }
+
+/* ---------- buttons, banners, notices ---------- */
+.btn {
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn.primary { background: var(--turf); border-color: var(--turf); color: #fff; }
+.btn.danger { color: var(--red); border-color: currentColor; }
+.btn:disabled { background: var(--off-bg); color: var(--off-ink); cursor: default; }
+.notice { padding: 8px 12px; border-radius: 10px; background: #fff6df; border: 1px solid #e8d29a; font-size: 14px; }
+.stale {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: #fff6df;
+  border: 1px solid #e8d29a;
+}
+.stale-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ---------- bottom sheets: shot details, 더보기, par ---------- */
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  margin: auto auto 0;
+  padding: 12px max(14px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sheet::backdrop { background: rgb(23 48 26 / .45); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.sheet-head h2 { font-size: 19px; }
+.shot-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.shot { display: grid; gap: 6px; }
+.shot-no { font-size: 15px; font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.shot .chip {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--turf);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--turf);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.shot .chip[aria-pressed='true'] { background: var(--turf); color: #fff; }
+.shot .chip.ob { border-color: var(--ink); color: var(--ink); }
+.shot .chip.ob[aria-pressed='true'] { background: var(--ink); color: #fff; }
+.mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 40px 48px; align-items: center; gap: 8px; margin: 8px 0 12px; }
+.mulligan-label b { display: block; font-size: 17px; }
+.mulligan-label span { display: block; font-size: 13px; color: var(--muted); }
+.step { height: 48px; border-radius: 12px; font-size: 26px; font-weight: 600; cursor: pointer; }
+.step.plus { border: 0; background: var(--turf); color: #fff; }
+.step.minus { border: 2px solid var(--turf); background: var(--surface); color: var(--turf); }
+.step:disabled { border: 2px solid var(--line); background: var(--off-bg); color: var(--off-ink); cursor: default; }
+.step-count { text-align: center; font-size: 24px; font-weight: 700; }
+.par-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.par-options button { min-height: 56px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 17px; font-weight: 700; cursor: pointer; }
+.par-options button[aria-pressed='true'] { background: var(--turf); border-color: var(--turf); color: #fff; }
+
+/* ---------- 스코어카드 view ---------- */
 .summary {
   display: grid;
   grid-template-columns: 1.6fr repeat(4, 1fr);
@@ -90,135 +359,31 @@ main {
 .stat b { font-size: 18px; }
 .stat.big b { font-size: 24px; }
 .stat .topar { margin-left: 4px; font-weight: 700; font-size: 14px; }
+.topar.under { color: var(--red); }
 
-.hole-nav ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 4px;
-}
-.hole-nav button {
-  width: 100%;
-  min-height: 44px;
-  padding: 2px 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  display: grid;
-  place-items: center;
-  line-height: 1.1;
-  cursor: pointer;
-}
-.hole-nav .tab-no { font-size: 13px; color: var(--muted); }
-.hole-nav .tab-score { font-weight: 700; font-size: 15px; }
-.hole-nav button[aria-current='true'] { border: 2px solid var(--green); background: var(--green-soft); }
-
-.hole-card, .card {
+.card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px;
 }
-.hole-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.hole-head h2 { font-size: 22px; }
-.par-pick { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
-.par-pick button { border: 0; background: transparent; padding: 8px 12px; min-height: 40px; cursor: pointer; font-size: 14px; }
-.par-pick button + button { border-left: 1px solid var(--line); }
-.par-pick button[aria-checked='true'] { background: var(--green); color: #fff; font-weight: 700; }
-
-.hole-score { margin: 8px 0 12px; font-size: 18px; color: var(--muted); }
-.hole-score b { font-size: 36px; color: var(--ink); }
-.hole-score .topar { font-weight: 700; font-size: 20px; }
-.score-name { font-size: 14px; }
-
-.counters { display: grid; gap: 8px; }
-.counter {
-  display: grid;
-  grid-template-columns: 1fr 56px 48px 56px;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 12px;
-  border-radius: 12px;
-  background: var(--bg);
-}
-.counter-label { min-width: 0; }
-.counter-label b { display: block; font-size: 17px; }
-.counter-label span { display: block; font-size: 13px; color: var(--muted); line-height: 1.3; }
-.counter-ob, .counter-mulligan { background: #fbf6ea; }
-.step {
-  height: 56px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-}
-.step.plus { background: var(--green); border-color: var(--green); color: #fff; }
-.counter-ob .step.plus, .counter-mulligan .step.plus { background: var(--accent); border-color: var(--accent); }
-/* A usable minus is outlined in green; a disabled one is faint and grey, so the two read apart in sunlight. */
-.step.minus:not(:disabled) { border: 2px solid var(--green); color: var(--green); }
-.step:disabled { opacity: .4; color: #7d8a81; cursor: default; }
-.step:active:not(:disabled) { transform: scale(.96); }
-.count { text-align: center; font-size: 26px; font-weight: 700; }
-
-/* Fixed at the bottom so the next hole is always under the thumb, without scrolling. */
-.hole-move {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  display: grid;
-  grid-template-columns: 1fr 1.4fr;
-  gap: 8px;
-  padding: 10px max(12px, env(safe-area-inset-right), calc((100% - 616px) / 2)) calc(10px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left), calc((100% - 616px) / 2));
-  background: rgba(243, 246, 241, .96);
-  border-top: 1px solid var(--line);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-.hole-move .btn { min-height: 52px; }
-.btn {
-  min-height: 48px;
-  padding: 8px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
-.btn.danger { color: var(--danger); border-color: currentColor; }
-.btn:disabled { opacity: .45; cursor: default; }
-
-.card h2 { font-size: 18px; margin-bottom: 10px; }
+.card h2 { font-size: 18px; margin-bottom: 8px; }
 .card h3 { font-size: 15px; margin: 16px 0 8px; }
 
 .scorecard { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; margin-bottom: 12px; }
 .scorecard caption { text-align: left; font-weight: 700; font-size: 13px; color: var(--muted); padding-bottom: 4px; }
-.scorecard th, .scorecard td { border: 1px solid var(--line); text-align: center; padding: 4px 0; height: 30px; }
+.scorecard th, .scorecard td { border: 1px solid var(--line); text-align: center; padding: 3px 0; height: 32px; }
 .scorecard th[scope='row'] { width: 3.6em; font-weight: 600; background: var(--bg); font-size: 13px; }
-.scorecard thead th { background: var(--green-soft); }
+.scorecard thead th { background: var(--turf-soft); }
 .scorecard .sum { width: 2.8em; font-weight: 700; background: var(--bg); }
-.scorecard .par-row td { color: var(--muted); }
 .scorecard .strokes-row td { font-weight: 700; }
-.link { border: 0; background: none; padding: 0; width: 100%; min-height: 24px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-.mark { display: inline-block; min-width: 1.6em; }
+.link, .par-btn { border: 0; background: none; padding: 0; width: 100%; min-height: 28px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.par-btn { color: var(--muted); text-decoration-style: dotted; }
+.mark { display: inline-grid; place-items: center; min-width: 1.7em; height: 1.7em; }
 .card-total { font-size: 14px; color: var(--muted); }
 .card-total b { color: var(--ink); font-size: 18px; }
-
-.score-eagle { color: var(--eagle); }
-.score-birdie { color: var(--birdie); }
-.score-par { color: var(--par); }
-.score-bogey { color: var(--bogey); }
-.score-double { color: var(--double); }
-.score-triple { color: var(--triple); }
-.mark.score-eagle, .mark.score-birdie { border: 1.5px solid currentColor; border-radius: 50%; }
-.mark.score-double, .mark.score-triple { border: 1.5px solid currentColor; }
+.par-source { margin: 0; }
+.par-source a { color: var(--turf); font-weight: 600; }
 
 .headline { font-size: 22px; font-weight: 700; }
 .headline .topar { font-size: 20px; }
@@ -232,9 +397,13 @@ main {
 .bars { display: grid; gap: 6px; }
 .bar-row { display: grid; grid-template-columns: 5.5em 1fr 3em; align-items: center; gap: 8px; font-size: 13px; }
 .bar-track { height: 12px; background: var(--bg); border-radius: 6px; overflow: hidden; }
-.bar-fill { display: block; height: 100%; border-radius: 6px; background: currentColor; }
-.bar-fill.area { background: #9bb8a4; }
-.bar-fill.worst { background: var(--danger); }
+.bar-fill { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
+.bar-fill.score-eagle, .bar-fill.score-birdie { background: var(--red); }
+.bar-fill.score-par { background: var(--turf); }
+.bar-fill.score-bogey { background: var(--sand); }
+.bar-fill.score-double, .bar-fill.score-triple { background: var(--rough); }
+.bar-fill.area { background: var(--fairway); }
+.bar-fill.worst { background: var(--red); }
 .bar-value { text-align: right; font-weight: 600; }
 
 .best-worst { margin-top: 12px; font-size: 14px; }
@@ -320,55 +489,12 @@ html.past-open { overflow: hidden; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; margin-bottom: 8px; }
 
-button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
+.send-actions .btn.primary { color: #fff; }
+#send-status:empty { display: none; }
 
-/* Short screens (iPhone SE with the browser bars, 375×553): a one-line summary, no counter hints and
-   48px counters, so the whole hole card fits between the summary and the hole bar after moving holes. */
-@media (max-height: 700px) {
-  .top { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 8px; }
-  .app-name { font-size: 17px; }
-  .summary { padding: 4px; gap: 4px; }
-  .stat { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 4px; padding: 3px 2px; }
-  .stat .label { display: inline; }
-  .stat b, .stat.big b { font-size: 17px; line-height: 1.25; }
-  .stat .topar { margin-left: 0; font-size: 13px; }
-  .hole-card { padding-top: 10px; padding-bottom: 10px; }
-  .par-pick button { min-height: 44px; }
-  .hole-score { margin: 2px 0 8px; font-size: 16px; line-height: 1.25; }
-  .hole-score b { font-size: 26px; }
-  .counters { gap: 8px; }
-  .counter { padding-top: 4px; padding-bottom: 4px; }
-  .step { height: 48px; }
-  .counter-label span { display: none; }
-  .hole-nav button { min-height: 44px; }
-  .hole-move { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
-  .hole-move .btn { min-height: 48px; }
-  html { --bar: calc(64px + env(safe-area-inset-bottom)); }
-}
-
-@media (max-width: 380px) {
-  main { padding-top: 8px; padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
-  .hole-card, .card { padding: 12px; }
-  .counter { grid-template-columns: 1fr 52px 40px 52px; gap: 6px; }
-  .stat b { font-size: 16px; }
-  .stat.big b { font-size: 20px; }
-  .scorecard { font-size: 12px; }
-  .scorecard th[scope='row'] { width: 3.4em; font-size: 13px; }
-}
-
-.hole-nav button.in-progress { border-style: dashed; border-color: var(--muted); }
-.hole-nav button.in-progress .tab-score { color: var(--muted); }
-
-.stale {
-  display: grid;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  background: #fff6df;
-  border: 1px solid #e8d29a;
-}
-.stale[hidden] { display: none; }
-.stale-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--sand); outline-offset: 2px; }
 
 .sr-only {
   position: absolute;
@@ -382,32 +508,36 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   border: 0;
 }
 
-/* Landscape phones: the sticky summary and the hole bar together would leave too little room. */
+/* Short screens (iPhone SE with the browser bars, 375×553): a one-line summary on the scorecard. */
+@media (max-height: 700px) {
+  .summary { padding: 4px; gap: 4px; }
+  .stat { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 4px; padding: 3px 2px; }
+  .stat .label { display: inline; }
+  .stat b, .stat.big b { font-size: 17px; line-height: 1.25; }
+  .stat .topar { margin-left: 0; font-size: 13px; }
+}
+
+@media (max-width: 380px) {
+  .card { padding: 12px; }
+  .stat b { font-size: 16px; }
+  .stat.big b { font-size: 20px; }
+  .scorecard { font-size: 12px; }
+  .scorecard th[scope='row'] { width: 3.4em; font-size: 13px; }
+}
+
+/* Landscape phones: sticky totals and the bottom bars together would leave too little room. */
 @media (max-height: 440px) {
   .summary { position: static; }
   html { scroll-padding-top: 8px; }
 }
 
-/* + buttons carry the counter's club icon with a small plus. */
-.step.plus { position: relative; display: grid; place-items: center; }
-.step.plus svg { width: 30px; height: 30px; }
-.step.plus .icon-band { stroke: var(--accent); }
-.plus-mark { position: absolute; top: 3px; right: 5px; font-size: 15px; font-weight: 700; line-height: 1; }
-
-.send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-.send-actions[hidden] { display: none; }
-.send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
-.send-actions .btn.primary { color: #fff; }
-.send-actions .btn[hidden] { display: none; }
-#send-status:empty { display: none; }
-
-/* A new version is waiting: a small prompt above the hole bar that never blocks the page. */
+/* A new version is waiting: a small prompt above the bottom bars that never blocks the page. */
 .update-prompt {
   position: fixed;
   left: 50%;
   bottom: calc(var(--bar) + 10px);
   transform: translateX(-50%);
-  z-index: 4;
+  z-index: 6;
   max-width: calc(100vw - 24px);
   min-height: 44px;
   padding: 10px 16px;
@@ -424,56 +554,11 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 }
 .update-prompt:disabled { opacity: .7; cursor: default; }
 
-/* Optional shot details: chips for the shot just added, laid over the hole title, par and score line.
-   Positioned absolutely so showing them never moves a counter or grows the card. */
-.hole-top { position: relative; display: flow-root; }
-.shot-tray {
-  position: absolute;
-  inset: -4px -4px 0;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  align-items: center;
-  gap: 4px;
-  padding: 0 4px;
-  overflow-y: auto;
-  background: var(--surface);
-  border-radius: 10px;
+@media (prefers-reduced-motion: reduce) {
+  .club button:active:not(:disabled) { transform: none; }
 }
-.shot-tray[hidden] { display: none; }
-.tray-shot { flex: none; padding-right: 2px; font-size: 12px; line-height: 1.15; color: var(--muted); text-align: center; }
-.tray-shot b { display: block; color: var(--ink); font-size: 13px; }
-.chip {
-  flex: none;
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1.5px solid var(--green);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--green);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.chip[aria-pressed='true'] { background: var(--green); color: #fff; }
-.chip.ob { border-color: var(--accent); color: var(--accent); }
-.chip.ob[aria-pressed='true'] { background: var(--accent); color: #fff; }
-.chip:active { transform: scale(.96); }
-/* The counter whose shot the chips belong to. An inset ring, so nothing moves. */
-.counter.tagging { box-shadow: inset 0 0 0 2px var(--green); }
-
-/* Tapping a count opens the chips for that counter's shots; a dot shows a counter with tags on this hole. */
-.count-btn { position: relative; display: grid; place-items: center; height: 100%; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
-.count-btn:disabled { cursor: default; }
-.count-btn.has-tags::after { content: ''; position: absolute; bottom: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--green); }
 
 /* Course picker: a full-screen dialog, list in the middle, the chosen course and start at the bottom. */
-.course-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.brand > div { min-width: 0; }
-.par-source { margin: 0; }
-.par-source a { color: var(--green); font-weight: 600; }
 .picker {
   width: 100%;
   max-width: 640px;
@@ -490,7 +575,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 .picker-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
 .picker-head h2 { font-size: 20px; }
 .picker-head .btn { min-height: 44px; }
-.picker-head .btn[hidden] { display: none; }
 .picker-search {
   width: 100%;
   min-height: 44px;
@@ -501,7 +585,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   font: inherit;
   color: inherit;
 }
-.picker-search:focus-visible, .picker-chosen input:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.picker-search:focus-visible, .picker-chosen input:focus-visible { outline: 3px solid var(--sand); outline-offset: 1px; }
 .picker-areas, .nine-pick { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: none; }
 .chip, .nine-pick button {
   flex: none;
@@ -513,7 +597,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
   font-size: 15px;
   cursor: pointer;
 }
-.chip[aria-pressed='true'], .nine-pick button[aria-checked='true'] { background: var(--green); border-color: var(--green); color: #fff; font-weight: 700; }
+.chip[aria-pressed='true'], .nine-pick button[aria-checked='true'] { background: var(--turf); border-color: var(--turf); color: #fff; font-weight: 700; }
 .picker-list {
   flex: 1;
   min-height: 96px;
@@ -539,7 +623,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 }
 .picker-list .course b { display: block; font-size: 16px; line-height: 1.3; }
 .picker-list .course span { display: block; font-size: 13px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-list .course[aria-pressed='true'] { border: 2px solid var(--green); background: var(--green-soft); }
+.picker-list .course[aria-pressed='true'] { border: 2px solid var(--turf); background: var(--turf-soft); }
 .picker-list .custom { border-style: dashed; }
 .picker-list .empty { padding: 8px 4px; font-size: 14px; }
 .picker-foot { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
