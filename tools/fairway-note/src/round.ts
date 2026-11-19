@@ -24,6 +24,8 @@ export interface Round {
   date: string;
   current: number;
   holes: Hole[];
+  /** When the round was last changed, ms since the epoch. Missing in rounds saved before it was added. */
+  lastEdited?: number;
 }
 
 export function emptyHole(par: Par = DEFAULT_PAR): Hole {
@@ -59,6 +61,16 @@ export function played(h: Hole): boolean {
  * another hole (a chip-in has no putt). The hole being played without a putt yet is in progress,
  * so a tee shot alone never shows as an eagle.
  */
+/** A round left untouched this long is offered to continue or replace on load. */
+export const STALE_MS = 12 * 60 * 60 * 1000;
+
+/** A recorded round whose last edit is 12 hours old, or, without lastEdited, one started on an earlier day. */
+export function isStale(round: Round, now = new Date()): boolean {
+  if (!round.holes.some((x) => played(x) || x.mulligan > 0)) return false;
+  if (round.lastEdited !== undefined) return now.getTime() - round.lastEdited >= STALE_MS;
+  return round.date !== localDate(now);
+}
+
 export function finished(round: Round, index: number): boolean {
   const h = round.holes[index];
   return played(h) && (h.putts > 0 || index !== round.current);

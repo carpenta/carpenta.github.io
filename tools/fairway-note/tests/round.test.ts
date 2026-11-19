@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyze, bump, emptyHole, finished, formatToPar, gir, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
+import { STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, mulligan });
 
@@ -130,5 +130,36 @@ describe('round', () => {
     const a = analyze(roundOf([hole(4, 3, 1, 1, 2), hole(4, 0, 2, 1), hole(5, 1, 1, 3)]));
     expect(a.lost).toEqual({ driver: 2, approach: 1, putts: 1, penalty: 2 });
     expect(a.worstAreas).toEqual(['driver', 'penalty']);
+  });
+});
+
+describe('stale round', () => {
+  const started = (date: Date, lastEdited?: number): Round => {
+    const r = newRound(date);
+    r.holes[0] = hole(4, 1, 1, 2);
+    if (lastEdited !== undefined) r.lastEdited = lastEdited;
+    return r;
+  };
+
+  it('is not stale when a round crosses midnight but was edited recently', () => {
+    const lastEdit = new Date(2026, 10, 19, 23, 50).getTime();
+    expect(isStale(started(new Date(2026, 10, 19, 22, 0), lastEdit), new Date(2026, 10, 20, 0, 30))).toBe(false);
+  });
+
+  it('is stale once the last edit is 12 hours old', () => {
+    const lastEdit = new Date(2026, 10, 19, 10, 0).getTime();
+    const r = started(new Date(2026, 10, 19, 10, 0), lastEdit);
+    expect(isStale(r, new Date(lastEdit + STALE_MS - 1))).toBe(false);
+    expect(isStale(r, new Date(lastEdit + STALE_MS))).toBe(true);
+  });
+
+  it('falls back to the date for rounds saved without lastEdited', () => {
+    const r = started(new Date(2026, 10, 19, 10, 0));
+    expect(isStale(r, new Date(2026, 10, 19, 23, 0))).toBe(false);
+    expect(isStale(r, new Date(2026, 10, 20, 0, 30))).toBe(true);
+  });
+
+  it('is never stale with nothing recorded', () => {
+    expect(isStale(newRound(new Date(2026, 0, 1)), new Date(2026, 10, 20))).toBe(false);
   });
 });

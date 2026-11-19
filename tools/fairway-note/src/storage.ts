@@ -1,8 +1,11 @@
 import { COUNTERS, HOLE_COUNT, MAX_COUNT, PARS, type Hole, type Par, type Round } from './round';
 
 export const STORAGE_KEY = 'fairway-note:round:v1';
+/** Unreadable saved values are copied to `<prefix><timestamp>` before the round key is written. */
+export const CORRUPT_PREFIX = 'fairway-note:corrupt:';
+export const MAX_CORRUPT = 3;
 
-type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
 function isCount(v: unknown): v is number {
   return Number.isInteger(v) && (v as number) >= 0 && (v as number) <= MAX_COUNT;
@@ -44,7 +47,9 @@ export function parseRound(text: string | null): Round | null {
   const holes = r.holes.map(parseHole);
   if (holes.some((h) => h === null)) return null;
   const current = Number.isInteger(r.current) && (r.current as number) >= 0 && (r.current as number) < HOLE_COUNT ? (r.current as number) : 0;
-  return { version: 1, date: r.date, current, holes: holes as Hole[] };
+  const round: Round = { version: 1, date: r.date, current, holes: holes as Hole[] };
+  if (typeof r.lastEdited === 'number' && Number.isFinite(r.lastEdited) && r.lastEdited > 0) round.lastEdited = r.lastEdited;
+  return round;
 }
 
 function store(): KV | null {
@@ -63,9 +68,50 @@ export function loadRound(kv: KV | null = store()): Round | null {
   }
 }
 
-/** Saves the round. Returns false when storage is unavailable (private mode, quota). */
+function corruptKeys(kv: KV): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < kv.length; i++) {
+    const k = kv.key(i);
+    if (k?.startsWith(CORRUPT_PREFIX)) keys.push(k);
+  }
+  return keys.sort((a, b) => Number(a.slice(CORRUPT_PREFIX.length)) - Number(b.slice(CORRUPT_PREFIX.length)));
+}
+
+/**
+ * Copies a stored value this version cannot read (broken, or from a newer version) aside so it is never lost.
+ * 'none': nothing unreadable is stored. 'kept': a copy exists. 'failed': it could not be copied, so the key must not be written.
+ */
+export function preserveUnreadable(kv: KV | null = store(), now = Date.now()): 'none' | 'kept' | 'failed' {
+  if (!kv) return 'none';
+  try {
+    const raw = kv.getItem(STORAGE_KEY);
+    if (raw === null || parseRound(raw) !== null) return 'none';
+    const keys = corruptKeys(kv);
+    if (keys.some((k) => kv.getItem(k) === raw)) return 'kept';
+    let key = `${CORRUPT_PREFIX}${now}`;
+    while (kv.getItem(key) !== null) key = `${CORRUPT_PREFIX}${++now}`;
+    kv.setItem(key, raw);
+    keys.push(key);
+    for (const old of keys.slice(0, Math.max(0, keys.length - MAX_CORRUPT))) kv.removeItem(old);
+    return 'kept';
+  } catch {
+    return 'failed';
+  }
+}
+
+/** Asks the browser not to evict the saved round under storage pressure. Missing support and refusals are ignored. */
+export function requestPersistence(nav: { storage?: { persist?: () => Promise<boolean> } } = navigator): void {
+  try {
+    nav.storage?.persist?.()?.catch(() => undefined);
+  } catch {
+    /* not supported */
+  }
+}
+
+/** Saves the round. Returns false when storage is unavailable (private mode, quota) or an unreadable value could not be kept. */
 export function saveRound(round: Round, kv: KV | null = store()): boolean {
   if (!kv) return false;
+  if (preserveUnreadable(kv) === 'failed') return false;
   try {
     kv.setItem(STORAGE_KEY, JSON.stringify(round));
     return true;
@@ -75,6 +121,7 @@ export function saveRound(round: Round, kv: KV | null = store()): boolean {
 }
 
 export function clearRound(kv: KV | null = store()): void {
+  if (preserveUnreadable(kv) === 'failed') return;
   try {
     kv?.removeItem(STORAGE_KEY);
   } catch {

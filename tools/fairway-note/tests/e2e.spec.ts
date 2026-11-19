@@ -126,6 +126,31 @@ test('ignores a broken saved round', async ({ page }) => {
   await expect(page.locator('#sum-strokes')).toHaveText('0');
 });
 
+test('keeps an unreadable or newer saved value instead of overwriting it', async ({ page }) => {
+  await page.goto('/');
+  const future = JSON.stringify({ version: 2, note: 'saved by a newer version' });
+  await page.evaluate(([key, value]) => localStorage.setItem(key, value), [STORAGE_KEY, future]);
+  await page.reload();
+  await expect(page.locator('#sum-strokes')).toHaveText('0');
+  await expect(page.locator('#save-state')).toContainText('따로 보관');
+  // Opening the page alone writes nothing over the stored value.
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(future);
+  await page.reload();
+  await tap(page, 'driver');
+  const stored = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
+  const copies = Object.entries(stored).filter(([k]) => k.startsWith('fairway-note:corrupt:'));
+  expect(copies.map(([, v]) => v)).toEqual([future]);
+  expect(JSON.parse(stored[STORAGE_KEY]).holes[0].driver).toBe(1);
+});
+
+test('does not save an empty round just by opening the page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  await tap(page, 'putts');
+  expect(await page.evaluate((key) => localStorage.getItem(key) !== null, STORAGE_KEY)).toBe(true);
+});
+
 test('jumps to a hole from the scorecard and stops at the ends', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#prev-hole')).toBeDisabled();
@@ -256,12 +281,53 @@ test('offers to continue or replace a round from an earlier day', async ({ page 
   await expect(page.locator('#stale')).toBeHidden();
   await expect(page.locator('#sum-strokes')).toHaveText('4');
 
+  // Choosing to continue keeps the banner away on the next load.
   await page.reload();
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+});
+
+test('asks before the earlier-day banner replaces a round', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate((key) => {
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    holes[0] = { par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 };
+    localStorage.setItem(key, JSON.stringify({ version: 1, date: '2026-01-01', current: 1, holes }));
+  }, STORAGE_KEY);
+  await page.reload();
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('#stale-new').click();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#stale-new').click();
   await expect(page.locator('#stale')).toBeHidden();
   await expect(page.locator('#sum-strokes')).toHaveText('0');
   await page.reload();
   await expect(page.locator('#stale')).toBeHidden();
+});
+
+test('keeps a round that crosses midnight without the earlier-day banner', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 10, 19, 23, 40) });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await tap(page, 'putts', 2);
+  await page.locator('#next-hole').click();
+  await page.clock.setSystemTime(new Date(2026, 10, 20, 0, 20));
+  await page.reload();
+  await expect(page.locator('#stale')).toBeHidden();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+
+  // Half a day later the round is offered again, and one tap does not wipe it.
+  await page.clock.setSystemTime(new Date(2026, 10, 20, 12, 30));
+  await page.reload();
+  await expect(page.locator('#stale')).toBeVisible();
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('#stale-new').click();
+  await expect(page.locator('#sum-strokes')).toHaveText('4');
 });
 
 test('follows a round saved in another tab', async ({ context }) => {
@@ -272,6 +338,23 @@ test('follows a round saved in another tab', async ({ context }) => {
   await tap(first, 'driver');
   await tap(first, 'putts', 2);
   await expect(second.locator('#sum-strokes')).toHaveText('3');
+});
+
+test('keeps its round when another tab removes the saved one', async ({ context }) => {
+  const first = await context.newPage();
+  const second = await context.newPage();
+  await first.goto('/');
+  await tap(first, 'driver');
+  await tap(first, 'putts', 2);
+  await second.goto('/');
+  await expect(second.locator('#sum-strokes')).toHaveText('3');
+  await first.evaluate((key) => localStorage.removeItem(key), STORAGE_KEY);
+  await expect(second.locator('#save-state')).toContainText('다음 입력 때 다시 저장');
+  await expect(second.locator('#sum-strokes')).toHaveText('3');
+  await second.locator('#next-hole').click();
+  const stored = await second.evaluate((key) => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
+  expect(stored.holes[0]).toMatchObject({ driver: 1, putts: 2 });
+  await expect(second.locator('#save-state')).toContainText('자동 저장');
 });
 
 test.describe('on a phone', () => {
