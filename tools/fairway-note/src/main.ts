@@ -27,6 +27,8 @@ import {
 import { COUNTER_ICONS } from './icons';
 import { dateLabel, insights, mailtoHref, reportSubject, reportText } from './report';
 import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
+import { trackSummaryHeight } from './layout';
+import { keepScreenOn } from './wake';
 
 const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
   driver: { label: '드라이버', hint: '티샷. OB 뒤 다시 친 티샷도' },
@@ -427,3 +429,5 @@ function bind(): void {
 
 bind();
 render();
+trackSummaryHeight();
+keepScreenOn();

@@ -403,6 +403,139 @@ test.describe('on a phone', () => {
   });
 });
 
+for (const [width, height] of [[375, 553], [390, 664]]) {
+  test.describe(`on a short phone screen ${width}×${height}`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('shows the whole hole card between the summary and the hole bar after moving to the next hole', async ({ page }) => {
+      await page.goto('/');
+      await page.locator('#next-hole').tap();
+      await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+      const summary = (await page.locator('.summary').boundingBox())!;
+      const bar = (await page.locator('.hole-move').boundingBox())!;
+      const below = summary.y + summary.height;
+      for (const selector of ['#hole-title', '.par-pick']) {
+        expect((await page.locator(selector).boundingBox())!.y, selector).toBeGreaterThanOrEqual(below);
+      }
+      for (const key of ['driver', 'approach', 'putts', 'ob', 'mulligan']) {
+        for (const side of ['minus', 'plus']) {
+          const box = (await page.locator(`.counter-${key} .${side}`).boundingBox())!;
+          expect(box.y, `${key} ${side}`).toBeGreaterThanOrEqual(below);
+          expect(box.y + box.height, `${key} ${side}`).toBeLessThanOrEqual(bar.y);
+          expect(box.height).toBeGreaterThanOrEqual(44);
+          expect(box.width).toBeGreaterThanOrEqual(44);
+        }
+      }
+      for (const radio of await page.locator('.par-pick button').all()) {
+        expect((await radio.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    });
+
+    test('keeps the link back to the site visible but away from the top edge', async ({ page }) => {
+      await page.goto('/');
+      const home = page.locator('a.home-link');
+      await expect(home).toBeVisible();
+      const box = (await home.boundingBox())!;
+      const header = (await page.locator('header.top').boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(16);
+      // Sits low in the header, not in the top corner, with small text.
+      expect(box.y + box.height / 2).toBeGreaterThan(header.y + header.height / 2 + 4);
+      expect(await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeLessThanOrEqual(12);
+    });
+  });
+}
+
+test('scrolls a hole card to just below the summary, whatever its height', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 553 });
+  await page.goto('/');
+  const padding = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
+  const summary = (await page.locator('.summary').boundingBox())!;
+  expect(padding).toBeGreaterThanOrEqual(summary.height);
+  expect(padding).toBeLessThanOrEqual(summary.height + 8);
+});
+
+test('labels are large and dark enough to read in sunlight', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  const checks = await page.evaluate(() => {
+    const rgb = (s: string) => s.match(/[\d.]+/g)!.map(Number);
+    const lum = (s: string) => {
+      const [r, g, b] = rgb(s).slice(0, 3).map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const background = (el: Element | null): string => {
+      while (el) {
+        const bg = getComputedStyle(el).backgroundColor;
+        if (rgb(bg)[3] !== 0) return bg;
+        el = el.parentElement;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    return ['.stat .label', '.hole-nav .tab-no', '.counter-label span', '.scorecard th[scope="row"]', '.metrics dt'].map((selector) => {
+      const el = document.querySelector(selector)!;
+      const style = getComputedStyle(el);
+      const [a, b] = [lum(style.color), lum(background(el))].sort((x, y) => y - x);
+      return { selector, size: parseFloat(style.fontSize), contrast: (a + 0.05) / (b + 0.05) };
+    });
+  });
+  for (const { selector, size, contrast } of checks) {
+    expect(size, selector).toBeGreaterThanOrEqual(13);
+    expect(contrast, selector).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+test('makes a usable minus button clearly stronger than a disabled one', async ({ page }) => {
+  await page.goto('/');
+  await tap(page, 'driver');
+  const look = (selector: string) => page.locator(selector).evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { opacity: Number(s.opacity), border: parseFloat(s.borderTopWidth), color: s.color };
+  });
+  const on = await look('.counter-driver .minus');
+  const off = await look('.counter-approach .minus');
+  expect(on.opacity).toBe(1);
+  expect(on.border).toBeGreaterThanOrEqual(2);
+  expect(off.opacity).toBeLessThanOrEqual(0.5);
+  expect(on.color).not.toBe(off.color);
+});
+
+test('keeps the screen on while recording when the browser allows it', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { wakeRequests: string[] };
+    w.wakeRequests = [];
+    Object.defineProperty(Navigator.prototype, 'wakeLock', {
+      configurable: true,
+      value: { request: async (type: string) => { w.wakeRequests.push(type); return { released: false, release: async () => {}, addEventListener() {} }; } },
+    });
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { wakeRequests: string[] }).wakeRequests)).toEqual(['screen']);
+});
+
+test('works without errors when screen wake is missing or refused', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'wakeLock', { configurable: true, value: undefined });
+  });
+  await page.goto('/');
+  await tap(page, 'driver');
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'wakeLock', {
+      configurable: true,
+      value: { request: async () => { throw new DOMException('no', 'NotAllowedError'); } },
+    });
+  });
+  await page.reload();
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+});
+
 test('can be added to the home screen', async ({ page, request }) => {
   await page.goto('/');
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
