@@ -144,12 +144,12 @@ export function holeInfo(course: RoundCourse, index: number, courses: readonly C
   return Object.keys(info).length ? info : null;
 }
 
-/** "화이트 352m" from the first tee listed, "385m" when the course names no tee, or null without lengths. */
+/** "화이트 352 m" from the first tee listed, "385 m" when the course names no tee, or null without lengths. */
 export function distanceLabel(info: HoleInfo | null): string | null {
   const d = info?.distances?.[0];
   if (!d) return null;
   const tee = (d as { tee?: unknown }).tee;
-  return typeof tee === 'string' && tee ? `${tee} ${d.length}${d.unit}` : `${d.length}${d.unit}`;
+  return typeof tee === 'string' && tee ? `${tee} ${d.length} ${d.unit}` : `${d.length} ${d.unit}`;
 }
 
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';

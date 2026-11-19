@@ -699,6 +699,9 @@ html.past-open { overflow: hidden; }
 .sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
 .sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: 700; box-shadow: inset 0 0 0 2px var(--turf); }
 
+/* The course drawing's distance markers (100 m, 150 m) in a tall band. */
+#course .marker text { font-size: 13px; font-weight: 700; fill: #fff; }
+
 /* ---------- 홀 목록: every hole at a glance, opened from the hole number ---------- */
 .strip {
   position: fixed; inset: auto 0 auto 0; margin: 0 auto; width: calc(min(100vw, 480px) - 2 * var(--m)); max-width: none;

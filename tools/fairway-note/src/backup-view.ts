@@ -135,7 +135,7 @@ export function renderBackup(container: HTMLElement, p: BackupPage): void {
   container.setAttribute('aria-labelledby', 'backup-title');
   container.replaceChildren(
     h('h2', { id: 'backup-title' }, '백업'),
-    h('p', { class: 'muted small' }, '지난 라운드와 지금 라운드를 파일 하나로 저장합니다. 휴대폰을 바꾸거나 브라우저 데이터를 지우기 전에 저장해 두고 새 기기에서 가져오세요. 파일은 저장하거나 공유한 곳에만 있고, 앱은 어디로도 보내지 않습니다.'),
+    h('p', { class: 'muted small' }, '모든 라운드를 파일 하나로 저장해요. 폰을 바꾸면 새 폰에서 가져오세요. 파일은 저장한 곳에만 있어요.'),
     h('div', { class: 'backup-actions' }, save, load, share),
     input,
     status,

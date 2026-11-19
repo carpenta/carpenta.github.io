@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
 const STORAGE_KEY = 'fairway-note:round:v1';
 const PREFS_KEY = 'fairway-note:prefs:v1';
@@ -371,7 +371,7 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await expect(page.locator('#hole-par')).toHaveText('Par 3');
   await expect(course.locator('.fairway')).toHaveCount(0);
   // Everis publishes this par 3's length.
-  await expect(page.locator('#hole-distance')).toHaveText('151m');
+  await expect(page.locator('#hole-distance')).toHaveText('151 m');
   await expect(course.locator('.water')).toHaveCount(0);
   // 새별 7 is an island green by the course's own guide: the only hole drawn with water.
   await showCard(page);
@@ -386,7 +386,7 @@ test.describe('with hole notes in the course data', () => {
   test('shows the length, handicap, layout note and official guide link, and bends a dogleg', async ({ page }) => {
     await open(page);
     // Everis 새별 1 as its own hole guide gives it: one length with no tee name, the handicap and a short note.
-    await expect(page.locator('#hole-distance')).toHaveText('381m');
+    await expect(page.locator('#hole-distance')).toHaveText('381 m');
     // One header row: Par, length and HDCP in one pill; the note's phrases and the guide behind one 홀 안내 chip.
     await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 3');
     expect((await page.locator('#hole-info').boundingBox())!.height).toBeLessThanOrEqual(34);
@@ -396,7 +396,7 @@ test.describe('with hole notes in the course data', () => {
     await expect(page.locator('#hole-pop')).toBeVisible();
     await expect(infoBtn).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#hi-title')).toHaveText('1번 홀 안내');
-    await expect(page.locator('#hi-facts')).toHaveText('Par 4 · 381m · HDCP 3');
+    await expect(page.locator('#hi-facts')).toHaveText('Par 4, 381 m, HDCP 3');
     await expect(page.locator('#hole-notes li')).toHaveText(['내리막', '블라인드 티샷', '좌우 OB']);
     const guide = page.getByRole('link', { name: '공식 홀 안내, 새 창' });
     expect((await guide.boundingBox())!.height).toBeGreaterThanOrEqual(48);
@@ -1211,7 +1211,8 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       await check();
       // 상세 fits as well (on 553px the chips step aside for Par and length under the hole number), with every direction a 48px target.
       await page.getByRole('button', { name: '상세', exact: true }).tap();
-      if (height < 600) await expect(page.locator('#hole-sub')).toHaveText('Par 4 · 376m');
+      // The length steps aside where it would push the switcher into the badge (WebKit draws digits wider); it stays in 홀 안내.
+      if (height < 600) await expect(page.locator('#hole-sub')).toHaveText(/^Par 4(, 376 m)?$/);
       await check();
       for (const button of await page.locator('#pad button').all()) {
         const box = (await button.boundingBox())!;
@@ -1354,8 +1355,23 @@ test('can be added to the home screen', async ({ page, request }) => {
   await expect(decoded(favicon), favicon).resolves.toMatch(/^\d+x\d+$/);
 });
 
-test('sends the round by email, shares it, or copies it', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+/**
+ * Lets the page copy and the test read what it copied. Chromium grants the clipboard permissions; WebKit cannot grant
+ * them, so it gets a stand-in clipboard that keeps the copied text. The app's copy path is the same either way.
+ */
+async function useClipboard(page: Page, context: BrowserContext, browserName: string) {
+  if (browserName === 'chromium') {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    return;
+  }
+  await page.addInitScript(() => {
+    let copied = '';
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => { copied = text; }, readText: async () => copied } });
+  });
+}
+
+test('sends the round by email, shares it, or copies it', async ({ page, context, browserName }) => {
+  await useClipboard(page, context, browserName);
   await page.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, 'share', { value: undefined, configurable: true });
   });
@@ -1376,8 +1392,8 @@ test('sends the round by email, shares it, or copies it', async ({ page, context
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 4타 (E)');
 });
 
-test('saves the round as a CSV that Excel reads, and copies it as plain text for analysis', async ({ page, context }, testInfo) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+test('saves the round as a CSV that Excel reads, and copies it as plain text for analysis', async ({ page, context, browserName }, testInfo) => {
+  await useClipboard(page, context, browserName);
   await open(page);
   await tap(page, 'driver');
   await tap(page, 'approach');

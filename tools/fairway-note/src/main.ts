@@ -327,6 +327,20 @@ function bindSwipe(): void {
 function fitNotes(): void {
   $('entry').style.setProperty('--notes-h', '0px');
   fitMeta();
+  fitSwitcher();
+}
+
+/**
+ * In 상세 on a short screen Par and length sit under the hole number. Where that would push the switcher into the
+ * badge (WebKit draws Latin letters and digits wider), the length steps aside; it stays in 홀 안내.
+ */
+function fitSwitcher(): void {
+  const sub = $('hole-sub');
+  const full = sub.dataset.full ?? '';
+  setText(sub, full);
+  if (getComputedStyle(sub).display === 'none' || !sub.dataset.par) return;
+  const right = document.querySelector('#entry .switcher')!.getBoundingClientRect().right;
+  if (right > $('badge').getBoundingClientRect().left - 6) setText(sub, sub.dataset.par);
 }
 
 /** Keeps the header to one row beside the badge: HDCP steps aside first, then the length (both stay in 홀 안내). */
@@ -342,20 +356,22 @@ function drawCourse(): void {
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
   if (view === 'entry') {
     // The open band starts under the one-row header.
-    const notes = { height: 0, bottom: 0 };
-    frame.bandTop = (notes.height ? notes.bottom : $('hole-info').getBoundingClientRect().bottom) + 6;
+    frame.bandTop = $('hole-info').getBoundingClientRect().bottom + 6;
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
     frame.right = $('badge').getBoundingClientRect().left - 6;
   }
-  const layout = holeInfo(roundCourse(round), round.current)?.layout;
-  const bend = layoutBend(layout);
-  const island = layoutIsland(layout);
-  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), hole().par, round.current, bend, island].join(',');
+  const info = holeInfo(roundCourse(round), round.current);
+  const bend = layoutBend(info?.layout);
+  const island = layoutIsland(info?.layout);
+  // The official length in metres, for the 100 m / 150 m markers a tall band shows.
+  const first = info?.distances?.[0];
+  const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
+  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), hole().par, round.current, bend, island, length].join(',');
   if (svg.dataset.key === key) return;
   svg.dataset.key = key;
   svg.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
   // Static markup from course-art.ts, built from numbers only.
-  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island), frame);
+  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length), frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */
@@ -692,7 +708,9 @@ function renderEntry(a: Analysis, changed?: string): void {
   setChip('hole-hdcp', info?.si ? `HDCP ${info.si}` : null);
   $('meta').classList.toggle('has-prog', a.totals.holes > 0);
   // Under the hole number when 상세 on a short screen hides the row.
-  setText($('hole-sub'), [`Par ${cur.par}`, distanceLabel(info)].filter(Boolean).join(' · '));
+  const sub = $('hole-sub');
+  sub.dataset.par = `Par ${cur.par}`;
+  sub.dataset.full = [`Par ${cur.par}`, distanceLabel(info)].filter(Boolean).join(', ');
   // 홀 안내: the layout note's phrases ("내리막, 블라인드 티샷") and the official guide, behind one chip.
   const phrases = (info?.layout ?? '').split(/\s*[,，]\s*/).filter(Boolean);
   const notes = $('hole-notes');
@@ -703,7 +721,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   notes.hidden = phrases.length === 0;
   $('hi-none').hidden = phrases.length > 0;
   setText($('hi-title'), `${i + 1}번 홀 안내`);
-  setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(' · '));
+  setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(', '));
   const guide = $<HTMLAnchorElement>('hole-guide');
   if (info?.guideUrl) setAttr(guide, 'href', info.guideUrl);
   else guide.removeAttribute('href');
@@ -769,6 +787,8 @@ function renderEntry(a: Analysis, changed?: string): void {
 
   // 기본 / 상세
   setAttr($('entry'), 'data-mode', mode);
+  // 상세 on a short screen shows Par and length under the hole number: fit them beside the badge.
+  fitSwitcher();
   $('detail').hidden = mode !== 'detail';
   for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-mode]')) setAttr(button, 'aria-pressed', String(button.dataset.mode === mode));
   const tag = teeTag(cur);
@@ -1057,7 +1077,10 @@ function openItem(id: string | null): void {
   for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi[aria-controls]')) {
     const on = item.id === `mi-${id}`;
     setAttr(item, 'aria-expanded', String(on));
-    $(item.getAttribute('aria-controls')!).hidden = !on;
+    const panel = $(item.getAttribute('aria-controls')!);
+    panel.hidden = !on;
+    // On a short screen the opened panel's buttons may sit below the fold: bring them into the sheet's view.
+    if (on) panel.scrollIntoView({ block: 'nearest' });
   }
 }
 

@@ -61,12 +61,12 @@ describe('hole notes', () => {
   it('keeps a length with no tee name and a handicap index from 1 to 18', () => {
     expect(holeInfo(round, 4, [course])).toEqual({ distances: [{ length: 385, unit: 'm' }], si: 5 });
     expect(holeInfo(round, 5, [course])).toEqual({ layout: '좌 도그렉' });
-    expect(distanceLabel(holeInfo(round, 4, [course]))).toBe('385m');
+    expect(distanceLabel(holeInfo(round, 4, [course]))).toBe('385 m');
   });
 
   it('labels the length from the first tee listed', () => {
-    expect(distanceLabel(holeInfo(round, 0, [course]))).toBe('화이트 352m');
-    expect(distanceLabel(holeInfo(round, 3, [course]))).toBe('White 165yd');
+    expect(distanceLabel(holeInfo(round, 0, [course]))).toBe('화이트 352 m');
+    expect(distanceLabel(holeInfo(round, 3, [course]))).toBe('White 165 yd');
     expect(distanceLabel({ layout: '우 도그렉' })).toBeNull();
     expect(distanceLabel(null)).toBeNull();
   });
@@ -160,6 +160,37 @@ describe('drawn course behind the screen', () => {
 
   it('leaves the flag out when the open band is too short to show it whole', () => {
     expect(courseShape(4, 0, { ...frame, bandTop: 180, bandBottom: 200 }, 0).pin).toBeNull();
+  });
+
+  it('shows 100 m and 150 m markers only in a band tall enough for the approach, and only where the hole is long enough', () => {
+    const tall: CourseFrame = { ...frame, bandTop: 100, bandBottom: 320 };
+    const at = (par: 3 | 4 | 5, length: number | null, f: CourseFrame = tall) => courseShape(par, 0, f, 0, false, length).markers.map((m) => m.d);
+    expect(at(4, 381)).toEqual([100, 150]);
+    // A marker needs the hole to be at least 60 m longer than it.
+    expect(at(4, 190)).toEqual([100]);
+    expect(at(4, 150)).toEqual([]);
+    expect(at(4, null)).toEqual([]);
+    // No fairway on a par 3, and no approach in the ordinary band.
+    expect(at(3, 200)).toEqual([]);
+    expect(at(4, 381, frame)).toEqual([]);
+    for (const m of courseShape(5, 3, tall, 0, false, 480).markers) {
+      expect(m.y).toBeGreaterThan(tall.bandTop);
+      expect(m.y).toBeLessThanOrEqual(tall.bandBottom - 14);
+    }
+    const svg = courseSvg(courseShape(4, 0, tall, 0, false, 381), tall);
+    expect(svg).toContain('>100 m<');
+    expect(svg).toContain('>150 m<');
+    // The flag stands near the top of a tall band, so the approach shows below it.
+    const s = courseShape(4, 0, tall, 0, false, 381);
+    expect(s.pin!.y - s.pin!.pole).toBeLessThan(tall.bandTop + 10);
+  });
+
+  it('draws the rough with grain, a vignette and a header shade, the fairway with its edge and first cut, and a bevelled tee', () => {
+    const svg = courseSvg(courseShape(4, 0, frame, 0), frame);
+    for (const id of ['course-rough', 'course-grain', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
+    expect(svg).toContain('stroke="#386A2B" stroke-width="20"');
+    expect(svg).toContain('stroke="#549F47" stroke-width="10"');
+    expect(svg.match(/<circle [^>]*r="4.2" fill="#FFFFFF"/g)).toHaveLength(2);
   });
 
   it('draws decorative markup from numbers only', () => {
