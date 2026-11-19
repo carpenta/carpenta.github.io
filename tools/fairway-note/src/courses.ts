@@ -109,18 +109,25 @@ export function holeInfo(course: RoundCourse, index: number, courses: readonly C
   const raw = nine?.holes?.[index % 9];
   if (!raw) return null;
   const info: HoleInfo = {};
-  const distances = (raw.distances ?? []).filter((d) => typeof d.tee === 'string' && Number.isFinite(d.length) && d.length > 0 && (d.unit === 'm' || d.unit === 'yd'));
-  if (distances.length) info.distances = distances.map((d) => ({ tee: d.tee, length: d.length, unit: d.unit }));
+  // A course may publish one length with no tee name; read loosely so either shape of the data passes.
+  const teeOf = (d: TeeLength) => (d as { tee?: unknown }).tee;
+  const distances = (raw.distances ?? []).filter((d) => (teeOf(d) === undefined || typeof teeOf(d) === 'string') && Number.isFinite(d.length) && d.length > 0 && (d.unit === 'm' || d.unit === 'yd'));
+  if (distances.length) info.distances = distances.map((d) => ({ ...(typeof teeOf(d) === 'string' ? { tee: d.tee } : {}), length: d.length, unit: d.unit }) as TeeLength);
   const layout = typeof raw.layout === 'string' ? raw.layout.trim().slice(0, MAX_LAYOUT) : '';
   if (layout) info.layout = layout;
   if (typeof raw.guideUrl === 'string' && isHttps(raw.guideUrl)) info.guideUrl = raw.guideUrl;
+  // The published handicap index (1-9 per nine or 1-18), shown as "HDCP n".
+  const si = (raw as { si?: unknown }).si;
+  if (Number.isInteger(si) && (si as number) >= 1 && (si as number) <= 18) (info as { si?: number }).si = si as number;
   return Object.keys(info).length ? info : null;
 }
 
-/** "화이트 352m" from the first tee listed, or null without lengths. */
+/** "화이트 352m" from the first tee listed, "385m" when the course names no tee, or null without lengths. */
 export function distanceLabel(info: HoleInfo | null): string | null {
   const d = info?.distances?.[0];
-  return d ? `${d.tee} ${d.length}${d.unit}` : null;
+  if (!d) return null;
+  const tee = (d as { tee?: unknown }).tee;
+  return typeof tee === 'string' && tee ? `${tee} ${d.length}${d.unit}` : `${d.length}${d.unit}`;
 }
 
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
