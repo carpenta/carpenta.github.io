@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#3E6B2E">
+<title>Fairway Note 홀 기록 시안 v6</title>
+<style>
+  :root {
+    /* Grass tokens */
+    --turf: #2F7D3A;
+    --fairway: #5BAA4F;
+    --rough: #3E6B2E;
+    --putting: #8CCB6E;
+    --ink: #17301A;
+    --paper: #F3F7EF;
+    --white: #FFFFFF;
+    --red: #C0392B;
+    --sand: #D9B45A;
+    --deep: #16301D;
+    --pill: #DCEBD5;
+
+    /* Derived */
+    --muted: #4E6450;          /* 6.4:1 on white */
+    --tint: #EDF4E8;
+    --line: #D3E2CC;
+    --off: #EEF3EB;            /* disabled fill */
+    --off-ink: #8A9C88;        /* disabled glyph, 3:1 on --off */
+    --sand-tint: #F7EBC9;
+    --tab-ink: #A9C4A3;        /* 7.5:1 on --deep */
+    --lift: 0 1px 2px rgba(23, 48, 26, 0.12), 0 4px 10px rgba(23, 48, 26, 0.14);
+    --float: 0 2px 6px rgba(10, 30, 12, 0.22);
+
+    --font: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --m: clamp(12px, 4.8vw, 22px);
+    --tabbar: 56px;
+    --badge: 76px;
+    --overlap: 12px;
+    --notes-h: 0px;
+
+    /* 기본 sizes (screens 600px and taller) */
+    --sheet-pt: 16px;
+    --step: 52px;
+    --num: 56px;
+    --pill-pad: 8px;
+    --pill-base: 434px; --pill-min: 150px; --pill-max: 204px;
+    --pen: 52px;
+    --mode-h: 40px;
+    --next-h: 52px;
+    --next-m: 8px;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--rough); color: var(--ink); font-family: var(--font); overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+  html:lang(ko) body { word-break: keep-all; }
+  p, h1, h2, h3, ul { margin: 0; font: inherit; }
+  ul { padding: 0; list-style: none; }
+  a { color: inherit; text-decoration: none; }
+  button {
+    font: inherit; color: inherit; margin: 0; padding: 0; border: 0; background: none;
+    cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  button[aria-disabled="true"] { cursor: default; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .sr { position: fixed; top: 0; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  svg { display: block; }
+
+  .course { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+
+  .app {
+    position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;
+    display: flex; flex-direction: column;
+    padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
+  }
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  #view-entry { touch-action: pan-y; overflow-x: clip; }
+
+  /* ---------- Top bar: light controls floating on the course ---------- */
+  .top {
+    flex: none; position: relative; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
+    display: grid; grid-template-columns: 48px auto 1fr; column-gap: 8px; row-gap: 14px; align-items: center;
+  }
+  .round {
+    width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--white); color: var(--ink); box-shadow: var(--float);
+  }
+  .round:active { background: var(--tint); }
+  .menu { grid-column: 1; grid-row: 1; }
+  .switcher {
+    grid-column: 2; grid-row: 1; justify-self: start;
+    display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96); box-shadow: var(--float);
+  }
+  .switcher .round { box-shadow: none; background: var(--tint); }
+  .switcher .round:active { background: var(--pill); }
+  .switcher .round[aria-disabled="true"] { background: transparent; color: var(--off-ink); }
+  .hole-title { display: flex; align-items: center; gap: 2px; padding: 0 4px; font-weight: 800; white-space: nowrap; }
+  .hole-title > svg { flex: none; margin-right: 3px; }
+  .hole-txt { display: flex; flex-direction: column; align-items: flex-start; }
+  .hole-main { display: flex; align-items: baseline; gap: 2px; }
+  .hole-n { font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .hole-title.two .hole-n { font-size: 28px; }
+  .hole-u { font-size: 17px; font-weight: 700; }
+  .hole-title.two .hole-u { font-size: 15px; }
+  .hole-sub { display: none; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 15px; }
+  .info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; gap: 6px; }
+  .chip {
+    position: relative; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.94); box-shadow: var(--float);
+    font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .chip .lbl { font-weight: 600; color: var(--muted); }
+  .chip .under { color: var(--red); }
+  .chip.icon { width: 28px; padding: 0; justify-content: center; color: var(--turf); }
+  .chip.icon::after { content: ""; position: absolute; inset: -10px; }  /* 48px touch area */
+  /* Layout notes from the course data: quiet captions on the course itself */
+  .notes { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+  .notes li {
+    height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center;
+    background: rgba(12, 32, 14, 0.62); color: #E8F3E2; font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  .ver { position: absolute; top: max(12px, calc(env(safe-area-inset-top) + 4px)); right: var(--m); font-size: 13px; font-weight: 600; color: rgba(255, 255, 255, 0.78); }
+
+  /* ---------- The sheet ---------- */
+  .spacer { flex: 1 1 0; min-height: 4px; }
+  .sheet-wrap { position: relative; flex: 0 1 auto; min-height: 0; margin: 0 var(--m); display: flex; flex-direction: column; }
+  .sheet {
+    flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--white); border-radius: 32px; box-shadow: 0 12px 32px rgba(8, 28, 10, 0.32);
+    padding: var(--sheet-pt) 16px var(--sheet-pb, 16px); scrollbar-width: none; will-change: transform;
+  }
+  .sheet::-webkit-scrollbar { display: none; }
+  .sheet-wrap::after {
+    content: ""; position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 36px; border-radius: 0 0 32px 32px;
+    background: linear-gradient(rgba(255, 255, 255, 0), #fff 85%); pointer-events: none; opacity: 0;
+  }
+  .sheet-wrap.more::after { opacity: 1; }
+
+  /* Score badge: stays put while the sheet slides, so it never crosses the chips */
+  .badge {
+    position: absolute; z-index: 3; right: -6px; bottom: calc(100% - var(--overlap));
+    width: var(--badge); height: var(--badge); border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: var(--deep); color: #fff;
+    box-shadow: 0 0 0 4px var(--white), 0 8px 18px rgba(8, 28, 10, 0.35);
+  }
+  .badge[data-tone="under"] { background: var(--red); }
+  .badge[data-tone="par"] { background: var(--turf); }
+  .badge-name { font-size: 13px; font-weight: 700; line-height: 1; white-space: nowrap; }
+  .badge[data-tone="none"] .badge-name { color: #CFE3C9; font-weight: 600; }
+  .bmark { position: relative; width: 44px; height: 40px; display: grid; place-items: center; }
+  .bmark b { position: relative; font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; text-box: trim-both cap alphabetic; }
+  .badge[data-tone="none"] .bmark b { font-weight: 600; color: #9FBA98; }
+  .bmark.two b { font-size: 22px; }
+  .bm { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; overflow: visible; }
+  .bm * { fill: none; stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  @keyframes settle { from { transform: scale(1.1); } to { transform: scale(1); } }
+  .badge.settle { animation: settle 0.16s ease-out; }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @keyframes ring { from { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.75); } to { box-shadow: 0 0 0 18px rgba(255, 255, 255, 0); } }
+  .badge.celebrate { animation: pop 0.5s cubic-bezier(0.3, 0.7, 0.2, 1); }
+  .badge.celebrate .bm * { stroke-dasharray: 1; animation: draw 0.55s cubic-bezier(0.3, 0.7, 0.2, 1) both; }
+  .badge.celebrate .bm *:nth-child(2) { animation-delay: 0.14s; }
+  .badge.celebrate::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; animation: ring 0.7s ease-out both; }
+
+  /* Row A: three tall pill steppers; the number has its own row */
+  .clubs { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 14px; }
+  .club { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+  .club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 8px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .club-lbl svg, .pill-ico { color: var(--turf); }
+  .pill {
+    width: 100%; max-width: 104px; height: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h)), var(--pill-max))); border-radius: 999px; background: var(--pill);
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: var(--pill-pad) 0;
+  }
+  .step { width: 100%; height: var(--step); display: grid; place-items: center; border-radius: 26px; flex: none; }
+  .step span {
+    width: var(--step); height: var(--step); border-radius: 50%; background: var(--white); color: var(--ink);
+    display: grid; place-items: center; box-shadow: var(--lift);
+  }
+  .step:active span { background: var(--tint); box-shadow: 0 1px 2px rgba(23, 48, 26, 0.18); }
+  .step[aria-disabled="true"] span { background: var(--off); color: var(--off-ink); box-shadow: none; }
+  .num-row { display: flex; align-items: center; gap: 4px; }
+  .pill-ico { display: none; }
+  .count { font-size: var(--num); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; text-box: trim-both cap alphabetic; }
+  .count.zero { color: #6E856C; }
+  @keyframes bump { 0% { transform: scale(1.16); } 100% { transform: scale(1); } }
+  .count.bump { animation: bump 0.12s ease-out; }
+
+  /* 기본: OB and 해저드 stay centred; "빼기" appears in its own slot */
+  .pens.basic { display: grid; grid-template-columns: 1fr 72px 72px 1fr; column-gap: 24px; margin-top: 16px; }
+  .pens.basic .pen[data-pen="ob"] { grid-column: 2; }
+  .pens.basic .pen[data-pen="hazard"] { grid-column: 3; }
+  .pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pen-icon {
+    position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center;
+    background: var(--tint); box-shadow: inset 0 0 0 1.5px transparent;
+  }
+  .pen:active .pen-icon { background: var(--pill); }
+  .pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
+  .pen-lbl { font-size: 13px; font-weight: 700; line-height: 16px; text-align: center; white-space: nowrap; }
+  .pen-count {
+    position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
+    background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 800; line-height: 24px; text-align: center;
+    box-shadow: 0 0 0 2px var(--white); font-variant-numeric: tabular-nums;
+  }
+  .undo { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; font-size: 13px; font-weight: 700; line-height: 16px; color: var(--turf); white-space: nowrap; }
+  .undo .u-ico { width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
+  .undo:active .u-ico { background: var(--tint); }
+  .pens.basic .undo { grid-column: 4; justify-self: start; margin-left: -12px; }
+
+  /* 상세 */
+  #view-entry[data-mode="detail"] { --step: 48px; --num: 24px; --pill-pad: 4px; --pill-fixed: 138px; --pen: 48px; }
+  #view-entry[data-mode="detail"] .sheet { padding-top: 14px; padding-bottom: 6px; }
+  #view-entry[data-mode="detail"] .step span { width: 44px; height: 44px; }
+  #view-entry[data-mode="detail"] .club-lbl { margin-bottom: 4px; }
+  @media (min-height: 660px) { #view-entry[data-mode="detail"] { --num: 30px; --pill-fixed: 144px; } }
+  .detail { margin-top: 8px; }
+  .tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
+  .tee-t { display: flex; align-items: baseline; gap: 6px; font-size: 17px; font-weight: 600; white-space: nowrap; }
+  .tee-t .val { font-size: 15px; font-weight: 700; color: var(--turf); }
+  .tee-t .val.none { color: var(--muted); font-weight: 600; }
+  .tee-chips { display: flex; gap: 8px; }
+  .tchip {
+    position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+    background: var(--tint); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap;
+  }
+  .tchip::after { content: ""; position: absolute; inset: -8px 0; }
+  .tchip[aria-pressed="true"] { background: var(--fairway); }
+  .tchip.miss { min-width: 80px; }
+  .pad { margin-top: 8px; display: flex; justify-content: center; gap: 8px; }
+  .dir {
+    width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: var(--white); color: var(--ink); box-shadow: var(--lift);
+  }
+  .dir:active { background: var(--tint); }
+  .dir.far { background: var(--tint); box-shadow: none; }
+  .dir[aria-pressed="true"] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
+  .d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: 800; background: #C9E5BF; }
+  .pens.detail-pens { display: grid; grid-template-columns: 1fr 48px 48px 48px 1fr; column-gap: 22px; margin-top: 10px; }
+  .pens.detail-pens .pen { width: 48px; gap: 2px; }
+  .pens.detail-pens .pen[data-pen="hazard"] { grid-column: 2; }
+  .pens.detail-pens .pen[data-pen="ob"] { grid-column: 3; }
+  .pens.detail-pens .pen[data-pen="bunker"] { grid-column: 4; }
+  .pens.detail-pens .undo { grid-column: 5; justify-self: start; margin-left: -4px; }
+
+  /* 기본 / 상세 */
+  .modes { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+  .mode {
+    position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: 999px;
+    background: var(--tint); color: var(--muted); font-size: 15px; font-weight: 700;
+  }
+  .mode::after { content: ""; position: absolute; inset: calc((var(--mode-h) - 48px) / 2) 0; }
+  .mode[aria-pressed="true"] { background: var(--fairway); color: var(--ink); }
+
+  /* Undo toast: four seconds above 다음 홀 */
+  .toast-slot { position: relative; height: 0; margin: 0 var(--m); z-index: 4; }
+  .toast {
+    position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2px; height: 48px; padding: 0 0 0 18px; border-radius: 999px;
+    background: var(--deep); color: #fff; box-shadow: 0 8px 22px rgba(8, 28, 10, 0.4);
+    font-size: 15px; font-weight: 600; white-space: nowrap;
+  }
+  .toast button { position: relative; height: 48px; padding: 0 16px; border-radius: 999px; color: #9ED583; font-weight: 700; }
+  .toast button:active { background: rgba(255, 255, 255, 0.1); }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .toast.show { animation: toast-in 0.16s ease-out; }
+
+  .next {
+    flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px;
+    background: var(--turf); color: #fff; font-size: 17px; font-weight: 700; box-shadow: var(--float);
+  }
+  .next:active { background: #276B31; }
+
+  /* ---------- Bottom tab bar: 기록 in the centre ---------- */
+  .tabbar {
+    position: fixed; z-index: 5; left: 0; right: 0; bottom: 0;
+    padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
+    background: var(--deep); display: flex; justify-content: center;
+  }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 8px; width: 100%; max-width: 480px; }
+  .tab {
+    height: var(--tabbar); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    color: var(--tab-ink); font-size: 13px; font-weight: 600;
+  }
+  .tab .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
+  .tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tab[aria-selected="true"] { color: var(--fairway); font-weight: 700; }
+  .tab[aria-selected="true"] .ti { background: rgba(91, 170, 79, 0.2); }
+
+  /* ---------- Scorecard and history ---------- */
+  .sc { --m: 10px; background: var(--paper); overflow-y: auto; scrollbar-width: none; }
+  .sc::-webkit-scrollbar { display: none; }
+  .sc-top { flex: none; display: grid; grid-template-columns: 48px 1fr 48px; column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px; }
+  .sc-top.with-edit { grid-template-columns: 48px 1fr auto; }
+  .sc-top .round { box-shadow: var(--float); }
+  .sc-title { text-align: center; }
+  .sc-title h2 { font-size: 17px; font-weight: 700; }
+  .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .edit {
+    height: 48px; min-width: 76px; padding: 0 14px; border-radius: 999px; background: var(--white); box-shadow: var(--float);
+    font-size: 15px; font-weight: 700; color: var(--turf);
+  }
+  .edit[aria-pressed="true"] { background: var(--turf); color: #fff; }
+  .sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 32px; padding: 16px 10px 16px; box-shadow: 0 8px 24px rgba(23, 48, 26, 0.12); }
+  .sum { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 0; padding: 0 0 14px; border-bottom: 1.5px solid var(--line); }
+  .sum div { text-align: center; }
+  .sum dt { font-size: 13px; color: var(--muted); }
+  .sum dd { margin: 4px 0 0; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .sum dd.under { color: var(--red); }
+  .edit-hint { margin: 12px 2px 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
+  .nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 2px 8px; }
+  .nine-h h3 { font-size: 17px; font-weight: 700; }
+  .nine-h span { font-size: 13px; color: var(--muted); }
+  .tbl { display: grid; grid-template-columns: 28px repeat(5, 1fr); column-gap: 8px; }
+  .tbl + .tbl { margin-top: 8px; }
+  .rowlbl { display: flex; flex-direction: column; }
+  .rowlbl span, .col > span, .col > button { height: 24px; display: grid; place-items: center; font-size: 13px; }
+  .rowlbl span { justify-items: start; color: var(--muted); font-weight: 600; }
+  .rowlbl span.sc-row, .col > span.sc-row { height: 42px; }
+  .col { display: flex; flex-direction: column; border-radius: 12px; min-width: 0; overflow: hidden; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); }
+  button.col:active { background: var(--tint); }
+  .col .no { font-weight: 800; background: var(--pill); }
+  .col .pr { color: var(--muted); }
+  .col.sub { background: var(--paper); box-shadow: none; }
+  .col.sub .no { background: var(--line); }
+  .col[aria-current="true"] { box-shadow: inset 0 0 0 2.5px var(--turf); }
+  .col[aria-current="true"] .no { background: var(--turf); color: #fff; }
+  .editing .rowlbl span.pr-row, .editing .col > .pr, .editing .col > .par-btn { height: 52px; }
+  .par-btn { margin: 2px; border-radius: 12px; background: var(--tint); font-size: 17px !important; font-weight: 800; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--fairway); }
+  .par-btn:active { background: var(--pill); }
+  .par-btn.changed { background: var(--fairway); }
+  .sub-v { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .m { position: relative; width: 34px; height: 34px; display: grid; place-items: center; color: var(--ink); }
+  .m[data-tone="under"] { color: var(--red); }
+  .m[data-tone="par"] { color: var(--turf); }
+  .m[data-tone="none"] { color: #93A691; }
+  .m b { position: relative; font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; text-box: trim-both cap alphabetic; }
+  .m::before, .m::after { content: ""; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
+  .m[data-mark="birdie"]::before { width: 29px; height: 29px; border-width: 2px; border-radius: 50%; }
+  .m[data-mark="eagle"]::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: 50%; }
+  .m[data-mark="eagle"]::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: 50%; }
+  .m[data-mark="bogey"]::before { width: 27px; height: 27px; border-width: 2px; border-radius: 2px; }
+  .m[data-mark="double"]::before { width: 24px; height: 24px; border-width: 1.5px; border-radius: 1px; }
+  .m[data-mark="double"]::after { width: 31px; height: 31px; border-width: 1.5px; border-radius: 2px; }
+  .tot { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line); }
+  .tot h3 { font-size: 17px; font-weight: 700; }
+  .tot span { font-size: 13px; color: var(--muted); }
+  .tot b { margin-left: auto; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tot b + b { margin-left: 8px; min-width: 52px; text-align: right; }
+  .tot b.under { color: var(--red); }
+  .lost { flex: none; margin: 0 var(--m) 20px; background: var(--white); border-radius: 24px; padding: 16px; box-shadow: 0 8px 24px rgba(23, 48, 26, 0.10); }
+  .lost h3 { font-size: 17px; font-weight: 700; }
+  .lost p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .bars { margin: 12px 0 0; display: grid; gap: 8px; }
+  .bars li { display: grid; grid-template-columns: 64px 1fr 32px; align-items: center; gap: 8px; font-size: 13px; }
+  .bars .bar { height: 10px; border-radius: 4px; background: var(--off); overflow: hidden; }
+  .bars .bar i { display: block; height: 100%; border-radius: 4px; background: var(--turf); }
+  .bars li.worst .bar i { background: var(--sand); }
+  .bars .v { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  .hist-now { margin: 0 var(--m) 12px; padding: 16px; border-radius: 24px; background: var(--white); box-shadow: 0 8px 24px rgba(23, 48, 26, 0.12); display: grid; grid-template-columns: 1fr auto; row-gap: 12px; align-items: center; }
+  .hist-now h3 { font-size: 17px; font-weight: 700; }
+  .hist-now p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .hist-now .big { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  .hist-now .big.under { color: var(--red); }
+  .hist-now button { grid-column: 1 / -1; height: 48px; border-radius: 999px; background: var(--turf); color: #fff; font-size: 15px; font-weight: 700; }
+  .hist-h { margin: 6px calc(var(--m) + 6px) 8px; font-size: 15px; font-weight: 700; color: var(--muted); }
+  .hist-list { margin: 0 var(--m) 20px; border-radius: 24px; background: var(--white); box-shadow: 0 8px 24px rgba(23, 48, 26, 0.10); overflow: hidden; }
+  .hist-list li { display: grid; grid-template-columns: 1fr auto auto; column-gap: 12px; align-items: center; min-height: 68px; padding: 12px 16px; }
+  .hist-list li + li { border-top: 1px solid var(--line); }
+  .hist-list .d { font-size: 17px; font-weight: 700; }
+  .hist-list .c { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .hist-list .s { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .hist-list .p { min-width: 48px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: 800; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+  .hist-list .p.under { background: #F8DEDB; color: #9E2C21; }
+  .hist-note { margin: 0 calc(var(--m) + 6px) 20px; font-size: 13px; color: var(--muted); }
+
+  /* ---------- Menu sheet ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 8; background: rgba(8, 24, 10, 0.45); }
+  .menu-sheet {
+    position: fixed; z-index: 9; left: 0; right: 0; bottom: 0; max-width: 480px; margin: 0 auto; max-height: 88dvh; overflow-y: auto;
+    background: var(--white); border-radius: 28px 28px 0 0; padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 32px rgba(8, 28, 10, 0.25);
+  }
+  .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 14px; }
+  .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 8px; }
+  .menu-head h2 { font-size: 22px; font-weight: 800; }
+  .menu-head span { font-size: 13px; color: var(--muted); }
+  .menu-list li + li { border-top: 1px solid var(--line); }
+  .mi { width: 100%; min-height: 64px; display: grid; grid-template-columns: 40px 1fr 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: 14px; }
+  .mi:active { background: var(--tint); }
+  .mi .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; color: var(--turf); }
+  .mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .mi b { display: block; font-size: 17px; font-weight: 700; }
+  .mi small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .mi .chev { color: var(--off-ink); transition: transform 0.16s; }
+  .mi[aria-expanded="true"] .chev { transform: rotate(90deg); }
+  .mpanel { padding: 0 4px 14px 56px; font-size: 15px; line-height: 1.45; }
+  .mpanel p + p { margin-top: 6px; }
+  .mpanel .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .mpanel .row button, .mpanel .row label { height: 48px; padding: 0 16px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .mpanel .row .primary { background: var(--turf); color: #fff; }
+  .mpanel .muted { color: var(--muted); font-size: 13px; }
+  .check { color: var(--turf); font-weight: 700; }
+
+  @media (max-width: 369px) { :root { --badge: 72px; } }
+  @media (min-height: 600px) and (max-height: 650px) {
+    :root { --num: 48px; }
+    #view-entry[data-mode="detail"] .club-lbl { display: none; }
+    #view-entry[data-mode="detail"] .pill-ico { display: block; }
+  }
+  /* Shorter screens: no room for the notes row */
+  #view-entry.has-notes { --notes-h: 32px; }
+  @media (max-height: 619px) { .notes { display: none; } #view-entry.has-notes { --notes-h: 0px; } }
+  /* iPhone SE Safari */
+  @media (max-height: 599px) {
+    :root {
+      --sheet-pt: 14px; --step: 48px; --num: 40px; --pill-pad: 5px;
+      --pill-base: 400px; --pill-min: 140px; --pill-max: 176px;
+      --pen: 48px; --mode-h: 36px; --next-h: 48px; --next-m: 8px;
+    }
+    .club-lbl { height: 18px; margin-bottom: 4px; }
+    .pens.basic { margin-top: 8px; }
+    .modes { margin-top: 14px; }
+    .sheet { --sheet-pb: 8px; }
+    .ver { display: none; }
+    /* 상세 on a short screen: the club names and the chip row step aside so the 벌타 row and the toggle fit */
+    #view-entry[data-mode="detail"] { --pill-fixed: 128px; --num: 22px; --pill-pad: 0px; --badge: 70px; --overlap: 4px; }
+    #view-entry[data-mode="detail"] .bmark b { font-size: 24px; }
+    #view-entry[data-mode="detail"] .bm { width: 32px; height: 32px; }
+    #view-entry[data-mode="detail"] .info { display: none; }
+    #view-entry[data-mode="detail"] .top { row-gap: 0; padding-top: max(4px, env(safe-area-inset-top)); }
+    #view-entry[data-mode="detail"] .hole-sub { display: block; }
+    #view-entry[data-mode="detail"] .hole-n { font-size: 26px; }
+    #view-entry[data-mode="detail"] .hole-u { font-size: 15px; }
+    #view-entry[data-mode="detail"] .club-lbl { display: none; }
+    #view-entry[data-mode="detail"] .pill-ico { display: block; }
+    #view-entry[data-mode="detail"] .sheet { padding-top: 6px; padding-bottom: 6px; }
+    #view-entry[data-mode="detail"] .pens.detail-pens { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+    #view-entry[data-mode="detail"] .pens.detail-pens .pen {
+      width: auto; height: 48px; flex-direction: row; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint);
+    }
+    #view-entry[data-mode="detail"] .pens.detail-pens .pen.on { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
+    #view-entry[data-mode="detail"] .pens.detail-pens .pen-icon { width: 30px; height: 40px; background: transparent !important; box-shadow: none !important; }
+    #view-entry[data-mode="detail"] .pens.detail-pens .pen-icon svg { transform: scale(0.82); }
+    #view-entry[data-mode="detail"] .pens.detail-pens .pen-count { top: -6px; right: -6px; }
+    #view-entry[data-mode="detail"] .pens.detail-pens .undo { width: 48px; margin: 0; }
+    #view-entry[data-mode="detail"] .pens.detail-pens .undo > span:last-child { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .badge.settle, .count.bump, .badge.celebrate, .badge.celebrate .bm *, .badge.celebrate::after, .toast.show { animation: none; }
+    .mi .chev { transition: none; }
+  }
+</style>
+</head>
+<body>
+<svg class="course" id="course" aria-hidden="true" focusable="false"></svg>
+
+<div class="app">
+  <section class="view" id="view-entry" role="tabpanel" aria-labelledby="tab-entry" data-mode="basic">
+    <header class="top">
+      <button class="round menu" type="button" data-act="menu" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="switcher">
+        <button class="round" type="button" id="prev" data-act="prev" aria-label="이전 홀">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <h1 class="hole-title" id="hole-title">
+          <svg viewBox="0 0 16 20" width="14" height="18" aria-hidden="true"><path d="M2.5 19V1.5" stroke="#17301A" stroke-width="2" stroke-linecap="round"/><path d="M3 2h10l-3 3.5L13 9H3z" fill="#2F7D3A"/></svg>
+          <span class="hole-txt"><span class="hole-main"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></span><span class="hole-sub" id="hole-sub">Par 4</span></span>
+        </h1>
+        <button class="round" type="button" id="fwd" data-act="fwd" aria-label="다음 홀 보기">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <p class="info">
+        <span class="chip" id="par">Par 4</span>
+        <span class="chip" id="len">381 m</span>
+        <span class="chip" id="total" hidden><span class="lbl">합계</span><span id="total-v"></span></span>
+        <a class="chip icon" id="guide" href="https://shinangolf.com/club/course/everis" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창">
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </p>
+      <ul class="notes" id="notes" aria-label="홀 특징" hidden></ul>
+      <span class="ver" aria-hidden="true">v6</span>
+    </header>
+    <div class="spacer"></div>
+
+    <div class="sheet-wrap">
+      <div class="badge" id="badge" data-tone="none" role="img" aria-label="이 홀 아직 기록 전">
+        <span class="bmark" id="bmark" aria-hidden="true"><svg class="bm" id="bm" viewBox="0 0 40 40"></svg><b id="b-n">–</b></span>
+        <span class="badge-name" id="b-name" aria-hidden="true">기록 전</span>
+      </div>
+      <section class="sheet" id="sheet" aria-labelledby="hole-title">
+        <div class="clubs" id="clubs"></div>
+        <div class="pens basic" id="pens-basic"></div>
+        <div class="detail" id="detail" hidden>
+          <div class="tee-line">
+            <p class="tee-t">티샷 <span class="val none" id="tee-val">선택 안 함</span></p>
+            <div class="tee-chips">
+              <button class="tchip" type="button" data-dir="long" aria-pressed="false"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>김</button>
+              <button class="tchip" type="button" data-dir="short" aria-pressed="false"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>짧음</button>
+              <button class="tchip miss" type="button" id="miss" data-act="miss" aria-pressed="false">미스샷</button>
+            </div>
+          </div>
+          <div class="pad" role="group" aria-label="티샷 방향">
+            <button class="dir far" type="button" data-dir="farLeft" aria-pressed="false" aria-label="많이 좌"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 6 6 12l6 6M18 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="dir" type="button" data-dir="left" aria-pressed="false" aria-label="좌"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="dir d-c" type="button" data-dir="fairway" aria-pressed="false"><span id="center-lbl">페어웨이</span></button>
+            <button class="dir" type="button" data-dir="right" aria-pressed="false" aria-label="우"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="dir far" type="button" data-dir="farRight" aria-pressed="false" aria-label="많이 우"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l6 6-6 6M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+          <div class="pens detail-pens" id="pens-detail" role="group" aria-label="벌타"></div>
+        </div>
+        <div class="modes" role="group" aria-label="입력 방식">
+          <button class="mode" type="button" data-mode="basic" aria-pressed="true">기본</button>
+          <button class="mode" type="button" data-mode="detail" aria-pressed="false">상세</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast-slot"><div class="toast" id="toast" role="status" hidden><span id="toast-msg"></span><button type="button" data-act="restore">되돌리기</button></div></div>
+    <button class="next" type="button" id="next" data-act="next">다음 홀</button>
+  </section>
+
+  <section class="view sc" id="view-card" role="tabpanel" aria-labelledby="tab-card" hidden>
+    <header class="sc-top with-edit">
+      <button class="round menu" type="button" data-act="menu" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="sc-title"><h2>스코어카드</h2><p id="sc-date">에버리스</p></div>
+      <button class="edit" type="button" id="edit-par" data-act="edit-par" aria-pressed="false">파 수정</button>
+    </header>
+    <section class="sc-sheet" id="sc-sheet" aria-label="스코어카드">
+      <dl class="sum">
+        <div><dt>타수</dt><dd id="s-strokes">0</dd></div>
+        <div><dt>파 대비</dt><dd id="s-topar">이븐</dd></div>
+        <div><dt>퍼트</dt><dd id="s-putts">0</dd></div>
+        <div><dt>OB</dt><dd id="s-ob">0</dd></div>
+        <div><dt>해저드</dt><dd id="s-hz">0</dd></div>
+      </dl>
+      <p class="edit-hint" id="edit-hint" hidden>파를 누를 때마다 3, 4, 5 순서로 바뀌어요. 다 고치면 완료를 누르세요.</p>
+      <div class="nine-h"><h3>새별</h3><span>전반</span></div>
+      <div class="tbl" id="t0"></div>
+      <div class="tbl" id="t1"></div>
+      <div class="nine-h"><h3>레이크</h3><span>후반</span></div>
+      <div class="tbl" id="t2"></div>
+      <div class="tbl" id="t3"></div>
+      <div class="tot"><h3>합계</h3><span id="tot-holes">0홀</span><b id="tot-strokes">0타</b><b id="tot-topar">이븐</b></div>
+    </section>
+    <section class="lost" aria-labelledby="lost-h">
+      <h3 id="lost-h">타수를 잃은 곳</h3>
+      <p id="lost-note">홀을 기록하면 보여요.</p>
+      <ul class="bars" id="bars"></ul>
+    </section>
+  </section>
+
+  <section class="view sc" id="view-hist" role="tabpanel" aria-labelledby="tab-hist" hidden>
+    <header class="sc-top">
+      <button class="round menu" type="button" data-act="menu" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <div class="sc-title"><h2>지난 라운드</h2><p id="hist-count">3번 기록</p></div>
+    </header>
+    <section class="hist-now" aria-labelledby="now-h">
+      <div><h3 id="now-h">지금 라운드</h3><p id="now-sub">에버리스 0홀 기록</p></div>
+      <p class="big" id="now-score">–</p>
+      <button type="button" data-view="entry">이어서 기록</button>
+    </section>
+    <h2 class="hist-h">지난 기록</h2>
+    <ul class="hist-list" id="hist-list"></ul>
+    <p class="hist-note">시안용 예시 기록이에요. 새 라운드를 시작하면 지금 라운드가 여기에 쌓여요.</p>
+  </section>
+</div>
+
+<nav class="tabbar" aria-label="화면">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-card" aria-selected="false" aria-controls="view-card" tabindex="-1" data-view="card">
+      <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 12h17M9.2 5v14M14.8 5v14"/></svg></span>
+      <span>스코어카드</span>
+    </button>
+    <button class="tab" role="tab" id="tab-entry" aria-selected="true" aria-controls="view-entry" data-view="entry">
+      <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></span>
+      <span>기록</span>
+    </button>
+    <button class="tab" role="tab" id="tab-hist" aria-selected="false" aria-controls="view-hist" tabindex="-1" data-view="hist">
+      <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg></span>
+      <span>지난 라운드</span>
+    </button>
+  </div>
+</nav>
+
+<div class="scrim" id="scrim" hidden data-act="close-menu"></div>
+<section class="menu-sheet" id="menu-sheet" role="dialog" aria-modal="true" aria-labelledby="menu-h" hidden>
+  <div class="grab" aria-hidden="true"></div>
+  <div class="menu-head"><h2 id="menu-h">메뉴</h2><span>Fairway Note 시안 v6</span></div>
+  <ul class="menu-list" id="menu-list"></ul>
+</section>
+
+<input type="file" id="restore-file" accept="application/json" hidden>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(() => {
+  'use strict';
+
+  // 에버리스 새별 (1-9) then 레이크 (10-18), from tools/fairway-note/src/round.ts. Par can be changed on the 스코어카드.
+  const COURSE_PARS = [4, 4, 5, 3, 4, 4, 3, 5, 4, 4, 3, 4, 4, 5, 5, 3, 4, 4];
+  // Official lengths for 새별 1-5 (metres; the tee is not named on the table). Unknown for the rest.
+  const LENGTHS = [381, 376, 529, 151, 341];
+  // Short layout notes from the course data (sample data for this prototype). The drawing only follows a note.
+  const NOTES = { 0: ['내리막', '블라인드 티샷', '좌우 OB'], 6: ['아일랜드 홀'] };
+  const HOLES = COURSE_PARS.length;
+  const MAX = 15;
+  const MINUS = '−';
+  const CLUBS = [
+    { key: 'driver', label: '드라이버', icon: '<path d="M16 3 13.6 11.5"/><path d="M13.2 10.8c-3.8-.6-8.4.7-9.3 3.9-.7 2.6 1.2 4.6 4.8 4.8 3.6.2 6.6-1 7.2-3.2.4-1.6-.7-4-2.7-5.5z" fill="currentColor"/>' },
+    { key: 'approach', label: '어프로치', icon: '<path d="M16.4 3 15.2 10.6"/><path d="M14.4 9.8 16.2 10.4c.6 3.3.4 6.6-.6 8.6-.8 1.6-3.6 2.2-8.4 1.6-2-.2-2.8-1.6-2.1-3l1.1-2.1c.4-.8 1.3-1.2 2.2-1 2.8.5 4.6-.4 6-4.7z" fill="currentColor"/>' },
+    { key: 'putts', label: '퍼터', icon: '<path d="M15 3 13.4 15.5"/><rect x="5" y="15.5" width="13.5" height="4.5" rx="1.6" fill="currentColor"/>' },
+  ];
+  const LABEL = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', bunker: '벙커' };
+  const PENS = { ob: { stroke: true }, hazard: { stroke: true }, bunker: { stroke: false } };
+  const DIRS = { fairway: '페어웨이', left: '좌', right: '우', farLeft: '많이 좌', farRight: '많이 우', long: '김', short: '짧음' };
+  const MISSES = [null, 'whiff', 'fat'];
+  const MISS_LABEL = { whiff: '헛스윙', fat: '뒤땅/토핑' };
+  // Sample past rounds for the 지난 라운드 tab
+  const PAST = [
+    { date: '2026-11-08', course: '에버리스 새별, 레이크', strokes: 91, par: 72 },
+    { date: '2026-10-25', course: '에버리스 레이크, 새별', strokes: 87, par: 72 },
+    { date: '2026-10-04', course: '에버리스 새별, 레이크', strokes: 95, par: 72 },
+  ];
+
+  const freshHoles = () => COURSE_PARS.map((par, i) => ({
+    par, len: LENGTHS[i] ?? null, notes: NOTES[i] ?? [],
+    driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, bunker: 0, tee: null, miss: null, stack: [],
+  }));
+  const state = { view: 'entry', mode: 'basic', editPar: false, cur: 0, started: new Date(), holes: freshHoles(), past: PAST.slice() };
+
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const strokes = (h) => h.driver + h.approach + h.putts + h.ob + h.hazard;
+  const finished = (i) => strokes(state.holes[i]) > 0 && (state.holes[i].putts > 0 || i !== state.cur);
+  const tone = (d) => (d < 0 ? 'under' : d === 0 ? 'par' : 'over');
+  const markOf = (d) => (d <= -2 ? 'eagle' : d === -1 ? 'birdie' : d === 0 ? 'par' : d === 1 ? 'bogey' : 'double');
+  const fmt = (n) => (n === 0 ? '이븐' : n > 0 ? `+${n}` : `${MINUS}${-n}`);
+  const dayLabel = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  function nameOf(h) {
+    const s = strokes(h);
+    const d = s - h.par;
+    if (s === 1) return '홀인원';
+    if (d <= -3) return '알바트로스';
+    const names = { '-2': '이글', '-1': '버디', 0: '파', 1: '보기', 2: '더블 보기', 3: '트리플 보기', 4: '쿼드러플' };
+    return names[d] ?? `+${d}`;
+  }
+
+  function totals(from = 0, to = HOLES) {
+    const t = { holes: 0, strokes: 0, par: 0, putts: 0, ob: 0, hazard: 0, lost: { driver: 0, approach: 0, putts: 0, penalty: 0 } };
+    for (let i = from; i < to; i++) {
+      if (!finished(i)) continue;
+      const h = state.holes[i];
+      t.holes += 1; t.strokes += strokes(h); t.par += h.par; t.putts += h.putts; t.ob += h.ob; t.hazard += h.hazard;
+      t.lost.driver += Math.max(0, h.driver - 1);
+      t.lost.approach += Math.max(0, h.approach - (h.par - 3));
+      t.lost.putts += Math.max(0, h.putts - 2);
+      t.lost.penalty += h.ob + h.hazard;
+    }
+    t.toPar = t.strokes - t.par;
+    return t;
+  }
+
+  /* ---------- The drawn course: our own plan of the hole. It only follows the course data. ---------- */
+  const PIN = [[0.3, -0.1], [-0.32, 0.05], [0.12, -0.2], [0.36, 0.1], [-0.3, -0.12], [0.24, 0.12], [-0.2, -0.1], [0.3, 0.05], [-0.26, -0.15],
+    [0.2, 0.1], [-0.34, 0], [0.28, -0.12], [-0.14, 0.12], [0.32, -0.05], [-0.22, 0.1], [0.3, -0.1], [-0.3, 0.06], [0.16, -0.1]];
+  const GREEN = [[1, 0.92, 1.06, 0.95, 1.02, 0.9, 1.04, 0.97], [0.95, 1.05, 0.92, 1.04, 0.97, 1.06, 0.9, 1.02], [1.04, 0.9, 1.02, 0.96, 1.07, 0.93, 0.98, 1.03]];
+
+  function smooth(pts) {
+    const n = pts.length;
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+    }
+    return `${d}Z`;
+  }
+
+  function drawCourse() {
+    const svg = $('#course');
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const i = state.cur;
+    const h = state.holes[i];
+    const k = h.par === 3 ? 0 : h.par === 4 ? 1 : 2;
+    const notes = h.notes.join(' ');
+    const bend = /좌\s*도그렉/.test(notes) ? -1 : /우\s*도그렉/.test(notes) ? 1 : 0;
+    const island = /아일랜드/.test(notes);
+
+    let bandTop = 110;
+    let bandBottom = 168;
+    let right = W * 0.72;
+    if (state.view === 'entry') {
+      const above = $('#notes').hidden || getComputedStyle($('#notes')).display === 'none' ? $('.info') : $('#notes');
+      const ab = above.getBoundingClientRect();
+      bandTop = (ab.height ? ab.bottom : $('.switcher').getBoundingClientRect().bottom) + 6;
+      bandBottom = $('#sheet').getBoundingClientRect().top;
+      right = $('#badge').getBoundingClientRect().left - 6;
+    }
+    const band = bandBottom - bandTop;
+
+    const gR = W * [0.27, 0.2, 0.165][k];
+    const gRy = gR * 0.66;
+    const gx = Math.min(W * 0.47, right - gR * 0.75);
+    const pinY = band > 40 ? bandBottom - 10 : bandBottom - 4;
+    const pole = Math.max(18, Math.min([40, 34, 30][k], band - 16));
+    const gy = pinY + gRy * 0.18;
+    const pinX = gx + gR * PIN[i][0];
+    const teeY = H - [64, 56, 52][k];
+    const tx = W / 2;
+
+    const p = [];
+    p.push(`<defs>
+      <radialGradient id="rough" cx="50%" cy="46%" r="75%"><stop offset="0" stop-color="#4A7B37"/><stop offset="0.6" stop-color="#3E6B2E"/><stop offset="1" stop-color="#335A27"/></radialGradient>
+      <pattern id="mow" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)"><rect width="20" height="40" fill="#66B35A"/></pattern>
+      <radialGradient id="dome" cx="42%" cy="38%" r="70%"><stop offset="0" stop-color="#9ED583"/><stop offset="1" stop-color="#8CCB6E"/></radialGradient>
+    </defs>`);
+    p.push(`<rect width="${W}" height="${H}" fill="url(#rough)"/>`);
+
+    if (k > 0) {
+      const prof = k === 1 ? [0.15, 0.22, 0.33, 0.43, 0.5, 0.52, 0.44] : [0.12, 0.18, 0.27, 0.23, 0.35, 0.48, 0.42];
+      const ts = [0, 0.12, 0.3, 0.5, 0.7, 0.88, 1];
+      const y0 = gy + gRy * 0.7;
+      const y1 = teeY - 36;
+      // A dogleg note bends the line of play at the elbow; otherwise it is straight.
+      const at = (t) => [gx + (tx - gx) * t + bend * W * 0.34 * Math.sin(Math.PI * t), y0 + (y1 - y0) * t];
+      const rightSide = ts.map((t, j) => { const [x, y] = at(t); return [x + W * prof[j], y]; });
+      const leftSide = ts.map((t, j) => { const [x, y] = at(t); return [x - W * prof[j], y]; }).reverse();
+      const top = at(0);
+      const bot = at(1);
+      const fw = smooth([[top[0], top[1] - gRy * 0.25], ...rightSide, [bot[0], bot[1] + 14], ...leftSide]);
+      p.push(`<path d="${fw}" fill="none" stroke="#4C8A3E" stroke-width="14" stroke-linejoin="round"/>`);
+      p.push(`<path d="${fw}" fill="#5BAA4F"/>`);
+      p.push(`<path d="${fw}" fill="url(#mow)"/>`);
+    }
+
+    const g = GREEN[i % 3];
+    const ring = (s) => g.map((r, j) => { const a = (j / g.length) * Math.PI * 2; return [gx + Math.cos(a) * gR * r * s, gy + Math.sin(a) * gRy * r * s]; });
+    // An island-hole note puts water around the green; nothing else draws water.
+    if (island) {
+      p.push(`<path d="${smooth(ring(1.75))}" fill="#5E9DC2"/>`);
+      p.push(`<path d="${smooth(ring(1.62))}" fill="none" stroke="#7FB4D3" stroke-width="3"/>`);
+    }
+    p.push(`<path d="${smooth(ring(1.14))}" fill="#74B95E"/>`);
+    p.push(`<path d="${smooth(ring(1))}" fill="url(#dome)"/>`);
+    if (band >= 30) {
+      p.push(`<path d="M${pinX} ${pinY} l ${pole * 0.55} ${pole * 0.2}" stroke="#5E9B4C" stroke-width="2.5" stroke-linecap="round"/>`);
+      p.push(`<ellipse cx="${pinX}" cy="${pinY}" rx="3.4" ry="1.8" fill="#17301A"/>`);
+      p.push(`<path d="M${pinX} ${pinY} V ${pinY - pole}" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>`);
+      p.push(`<path d="M${pinX + 1} ${pinY - pole} l ${Math.max(12, pole * 0.42)} ${pole * 0.15} l ${-Math.max(12, pole * 0.42)} ${pole * 0.15} z" fill="#C0392B"/>`);
+    }
+
+    const tw = W * [0.3, 0.26, 0.24][k];
+    p.push(`<rect x="${tx - tw / 2}" y="${teeY - 12}" width="${tw}" height="24" rx="9" fill="#8CCB6E" stroke="#74B95E" stroke-width="2"/>`);
+    p.push(`<circle cx="${tx - tw * 0.3}" cy="${teeY - 3}" r="4" fill="#FFFFFF"/><circle cx="${tx + tw * 0.3}" cy="${teeY - 3}" r="4" fill="#FFFFFF"/>`);
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.innerHTML = p.join('');
+  }
+
+  /* ---------- Static parts built once ---------- */
+  const STEP = (d) => `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+  $('#clubs').innerHTML = CLUBS.map((c) => `<div class="club">
+      <p class="club-lbl" id="lbl-${c.key}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${c.icon}</svg>${c.label}</p>
+      <div class="pill" role="group" aria-label="${c.label}">
+        <button class="step" type="button" data-add="${c.key}" aria-label="${c.label} 한 번 더"><span>${STEP('M12 5v14M5 12h14')}</span></button>
+        <span class="num-row"><svg class="pill-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${c.icon}</svg><span class="count" id="c-${c.key}">0</span></span>
+        <button class="step" type="button" data-sub="${c.key}" aria-label="${c.label} 하나 빼기"><span>${STEP('M5 12h14')}</span></button>
+      </div>
+    </div>`).join('');
+
+  const ICONS = {
+    ob: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#fff" stroke="#17301A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.5h8v4.5H8z" fill="#17301A"/></svg>',
+    hazard: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#C0392B" stroke="#8C2A20" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+    bunker: '<svg viewBox="0 0 30 24" width="28" height="22" aria-hidden="true"><path d="M3 11.5c3.5-3 20.5-3 24 0" fill="none" stroke="#5BAA4F" stroke-width="2.4" stroke-linecap="round"/><path d="M3.5 12c1.2 5.2 5.6 8 11.5 8s10.3-2.8 11.5-8c-3.6 1.6-19.4 1.6-23 0z" fill="#E7CE8A" stroke="#B8923A" stroke-width="1.4" stroke-linejoin="round"/><circle cx="15" cy="12.2" r="3.4" fill="#fff" stroke="#17301A" stroke-width="1.3"/><circle cx="9" cy="16" r="0.9" fill="#B8923A"/><circle cx="21" cy="16.2" r="0.9" fill="#B8923A"/></svg>',
+  };
+  const penHTML = (k) => `<button class="pen" type="button" data-pen="${k}"><span class="pen-icon">${ICONS[k]}<span class="pen-count" hidden></span></span><span class="pen-lbl">${LABEL[k]}</span></button>`;
+  const undoHTML = (id) => `<button class="undo" type="button" data-act="undo" id="${id}" hidden></button>`;
+  $('#pens-basic').innerHTML = penHTML('ob') + penHTML('hazard') + undoHTML('undo-basic');
+  $('#pens-detail').innerHTML = penHTML('hazard') + penHTML('ob') + penHTML('bunker') + undoHTML('undo-detail');
+
+  /* ---------- Render ---------- */
+  const SHAPES = {
+    none: '', par: '',
+    birdie: '<circle cx="20" cy="20" r="17" pathLength="1"/>',
+    eagle: '<circle cx="20" cy="20" r="14" pathLength="1"/><circle cx="20" cy="20" r="19" pathLength="1"/>',
+    bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
+    double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
+  };
+  let lastMark = null;
+  const celebrated = new Set();
+  function setDisabled(el, off) { el.setAttribute('aria-disabled', off ? 'true' : 'false'); }
+  function say(t) { const l = $('#live'); l.textContent = ''; requestAnimationFrame(() => { l.textContent = t; }); }
+
+  function renderEntry(changed) {
+    const i = state.cur;
+    const h = state.holes[i];
+    $('#view-entry').dataset.mode = state.mode;
+    $('#hole-n').textContent = String(i + 1);
+    $('#hole-title').classList.toggle('two', i >= 9);
+    $('#hole-sub').textContent = h.len ? `Par ${h.par}  ${h.len} m` : `Par ${h.par}`;
+    $('#par').textContent = `Par ${h.par}`;
+    const len = $('#len');
+    len.hidden = h.len === null;
+    if (h.len !== null) len.textContent = `${h.len} m`;
+    const t = totals();
+    $('#total').hidden = t.holes === 0;
+    const tv = $('#total-v');
+    tv.textContent = fmt(t.toPar);
+    tv.className = t.toPar < 0 ? 'under' : '';
+    $('#total').setAttribute('aria-label', `${t.holes}홀 합계 ${fmt(t.toPar)}`);
+    const notes = $('#notes');
+    const showNotes = state.mode === 'basic' && h.notes.length > 0;
+    notes.hidden = !showNotes;
+    notes.innerHTML = h.notes.map((n) => `<li>${n}</li>`).join('');
+    $('#view-entry').classList.toggle('has-notes', showNotes);
+    $('#hole-title').setAttribute('aria-label', `${i + 1}번 홀, 파 ${h.par}${h.notes.length ? `, ${h.notes.join(', ')}` : ''}`);
+    setDisabled($('#prev'), i === 0);
+    setDisabled($('#fwd'), i === HOLES - 1);
+
+    for (const { key: c } of CLUBS) {
+      const el = $(`#c-${c}`);
+      const before = el.textContent;
+      el.textContent = String(h[c]);
+      el.classList.toggle('zero', h[c] === 0);
+      if (changed === c && before !== el.textContent) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+      setDisabled($(`[data-sub="${c}"]`), h[c] === 0);
+      setDisabled($(`[data-add="${c}"]`), strokes(h) >= MAX);
+    }
+
+    const s = strokes(h);
+    const badge = $('#badge');
+    let mark = 'none';
+    let tn = 'none';
+    let name = '기록 전';
+    if (s > 0 && finished(i)) {
+      const d = s - h.par;
+      mark = markOf(d); tn = tone(d); name = nameOf(h);
+    } else if (s > 0) {
+      name = '진행 중';
+    }
+    $('#b-n').textContent = s > 0 ? String(s) : '–';
+    $('#bmark').classList.toggle('two', s >= 10);
+    const key = `${i}:${mark}`;
+    if (lastMark !== key) $('#bm').innerHTML = SHAPES[mark];
+    badge.dataset.tone = s > 0 && mark === 'none' ? 'progress' : tn;
+    $('#b-name').textContent = name;
+    badge.setAttribute('aria-label', s > 0 ? `이 홀 ${s}타, ${name}` : '이 홀 아직 기록 전');
+    const under = mark === 'birdie' || mark === 'eagle';
+    if (!under) celebrated.delete(i);
+    if (changed && under && !celebrated.has(i)) {
+      celebrated.add(i);
+      if (!reduced()) { badge.classList.remove('celebrate', 'settle'); void badge.offsetWidth; badge.classList.add('celebrate'); }
+    } else if (changed && lastMark !== null && lastMark !== key && mark !== 'none' && !under) {
+      badge.classList.remove('settle', 'celebrate'); void badge.offsetWidth; badge.classList.add('settle');
+    }
+    lastMark = key;
+
+    const detail = state.mode === 'detail';
+    $('#detail').hidden = !detail;
+    $('#pens-basic').hidden = detail;
+    for (const b of $$('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode));
+
+    const green = h.par === 3;
+    $('#center-lbl').textContent = green ? '온그린' : '페어웨이';
+    for (const b of $$('[data-dir]')) b.setAttribute('aria-pressed', String(h.tee === b.dataset.dir));
+    const tv2 = $('#tee-val');
+    tv2.textContent = h.tee ? (h.tee === 'fairway' && green ? '온그린' : DIRS[h.tee]) : '선택 안 함';
+    tv2.classList.toggle('none', !h.tee);
+    const miss = $('#miss');
+    miss.textContent = h.miss ? MISS_LABEL[h.miss] : '미스샷';
+    miss.setAttribute('aria-pressed', String(Boolean(h.miss)));
+    miss.setAttribute('aria-label', `미스샷: ${h.miss ? MISS_LABEL[h.miss] : '없음'}. 누를 때마다 헛스윙, 뒤땅/토핑, 없음 순서로 바뀌어요`);
+
+    for (const b of $$('[data-pen]')) {
+      const k = b.dataset.pen;
+      const n = h[k];
+      b.classList.toggle('on', n > 0);
+      const c = b.querySelector('.pen-count');
+      c.hidden = n === 0;
+      c.textContent = String(n);
+      b.setAttribute('aria-label', `${LABEL[k]} ${PENS[k].stroke ? '벌타 ' : ''}추가, 지금 ${n}`);
+      setDisabled(b, PENS[k].stroke && s >= MAX);
+    }
+    const last = h.stack[h.stack.length - 1];
+    for (const u of [$('#undo-basic'), $('#undo-detail')]) {
+      u.hidden = !last || (u.id === 'undo-basic' && last === 'bunker');
+      if (last) {
+        u.innerHTML = `<span class="u-ico">${STEP('M5 12h14')}</span><span>${LABEL[last]} 빼기</span>`;
+        u.setAttribute('aria-label', `${LABEL[last]} 하나 빼기`);
+      }
+    }
+    $('#next').textContent = i === HOLES - 1 ? '라운드 마치기' : '다음 홀';
+    requestAnimationFrame(scrollHint);
+  }
+
+  function scrollHint() {
+    const s = $('#sheet');
+    $('.sheet-wrap').classList.toggle('more', s.scrollHeight - s.clientHeight - s.scrollTop > 4);
+  }
+
+  function cellsHTML(from, to, sub) {
+    const edit = state.editPar;
+    let out = `<div class="rowlbl" aria-hidden="true"><span>홀</span><span class="pr-row">파</span><span class="sc-row">타수</span><span>퍼트</span></div>`;
+    for (let i = from; i < to; i++) {
+      const par = state.holes[i].par;
+      const inner = `<span class="no">${i + 1}</span>${edit ? `<button class="par-btn${par !== COURSE_PARS[i] ? ' changed' : ''}" type="button" data-par="${i}" aria-label="${i + 1}번 홀 파 ${par}, 눌러서 바꾸기">${par}</button>` : `<span class="pr">${par}</span>`}<span class="sc-row"><span class="m"><b></b></span></span><span class="pt"></span>`;
+      out += edit ? `<div class="col" data-col="${i}">${inner}</div>` : `<button class="col" type="button" data-open="${i}" data-col="${i}">${inner}</button>`;
+    }
+    if (sub) out += `<div class="col sub" id="sub-${sub}"><span class="no">${sub === 'out' ? '전반' : '후반'}</span><span class="pr"></span><span class="sc-row"><b class="sub-v"></b></span><span class="pt"></span></div>`;
+    return out;
+  }
+
+  function renderCard() {
+    $('#sc-date').textContent = `에버리스 ${dayLabel(state.started)}`;
+    $('#sc-sheet').classList.toggle('editing', state.editPar);
+    const eb = $('#edit-par');
+    eb.textContent = state.editPar ? '완료' : '파 수정';
+    eb.setAttribute('aria-pressed', String(state.editPar));
+    $('#edit-hint').hidden = !state.editPar;
+    $('#t0').innerHTML = cellsHTML(0, 5);
+    $('#t1').innerHTML = cellsHTML(5, 9, 'out');
+    $('#t2').innerHTML = cellsHTML(9, 14);
+    $('#t3').innerHTML = cellsHTML(14, 18, 'in');
+    const t = totals();
+    $('#s-strokes').textContent = String(t.strokes);
+    const tp = $('#s-topar');
+    tp.textContent = fmt(t.toPar);
+    tp.classList.toggle('under', t.toPar < 0);
+    $('#s-putts').textContent = String(t.putts);
+    $('#s-ob').textContent = String(t.ob);
+    $('#s-hz').textContent = String(t.hazard);
+    for (const c of $$('[data-col]')) {
+      const i = Number(c.dataset.col);
+      const h = state.holes[i];
+      const done = finished(i);
+      const m = c.querySelector('.m');
+      const dd = strokes(h) - h.par;
+      m.dataset.mark = done ? markOf(dd) : 'none';
+      m.dataset.tone = done ? tone(dd) : 'none';
+      m.querySelector('b').textContent = done ? String(strokes(h)) : '–';
+      c.querySelector('.pt').textContent = done ? String(h.putts) : '';
+      c.setAttribute('aria-current', String(i === state.cur));
+      if (!state.editPar) c.setAttribute('aria-label', done ? `${i + 1}번 홀 파 ${h.par}, ${strokes(h)}타 ${nameOf(h)}, 퍼트 ${h.putts}` : `${i + 1}번 홀 파 ${h.par}, 기록 없음`);
+    }
+    for (const [id, a, b] of [['out', 0, 9], ['in', 9, 18]]) {
+      const s = totals(a, b);
+      const el = $(`#sub-${id}`);
+      el.querySelector('.pr').textContent = String(state.holes.slice(a, b).reduce((x, y) => x + y.par, 0));
+      el.querySelector('.sub-v').textContent = s.holes ? String(s.strokes) : '–';
+      el.querySelector('.pt').textContent = s.holes ? String(s.putts) : '';
+    }
+    $('#tot-holes').textContent = `${t.holes}홀`;
+    $('#tot-strokes').textContent = `${t.strokes}타`;
+    const tt = $('#tot-topar');
+    tt.textContent = fmt(t.toPar);
+    tt.classList.toggle('under', t.toPar < 0);
+    const areas = [['driver', '티샷'], ['approach', '어프로치'], ['putts', '퍼트'], ['penalty', '벌타']];
+    const most = Math.max(...areas.map(([k]) => t.lost[k]));
+    const worst = areas.filter(([k]) => most > 0 && t.lost[k] === most).map(([, l]) => l);
+    $('#lost-note').textContent = !t.holes ? '홀을 기록하면 보여요.' : worst.length ? `${worst.join(', ')}에서 가장 많이 잃었어요. 티샷 1번, 퍼트 2번을 기준으로 셌어요.` : '잃은 타수가 없어요.';
+    const scale = Math.max(most, 3);
+    $('#bars').innerHTML = areas.map(([k, l]) => {
+      const v = t.lost[k];
+      return `<li class="${most > 0 && v === most ? 'worst' : ''}"><span>${l}</span><span class="bar"><i style="width:${(v / scale) * 100}%"></i></span><span class="v">+${v}</span></li>`;
+    }).join('');
+  }
+
+  function renderHist() {
+    const t = totals();
+    $('#now-sub').textContent = `에버리스 ${dayLabel(state.started)}, ${t.holes}홀 기록`;
+    const ns = $('#now-score');
+    ns.textContent = t.holes ? `${t.strokes}타 ${fmt(t.toPar)}` : '아직 없음';
+    ns.classList.toggle('under', t.holes > 0 && t.toPar < 0);
+    $('#hist-count').textContent = `${state.past.length}번 기록`;
+    $('#hist-list').innerHTML = state.past.map((r) => {
+      const d = new Date(r.date);
+      const tp = r.strokes - r.par;
+      return `<li><div><p class="d">${dayLabel(d)}</p><p class="c">${r.course}</p></div><p class="s">${r.strokes}타</p><p class="p${tp < 0 ? ' under' : ''}">${fmt(tp)}</p></li>`;
+    }).join('');
+  }
+
+  function render(changed) {
+    for (const [v, id] of [['entry', '#view-entry'], ['card', '#view-card'], ['hist', '#view-hist']]) $(id).hidden = state.view !== v;
+    for (const tb of $$('[role="tab"]')) {
+      const on = tb.dataset.view === state.view;
+      tb.setAttribute('aria-selected', String(on));
+      tb.tabIndex = on ? 0 : -1;
+    }
+    if (state.view === 'entry') renderEntry(changed);
+    else if (state.view === 'card') renderCard();
+    else renderHist();
+    drawCourse();
+  }
+
+  /* ---------- Undo toast: the last +/− or penalty change can be taken back for 4 seconds ---------- */
+  let undo = null;
+  let toastTimer = 0;
+  function showToast(msg, snapshot) {
+    undo = { hole: state.cur, snap: snapshot };
+    const t = $('#toast');
+    $('#toast-msg').textContent = msg;
+    t.hidden = false;
+    t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 4000);
+  }
+  function hideToast() { $('#toast').hidden = true; undo = null; clearTimeout(toastTimer); }
+
+  /* ---------- Moving between holes: only the sheet slides; the badge and chips stay put ---------- */
+  function slide(x, ms, fade) {
+    const el = $('#sheet');
+    el.style.transition = ms ? `transform ${ms}ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity ${ms}ms ease-out` : 'none';
+    el.style.transform = x ? `translateX(${x}px)` : '';
+    el.style.opacity = fade ? '0' : '';
+    $('.sheet-wrap').classList.toggle('more', false);
+  }
+
+  function goTo(i) {
+    state.cur = i;
+    lastMark = null;
+    hideToast();
+    render();
+    $('#sheet').scrollTop = 0;
+    scrollHint();
+    say(`${i + 1}번 홀, 파 ${state.holes[i].par}`);
+  }
+
+  let moving = false;
+  function changeHole(dir) {
+    const target = state.cur + dir;
+    if (moving) return;
+    if (target < 0 || target >= HOLES) { slide(0, 180); return; }
+    if (reduced()) { slide(0); goTo(target); return; }
+    moving = true;
+    const W = window.innerWidth;
+    slide(-dir * W * 0.45, 120, true);
+    setTimeout(() => {
+      goTo(target);
+      slide(dir * W * 0.3, 0, true);
+      requestAnimationFrame(() => requestAnimationFrame(() => { slide(0, 200); setTimeout(() => { moving = false; scrollHint(); }, 200); }));
+    }, 120);
+  }
+
+  let drag = null;
+  let swallowClick = false;
+  const entry = $('#view-entry');
+  entry.addEventListener('pointerdown', (e) => {
+    if (moving || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('.toast')) return;
+    drag = { x: e.clientX, y: e.clientY, id: e.pointerId, on: false, t: performance.now() };
+  });
+  entry.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!drag.on) {
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.4) { drag.on = true; swallowClick = true; entry.setPointerCapture(e.pointerId); }
+      else if (Math.abs(dy) > 12) { drag = null; return; }
+      else return;
+    }
+    const edge = (dx > 0 && state.cur === 0) || (dx < 0 && state.cur === HOLES - 1);
+    slide(edge ? dx * 0.25 : dx);
+  });
+  function endDrag(e, cancel) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    if (!d.on) return;
+    const dx = e.clientX - d.x;
+    const v = dx / Math.max(1, performance.now() - d.t);
+    if (!cancel && (dx < -72 || v < -0.6)) changeHole(1);
+    else if (!cancel && (dx > 72 || v > 0.6)) changeHole(-1);
+    else slide(0, 180);
+    setTimeout(() => { swallowClick = false; }, 60);
+  }
+  entry.addEventListener('pointerup', (e) => endDrag(e, false));
+  entry.addEventListener('pointercancel', (e) => endDrag(e, true));
+  document.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
+
+  /* ---------- Menu ---------- */
+  const MENU = [
+    { id: 'new', label: '새 라운드', sub: '지금 기록은 지난 라운드에 남아요', icon: '<path d="M12 5v14M5 12h14"/>' },
+    { id: 'course', label: '코스 바꾸기', sub: '에버리스 새별, 레이크', icon: '<path d="M6 21V4"/><path d="M6 4h11l-3 4 3 4H6"/>' },
+    { id: 'send', label: '결과 보내기', sub: '이메일, 공유, 복사', icon: '<path d="M4 12l16-8-6 16-3-7z"/>' },
+    { id: 'backup', label: '백업과 복원', sub: '기록을 파일로 옮겨요', icon: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/>' },
+    { id: 'about', label: '앱 정보', sub: '시안 v6', icon: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><path d="M12 8h.01"/>' },
+  ];
+  let openItem = null;
+  function panelHTML(id) {
+    const t = totals();
+    if (id === 'new') return `<p>지금 라운드를 지난 라운드로 옮기고 1번 홀부터 새로 시작해요.${t.holes ? ` 기록한 ${t.holes}홀은 그대로 남아요.` : ''}</p><div class="row"><button type="button" class="primary" data-act="new-round">새 라운드 시작</button><button type="button" data-act="menu-back">취소</button></div>`;
+    if (id === 'course') return `<p class="check">에버리스 새별 1–9, 레이크 10–18</p><p class="muted">다른 코스는 아직 없어요. 코스가 늘면 여기서 고를 수 있어요.</p>`;
+    if (id === 'send') return `<p class="muted">홀별 타수와 합계를 글로 보내요.</p><div class="row"><button type="button" data-act="send-mail">이메일</button><button type="button" data-act="send-share">공유</button><button type="button" data-act="send-copy">복사</button></div>`;
+    if (id === 'backup') return `<p class="muted">기록은 이 기기에만 있어요. 폰을 바꿀 때 파일로 옮기세요.</p><div class="row"><button type="button" data-act="backup-save">파일로 저장</button><label for="restore-file">파일에서 복원</label></div>`;
+    return `<p>Fairway Note 시안 v6</p><p class="muted">인터넷이 없어도 기록할 수 있어요. 기록은 이 기기에만 저장돼요.</p><p class="muted">홀 그림은 직접 그린 안내용 그림이에요. 실제 배치는 공식 홀 안내를 보세요.</p>`;
+  }
+  function renderMenu() {
+    $('#menu-list').innerHTML = MENU.map((m) => `<li><button class="mi" type="button" data-menu="${m.id}" aria-expanded="${openItem === m.id}"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${m.icon}</svg></span><span><b>${m.label}</b><small>${m.sub}</small></span><svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>${openItem === m.id ? `<div class="mpanel">${panelHTML(m.id)}</div>` : ''}</li>`).join('');
+  }
+  let menuReturn = null;
+  function openMenu(from, item = null) { menuReturn = from; openItem = item; renderMenu(); $('#scrim').hidden = false; $('#menu-sheet').hidden = false; $('#menu-sheet .mi').focus(); }
+  function closeMenu() { $('#scrim').hidden = true; $('#menu-sheet').hidden = true; if (menuReturn) menuReturn.focus(); }
+  function summaryText() {
+    const t = totals();
+    const lines = [`에버리스 ${dayLabel(state.started)} ${t.holes}홀 ${t.strokes}타 (${fmt(t.toPar)})`];
+    state.holes.forEach((h, i) => { if (finished(i)) lines.push(`${i + 1}번 홀 파${h.par} ${strokes(h)}타, 드라이버 ${h.driver} 어프로치 ${h.approach} 퍼터 ${h.putts}${h.ob ? ` OB ${h.ob}` : ''}${h.hazard ? ` 해저드 ${h.hazard}` : ''}`); });
+    return lines.join('\n');
+  }
+
+  /* ---------- Actions ---------- */
+  function edit(fn, changed, msg) {
+    const h = state.holes[state.cur];
+    const snap = JSON.parse(JSON.stringify(h));
+    if (fn(h) === false) return;
+    render(changed);
+    if (msg) showToast(msg, snap);
+    say(`${strokes(h)}타. 드라이버 ${h.driver}, 어프로치 ${h.approach}, 퍼터 ${h.putts}${h.ob ? `, OB ${h.ob}` : ''}${h.hazard ? `, 해저드 ${h.hazard}` : ''}`);
+  }
+
+  $('#restore-file').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (Array.isArray(data.holes) && data.holes.length === HOLES) { state.holes = data.holes; state.cur = 0; closeMenu(); state.view = 'entry'; render(); say('백업에서 복원했어요'); }
+    } catch { say('이 파일은 읽을 수 없어요'); }
+    e.target.value = '';
+  });
+
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('button, [data-act]');
+    if (!b || b.getAttribute('aria-disabled') === 'true') return;
+    const act = b.dataset.act;
+    if (b.dataset.add) {
+      if (navigator.vibrate) navigator.vibrate(10);
+      const k = b.dataset.add;
+      return edit((h) => { if (strokes(h) >= MAX) return false; h[k] += 1; }, k, `${LABEL[k]} +1`);
+    }
+    if (b.dataset.sub) {
+      const k = b.dataset.sub;
+      return edit((h) => { if (h[k] <= 0) return false; h[k] -= 1; }, k, `${LABEL[k]} ${MINUS}1`);
+    }
+    if (b.dataset.pen) {
+      const k = b.dataset.pen;
+      return edit((h) => { if (PENS[k].stroke && strokes(h) >= MAX) return false; h[k] += 1; h.stack.push(k); }, k, `${LABEL[k]} +1`);
+    }
+    if (act === 'undo') {
+      const k = state.holes[state.cur].stack[state.holes[state.cur].stack.length - 1];
+      return edit((h) => { const kk = h.stack.pop(); if (!kk) return false; h[kk] = Math.max(0, h[kk] - 1); }, k, `${LABEL[k]} ${MINUS}1`);
+    }
+    if (act === 'restore') {
+      if (undo) { state.holes[undo.hole] = undo.snap; hideToast(); lastMark = null; render(); say('되돌렸어요'); }
+      return;
+    }
+    if (b.dataset.dir) return edit((h) => { h.tee = h.tee === b.dataset.dir ? null : b.dataset.dir; });
+    if (act === 'miss') return edit((h) => { h.miss = MISSES[(MISSES.indexOf(h.miss) + 1) % MISSES.length]; });
+    if (b.dataset.mode) { state.mode = b.dataset.mode; render(); $('#sheet').scrollTop = 0; scrollHint(); return; }
+    if (act === 'next') {
+      if (state.cur < HOLES - 1) changeHole(1);
+      else { state.view = 'card'; render(); }
+      return;
+    }
+    if (act === 'prev') return changeHole(-1);
+    if (act === 'fwd') return changeHole(1);
+    if (b.dataset.view) { closeMenu(); state.view = b.dataset.view; hideToast(); render(); return; }
+    if (b.dataset.open !== undefined) { state.view = 'entry'; goTo(Number(b.dataset.open)); return; }
+    if (act === 'edit-par') { state.editPar = !state.editPar; render(); $('#edit-par').focus(); return; }
+    if (b.dataset.par !== undefined) {
+      const i = Number(b.dataset.par);
+      const h = state.holes[i];
+      h.par = h.par === 5 ? 3 : h.par + 1;
+      render();
+      $(`[data-par="${i}"]`).focus();
+      say(`${i + 1}번 홀 파 ${h.par}`);
+      return;
+    }
+    if (act === 'menu') return openMenu(b);
+    if (act === 'close-menu') return closeMenu();
+    if (b.dataset.menu) { openItem = openItem === b.dataset.menu ? null : b.dataset.menu; renderMenu(); $(`[data-menu="${b.dataset.menu}"]`).focus(); return; }
+    if (act === 'menu-back') { openItem = null; renderMenu(); return; }
+    if (act === 'new-round') {
+      const t = totals();
+      if (t.holes) state.past.unshift({ date: state.started.toISOString().slice(0, 10), course: '에버리스 새별, 레이크', strokes: t.strokes, par: t.par });
+      state.holes = freshHoles(); state.cur = 0; state.started = new Date(); state.view = 'entry'; lastMark = null;
+      closeMenu(); render(); say('새 라운드를 시작했어요');
+      return;
+    }
+    if (act === 'send-copy' || act === 'send-share') {
+      const text = summaryText();
+      try {
+        if (act === 'send-share' && navigator.share) await navigator.share({ title: 'Fairway Note 라운드', text });
+        else { await navigator.clipboard.writeText(text); say('결과를 복사했어요'); }
+      } catch { /* the person closed the share sheet */ }
+      return;
+    }
+    if (act === 'send-mail') { window.location.href = `mailto:?subject=${encodeURIComponent('Fairway Note 라운드')}&body=${encodeURIComponent(summaryText())}`; return; }
+    if (act === 'backup-save') {
+      const blob = new Blob([JSON.stringify({ version: 1, saved: new Date().toISOString(), holes: state.holes }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `fairway-note-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#menu-sheet').hidden) { closeMenu(); return; }
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target.getAttribute('role') === 'tab') {
+      const order = ['card', 'entry', 'hist'];
+      const n = order.indexOf(state.view) + (e.key === 'ArrowRight' ? 1 : -1);
+      state.view = order[(n + 3) % 3];
+      render();
+      $(`#tab-${state.view}`).focus();
+    }
+  });
+
+  // Test hook for the screenshot script only: add a layout note to see the drawing follow it.
+  window.FN_PROTO = { note(i, list) { state.holes[i].notes = list; render(); } };
+
+  $('#sheet').addEventListener('scroll', scrollHint, { passive: true });
+  window.addEventListener('resize', () => { drawCourse(); scrollHint(); });
+  render();
+})();
+</script>
+</body>
+</html>
