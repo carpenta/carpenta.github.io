@@ -564,7 +564,7 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       await open(page);
       const check = async () => {
         // Measure at rest: a tapped count grows for a moment and a new hole's sheet slides in.
-        await page.waitForFunction(() => document.getAnimations().length === 0);
+        await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
         expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
         expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
         expect(await sideScroll(page)).toBe(0);

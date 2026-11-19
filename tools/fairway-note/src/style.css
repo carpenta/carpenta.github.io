@@ -144,11 +144,12 @@ svg { display: block; }
 @keyframes settle { from { transform: scale(1.1); } to { transform: scale(1); } }
 .badge.settle { animation: settle .16s ease-out; }
 /* Birdie or better: the mark draws itself once and the badge rings. */
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+/* The dash is a little longer than the path (pathLength 1), so the drawn ring closes without a seam. */
+@keyframes draw { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }
 @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @keyframes ring { from { box-shadow: 0 0 0 0 rgb(255 255 255 / .75); } to { box-shadow: 0 0 0 18px rgb(255 255 255 / 0); } }
 .badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
-.badge.celebrate .bm * { stroke-dasharray: 1; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
+.badge.celebrate .bm * { stroke-dasharray: 1.02; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
 .badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
 .badge.celebrate::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; animation: ring .7s ease-out both; }
 /* The scorecard's smaller marks keep their CSS rings. */
