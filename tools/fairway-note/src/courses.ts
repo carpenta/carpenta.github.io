@@ -2,10 +2,30 @@ import data from './data/courses.json';
 import { HOLE_COUNT, type Par, type RoundCourse } from './round';
 import type { CourseChoice } from './storage';
 
+/** A hole's length from one tee, as the course publishes it. */
+export interface TeeLength {
+  /** The tee as the course names it, e.g. "화이트". */
+  tee: string;
+  length: number;
+  unit: 'm' | 'yd';
+}
+
+/** Notes on one hole from the course's own hole guide. Every field is optional. */
+export interface HoleInfo {
+  /** Lengths by tee, the tee most players use first: the card shows the first. */
+  distances?: TeeLength[];
+  /** A short note on the hole's shape, e.g. "우 도그렉". A dogleg named here bends the drawn hole. */
+  layout?: string;
+  /** The hole's page in the course's official hole guide (https). */
+  guideUrl?: string;
+}
+
 export interface Nine {
   id: string;
   name: { ko: string; en: string | null };
   par: Par[];
+  /** Hole notes in hole order, nine entries (null for a hole without notes). Missing when the course has none. */
+  holes?: (HoleInfo | null)[];
 }
 
 /** A course whose pars come from its own published scorecard (see scripts/build-courses.mjs). */
@@ -66,6 +86,41 @@ export function roundSetup(choice: CourseChoice): { course: RoundCourse; pars: P
 /** The bundled course a round was started on, for its par source link. */
 export function courseSource(course: RoundCourse): Course | null {
   return findCourse(course.id) ?? null;
+}
+
+const MAX_LAYOUT = 40;
+
+function isHttps(url: string): boolean {
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Notes for hole `index` (0-17) of a round's course: from its front nine for holes 1-9 and its back nine for
+ * 10-18, found by the nine names the round keeps. Null when the bundle has none. A link that is not https, an empty
+ * note and a length that is not positive are left out, so nothing odd reaches the page.
+ */
+export function holeInfo(course: RoundCourse, index: number, courses: readonly Course[] = COURSES): HoleInfo | null {
+  const c = course.id === null ? undefined : courses.find((x) => x.id === course.id);
+  const nine = c?.nines.find((n) => n.name.ko === (index < 9 ? course.front : course.back));
+  const raw = nine?.holes?.[index % 9];
+  if (!raw) return null;
+  const info: HoleInfo = {};
+  const distances = (raw.distances ?? []).filter((d) => typeof d.tee === 'string' && Number.isFinite(d.length) && d.length > 0 && (d.unit === 'm' || d.unit === 'yd'));
+  if (distances.length) info.distances = distances.map((d) => ({ tee: d.tee, length: d.length, unit: d.unit }));
+  const layout = typeof raw.layout === 'string' ? raw.layout.trim().slice(0, MAX_LAYOUT) : '';
+  if (layout) info.layout = layout;
+  if (typeof raw.guideUrl === 'string' && isHttps(raw.guideUrl)) info.guideUrl = raw.guideUrl;
+  return Object.keys(info).length ? info : null;
+}
+
+/** "화이트 352m" from the first tee listed, or null without lengths. */
+export function distanceLabel(info: HoleInfo | null): string | null {
+  const d = info?.distances?.[0];
+  return d ? `${d.tee} ${d.length}${d.unit}` : null;
 }
 
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
