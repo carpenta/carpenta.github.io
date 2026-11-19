@@ -784,6 +784,8 @@ test('can be added to the home screen', async ({ page, request }) => {
     name: 'Fairway Note', short_name: 'Fairway Note', start_url: './', scope: './', display: 'standalone',
     theme_color: '#2f7d3a', background_color: '#f3f7ef',
   });
+  // The browser bar takes the same Turf as the installed app's.
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', manifest.theme_color);
   const decoded = (src: string) => page.evaluate(async (url) => {
     const img = new Image();
     img.src = url;
