@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newRound } from '../src/round';
-import { CORRUPT_PREFIX, MAX_CORRUPT, STORAGE_KEY, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
+import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadPrefs, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
 
 function memory() {
   const map = new Map<string, string>();
@@ -50,6 +50,50 @@ describe('storage', () => {
     for (const v of variants) {
       expect(parseRound(typeof v === 'string' || v === null ? (v as string | null) : JSON.stringify(v))).toBeNull();
     }
+  });
+
+  it('keeps the round course and reads rounds saved without one', () => {
+    const r = newRound(new Date(2026, 10, 19), { course: { id: null, name: '동네 골프장', front: '', back: '' }, pars: Array(18).fill(4) });
+    expect(parseRound(JSON.stringify(r))).toEqual(r);
+    const { course: _, ...old } = newRound(new Date(2026, 10, 19));
+    old.holes[0] = { ...old.holes[0], par: 3 };
+    const read = parseRound(JSON.stringify(old))!;
+    expect(read.course).toBeUndefined();
+    expect(read.holes[0].par).toBe(3);
+  });
+
+  it('keeps both the round course and its shot details', () => {
+    const r = newRound(new Date(2026, 10, 19), { course: { id: 'everis', name: '에버리스 골프리조트', front: '파인', back: '새별' }, pars: Array(18).fill(4) });
+    r.holes[0] = { ...r.holes[0], driver: 1, putts: 2, tags: { driver: ['left'], putts: [null, 'in'] } };
+    expect(parseRound(JSON.stringify(r))).toEqual(r);
+  });
+
+  it('treats a round with a broken course as unreadable, so it is kept aside', () => {
+    const good = newRound(new Date(2026, 10, 19));
+    for (const course of [null, 'everis', { ...good.course, id: 3 }, { ...good.course, name: '' }, { ...good.course, front: 1 }, { ...good.course, name: 'x'.repeat(81) }]) {
+      expect(parseRound(JSON.stringify({ ...good, course })), JSON.stringify(course)).toBeNull();
+    }
+    const kv = memory();
+    const raw = JSON.stringify({ ...good, course: { id: 'everis' } });
+    kv.setItem(STORAGE_KEY, raw);
+    expect(saveRound(good, kv)).toBe(true);
+    expect(corruptKeys(kv).map((k) => kv.getItem(k))).toEqual([raw]);
+  });
+
+  it('remembers the last course choice under its own key', () => {
+    const kv = memory();
+    expect(loadPrefs(kv)).toBeNull();
+    expect(savePrefs({ course: 'everis', front: 'pine', back: 'lake' }, kv)).toBe(true);
+    expect(PREFS_KEY).toBe('fairway-note:prefs:v1');
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'pine', back: 'lake' });
+    savePrefs({ course: null, front: '', back: '', name: '동네 골프장' }, kv);
+    expect(loadPrefs(kv)).toEqual({ course: null, front: '', back: '', name: '동네 골프장' });
+    for (const bad of ['x', '{}', '{"course":1,"front":"a","back":"b"}', '{"course":"a","front":2,"back":"b"}']) {
+      kv.setItem(PREFS_KEY, bad);
+      expect(loadPrefs(kv), bad).toBeNull();
+    }
+    expect(loadPrefs(null)).toBeNull();
+    expect(savePrefs({ course: 'everis', front: 'a', back: 'b' }, null)).toBe(false);
   });
 
   it('falls back to the first hole for a bad current hole', () => {

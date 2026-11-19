@@ -1,9 +1,12 @@
-import { COUNTERS, HOLE_COUNT, MAX_COUNT, PARS, TAGGED, isShotTag, type Hole, type Par, type Round, type ShotTags } from './round';
+import { COUNTERS, HOLE_COUNT, MAX_COUNT, PARS, TAGGED, isShotTag, type Hole, type Par, type Round, type RoundCourse, type ShotTags } from './round';
 
 export const STORAGE_KEY = 'fairway-note:round:v1';
 /** Unreadable saved values are copied to `<prefix><timestamp>` before the round key is written. */
 export const CORRUPT_PREFIX = 'fairway-note:corrupt:';
 export const MAX_CORRUPT = 3;
+/** The last course chosen, offered first when the next round starts. */
+export const PREFS_KEY = 'fairway-note:prefs:v1';
+const MAX_NAME = 80;
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
@@ -76,6 +79,16 @@ function parseHole(v: unknown): { hole: Hole; lossy: boolean } | null {
   return { hole, lossy };
 }
 
+const isText = (v: unknown, max = MAX_NAME): v is string => typeof v === 'string' && v.length <= max;
+
+function parseCourse(v: unknown): RoundCourse | null {
+  if (typeof v !== 'object' || v === null) return null;
+  const o = v as Record<string, unknown>;
+  if (!(o.id === null || (isText(o.id) && o.id !== ''))) return null;
+  if (!isText(o.name) || o.name.trim() === '' || !isText(o.front) || !isText(o.back)) return null;
+  return { id: o.id, name: o.name, front: o.front, back: o.back };
+}
+
 /** Returns the saved round, or null when nothing valid is stored. Shot details it cannot read are left out. */
 export function parseRound(text: string | null): Round | null {
   return readRound(text)?.round ?? null;
@@ -100,6 +113,12 @@ function readRound(text: string | null): { round: Round; lossy: boolean } | null
   const current = Number.isInteger(r.current) && (r.current as number) >= 0 && (r.current as number) < HOLE_COUNT ? (r.current as number) : 0;
   const round: Round = { version: 1, date: r.date, current, holes };
   if (typeof r.lastEdited === 'number' && Number.isFinite(r.lastEdited) && r.lastEdited > 0) round.lastEdited = r.lastEdited;
+  // Rounds saved before courses could be chosen have none and keep their pars; a broken one is unreadable.
+  if ('course' in r) {
+    const course = parseCourse(r.course);
+    if (!course) return null;
+    round.course = course;
+  }
   return { round, lossy: read.some((x) => x!.lossy) };
 }
 function store(): KV | null {
@@ -178,5 +197,37 @@ export function clearRound(kv: KV | null = store()): void {
     kv?.removeItem(STORAGE_KEY);
   } catch {
     /* nothing stored to clear */
+  }
+}
+
+/** The last course choice: a bundled course id and nine ids, or null with a typed name. */
+export interface CourseChoice {
+  course: string | null;
+  front: string;
+  back: string;
+  name?: string;
+}
+
+export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
+  try {
+    const o = JSON.parse(kv?.getItem(PREFS_KEY) ?? 'null') as Record<string, unknown> | null;
+    if (typeof o !== 'object' || o === null) return null;
+    if (!(o.course === null || isText(o.course)) || !isText(o.front) || !isText(o.back)) return null;
+    const choice: CourseChoice = { course: o.course, front: o.front, back: o.back };
+    if (isText(o.name)) choice.name = o.name;
+    return choice;
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers the course choice. Failing to remember it never affects the round. */
+export function savePrefs(choice: CourseChoice, kv: KV | null = store()): boolean {
+  try {
+    if (!kv) return false;
+    kv.setItem(PREFS_KEY, JSON.stringify(choice));
+    return true;
+  } catch {
+    return false;
   }
 }

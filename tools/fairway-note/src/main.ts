@@ -37,6 +37,10 @@ import { dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText
 import { STORAGE_KEY, clearRound, loadRound, preserveUnreadable, requestPersistence, saveRound } from './storage';
 import { trackSummaryHeight } from './layout';
 import { keepScreenOn } from './wake';
+import { courseLabel, roundCourse } from './round';
+import { courseSource, resolveChoice, roundSetup } from './courses';
+import { closePicker, openPicker, pickerOpen } from './picker';
+import { loadPrefs, savePrefs, type CourseChoice } from './storage';
 
 const COUNTER_TEXT: Record<Counter, { label: string; hint: string }> = {
   driver: { label: '드라이버', hint: '티샷. OB 뒤 다시 친 티샷도' },
@@ -75,7 +79,8 @@ function announce(text: string): void {
 const loaded = loadRound();
 // An unreadable value (broken, or from a newer version) is copied aside; nothing is written until the first edit.
 const kept = preserveUnreadable();
-let round: Round = loaded ?? newRound();
+// Until a course is chosen, the page behind the picker shows the remembered (or default) course.
+let round: Round = loaded ?? newRound(new Date(), roundSetup(resolveChoice(loadPrefs())));
 let saved = kept !== 'failed';
 /** Shown until the first edit when an unreadable saved value was copied aside. */
 let rescued = kept === 'kept' && loaded === null;
@@ -464,6 +469,30 @@ async function shareReport(): Promise<void> {
   }
 }
 
+/* ---------- course ---------- */
+
+function renderCourse(): void {
+  const course = roundCourse(round);
+  setText($('course-name'), courseLabel(course));
+  const source = courseSource(course);
+  const box = $('par-source');
+  const key = source ? `${source.source}|${source.checked}` : 'custom';
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.replaceChildren(...(source
+    ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인) · 홀마다 바꿀 수 있습니다.`]
+    : ['직접 입력한 코스라 Par 4로 시작했습니다. 홀마다 바꿀 수 있습니다.']));
+}
+
+/** Starts a new round on the chosen course and remembers the choice for next time. */
+function startRound(choice: CourseChoice): void {
+  stale = false;
+  savePrefs(choice);
+  clearRound();
+  update(newRound(new Date(), roundSetup(choice)));
+  window.scrollTo({ top: 0 });
+}
+
 /* ---------- everything ---------- */
 
 function render(): void {
@@ -475,6 +504,7 @@ function render(): void {
   renderScorecard(a);
   renderAnalysis(a);
   renderSend(a);
+  renderCourse();
   setText($('save-state'), !saved
     ? '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.'
     : detached
@@ -515,12 +545,8 @@ function bind(): void {
       if (button) go(Number(button.dataset.hole));
     });
   }
-  const startNew = () => {
-    stale = false;
-    clearRound();
-    update(newRound());
-    window.scrollTo({ top: 0 });
-  };
+  // The current round stays until a course is chosen; cancelling the picker keeps it.
+  const startNew = () => openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
   $('new-round').addEventListener('click', () => {
     if (confirm('지금 라운드 기록을 지우고 새로 시작할까요?')) startNew();
   });
@@ -546,6 +572,8 @@ function bind(): void {
       rescued = false;
       trimmed = false;
       stale = isStale(next);
+      // Another tab started the round while this one was still choosing the first course.
+      if (pickerOpen() === 'first') closePicker();
     } else {
       detached = true;
     }
@@ -555,6 +583,7 @@ function bind(): void {
 
 bind();
 render();
+if (loaded === null) openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
 trackSummaryHeight();
 keepScreenOn();
 registerOffline();

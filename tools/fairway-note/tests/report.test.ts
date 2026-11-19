@@ -21,14 +21,14 @@ describe('report', () => {
   });
 
   it('puts the score in the subject', () => {
-    expect(reportSubject(sample())).toBe('에버리스 새별·레이크 2026년 11월 19일 라운드 18타 (+2)');
-    expect(reportSubject(newRound(new Date(2026, 10, 19)))).toBe('에버리스 새별·레이크 2026년 11월 19일 라운드');
+    expect(reportSubject(sample())).toBe('에버리스 골프리조트 새별·레이크 2026년 11월 19일 라운드 18타 (+2)');
+    expect(reportSubject(newRound(new Date(2026, 10, 19)))).toBe('에버리스 골프리조트 새별·레이크 2026년 11월 19일 라운드');
   });
 
   it('lists finished holes and the analysis', () => {
     const text = reportText(sample());
     expect(text.split('\n').slice(0, 4)).toEqual([
-      '에버리스 새별·레이크 · 2026년 11월 19일',
+      '에버리스 골프리조트 새별·레이크 · 2026년 11월 19일',
       '총 18타 (+2) · 4/18홀',
       '전반 13타 · 후반 5타',
       '퍼트 8 · OB 1 · 멀리건 1',
@@ -43,8 +43,16 @@ describe('report', () => {
     expect(text).toContain('- 3퍼트 이상이 1홀 있습니다.');
   });
 
+  it('names the round course, and Everis 새별·레이크 for rounds saved without one', () => {
+    const r = newRound(new Date(2026, 10, 19), { course: { id: null, name: '동네 골프장', front: '', back: '' }, pars: Array(18).fill(4) });
+    expect(reportSubject(r)).toBe('동네 골프장 2026년 11월 19일 라운드');
+    expect(reportText(r).split('\n')[0]).toBe('동네 골프장 · 2026년 11월 19일');
+    const { course: _, ...old } = newRound(new Date(2026, 10, 19));
+    expect(reportSubject(old)).toBe('에버리스 골프리조트 새별·레이크 2026년 11월 19일 라운드');
+  });
+
   it('says when nothing is finished', () => {
-    expect(reportText(newRound(new Date(2026, 10, 19)))).toBe('에버리스 새별·레이크 · 2026년 11월 19일\n\n아직 끝낸 홀이 없습니다.');
+    expect(reportText(newRound(new Date(2026, 10, 19)))).toBe('에버리스 골프리조트 새별·레이크 · 2026년 11월 19일\n\n아직 끝낸 홀이 없습니다.');
   });
 
   it('builds a mailto link with no recipient and the encoded report', () => {
