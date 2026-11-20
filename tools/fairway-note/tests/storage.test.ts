@@ -114,24 +114,42 @@ describe('storage', () => {
 
   it('keeps 큰 글씨 beside the course choice in the same key, each saved without losing the other', () => {
     const kv = memory();
-    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false });
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false, voice: false });
     expect(saveDisplay({ big: true }, kv)).toBe(true);
-    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false });
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false, voice: false });
     expect(loadPrefs(kv)).toBeNull();
     savePrefs({ course: 'everis', front: 'pine', back: 'lake' }, kv);
-    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false });
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false, voice: false });
     expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'pine', back: 'lake' });
     // The coach mark, once seen, is kept the same way: changing one setting keeps the other.
     saveDisplay({ coach: true }, kv);
     saveDisplay({ home: true }, kv);
-    expect(loadDisplay(kv)).toEqual({ big: true, coach: true, home: true });
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: true, home: true, voice: false });
     saveDisplay({ big: false }, kv);
     expect(JSON.parse(kv.getItem(PREFS_KEY)!)).toEqual({ course: 'everis', front: 'pine', back: 'lake', coach: true, home: true });
     savePrefs({ course: 'everis', front: 'lake', back: 'pine' }, kv);
-    expect(loadDisplay(kv)).toEqual({ big: false, coach: true, home: true });
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: true, home: true, voice: false });
     kv.setItem(PREFS_KEY, '[1]');
-    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false });
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false, voice: false });
     expect(saveDisplay({ big: true }, null)).toBe(false);
+  });
+
+  it('keeps 말로 입력 off until it is turned on, then beside the course choice until it is turned off (v21)', () => {
+    const kv = memory();
+    savePrefs({ course: 'everis', front: 'pine', back: 'lake' }, kv);
+    expect(loadDisplay(kv).voice).toBe(false);
+    expect(saveDisplay({ voice: true }, kv)).toBe(true);
+    expect(JSON.parse(kv.getItem(PREFS_KEY)!)).toEqual({ course: 'everis', front: 'pine', back: 'lake', voice: true });
+    // A new course choice keeps it, and so does another setting.
+    savePrefs({ course: 'everis', front: 'lake', back: 'pine' }, kv);
+    saveDisplay({ big: true }, kv);
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false, voice: true });
+    // Off leaves no trace of it in the key, as with the other settings.
+    saveDisplay({ voice: false }, kv);
+    expect(JSON.parse(kv.getItem(PREFS_KEY)!)).toEqual({ course: 'everis', front: 'lake', back: 'pine', big: true });
+    // Only a real true turns it on.
+    kv.setItem(PREFS_KEY, JSON.stringify({ voice: 'yes' }));
+    expect(loadDisplay(kv).voice).toBe(false);
   });
 
   it('reads a 9-hole round and keeps 18 or 9 holes only', () => {

@@ -105,6 +105,8 @@
           </section>
         </div>
 
+        <!-- 말로 입력 (v21): opt-in, shown once turned on in the menu; on 다음 홀's row, at the card's left inset -->
+        <button class="vc-open" type="button" id="voice-open" aria-label="말로 입력" aria-haspopup="dialog" hidden><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3"/></svg></button>
         <button class="next" type="button" id="go-next">다음 홀</button>
       </section>
 
@@ -306,6 +308,14 @@
             <span class="sw" aria-hidden="true"></span>
           </button>
         </li>
+        <!-- 말로 입력 (v21): off until turned on; kept as `voice` in the prefs key -->
+        <li>
+          <button class="mi tg" type="button" id="mi-voice" role="switch" aria-checked="false">
+            <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3"/></svg></span>
+            <span class="mi-t"><b>말로 입력</b><small>한 홀을 한 줄로 말해서 기록해요</small></span>
+            <span class="sw" aria-hidden="true"></span>
+          </button>
+        </li>
         <li>
           <button class="mi" type="button" id="mi-about" aria-expanded="false" aria-controls="mp-about">
             <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg></span>
@@ -449,6 +459,25 @@
         </div>
         <button id="picker-start" class="btn primary" type="button">이 코스로 시작</button>
       </div>
+    </dialog>
+
+    <!-- 말로 입력 (v21): one line for the keyboard's dictation, read on the device by src/voice-commands.ts. A plain
+         text field (not search, whose dictation can go to a search engine); the line is never stored or sent. -->
+    <dialog id="voice" class="vc-sheet" aria-labelledby="vc-title" aria-describedby="vc-help vc-privacy">
+      <form class="vc-form" id="vc-form" novalidate>
+        <div class="vc-head">
+          <h2 id="vc-title">말로 입력</h2>
+          <button type="button" class="vc-close" id="vc-close" aria-label="닫기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+        </div>
+        <div class="vc-field">
+          <input class="vc-line" id="vc-line" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-labelledby="vc-title" aria-describedby="vc-error vc-help vc-example" />
+          <button type="submit" class="vc-go" id="vc-go">입력</button>
+        </div>
+        <p class="vc-error" id="vc-error" role="alert" hidden></p>
+        <p class="vc-help" id="vc-help">키보드의 받아쓰기(마이크)를 쓰세요.</p>
+        <p class="vc-ex" id="vc-example"></p>
+        <p class="vc-privacy" id="vc-privacy">받아쓰기는 키보드가 하고, 이 앱은 글자만 받아요. iPhone은 기기 안에서 처리하고, Android는 키보드에 따라 음성을 서버로 보낼 수 있어요.</p>
+      </form>
     </dialog>
 
     <p id="announce" class="sr-only" aria-live="polite"></p>

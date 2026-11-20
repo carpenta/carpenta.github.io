@@ -1250,3 +1250,70 @@ body.big .sp-shots button { font-size: 20px; }
   .shot-panel[open], .shot-panel[open]::backdrop { animation: none; }
   .shot-dot, .sp-chip, .sp-shots button { transition: none; }
 }
+
+/* ---------- 말로 입력 (v21): one line for the keyboard's dictation, off until turned on in the menu ---------- */
+/* The way in sits on 다음 홀's row: a round white button like the menu's, its left edge on the same inset and as tall as
+   다음 홀. 다음 홀 keeps its right edge, where a right thumb lands, and gives the button its width and an 8px gap. */
+.vc-open {
+  position: absolute; z-index: 1; left: var(--m); bottom: var(--next-m); width: var(--next-h); height: var(--next-h);
+  border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--float);
+}
+.vc-open:active { background: var(--press); }
+.vc-open:not([hidden]) + .next { margin-left: calc(var(--m) + var(--next-h) + 8px); }
+/* The sheet hangs from the top, on the card's edges, so the keyboard below never covers the field. Its top is the
+   badge's, which rises (60 − 56) / 2 px above the bar's row, so nothing of the top bar peeks out above it. */
+.vc-sheet {
+  position: fixed; inset: calc(max(8px, env(safe-area-inset-top)) - (var(--badge) - var(--bar-row)) / 2) 0 auto; margin: 0 auto;
+  width: min(calc(100% - 2 * var(--m)), calc(480px - 2 * var(--m))); max-width: none;
+  max-height: calc(100dvh - 2 * max(8px, env(safe-area-inset-top))); overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--card-pad); border: 0; border-radius: var(--card-r);
+  background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
+}
+.vc-sheet::backdrop { background: var(--backdrop); }
+.vc-sheet[open] { animation: fn-rise .16s ease-out; }
+.vc-sheet[open]::backdrop { animation: fn-fade .16s ease-out; }
+.vc-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: center; }
+.vc-head h2 { font-size: 17px; font-weight: var(--w-label); line-height: 22px; }
+.vc-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
+.vc-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
+.vc-close:active { background: var(--press); }
+/* The field: a 52px pill with 입력 inside it, 4px in all round, so the two curves share a centre (22 + 4 = 26). */
+.vc-field {
+  margin-top: 12px; height: var(--next-h); display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 18px;
+  border-radius: calc(var(--next-h) / 2); background: var(--tint);
+}
+.vc-field:focus-within { box-shadow: inset 0 0 0 2px var(--turf); }
+.vc-line {
+  flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none;
+  font: inherit; font-size: 17px; color: var(--ink);
+}
+.vc-line::placeholder { color: var(--muted); }
+/* After a line it could not read, the line is selected for the next dictation to replace: in the palette's chosen tint. */
+.vc-line::selection { background: var(--select); color: var(--ink); }
+.vc-go {
+  flex: none; height: 44px; padding: 0 18px; border-radius: 22px;
+  background: var(--action); color: var(--on-action); font-size: 15px; font-weight: var(--w-label);
+}
+.vc-go:active { background: var(--action-press); }
+.vc-error { margin-top: 8px; font-size: 15px; font-weight: var(--w-label); line-height: 20px; color: var(--red-ink); text-wrap: pretty; }
+.vc-help { margin-top: 12px; font-size: 15px; line-height: 20px; text-wrap: pretty; }
+.vc-ex { margin-top: 2px; font-size: 15px; line-height: 20px; color: var(--muted); text-wrap: pretty; }
+.vc-privacy { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--muted); text-wrap: pretty; }
+body.big .vc-head h2 { font-size: 20px; line-height: 24px; }
+body.big .vc-help, body.big .vc-ex, body.big .vc-error { font-size: 17px; line-height: 22px; }
+body.big .vc-privacy { font-size: 15px; line-height: 20px; }
+/* A spoken line's toast says everything it set. Past one line it wraps to two inside the same 48px, so it still covers
+   no button; centred by its margins, not a 50% shift, so its width is the card's, not half of it. */
+.toast.vc { left: 0; right: 0; width: fit-content; max-width: 100%; margin-inline: auto; transform: none; }
+.toast.vc.show { animation-name: vc-toast-in; }
+@keyframes vc-toast-in { from { opacity: 0; transform: translateY(8px); } }
+.toast.vc #toast-msg {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  white-space: normal; line-height: 19px; text-wrap: balance;
+}
+body.big .toast.vc #toast-msg { line-height: 20px; }
+/* As wide as the card, it would leave the version label's top showing over its right end: the label steps aside meanwhile. */
+.sheet-wrap:has(> .toast.vc:not([hidden])) > .ver { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .vc-sheet[open], .vc-sheet[open]::backdrop { animation: none; }
+}
