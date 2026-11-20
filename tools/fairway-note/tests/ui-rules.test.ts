@@ -10,20 +10,17 @@ function rules(text: string): { selector: string; body: string }[] {
   return [...text.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim().replace(/\s+/g, ' '), body: m[2] }));
 }
 
-/**
- * 기록's own rules that still name a weight by number: the 기록 round owns them (its pills and counts, chips, the toast,
- * the +1/−1 cue of the split capsules, the 0 … 5+ picker and the hole info), and each already equals a token. Every
- * other rule takes a weight token.
- */
-const ENTRY_RULES = ['.chip .lbl', '.notes li', '.count', '.cue', '.pen-count', '.toast', '.np-row button', '.mt-len, .mt-hd', '.info-n', '.hi-facts'];
-
 describe('the stylesheet (v23)', () => {
-  it('takes every font weight from the three tokens outside 기록: values, labels and helper text', () => {
+  // Since v25 on 기록 too: its chips, notes, penalty counts, the 0 … 5+ picker and the hole info take the tokens.
+  it('takes every font weight from the three tokens, on every screen: values, labels and helper text', () => {
     const literal = rules(css)
       .filter(({ selector, body }) => selector !== ':root' && /font-weight:\s*(\d|bold)/.test(body))
-      .map(({ selector }) => selector)
-      .filter((selector) => !ENTRY_RULES.includes(selector));
+      .map(({ selector }) => selector);
     expect(literal).toEqual([]);
+    // The shorthand too: no `font: 700 15px …` naming a weight (a size such as `font: 16px/1.45 …` is no weight).
+    const shorthand = /(^|;)\s*font:(?:[^;]*\s)?(?:[1-9]00|bold|bolder|lighter)\s/;
+    expect(shorthand.test('font: 700 15px/1 var(--font)') && !shorthand.test('font: 16px/1.45 var(--font)')).toBe(true);
+    expect(rules(css).filter(({ selector, body }) => selector !== ':root' && shorthand.test(body)).map(({ selector }) => selector)).toEqual([]);
     expect(css).toMatch(/--w-value: 800; --w-label: 600; --w-help: 400;/);
   });
 

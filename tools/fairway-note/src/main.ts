@@ -58,8 +58,9 @@ type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
 const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '아이언', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커' };
 /** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
 const labelOf = (key: Counter, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
-const PLUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const MINUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+// The capsules' + and − (Tabler since v25), a little bolder than the family's line so the halves read at a glance.
+const PLUS = icon('plus', 24, '', 2.4);
+const MINUS = icon('minus', 24, '', 2.4);
 /** The badge's scorecard mark in a 40×40 box. pathLength 1 lets a birdie or better draw itself. */
 const SHAPES: Record<Mark, string> = {
   none: '',
@@ -192,6 +193,8 @@ function show(next: View, focusTab = false): void {
   if (changed) hideToast();
   if (changed && view !== 'entry') $(PANEL_ID[view]).scrollTop = 0;
   if (view === 'hist') renderNow();
+  // 기록's header was fitted while hidden (nothing measures there) if its hole changed elsewhere: fit it now (v25).
+  if (view === 'entry') fitNotes();
   drawCourse();
   scrollHint();
   if (focusTab) $(TAB_ID[view]).focus();
@@ -363,6 +366,13 @@ function fitNotes(): void {
  * badge (WebKit draws Latin letters and digits wider), the length steps aside; it stays in 홀 안내.
  */
 function fitSwitcher(): void {
+  // The words beside the hole number (v25): "번 홀", or 번 where that cannot fit, never cut with an ellipsis (nothing
+  // at all only on a screen narrower than any the app is made for). The button's name always says "5번 홀".
+  const unit = document.querySelector<HTMLElement>('#hole-title .hole-u')!;
+  for (const words of ['번 홀', '번', '']) {
+    setText(unit, words);
+    if (unit.scrollWidth <= unit.clientWidth + 0.5) break;
+  }
   const sub = $('hole-sub');
   const full = sub.dataset.full ?? '';
   setText(sub, full);
@@ -1931,6 +1941,8 @@ function bind(): void {
     // Saving marks the round as just edited, so the banner does not come back on the next load.
     update(round);
   });
+  // The bundled font can arrive after the first render (font-display: swap): fit the header again in its widths (v25).
+  document.fonts?.addEventListener('loadingdone', () => fitNotes());
   window.addEventListener('resize', () => {
     fitNotes();
     // A zoom can change the screen's scale: the grain tiles follow it (nothing to do otherwise).

@@ -43,7 +43,10 @@ async function pickHole(page: Page, index: number) {
   await showCard(page);
   await page.locator(`#scorecard button[data-hole="${index}"]`).click();
   await expect(page.locator('#entry')).toBeVisible();
-  await expect(page.locator('#hole-title')).toHaveText(`${index + 1}번 홀`);
+  // The hole by its number and the button's name: the words beside the number may shorten to 번 on a narrow screen
+  // (v25, tested on their own).
+  await expect(page.locator('#hole-n')).toHaveText(String(index + 1));
+  await expect(page.locator('#hole-btn')).toHaveAttribute('aria-label', new RegExp(`^${index + 1}번 홀, `));
 }
 
 async function showEntry(page: Page) {
@@ -280,7 +283,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v24');
+  await expect(page.locator('#app-version')).toHaveText('v25');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -315,12 +318,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v24');
+  await expect(page.locator('#menu-version')).toHaveText('v25');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v24');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v25');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -963,6 +966,23 @@ test('once a round is kept, 지난 라운드 suggests the home screen in one lin
   await expect(page.locator('#hc-more')).toBeHidden();
   await page.getByRole('button', { name: '방법 보기' }).click();
   await expect(page.locator('#hc-more .steps li')).toHaveCount(2);
+  // Chrome's ⋮ menu (v25): Tabler's dots-vertical, since the bundled font has no ⋮, centred on the words beside it.
+  const android = page.locator('#hc-more .steps li').nth(1);
+  await expect(android).not.toContainText('⋮');
+  const kebab = await android.evaluate((li) => {
+    const svg = li.querySelector('svg[data-icon="dots-vertical"]')!;
+    const text = [...li.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent!.includes('메뉴'))!;
+    const range = document.createRange();
+    const at = text.textContent!.indexOf('메뉴');
+    range.setStart(text, at);
+    range.setEnd(text, at + 2);
+    const icon = svg.getBoundingClientRect();
+    const words = range.getBoundingClientRect();
+    return { shapes: svg.children.length, off: (icon.top + icon.bottom) / 2 - (words.top + words.bottom) / 2, height: icon.height, line: words.height };
+  });
+  expect(kebab.shapes).toBe(3);
+  expect(Math.abs(kebab.off)).toBeLessThanOrEqual(1);
+  expect(kebab.height).toBeLessThanOrEqual(kebab.line);
   await expect(page.getByRole('button', { name: '접기' })).toHaveAttribute('aria-expanded', 'true');
   expect(await sideScroll(page)).toBe(0);
   await page.getByRole('button', { name: '알겠어요' }).click();
@@ -2419,6 +2439,8 @@ test('precaches every built file under the tool path', async ({ request }) => {
   // The bundled font's three faces and its licence (v24).
   for (const face of ['Regular', 'SemiBold', 'ExtraBold']) expect(source).toMatch(new RegExp(`"assets/Pretendard-${face}\\.subset-[^"/]+\\.woff2"`));
   expect(source).toContain('"assets/Pretendard-LICENSE.txt"');
+  // And the icons' notice (v25).
+  expect(source).toContain('"assets/Tabler-LICENSE.txt"');
   expect(source).not.toMatch(/"\//);
   expect(source).not.toContain('design/');
 });
@@ -4903,3 +4925,135 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
     });
   });
 }
+
+/* ---------- v25: Tabler icons, the share image in Pretendard, the hole number whole at 360 ---------- */
+
+/** A Tabler file's shapes without its invisible bounding box, as src/icons.ts and the build take them. */
+const tablerShapes = (name: string) => readFileSync(fileURLToPath(new URL(`../vendor/tabler/${name}.svg`, import.meta.url)), 'utf8')
+  .replace(/<path stroke="none"[^>]*\/>/, '')
+  .match(/<(?:path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*\/>/g)!
+  .map((el) => el.replace(/\s+/g, ' ').replace(/ \/>$/, '/>'));
+
+test('draws its UI icons from the vendored Tabler set at the 1.75 line, and ships Tabler’s MIT notice (v25)', async ({ page }) => {
+  await open(page);
+  // What an icon draws, shape by shape (the browser's own serialization, so attribute order and spacing do not matter).
+  const shapes = (selector: string) => page.locator(selector).first().evaluate((svg) => [...svg.children].map((el) => el.outerHTML.replace(/\s+/g, ' ')));
+  const same = async (selector: string, name: string) => {
+    const want = await page.evaluate((markup) => markup.map((m) => { const t = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); t.innerHTML = m; return t.firstElementChild!.outerHTML.replace(/\s+/g, ' '); }), tablerShapes(name));
+    expect(await shapes(selector), `${selector} draws ${name}`).toEqual(want);
+  };
+  await same('#entry .menu svg', 'menu-2');
+  await same('#prev-hole svg', 'chevron-left');
+  await same('#next-hole svg', 'chevron-right');
+  for (const [tab, name] of [['.home-link', 'home'], ['#tab-card', 'table'], ['#tab-entry', 'pencil'], ['#tab-hist', 'history']]) await same(`${tab} svg`, name);
+  await same('.club-driver .plus svg', 'plus');
+  await same('.club-driver .minus svg', 'minus');
+  // Our own golf glyphs stay: the clubs and the bunker are not Tabler's.
+  expect((await shapes('.club-driver .club-lbl svg')).join('')).not.toBe('');
+  // Every icon on the page has its shapes (no placeholder left empty), each at our line.
+  const empty = await page.evaluate(() => [...document.querySelectorAll('svg[data-icon]')].filter((svg) => !svg.children.length).map((svg) => svg.getAttribute('data-icon')));
+  expect(empty).toEqual([]);
+  const lines = await page.evaluate(() => [...new Set([...document.querySelectorAll('svg[data-icon]')].map((svg) => getComputedStyle(svg).strokeWidth))]);
+  expect(lines.every((w) => ['1.75px', '2.6px', '2.4px'].includes(w)), lines.join(', ')).toBe(true);
+  // Each sits centred in its round button, tab or menu tile: its drawn shapes within 1px of the box's centre (measured:
+  // flag-3 0.92px low, its pole hanging under the flag; every other within 0.5px).
+  const offCentre = (selector: string) => page.evaluate((selector) => [...document.querySelectorAll<SVGSVGElement>(selector)]
+    .filter((svg) => svg.getClientRects().length)
+    .map((svg) => {
+      const r = svg.getBoundingClientRect();
+      const shapes = svg.getBBox();
+      const scale = r.width / 24;
+      const box = svg.parentElement!.getBoundingClientRect();
+      const dx = r.left + (shapes.x + shapes.width / 2) * scale - (box.left + box.width / 2);
+      const dy = r.top + (shapes.y + shapes.height / 2) * scale - (box.top + box.height / 2);
+      return { icon: svg.dataset.icon, dx: Math.round(dx * 100) / 100, dy: Math.round(dy * 100) / 100 };
+    }), selector);
+  const onBars = await offCentre('#entry .round svg[data-icon], .tabbar .ti svg');
+  expect(onBars.map(({ icon }) => icon)).toEqual(['menu-2', 'chevron-left', 'chevron-right', 'home', 'table', 'pencil', 'history']);
+  expect(onBars.filter(({ dx, dy }) => Math.abs(dx) > 1 || Math.abs(dy) > 1)).toEqual([]);
+  await menu(page);
+  const tiles = await offCentre('.mi .ic svg');
+  expect(tiles.length).toBe(8);
+  expect(tiles.filter(({ dx, dy }) => Math.abs(dx) > 1 || Math.abs(dy) > 1)).toEqual([]);
+  await closeMenu(page);
+  // The MIT notice ships beside the built files (read from outside the page: its CSP allows no fetch).
+  const notice = await (await page.request.get('assets/Tabler-LICENSE.txt')).text();
+  expect(notice).toContain('MIT License');
+  expect(notice).toContain('Paweł Kuna');
+});
+
+for (const [width, height] of [[360, 640], [375, 667]]) {
+  test(`keeps the hole number whole and its word uncut at ${width}×${height}, in 큰 글씨 too: 번 홀, or 번 where 번 홀 cannot fit, never an ellipsis (v25)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page);
+    await page.evaluate(() => document.fonts.ready);
+    const word = () => page.locator('#hole-title .hole-u').evaluate((el) => ({ text: el.textContent, cut: el.scrollWidth > el.clientWidth + 0.5 }));
+    const whole = () => page.locator('#hole-n').evaluate((el) => el.scrollWidth <= el.clientWidth + 0.5);
+    for (let i = 0; i < 4; i++) await next(page).click();
+    await expect(page.locator('#hole-n')).toHaveText('5');
+    // A one-digit hole reads whole: "5번 홀".
+    expect(await word()).toEqual({ text: '번 홀', cut: false });
+    for (let i = 0; i < 5; i++) await next(page).click();
+    await expect(page.locator('#hole-n')).toHaveText('10');
+    const ten = await word();
+    expect(ten.cut).toBe(false);
+    expect(['번 홀', '번']).toContain(ten.text);
+    expect(await whole()).toBe(true);
+    // The button still names the hole in full.
+    await expect(page.locator('#hole-btn')).toHaveAttribute('aria-label', /^10번 홀, Par \d/);
+    // A hole opened from 스코어카드 changes while 기록 is hidden: the words are fitted again when it shows.
+    for (const [column, hole] of [[10, '11'], [4, '5']] as const) {
+      await tab(page, '스코어카드').click();
+      await page.locator(`#scorecard button[data-hole="${column}"]`).click();
+      await expect(page.locator('#hole-n')).toHaveText(hole);
+      const opened = await word();
+      expect(opened.cut, `hole ${hole} from 스코어카드`).toBe(false);
+      expect(hole === '5' ? ['번 홀'] : ['번 홀', '번'], `hole ${hole} from 스코어카드`).toContain(opened.text);
+    }
+    for (let i = 0; i < 5; i++) await next(page).click();
+    await expect(page.locator('#hole-n')).toHaveText('10');
+    // 큰 글씨: the word may shorten to 번, never further and never cut, and the number stays whole.
+    await menu(page);
+    await page.getByRole('switch', { name: /큰 글씨/ }).click();
+    await closeMenu(page);
+    for (const [hole, back] of [['10', 0], ['5', 5]] as const) {
+      for (let i = 0; i < back; i++) await page.locator('#prev-hole').click();
+      await expect(page.locator('#hole-n')).toHaveText(hole);
+      const big = await word();
+      expect(big.cut, `큰 글씨 ${hole}`).toBe(false);
+      expect(['번 홀', '번'], `큰 글씨 ${hole}`).toContain(big.text);
+      expect(await whole(), `큰 글씨 ${hole}`).toBe(true);
+    }
+  });
+}
+
+test('draws the share image in the bundled Pretendard, its weights loaded before the first word (v25)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const log: string[] = [];
+    (window as unknown as { fontLog: string[] }).fontLog = log;
+    const load = FontFaceSet.prototype.load;
+    FontFaceSet.prototype.load = function (this: FontFaceSet, font: string, text?: string) {
+      log.push(`load ${font}`);
+      return load.call(this, font, text);
+    };
+    const fill = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (this: CanvasRenderingContext2D, ...args: Parameters<CanvasRenderingContext2D['fillText']>) {
+      log.push(`text ${this.font}`);
+      return fill.apply(this, args);
+    };
+  });
+  await open(page);
+  await seed(page, SEVEN_HOLES, 5);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await page.locator('#sum-card[data-state="ready"]').waitFor();
+  const log = await page.evaluate(() => (window as unknown as { fontLog: string[] }).fontLog);
+  const texts = log.filter((line) => line.startsWith('text '));
+  expect(texts.length).toBeGreaterThan(10);
+  // Every word on the image in Pretendard, as on the page (a weight of 400 serializes as no weight).
+  for (const line of texts) expect(line).toMatch(/^text (?:\d{3} )?[\d.]+px ["']?Pretendard/);
+  // Each weight it draws in was asked for before the first word.
+  const before = log.slice(0, log.findIndex((line) => line.startsWith('text '))).filter((line) => line.startsWith('load ')).join(' | ');
+  for (const weight of new Set(texts.map((line) => /^text (\d{3}) /.exec(line)?.[1] ?? '400'))) expect(before, `weight ${weight}`).toMatch(new RegExp(`load ${weight} [\\d.]+px ["']?Pretendard`));
+});

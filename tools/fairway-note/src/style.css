@@ -218,7 +218,15 @@ svg { display: block; }
 .hole-txt { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .hole-main { display: flex; align-items: baseline; gap: 2px; min-width: 0; max-width: 100%; margin: 0; font: inherit; }
 .hole-n { flex: none; font-size: 34px; line-height: 1; letter-spacing: -.02em; }
-.hole-u { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 17px; font-weight: var(--w-label); }
+/* Never cut (v25): where "번 홀" cannot fit, main.ts's fitSwitcher() shortens it to 번. */
+.hole-u { min-width: 0; overflow: hidden; font-size: 17px; font-weight: var(--w-label); }
+/* Below 381px the switcher gives its words 14px more room (v25), so "5번 홀" fits at 360 and "10번 홀" at 375: 2px gaps
+   and a tighter hole button and chevron. Its 4px padding stays, so the arrows keep their radii concentric with it. */
+@media (max-width: 380px) {
+  .switcher { gap: 2px; }
+  .hole-title { padding: 0 2px 0 4px; }
+  .hole-chev { margin-left: 2px; }
+}
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
 .hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
 /* The version, quietly, just above the card's right end on 기록 (and in the menu's 앱 정보): the user reads it in screenshots. */
@@ -226,7 +234,7 @@ svg { display: block; }
 #hole-title.two .hole-n { font-size: 28px; }
 #hole-title.two .hole-u { font-size: 15px; }
 .info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
-.chip .lbl { font-weight: 600; color: var(--muted); }
+.chip .lbl { font-weight: var(--w-label); color: var(--muted); }
 .chip {
   display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
   background: var(--scrim); box-shadow: var(--float);
@@ -240,7 +248,7 @@ svg { display: block; }
 .notes { grid-column: 1 / -1; grid-row: 3; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; padding: 0; list-style: none; max-width: calc(100% - var(--badge) - 16px); }
 .notes li {
   height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center;
-  background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; font-weight: 600; white-space: nowrap;
+  background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; font-weight: var(--w-label); white-space: nowrap;
 }
 /* main.ts sets --notes-h on #entry to the captions' height: two rows on tall screens, one below 700px, none below 620px. */
 .notes { max-height: 54px; overflow: hidden; }
@@ -342,7 +350,7 @@ svg { display: block; }
 .step:active:not(:disabled) span { box-shadow: 0 1px 2px var(--sh-2); transform: scale(.94); }
 .step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
 /* +1 or −1 beside the glyph for a moment after a tap, drifting outward (main.ts shows and hides it). */
-.cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: 13px; font-weight: 800; font-style: normal; line-height: 1; pointer-events: none; }
+.cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: 13px; font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
 .plus .cue { top: var(--glyph-inset); color: var(--turf); animation: cue-up .6s ease-out both; }
 .minus .cue { bottom: var(--glyph-inset); color: var(--muted); animation: cue-down .6s ease-out both; }
 @keyframes cue-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
@@ -354,7 +362,7 @@ svg { display: block; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
    the 8px it needs, so fonts that draw taller digits than the Mac's (Linux, Android) still keep it clear. 1.38 turns
    a cap height into a font size (v18, v20). */
-.count { font-size: clamp(20px, calc((var(--pill-h) - 2 * (var(--glyph-inset) + var(--glyph)) - 20px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
+.count { font-size: clamp(20px, calc((var(--pill-h) - 2 * (var(--glyph-inset) + var(--glyph)) - 20px) * 1.38), var(--count)); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
 .count.zero { color: var(--quiet); }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
@@ -404,7 +412,7 @@ svg { display: block; }
 .pen-lbl { font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 16px; text-align: center; white-space: nowrap; }
 .pen-count {
   position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
-  background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 800; line-height: 24px; text-align: center; box-shadow: 0 0 0 2px var(--white);
+  background: var(--sand); color: var(--ink); font-size: 13px; font-weight: var(--w-value); line-height: 24px; text-align: center; box-shadow: 0 0 0 2px var(--white);
 }
 .pen-count.zero { display: none; }
 .undo {
@@ -431,7 +439,7 @@ svg { display: block; }
   position: absolute; z-index: 4; grid-row: 2; grid-column: 1 / -1; left: 0; right: 0; top: 50%; transform: translateY(-50%);
   display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: 999px;
   background: var(--deep); color: var(--on-dark); box-shadow: 0 8px 22px var(--sh-4);
-  font-size: 15px; font-weight: 600; white-space: nowrap;
+  font-size: 15px; font-weight: var(--w-label); white-space: nowrap;
 }
 #toast-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* While the bar shows, the chips step aside under it (whatever shows or hides it). */
@@ -1183,7 +1191,7 @@ button.scell:active { background: var(--tint); }
 .numpick::backdrop { background: var(--backdrop); }
 .np-h { padding: 2px 0 8px; font-size: 15px; font-weight: var(--w-label); }
 .np-row { display: flex; justify-content: space-between; gap: 4px; }
-.np-row button { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); font-size: 22px; font-weight: 800; color: var(--ink); }
+.np-row button { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); font-size: 22px; font-weight: var(--w-value); color: var(--ink); }
 .np-row button:active { background: var(--pill); }
 .np-row button[aria-pressed='true'] { background: var(--action); color: var(--on-action); }
 @media (max-width: 369px) { .np-row { gap: 6px; } .np-row button { width: 44px; height: 44px; } }
@@ -1235,7 +1243,7 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
   display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: 999px;
   background: var(--scrim); box-shadow: var(--float); font-size: 13px; font-weight: var(--w-label); white-space: nowrap; color: var(--ink);
 }
-.mt-len, .mt-hd { color: var(--muted); font-weight: 600; }
+.mt-len, .mt-hd { color: var(--muted); font-weight: var(--w-label); }
 .progress {
   flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px;
   background: var(--scrim); box-shadow: var(--float); font-size: 13px; white-space: nowrap;
@@ -1253,7 +1261,7 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */
 .info-chip[aria-expanded='true'] { background: var(--tint); }
-.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--action); color: var(--on-action); font-size: 13px; font-weight: 800; line-height: 1; }
+.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--action); color: var(--on-action); font-size: 13px; font-weight: var(--w-value); line-height: 1; }
 .hinfo {
   position: fixed; inset: auto auto auto var(--m, 12px); margin: 0; width: min(300px, calc(100vw - 24px));
   padding: 14px 16px 6px; border: 0; border-radius: 20px; background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
@@ -1261,7 +1269,7 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .hinfo::backdrop { background: var(--backdrop-light); }
 .hinfo:focus { outline: none; }
 .hi-h { font-size: 17px; font-weight: var(--w-label); }
-.hi-facts { margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.hi-facts { margin-top: 2px; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: var(--w-label); }
 .hi-none, .hi-art { margin-top: 8px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
@@ -1290,6 +1298,10 @@ body.big .info-chip { font-size: 15px; }
 .steps { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .steps li { padding: 10px 12px; border-radius: 14px; background: var(--paper); font-size: 15px; line-height: 1.5; }
 .steps b { display: block; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+/* Chrome's ⋮ menu, drawn in the sentence (v25: the font has no ⋮): 1.1em with its middle 0.35em over the baseline,
+   the middle of the Hangul beside it, so it scales with 큰 글씨. Its dots are 0.17em wide in that box, so -0.2em each
+   side leaves about the air a ⋮ glyph would have between the words. */
+.steps .kebab { display: inline-block; width: 1.1em; height: 1.1em; margin-inline: -0.2em; vertical-align: -0.2em; }
 .nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 /* ---------- the long-press coach mark: once, on hole 1 of the first round (centred on the midline's count row) ---------- */

@@ -2,9 +2,9 @@ import { analyze, finished, played, roundCourse, scoreName, scoreWord, strokes, 
 import { dateLabel } from './report';
 
 /**
- * The round as a picture to share: a 1080×1350 PNG drawn on a canvas with system fonts and no images, so it works
- * offline under the app's CSP. `shareCardContent` reads the numbers (from `analyze()`, as the round summary does),
- * `shareCardLayout` turns them into drawing operations (pure, unit-tested) and `drawShareCard` paints them.
+ * The round as a picture to share: a 1080×1350 PNG drawn on a canvas in the app's bundled font and no images, so it
+ * works offline under the app's CSP. `shareCardContent` reads the numbers (from `analyze()`, as the round summary
+ * does), `shareCardLayout` turns them into drawing operations (pure, unit-tested) and `drawShareCard` paints them.
  */
 
 export const SHARE_CARD_SIZE = { width: 1080, height: 1350 } as const;
@@ -12,8 +12,10 @@ const W = SHARE_CARD_SIZE.width;
 const H = SHARE_CARD_SIZE.height;
 /** Side margin of the card's text. */
 const M = 72;
-/** The app's own font stack (`--font` in style.css): system fonts only, nothing is downloaded. */
-const FONT = "-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif";
+/** The page's font stack (`--font` in style.css, v25): the bundled Pretendard, then the system's while it loads. */
+const FONT = "'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif";
+/** The weights the image draws in, two of the bundled faces (fonts.css): 600 for labels, 800 for values, as on the page. */
+export const SHARE_WEIGHTS = [600, 800] as const;
 
 /** The image's colours: the app's palette (style.css), read from the page when the image is drawn (v19). */
 export type SharePalette = Record<'turf' | 'putting' | 'ink' | 'deep' | 'paper' | 'red' | 'sand' | 'white' | 'pill' | 'muted' | 'line' | 'quiet' | 'sandTint' | 'sandLine' | 'sandBand' | 'tabInk' | 'mark', string>;
@@ -180,7 +182,7 @@ export interface Gradient {
 export type Paint = string | Gradient;
 /** One radius, or top-left, top-right, bottom-right, bottom-left. */
 export type Radius = number | [number, number, number, number];
-export type Weight = 500 | 600 | 700 | 800;
+export type Weight = (typeof SHARE_WEIGHTS)[number];
 
 export interface RectOp { kind: 'rect'; id?: string; x: number; y: number; w: number; h: number; r?: Radius; fill?: Paint; stroke?: string; lineWidth?: number; shadow?: { color: string; blur: number; y: number } }
 export interface CircleOp { kind: 'circle'; id?: string; cx: number; cy: number; r: number; fill?: Paint; stroke?: string; lineWidth?: number }
@@ -204,7 +206,11 @@ export interface ShareCardLayout {
 /** Text width in px at a size and weight; the canvas measures it in the browser. */
 export type Measure = (text: string, size: number, weight: Weight) => number;
 
-/** A deterministic stand-in for the canvas's measureText, a little wider than the system fonts, for tests. */
+/**
+ * A deterministic stand-in for the canvas's measureText, for tests. Against Pretendard (measured in Chromium, v25) it
+ * is wider for words (Hangul 0.94em against 0.864em, a date by about 12%) and up to 3% narrower for a short number
+ * at 800 ("+9", "36"); the browser always measures the real text.
+ */
 export function estimateWidth(text: string, size: number): number {
   let em = 0;
   for (const ch of text) {
@@ -307,7 +313,7 @@ function background(o: Ops): void {
 function header(o: Ops, c: ShareCardContent): void {
   o.text('date', c.date, M, 118, 30, 600, C.tabInk, 'left', W - 2 * M);
   o.text('course', c.course, M, 190, 58, 800, C.white, 'left', W - 2 * M, 40);
-  if (c.nines) o.text('nines', c.nines, M, 244, 34, 700, C.putting, 'left', W - 2 * M, 26);
+  if (c.nines) o.text('nines', c.nines, M, 244, 34, 600, C.putting, 'left', W - 2 * M, 26);
 }
 
 /** The big total's baseline, and the size of the score-against-par mark beside it. */
@@ -344,7 +350,7 @@ function hero(o: Ops, c: ShareCardContent, shift: number): void {
     let hx = x;
     hx += o.text(`half-${key}-label`, half.label, hx, y, 28, 600, C.tabInk, 'left', room).width + 14;
     hx += o.text(`half-${key}`, half.strokes, hx, y, 36, 800, C.white, 'left', x + room - hx).width + 12;
-    if (half.toPar) o.text(`half-${key}-par`, half.toPar, hx, y, 28, 700, C.putting, 'left', x + room - hx, 20);
+    if (half.toPar) o.text(`half-${key}-par`, half.toPar, hx, y, 28, 800, C.putting, 'left', x + room - hx, 20);
     y += lineH;
   }
   const count = o.text('count', c.count, x, y, 26, 600, C.tabInk, 'left', room, 20);
@@ -409,7 +415,7 @@ function scorecard(o: Ops, c: ShareCardContent, cardY: number): void {
         const size = one ? 38 : 34;
         col.text(`hole-${hole.hole}-score`, String(hole.score), cx, sy + size * CAP, size, 800, hole.mark === 'triple' ? C.white : color, 'center', markSize * 0.7, 20);
       } else {
-        col.text(`hole-${hole.hole}-score`, '–', cx, sy + 30 * CAP, 30, 700, C.quiet, 'center', colW - 8);
+        col.text(`hole-${hole.hole}-score`, '–', cx, sy + 30 * CAP, 30, 600, C.quiet, 'center', colW - 8);
       }
       if (rows.putts) col.text(`hole-${hole.hole}-putts`, hole.putts === null ? '–' : String(hole.putts), cx, mid(rowPutts, rows.putts) + 22 * CAP + 1, 22, 600, C.muted, 'center', colW - 8);
       o.push({ kind: 'group', id: `hole-${hole.hole}`, ops: col.list });
@@ -422,7 +428,7 @@ function scorecard(o: Ops, c: ShareCardContent, cardY: number): void {
     o.text(`sub-${nine.key}-label`, nine.label, scx, mid(rowNo, rows.no) + 22 * CAP + 2, 22, 800, C.ink, 'center', subW - 10);
     o.text(`sub-${nine.key}-par`, String(nine.par), scx, mid(rowPar, rows.par) + 22 * CAP + 1, 22, 600, C.muted, 'center', subW - 10);
     o.text(`sub-${nine.key}`, nine.strokes, scx, mid(rowScore, rows.score) + 40 * CAP, 40, 800, nine.strokes === '–' ? C.quiet : C.ink, 'center', subW - 14, 26);
-    if (rows.putts) o.text(`sub-${nine.key}-putts`, nine.putts, scx, mid(rowPutts, rows.putts) + 22 * CAP + 1, 22, 700, C.muted, 'center', subW - 10);
+    if (rows.putts) o.text(`sub-${nine.key}-putts`, nine.putts, scx, mid(rowPutts, rows.putts) + 22 * CAP + 1, 22, 600, C.muted, 'center', subW - 10);
     top = y + table + CARD_GAP;
   }
 }
@@ -463,10 +469,10 @@ function appIcon(x: number, y: number, size: number): GroupOp {
 function footer(o: Ops): void {
   const y = 1302;
   const icon = 38;
-  const name = o.measure('Fairway Note', 26, 700);
+  const name = o.measure('Fairway Note', 26, 600);
   const x = (W - (icon + 14 + name)) / 2;
   o.push(appIcon(x, y - 29, icon));
-  o.text('wordmark', 'Fairway Note', x + icon + 14, y, 26, 700, alpha(C.white, 0.78), 'left', 300);
+  o.text('wordmark', 'Fairway Note', x + icon + 14, y, 26, 600, alpha(C.white, 0.78), 'left', 300);
 }
 
 export function shareCardLayout(round: Round, measure: Measure = estimateWidth): ShareCardLayout {
@@ -599,11 +605,24 @@ export function readSharePalette(): SharePalette {
 }
 
 /**
- * Draws the round's share card and encodes it as a 1080×1350 PNG. Needs only a canvas: no network, no images and
- * no fonts beyond the system's, so it works offline and under the app's CSP. The caller shares the file
+ * Waits for the faces the image draws in (v25): canvas text never waits for a font, it measures and draws in
+ * whatever has loaded. They are the page's own, usually loaded already and cached offline; a face that fails or is
+ * slower than 1.5 s leaves the system font, as on the page.
+ */
+async function loadFaces(): Promise<void> {
+  const fonts = document.fonts as FontFaceSet | undefined;
+  if (!fonts?.load) return;
+  const loaded = Promise.all(SHARE_WEIGHTS.map((weight) => fonts.load(`${weight} 40px Pretendard`))).then(() => undefined, () => undefined);
+  await Promise.race([loaded, new Promise<void>((resolve) => setTimeout(resolve, 1500))]);
+}
+
+/**
+ * Draws the round's share card and encodes it as a 1080×1350 PNG. Needs only a canvas and the page's font: no
+ * network and no images, so it works offline and under the app's CSP. The caller shares the file
  * (`navigator.share({ files })`) or downloads it.
  */
 export async function drawShareCard(round: Round): Promise<Blob> {
+  await loadFaces();
   useSharePalette(readSharePalette());
   const canvas = document.createElement('canvas');
   canvas.width = W;
