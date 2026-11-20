@@ -44,6 +44,7 @@ import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from '
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
 import { bindSummaryShare, closeSummaryShare, openSummaryShare, saveSummaryImage, shareSummary } from './share-round';
+import { bindShotPanel, renderShotPanel } from './shot-panel';
 
 /** The penalty row: OB and 해저드 add a stroke each; 벙커 (상세) is noted only. */
 const PENS = ['ob', 'bunker', 'hazard'] as const;
@@ -1711,6 +1712,7 @@ function saveMessage(): { text: string; problem: boolean } {
 function render(changed?: string): void {
   const a = analyze(round);
   renderEntry(a, changed);
+  renderShotPanel();
   renderCard(a);
   renderAnalysis(a);
   renderSend(a);
@@ -1731,6 +1733,8 @@ function render(changed?: string): void {
 function bind(): void {
   bindViews();
   buildClubs();
+  // 클럽 상세 (v17): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts).
+  bindShotPanel({ hole, label: (key) => labelOf(key, hole().par), change: (patch, key) => setHole(patch, key), announce, opening: hideToast });
   buildPens();
   bindDetail();
   bindMenu();
