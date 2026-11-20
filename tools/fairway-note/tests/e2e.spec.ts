@@ -1595,27 +1595,28 @@ test('keeps the pars of a round saved before courses could be chosen', async ({ 
 
 /* ---------- alignment (v16): one grid on 스코어카드, 지난 라운드 and 코스 선택 ---------- */
 
-type Rect = { x: number; y: number; width: number; height: number };
-/** The rects of every element matching `selector`, in document order. */
-const rects = (page: Page, selector: string): Promise<Rect[]> => page.locator(selector).evaluateAll((list) => list.map((el) => {
+// Helper names are this block's own (spanOf, within1px …): other versions' tests define rect and atRest at the top level.
+type Span = { x: number; y: number; width: number; height: number };
+/** The box of every element matching `selector`, in document order. */
+const spansOf = (page: Page, selector: string): Promise<Span[]> => page.locator(selector).evaluateAll((list) => list.map((el) => {
   const r = el.getBoundingClientRect();
   return { x: r.x, y: r.y, width: r.width, height: r.height };
 }));
-async function rect(page: Page, selector: string): Promise<Rect> {
-  const [first] = await rects(page, selector);
+async function spanOf(page: Page, selector: string): Promise<Span> {
+  const [first] = await spansOf(page, selector);
   if (!first) throw new Error(`nothing matches ${selector}`);
   return first;
 }
-const right = (r: Rect) => r.x + r.width;
-const centre = (r: Rect) => r.x + r.width / 2;
+const endOf = (r: Span) => r.x + r.width;
+const midOf = (r: Span) => r.x + r.width / 2;
 /** Measure at rest: dialogs rise and sheets slide in for a moment when they open. */
-const atRest = (page: Page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+const settled = (page: Page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
 /** Within 1px: where the eye still reads one edge. */
-function near(actual: number, expected: number, what: string) {
+function within1px(actual: number, expected: number, what: string) {
   expect(Math.abs(actual - expected), `${what}: ${actual.toFixed(1)} against ${expected.toFixed(1)}`).toBeLessThanOrEqual(1);
 }
 /** The alphabetic baseline of the first line of text in `selector`. */
-const baseline = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => {
+const baselineOf = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent!.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
   const text = walker.nextNode()!;
   const range = document.createRange();
@@ -1627,7 +1628,7 @@ const baseline = (page: Page, selector: string) => page.locator(selector).first(
   return range.getClientRects()[0].top + pen.measureText(text.textContent!.trim()).fontBoundingBoxAscent;
 });
 /** Seven holes: par, birdie, double with an OB, bogey and worse on the front; two on the back. On hole 6. */
-const SEVEN = {
+const SEVEN_HOLES = {
   0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, putts: 2 }, 2: { driver: 1, ob: 1, approach: 3, putts: 2 }, 3: { driver: 1, approach: 2, putts: 2 },
   4: { driver: 2, approach: 3, putts: 3 }, 9: { driver: 1, approach: 1, putts: 1 }, 10: { driver: 1, approach: 2, putts: 2 },
 };
@@ -1642,17 +1643,17 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await tab(page, '스코어카드').tap();
       await expect(page.locator('#tot-strokes')).toHaveText('–');
       await expect(page.locator('#tot-topar')).toHaveText('');
-      await seed(page, SEVEN, 5);
+      await seed(page, SEVEN_HOLES, 5);
       await tab(page, '스코어카드').tap();
-      await atRest(page);
-      const table = await rect(page, '#scorecard .ct');
+      await settled(page);
+      const table = await spanOf(page, '#scorecard .ct');
       // The ring, the 퍼트·OB·해저드 tiles and each nine's heading start and end on the table's edges.
-      near((await rect(page, '#sh-ring')).x, table.x, 'ring');
-      const tiles = await rects(page, '#sc-hero .sh-stats > div');
-      near(tiles[0].x, table.x, 'tiles, left');
-      near(right(tiles[2]), right(table), 'tiles, right');
-      near((await rect(page, '#scorecard .nt-h b')).x, table.x, 'nine name');
-      near(right(await rect(page, '#scorecard .nt-go')), right(table), '홀 고르기');
+      within1px((await spanOf(page, '#sh-ring')).x, table.x, 'ring');
+      const tiles = await spansOf(page, '#sc-hero .sh-stats > div');
+      within1px(tiles[0].x, table.x, 'tiles, left');
+      within1px(endOf(tiles[2]), endOf(table), 'tiles, right');
+      within1px((await spanOf(page, '#scorecard .nt-h b')).x, table.x, 'nine name');
+      within1px(endOf(await spanOf(page, '#scorecard .nt-go')), endOf(table), '홀 고르기');
       // A score mark sits in the middle of its hole's column, under the hole number.
       const heads = await page.locator('#scorecard .r-h > [data-col]').evaluateAll((list) => Object.fromEntries(list.map((el) => {
         const r = el.getBoundingClientRect();
@@ -1663,60 +1664,60 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         return { col: (el.parentElement as HTMLElement).dataset.col!, x: r.x + r.width / 2 };
       }));
       expect(marks).toHaveLength(7);
-      for (const m of marks) near(m.x, heads[m.col], `hole ${Number(m.col) + 1} mark`);
+      for (const m of marks) within1px(m.x, heads[m.col], `hole ${Number(m.col) + 1} mark`);
       // The round's total sits in the 전반/후반 column under the nines' subtotals; 합계 starts on the table's edge.
-      near(centre(await rect(page, '#tot-strokes')), centre(await rect(page, '#scorecard .r-s > .ct-s')), '합계 in the 전반/후반 column');
-      near((await rect(page, '#sc-sheet .tot h3')).x, table.x, '합계');
+      within1px(midOf(await spanOf(page, '#tot-strokes')), midOf(await spanOf(page, '#scorecard .r-s > .ct-s')), '합계 in the 전반/후반 column');
+      within1px((await spanOf(page, '#sc-sheet .tot h3')).x, table.x, '합계');
       // The legend's six marks sit on the hero tiles' three columns, under the 파 4 기준 line.
-      const items = await rects(page, '#legend li:not(.lg-cap)');
+      const items = await spansOf(page, '#legend li:not(.lg-cap)');
       expect(items).toHaveLength(6);
-      items.forEach((item, i) => near(item.x, tiles[i % 3].x, `legend item ${i + 1}`));
+      items.forEach((item, i) => within1px(item.x, tiles[i % 3].x, `legend item ${i + 1}`));
       // Both bar charts start and end their bars at the same x; text in a tile sits 12px in, in the hero and in 라운드 분석.
-      const lost = await rect(page, '#lost-bars .bar');
-      const spread = await rect(page, '#analysis .bar-track');
-      near(lost.x, spread.x, 'bars, start');
-      near(right(lost), right(spread), 'bars, end');
-      near((await rect(page, '#sc-hero .sh-stats dt')).x - tiles[0].x, 12, 'hero tile text');
-      const metric = await rect(page, '#analysis .metrics > div');
-      near((await rect(page, '#analysis .metrics dt')).x - metric.x, 12, '분석 tile text');
+      const lost = await spanOf(page, '#lost-bars .bar');
+      const spread = await spanOf(page, '#analysis .bar-track');
+      within1px(lost.x, spread.x, 'bars, start');
+      within1px(endOf(lost), endOf(spread), 'bars, end');
+      within1px((await spanOf(page, '#sc-hero .sh-stats dt')).x - tiles[0].x, 12, 'hero tile text');
+      const metric = await spanOf(page, '#analysis .metrics > div');
+      within1px((await spanOf(page, '#analysis .metrics dt')).x - metric.x, 12, '분석 tile text');
       // 파 수정 brings the five-and-four tables: the heading and the hint keep their edges, the total its 전반 column.
       await page.locator('#edit-par').tap();
       await expect(page.locator('#edit-hint')).toBeVisible();
-      await atRest(page);
-      const five = await rect(page, '#scorecard .tbl');
-      near((await rect(page, '#scorecard .nine-h')).x, five.x, '파 수정 heading');
-      const hint = await rect(page, '#edit-hint');
-      near(hint.x, five.x, 'hint, left');
-      near(right(hint), right(five), 'hint, right');
-      near(centre(await rect(page, '#tot-strokes')), centre(await rect(page, '#scorecard .col.sub')), '합계 in 파 수정');
+      await settled(page);
+      const five = await spanOf(page, '#scorecard .tbl');
+      within1px((await spanOf(page, '#scorecard .nine-h')).x, five.x, '파 수정 heading');
+      const hint = await spanOf(page, '#edit-hint');
+      within1px(hint.x, five.x, 'hint, left');
+      within1px(endOf(hint), endOf(five), 'hint, right');
+      within1px(midOf(await spanOf(page, '#tot-strokes')), midOf(await spanOf(page, '#scorecard .col.sub')), '합계 in 파 수정');
       expect(await sideScroll(page)).toBe(0);
     });
 
     test('지난 라운드: rows on the card edges, scores on their title baselines, an opened round’s total in its 전반/후반 column', async ({ page }) => {
       await open(page);
-      await seed(page, SEVEN, 5);
+      await seed(page, SEVEN_HOLES, 5);
       await seedHistory(page, [10, 12, 8]);
       await tab(page, '지난 라운드').tap();
       await expect(pastItems(page)).toHaveCount(3);
-      await atRest(page);
-      const card = await rect(page, '#history');
-      const tiles = await rects(page, '#history-trends .metrics > div');
+      await settled(page);
+      const card = await spanOf(page, '#history');
+      const tiles = await spansOf(page, '#history-trends .metrics > div');
       // A row's text starts and ends where the trend tiles do; the card's first line sits as far from its top as from its side.
-      near((await rect(page, '#history-list .past-when')).x, tiles[0].x, 'date');
-      near((await rect(page, '#history-list .past-where')).x, tiles[0].x, 'course');
-      near(right(await rect(page, '#history-list .past-score')), right(tiles[1]), 'score');
-      near(right(await rect(page, '#history-list .past-meta')), right(tiles[1]), 'holes and putts');
-      near(tiles[0].y - card.y, tiles[0].x - card.x, 'top inset');
+      within1px((await spanOf(page, '#history-list .past-when')).x, tiles[0].x, 'date');
+      within1px((await spanOf(page, '#history-list .past-where')).x, tiles[0].x, 'course');
+      within1px(endOf(await spanOf(page, '#history-list .past-score')), endOf(tiles[1]), 'score');
+      within1px(endOf(await spanOf(page, '#history-list .past-meta')), endOf(tiles[1]), 'holes and putts');
+      within1px(tiles[0].y - card.y, tiles[0].x - card.x, 'top inset');
       // 지금 라운드 puts its score on the title's baseline, as each row below does.
-      near(await baseline(page, '#now-score'), await baseline(page, '#now-title'), '지금 라운드 score');
-      near(await baseline(page, '#history-list .past-score'), await baseline(page, '#history-list .past-when'), 'row score');
+      within1px(await baselineOf(page, '#now-score'), await baselineOf(page, '#now-title'), '지금 라운드 score');
+      within1px(await baselineOf(page, '#history-list .past-score'), await baselineOf(page, '#history-list .past-when'), 'row score');
       // An opened round: headings on the tables' edge, the total in the 전반/후반 column.
       await pastItems(page).first().tap();
       await expect(page.locator('#past')).toBeVisible();
-      await atRest(page);
-      const five = await rect(page, '#past-scorecard .tbl');
-      near((await rect(page, '#past-scorecard .nine-h')).x, five.x, 'nine heading');
-      near(centre(await rect(page, '#past-scorecard .tot-n')), centre(await rect(page, '#past-scorecard .col.sub')), '합계 in the 전반/후반 column');
+      await settled(page);
+      const five = await spanOf(page, '#past-scorecard .tbl');
+      within1px((await spanOf(page, '#past-scorecard .nine-h')).x, five.x, 'nine heading');
+      within1px(midOf(await spanOf(page, '#past-scorecard .tot-n')), midOf(await spanOf(page, '#past-scorecard .col.sub')), '합계 in the 전반/후반 column');
       // The round sits on paper: its analysis tiles must still show as tiles, or their 12px inset reads as a stray indent.
       const [tile, paper] = await page.evaluate(() => [document.querySelector('#past-analysis .metrics > div')!, document.querySelector('#past')!].map((el) => getComputedStyle(el).backgroundColor));
       expect(tile).not.toBe(paper);
@@ -1726,27 +1727,27 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
     test('코스 선택: search and rows share their edges, and the chosen course’s sheet lines up with them', async ({ page }) => {
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
-      await atRest(page);
-      const search = await rect(page, '.pk-search');
-      const list = await rect(page, '#picker-list');
-      near(search.x, list.x, 'search and list, left');
-      near(right(search), right(list), 'search and list, right');
+      await settled(page);
+      const search = await spanOf(page, '.pk-search');
+      const list = await spanOf(page, '#picker-list');
+      within1px(search.x, list.x, 'search and list, left');
+      within1px(endOf(search), endOf(list), 'search and list, right');
       // The search icon starts on the rows' text edge.
-      near((await rect(page, '.pk-search svg')).x, (await rect(page, '#picker-list .course b')).x, 'search icon');
+      within1px((await spanOf(page, '.pk-search svg')).x, (await spanOf(page, '#picker-list .course b')).x, 'search icon');
       // The chosen course's sheet: name, 18홀/9홀 and the start button on the list's edges.
-      near((await rect(page, '#picker-label')).x, list.x, 'course name');
-      near(right(await rect(page, '#picker-len')), right(list), '18홀/9홀');
-      const start = await rect(page, '#picker-start');
-      near(start.x, list.x, 'start, left');
-      near(right(start), right(list), 'start, right');
+      within1px((await spanOf(page, '#picker-label')).x, list.x, 'course name');
+      within1px(endOf(await spanOf(page, '#picker-len')), endOf(list), '18홀/9홀');
+      const start = await spanOf(page, '#picker-start');
+      within1px(start.x, list.x, 'start, left');
+      within1px(endOf(start), endOf(list), 'start, right');
       // 전반 and 후반 (새별, 레이크, 파인) as one grid: three equal columns, the 후반 row under the 전반 row, ending on the edge.
-      const nines = await rects(page, '#picker-chosen .nine-pick button');
+      const nines = await spansOf(page, '#picker-chosen .nine-pick button');
       expect(nines).toHaveLength(6);
       for (const [i, b] of nines.entries()) {
-        near(b.width, nines[0].width, `nine ${i + 1} width`);
-        near(b.x, nines[i % 3].x, `nine ${i + 1} column`);
+        within1px(b.width, nines[0].width, `nine ${i + 1} width`);
+        within1px(b.x, nines[i % 3].x, `nine ${i + 1} column`);
       }
-      near(right(nines[2]), right(list), 'nines, right');
+      within1px(endOf(nines[2]), endOf(list), 'nines, right');
     });
   });
 }
@@ -1763,7 +1764,7 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       await expect(home).toHaveCount(1);
       await expect(home).toBeVisible();
       await expect(home).toHaveText('carpenta.github.io');
-      await atRest(page);
+      await settled(page);
       const box = (await home.boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(44);
       expect(Math.min(box.x, box.y)).toBeGreaterThanOrEqual(0);
@@ -1771,8 +1772,8 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       expect(box.y + box.height).toBeLessThanOrEqual(height);
       expect(await sideScroll(page)).toBe(0);
       // It sits on the title's baseline, its right edge on the header's inner edge, where 취소 goes in the other modes.
-      near(await baseline(page, '#picker a[href="../../"]'), await baseline(page, '#picker-title'), 'baseline');
-      near(right(box), right(await rect(page, '.pk-search')), 'right edge');
+      within1px(await baselineOf(page, '#picker a[href="../../"]'), await baselineOf(page, '#picker-title'), 'baseline');
+      within1px(endOf(box), endOf(await spanOf(page, '.pk-search')), 'right edge');
       const size = await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(13);
       // From the menu's 새 라운드 the picker has 취소 back to the app (and its tab bar's 홈) in that place instead.
@@ -1782,8 +1783,8 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       await page.locator('#new-round').tap();
       await expect(page.locator('#picker')).toBeVisible();
       await expect(home).toBeHidden();
-      await atRest(page);
-      near(right(await rect(page, '#picker-cancel')), right(await rect(page, '.pk-search')), '취소 right edge');
+      await settled(page);
+      within1px(endOf(await spanOf(page, '#picker-cancel')), endOf(await spanOf(page, '.pk-search')), '취소 right edge');
     });
   });
 }
