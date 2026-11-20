@@ -334,6 +334,9 @@ svg { display: block; }
 .club-lbl.tagged .lbl-dot { opacity: 1; }
 /* A column narrower than the capsule keeps the name whole: the icon steps aside and the name is 13px; the chevron stays. */
 @container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: 13px; } }
+/* 상세's four columns (v28: 68px at 360, 72 at 375, 76 at 390): the name alone, centred in a chip as wide as its capsule,
+   so the four chips line up with the four capsules; the chevron steps aside too ("어프로치" would not fit beside it). */
+@container (max-width: 80px) { .lbl-in { width: 100%; justify-content: center; padding: 0 4px; } .lbl-chev { display: none; } }
 .pill {
   position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
   display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: 999px;
@@ -358,6 +361,9 @@ svg { display: block; }
 .cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: 13px; font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
 .plus .cue { top: var(--glyph-inset); color: var(--turf); animation: cue-up .6s ease-out both; }
 .minus .cue { bottom: var(--glyph-inset); color: var(--muted); animation: cue-down .6s ease-out both; }
+/* 상세's narrower capsules (v28): beside the glyph's middle, where the capsule is still wide enough to show it whole. */
+#entry[data-mode='detail'] .plus .cue { top: calc(var(--glyph-inset) + var(--glyph) / 2 - 6.5px); }
+#entry[data-mode='detail'] .minus .cue { bottom: calc(var(--glyph-inset) + var(--glyph) / 2 - 6.5px); }
 @keyframes cue-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cue-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
 /* The midline, with the count on it: a hairline either side of the digits, so the number reads as the value. */
@@ -371,6 +377,32 @@ svg { display: block; }
 .count.zero { color: var(--quiet); }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
+/* A hole entered in 기본, seen in 상세 (v28): 세컨 shows the whole count and 어프로치 says 기본에서 기록, quietly and in
+   place of its 0, until either is first changed (that records the split). Two short lines fit between the glyphs. */
+.from-basic { display: none; font-size: 13px; font-weight: var(--w-label); line-height: 15px; color: var(--muted); text-align: center; white-space: nowrap; }
+.club-short.unsplit .from-basic { display: block; }
+.club-short.unsplit .count { display: none; }
+.club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
+
+/* 상세's one-time tip (v28): what 세컨 and 어프로치 are, over the four capsules' middle where the counts sit, so it never
+   moves the card (375×553 has no row to spare). Dark like the coach mark, but opaque (design critique: the 94% glass let
+   기본에서 기록 show through its words): each term in sunlit green, what it means in white, an × at the right; a tap
+   anywhere on it puts it away. Centred with `translate`, so its rise can use transform. */
+.clubs { position: relative; }
+.split-tip {
+  position: absolute; z-index: 3; left: 0; right: 0; top: calc(var(--lbl-h) + var(--pill-h) / 2); translate: 0 -50%;
+  display: flex; align-items: center; gap: 4px; padding: 7px 2px 7px 14px; border-radius: 22px;
+  background: var(--deep); color: var(--on-dark); box-shadow: 0 6px 16px var(--sh-3); cursor: pointer;
+  animation: fn-rise .16s ease-out;
+}
+.st-defs { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 2px; margin: 0; }
+.st-defs > div { display: contents; }
+.st-defs dt { font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--sun); white-space: nowrap; }
+.st-defs dd { margin: 0; font-size: 13px; font-weight: var(--w-help); line-height: 18px; color: var(--on-dark); text-wrap: pretty; }
+.st-close { flex: none; position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--on-dark); }
+.st-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
+.st-close:active { background: var(--press-on-dark); }
+@media (prefers-reduced-motion: reduce) { .split-tip { animation: none; } }
 
 /* 상세: the capsules shrink, then one tee line, one row of five directions and the penalty line. */
 #entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --count: 24px; --pill-fixed: 140px; --pen: 48px; }
@@ -407,10 +439,19 @@ svg { display: block; }
 .pens .pen[data-pen='ob'] { grid-column: 1; }
 .pens .pen[data-pen='bunker'], .pens .undo { grid-column: 2; }
 .pens .pen[data-pen='hazard'] { grid-column: 3; }
-#entry:not([data-mode='detail']) #stake-bunker, #entry[data-mode='detail'] #pen-undo { display: none; }
+#entry:not([data-mode='detail']) #stake-bunker { display: none; }
 .pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .pen[data-pen='bunker'] .pen-icon { color: var(--ink); }
-#entry[data-mode='detail'] .pen { width: 72px; gap: 2px; }
+/* 상세 (v28): four capsules on one grid, 드라이버 (티샷 on a par 3) · 세컨 · 어프로치 · 퍼터, 8px apart (the pad's and
+   the tee chips' gap), and the penalty row on the same four columns: OB under 드라이버, 빼기 under 세컨 while there is a
+   penalty to take off (as in 기본, under the middle), 벙커 under 어프로치 and 해저드 under 퍼터. */
+#entry[data-mode='detail'] .clubs, #entry[data-mode='detail'] .pens { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 8px; }
+#entry[data-mode='detail'] .club[data-only='basic'], #entry:not([data-mode='detail']) .club[data-only='detail'] { display: none; }
+#entry[data-mode='detail'] .pens .undo { grid-column: 2; }
+#entry[data-mode='detail'] .pens .pen[data-pen='bunker'] { grid-column: 3; }
+#entry[data-mode='detail'] .pens .pen[data-pen='hazard'] { grid-column: 4; }
+#entry[data-mode='detail'] .pen { width: 100%; max-width: 72px; gap: 2px; }
+#entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; }
 .pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
 .pen:active:not(:disabled) .pen-icon { background: var(--press); }
 .pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
@@ -568,6 +609,11 @@ body.big .legend { --lg-col: 100px; }
 .lost-bars .bar i { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
 .lost-bars li.worst .bar i { background: var(--sand); }
 .lost-bars .v { text-align: right; font-weight: var(--w-value); }
+/* 그린까지's two parts over the holes split in 상세 (v28): indented under it in the quiet ink, on the same columns, their
+   fill the lighter fairway, and one line under the chart says which holes they count. */
+.lost-bars li.part > span:first-child { padding-left: 12px; color: var(--muted); }
+.lost-bars li.part .bar i { background: var(--fairway); }
+.lost-split, .split-note { margin-top: 8px; font-size: 13px; text-wrap: pretty; }
 
 .muted { color: var(--muted); }
 .small { font-size: 13px; margin-bottom: 8px; }
@@ -753,15 +799,19 @@ html.past-open { overflow: hidden; }
   #entry[data-mode='detail'] .hole-u { font-size: 15px; }
   #entry[data-mode='detail'] .sheet { padding-top: 2px; padding-bottom: 6px; }
   #entry[data-mode='detail'] .pens { margin-top: 8px; }
-  /* One width for the three, each centred on its column (v15). */
-  #entry[data-mode='detail'] .pen { width: 100%; height: 48px; flex-direction: row; justify-content: center; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint); }
+  /* One width for all, each its column's (v15; four columns since v28): a 48px tile with the stake over its name, so
+     "해저드" fits a 72px column. 16px corners: the card's 32 less its 16px padding. 빼기 is the same tile in white. */
+  #entry[data-mode='detail'] .pen, #entry[data-mode='detail'] .undo {
+    width: 100%; max-width: none; height: 48px; margin: 0; flex-direction: column; justify-content: center; gap: 0; padding: 0 4px; border-radius: 16px; background: var(--tint);
+  }
+  #entry[data-mode='detail'] .undo { background: var(--white); box-shadow: var(--lift); }
+  #entry[data-mode='detail'] .undo:active { background: var(--press); }
   #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
-  #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon { width: 30px; height: 40px; background: transparent; box-shadow: none; }
-  #entry[data-mode='detail'] .pen-icon svg { transform: scale(.82); }
+  #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon, #entry[data-mode='detail'] .undo .u-ico { width: 100%; height: 24px; background: transparent; box-shadow: none; }
+  #entry[data-mode='detail'] .pen-icon svg { transform: scale(.72); }
+  #entry[data-mode='detail'] .undo .u-ico svg { width: 20px; height: 20px; }
   #entry[data-mode='detail'] .pen-icon { position: static; }
   #entry[data-mode='detail'] .pen-count { top: -6px; right: -6px; }
-  #entry[data-mode='detail'] .undo { width: 48px; margin: 0; }
-  #entry[data-mode='detail'] .undo > span:last-child { display: none; }
 }
 /* 600–650px tall (360×640): bigger counts would crowd the + and −. */
 @media (min-height: 600px) and (max-height: 650px) {
@@ -1363,6 +1413,9 @@ body.big .info-chip { font-size: 15px; }
 .sp-club, .sp-shot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-club { font-size: 17px; font-weight: var(--w-label); line-height: 22px; }
 .sp-shot { font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
+/* 세컨's and 어프로치's panels say what they are under their name (v28), in helper text. */
+.sp-help { font-size: 13px; font-weight: var(--w-help); line-height: 18px; color: var(--muted); text-wrap: pretty; }
+body.big .sp-help { font-size: 15px; line-height: 20px; }
 .sp-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
 .sp-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sp-close:active { background: var(--pill); }

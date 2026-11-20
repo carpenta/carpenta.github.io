@@ -10,7 +10,7 @@ import mail from '../vendor/tabler/mail.svg?raw';
 import minus from '../vendor/tabler/minus.svg?raw';
 import plus from '../vendor/tabler/plus.svg?raw';
 import share from '../vendor/tabler/share-2.svg?raw';
-import type { Tagged } from './round';
+import type { Part, Tagged } from './round';
 import { tablerInner } from './tabler';
 
 /**
@@ -48,8 +48,9 @@ export function icon(name: IconName, size = 24, cls = '', line = size < 16 ? 2.6
   return `<svg${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${line}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`;
 }
 
-/** Each club's icon on the card: beside its name, and beside its count where the names step aside. */
-export const CLUB_ICONS: Record<Tagged, string> = { driver: icon('driver'), approach: icon('approach'), putts: icon('putter') };
+/** Each club's icon on the card: beside its name, and beside its count where the names step aside. 상세's 세컨 and
+ * 어프로치 (v28) are both iron shots of the middle count, and wear its iron. */
+export const CLUB_ICONS: Record<Tagged | Part, string> = { driver: icon('driver'), approach: icon('approach'), second: icon('approach'), short: icon('approach'), putts: icon('putter') };
 
 /** The penalty row: the OB stake (white, dark band) and the hazard stake (red) stay filled; the bunker is a line icon. */
 export const PEN_ICONS = {

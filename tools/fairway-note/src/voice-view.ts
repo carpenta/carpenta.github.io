@@ -14,8 +14,11 @@ import { $, setText } from './dom';
 export interface VoicePage {
   /** Holes in the round, 18 or 9, for "7번 홀". */
   holes: () => number;
-  /** The clubs' names on the card, for the placeholder and the example (아이언 since v20). */
-  names: () => { driver: string; approach: string; putts: string };
+  /**
+   * The clubs' names on the card, for the placeholder and the example; `middle` is what the example says between the
+   * drive and the putts: "그린까지 둘" in 기본, "세컨 하나 어프로치 하나" in 상세 (v28).
+   */
+  names: () => { driver: string; middle: string; putts: string };
   /**
    * Applies the commands through the taps' own functions and returns null, or returns why it changed nothing.
    * It calls `close` just before it changes anything, so the sheet is out of the way of what changes.
@@ -83,7 +86,7 @@ export function bindVoice(page: VoicePage): void {
   open.addEventListener('click', () => {
     const name = page.names();
     line.placeholder = `${name.driver} 하나 ${name.putts} 둘`;
-    setText($('vc-example'), `예: ${name.driver} 하나 ${name.approach} 둘 ${name.putts} 둘 다음 홀`);
+    setText($('vc-example'), `예: ${name.driver} 하나 ${name.middle} ${name.putts} 둘 다음 홀`);
     line.value = '';
     say(null);
     used = false;

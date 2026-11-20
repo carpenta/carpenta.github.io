@@ -31,10 +31,14 @@ export function hasRecord(round: Round): boolean {
   return round.holes.some((h) => played(h) || h.mulligan > 0);
 }
 
-/** The same round however it was saved: its date and every hole's par, counts and tags, in a fixed order. */
+/**
+ * The same round however it was saved: its date and every hole's par, counts and tags, in a fixed order. A hole's
+ * split (v28) comes last and only where it is known, so a round without one prints as it did before.
+ */
 export function fingerprint(round: Round): string {
   const holes = round.holes.map((h) =>
-    [h.par, ...COUNTERS.map((k) => h[k] ?? 0), ...TAGGED.map((k) => (h.tags?.[k] ?? []).map((t) => t ?? '-').join(',')), h.obByTag ?? 0].join(':'));
+    [h.par, ...COUNTERS.map((k) => h[k] ?? 0), ...TAGGED.map((k) => (h.tags?.[k] ?? []).map((t) => t ?? '-').join(',')), h.obByTag ?? 0,
+      ...(h.short === undefined ? [] : [`s${h.short}`])].join(':'));
   return `${round.date}|${holes.join(';')}`;
 }
 

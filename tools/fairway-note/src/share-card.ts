@@ -67,7 +67,8 @@ export interface ScorecardNine {
 }
 
 export interface CardStat {
-  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best';
+  /** updown (v28): only on a round with an 어프로치 recorded in 상세, the last of the row. */
+  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best' | 'updown';
   label: string;
   value: string;
   sub: string;
@@ -162,6 +163,10 @@ export function shareCardContent(round: Round): ShareCardContent {
       { key: 'fairway', label: '페어웨이', value: drives ? `${hit}/${drives}` : '–', sub: drives ? `${pct(hit, drives)}%` : '기록 없음' },
       { key: 'penalty', label: '벌타', value: `OB ${t.ob}`, sub: `해저드 ${t.hazard}` },
       { key: 'best', label: '베스트 홀', value: a.best && best ? `${a.best.hole}번 홀` : '–', sub: a.best && best ? scoreWord(strokes(best), best.par) : '' },
+      // 업앤다운 (v28): one 어프로치 then one putt or none, out of the split holes with an 어프로치.
+      ...(a.split.upDown.chances
+        ? [{ key: 'updown' as const, label: '업앤다운', value: `${a.split.upDown.made}/${a.split.upDown.chances}`, sub: `${pct(a.split.upDown.made, a.split.upDown.chances)}%` }]
+        : []),
     ],
   };
 }
