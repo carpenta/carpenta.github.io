@@ -376,6 +376,17 @@
     </dialog>
     <p class="sr-only" id="lp-hint">숫자를 길게 누르면 0부터 5 이상까지 바로 고를 수 있어요</p>
 
+    <!-- 클럽 상세 (v17): a tap on a club's number opens that club's detail chips for this hole (src/shot-panel.ts) -->
+    <dialog id="shot-panel" class="shot-panel" aria-labelledby="sp-club sp-shot" tabindex="-1">
+      <div class="sp-head">
+        <span class="sp-ico" id="sp-ico" aria-hidden="true"></span>
+        <h2 class="sp-title"><span class="sp-club" id="sp-club"></span><span class="sp-shot" id="sp-shot"></span></h2>
+        <button type="button" class="sp-close" id="sp-close" aria-label="닫기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="sp-shots" id="sp-shots" role="group" aria-label="샷" hidden></div>
+      <div class="sp-chips" id="sp-chips" role="group" aria-label="세부"></div>
+    </dialog>
+
     <!-- The hole strip, opened from the hole number -->
     <dialog id="strip" class="strip" aria-labelledby="strip-title">
       <div class="strip-head"><h2 id="strip-title">홀 목록</h2><p class="strip-note" id="strip-note"></p></div>

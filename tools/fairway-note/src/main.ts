@@ -44,6 +44,7 @@ import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
+import { bindShotPanel, renderShotPanel } from './shot-panel';
 
 type Penalty = (typeof PENALTIES)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
@@ -1636,6 +1637,7 @@ function saveMessage(): { text: string; problem: boolean } {
 function render(changed?: string): void {
   const a = analyze(round);
   renderEntry(a, changed);
+  renderShotPanel();
   renderCard(a);
   renderAnalysis(a);
   renderSend(a);
@@ -1656,6 +1658,8 @@ function render(changed?: string): void {
 function bind(): void {
   bindViews();
   buildClubs();
+  // 클럽 상세 (v17): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts).
+  bindShotPanel({ hole, label: (key) => labelOf(key, hole().par), change: (patch, key) => setHole(patch, key), announce, opening: hideToast });
   buildPens();
   bindDetail();
   bindMenu();

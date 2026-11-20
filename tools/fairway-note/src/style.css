@@ -934,3 +934,75 @@ body.big .info-chip { font-size: 15px; }
 @media (prefers-reduced-motion: reduce) {
   .hole-chev, .pill.pressing .count, .sw::after { transition: none; }
 }
+
+/* ---------- 클럽 상세 (v17): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts) ----------
+   The count sits in a button now, and a quiet dot beside it says the club has details on this hole. The panel is one of
+   the small popovers (홀 안내, 숫자 고르기): white on a dim backdrop, rising 6px. shot-panel.ts sets its left and width to
+   the card's inner edges and its top under the club's pill, clear of the tab bar. Radii are concentric: 24 outside =
+   12 inside + 12 padding. 12px between the head, the shots and the chips, 8px within them. Targets are 44px to the
+   eye and 48px to the finger. Only a choice is filled: fairway for a chip, turf for the shot, sand for an OB. */
+.shot-num { position: relative; display: grid; place-items: center; border-radius: 6px; }
+/* At the digit's top right: under it, a dot reads as punctuation ("1." or "!") and crowds the − in 상세. */
+.shot-dot {
+  position: absolute; left: 100%; top: 0; width: 7px; height: 7px; margin: -4px 0 0 2px; border-radius: 50%;
+  background: var(--turf); box-shadow: 0 0 0 1.5px var(--white); opacity: 0; pointer-events: none; transition: opacity .16s ease-out;
+}
+.shot-num.tagged .shot-dot { opacity: 1; }
+.shot-panel {
+  position: fixed; inset: auto; margin: 0; width: calc(min(100vw, 480px) - 2 * var(--m) - 32px); max-width: none; max-height: calc(100dvh - 16px);
+  overflow: hidden auto; overscroll-behavior: contain; padding: 12px; border: 0; border-radius: var(--card-r, 24px);
+  background: var(--white); color: var(--ink); box-shadow: 0 12px 32px rgb(8 28 10 / .35);
+}
+.shot-panel[open] { display: grid; gap: 12px; animation: fn-rise .16s ease-out; }
+.shot-panel::backdrop { background: rgb(8 24 10 / .32); }
+.shot-panel[open]::backdrop { animation: fn-fade .16s ease-out; }
+.shot-panel:focus { outline: none; }
+/* The club's icon and name as on the card, which shot, and 닫기. */
+.sp-head { display: grid; grid-template-columns: 24px minmax(0, 1fr) 44px; column-gap: 8px; align-items: center; }
+.sp-ico, .sp-ico svg { width: 24px; height: 24px; }
+.sp-ico { color: var(--turf); }
+.sp-title { display: grid; min-width: 0; }
+.sp-club, .sp-shot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-club { font-size: 17px; font-weight: 700; line-height: 22px; }
+.sp-shot { font-size: 13px; font-weight: 600; line-height: 18px; color: var(--muted); }
+.sp-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
+.sp-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
+.sp-close:active { background: var(--pill); }
+/* Which shot the chips write, with two or more, five across at most: numbers as in the 0 … 5+ picker, the chosen one
+   turf with white, a dot on those with a detail. */
+.sp-shots { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 8px; }
+.sp-shots button {
+  position: relative; height: 44px; border-radius: 12px; background: var(--tint); color: var(--ink); font-size: 17px; font-weight: 800;
+  transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
+}
+.sp-shots button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
+.sp-shots button:active { background: var(--pill); }
+.sp-shots button[aria-pressed='true'] { background: var(--turf); color: #fff; }
+.sp-dot { position: absolute; left: calc(50% + 8px); top: calc(50% - 9px); width: 6px; height: 6px; border-radius: 50%; background: var(--turf); opacity: 0; }
+.sp-shots button[aria-pressed='true'] .sp-dot { background: #fff; }
+.sp-shots button.tagged .sp-dot { opacity: 1; }
+/* The chips: one six-column grid, three across or two across, with the same gap both ways. */
+.sp-chips { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.sp-chip {
+  position: relative; grid-column: span 2; height: 44px; min-width: 0; padding: 0 4px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  background: var(--tint); color: var(--ink); font-size: 15px; font-weight: 700; white-space: nowrap;
+  transition-property: background-color, box-shadow; transition-duration: .12s; transition-timing-function: ease-out;
+}
+.sp-chip svg { flex: none; }
+.sp-chip.half { grid-column: span 3; }
+.sp-chip::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
+.sp-chip[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
+/* An OB chip adds a penalty stroke (unless the OB is counted already): outlined in the penalty stake's sand, filled
+   with it when chosen. */
+.sp-chip.ob { box-shadow: inset 0 0 0 1.5px var(--sand); }
+.sp-chip.ob[aria-pressed='true'] { background: var(--sand); box-shadow: none; }
+.sp-chip:active { background: var(--pill); }
+body.big .sp-club { font-size: 20px; line-height: 24px; }
+body.big .sp-shot { font-size: 15px; line-height: 20px; }
+body.big .sp-chip { font-size: 17px; }
+body.big .sp-shots button { font-size: 20px; }
+@media (prefers-reduced-motion: reduce) {
+  .shot-panel[open], .shot-panel[open]::backdrop { animation: none; }
+  .shot-dot, .sp-chip, .sp-shots button { transition: none; }
+}
