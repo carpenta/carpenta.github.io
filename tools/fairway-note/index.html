@@ -334,6 +334,12 @@
       <div class="sum-hero">
         <div class="sum-ring" id="sum-ring" data-tone="over"><b id="sum-total">0</b><span>타</span></div>
         <div class="sum-hero-txt"><p class="big" id="sum-vs"></p><p id="sum-count"></p></div>
+        <!-- The image 공유 sends (v15): drawn after the sheet opens, a calm placeholder until then. A tap shares or saves
+             it as the buttons below do, so it stays out of the accessibility tree and the tab order. -->
+        <div class="sum-card" id="sum-card" aria-hidden="true" hidden>
+          <img id="sum-card-img" alt="" width="56" height="70" hidden />
+          <span class="sum-badge"><svg class="b-share" viewBox="0 0 24 24" width="14" height="14"><path d="M12 15V4M8 8l4-4 4 4M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="b-save" viewBox="0 0 24 24" width="14" height="14"><path d="M12 4v11M8 11l4 4 4-4M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
       </div>
       <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
       <dl class="sum-stats" id="sum-stats"></dl>
@@ -341,6 +347,8 @@
       <p id="sum-status" class="muted small" role="status"></p>
       <div class="sum-actions">
         <button type="button" id="sum-share" aria-label="공유"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <!-- Where the share sheet cannot take the image: save it instead -->
+        <button type="button" id="sum-save" aria-label="이미지 저장" hidden><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>
         <button type="button" class="primary" id="sum-archive">지난 라운드에 보관</button>
       </div>
