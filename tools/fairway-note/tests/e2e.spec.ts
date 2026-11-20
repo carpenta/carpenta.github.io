@@ -1743,8 +1743,11 @@ test('keeps every control within 360px in both views and both modes, with the li
   expect(await sideScroll(page)).toBe(0);
 });
 
-/** A check of one text against what is under it: `min` 4.5, or 3 for big numbers; `unders` when it sits on the drawn course. */
-type Contrast = { sel: string; min: number; unders?: string[] };
+/**
+ * A check of one text against what is under it: `min` 4.5, or 3 for big numbers; `unders` when it sits on the drawn course;
+ * `also`, layers that are not its ancestors but lie under it (a capsule's half under its count, v21), painted above them.
+ */
+type Contrast = { sel: string; min: number; unders?: string[]; also?: string[] };
 /**
  * In the page: WCAG contrast of each text on what is really under it (v19). Colours are normalised by a one-pixel
  * canvas (any CSS colour, palette mixes too) and translucent layers are painted from the outside in. With `unders`
@@ -1778,7 +1781,7 @@ function contrastIn(checks: Contrast[]) {
     const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
     return (x + 0.05) / (y + 0.05);
   };
-  return checks.map(({ sel, min, unders }) => {
+  return checks.map(({ sel, min, unders, also }) => {
     const el = document.querySelector(sel);
     if (!el) return { sel, min, size: 0, ratio: null as number | null };
     const layers: number[][] = [];
@@ -1791,6 +1794,7 @@ function contrastIn(checks: Contrast[]) {
     for (const base of bases) {
       let bg = base;
       for (const layer of layers.slice().reverse()) bg = over(layer, bg);
+      for (const layer of also ?? []) bg = over(rgba(getComputedStyle(document.querySelector(layer)!).backgroundColor), bg);
       worst = Math.min(worst, ratio(over(rgba(getComputedStyle(el).color), bg), bg));
     }
     return { sel, min, size: parseFloat(getComputedStyle(el).fontSize), ratio: worst };
@@ -1843,12 +1847,12 @@ for (const [width, height] of [[390, 844], [375, 553]]) {
         { sel: '#picker-start', min: 4.5 },
       ]);
       await page.getByRole('button', { name: '이 코스로 시작' }).tap();
-      await check('기록, 0타', [{ sel: '#count-driver', min: 3, unders: OVER_ART }]);
+      await check('기록, 0타', [{ sel: '#count-driver', min: 3, unders: OVER_ART, also: ['.club-driver .minus'] }]);
       // Four holes played (a birdie, a double and two pars) and hole 5 at par: the par badge, counts and chips over the course.
       await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 3, putts: 2 }, 2: { driver: 1, approach: 2, putts: 2 }, 3: { driver: 1, putts: 1 }, 4: { driver: 1, approach: 2, putts: 1 } }, 4);
       await atRest(page);
       await check('기록 기본', [
-        { sel: '#count-driver', min: 3, unders: OVER_ART }, { sel: '.club-lbl', min: 4.5, unders: OVER_ART }, { sel: '.pen-lbl', min: 4.5, unders: OVER_ART },
+        { sel: '#count-driver', min: 3, unders: OVER_ART, also: ['.club-driver .minus'] }, { sel: '.club-lbl', min: 4.5, unders: OVER_ART }, { sel: '.pen-lbl', min: 4.5, unders: OVER_ART },
         { sel: ".mode[aria-pressed='false']", min: 4.5, unders: OVER_ART }, { sel: ".mode[aria-pressed='true']", min: 4.5, unders: OVER_ART }, { sel: '#go-next', min: 4.5 },
         { sel: '#tab-card .tab-label', min: 4.5 }, { sel: '#tab-entry .tab-label', min: 4.5 }, { sel: '.home-link', min: 4.5 },
         { sel: '#hole-par', min: 4.5, unders: OVER_ART }, { sel: '#info-btn', min: 4.5, unders: OVER_ART }, { sel: '#prog-n', min: 4.5, unders: OVER_ART },

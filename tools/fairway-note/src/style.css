@@ -42,7 +42,11 @@
   --tab-ink: color-mix(in oklab, var(--white) 66%, var(--deep));   /* 4.5:1 on --deep */
   --tab-on: var(--sun);
   /* Layers: translucent, so they sit on whatever is under them. */
-  --pill: color-mix(in srgb, var(--fairway) 22%, transparent);     /* the stepper pill */
+  --pill: color-mix(in srgb, var(--fairway) 22%, transparent);     /* tinted cells (the scorecard's hole numbers) and some pressed states */
+  --half-up: color-mix(in srgb, var(--fairway) 12%, transparent);  /* a capsule's top half: the lighter tone (v21) */
+  --half-down: color-mix(in srgb, var(--fairway) 30%, transparent); /* its bottom half: a shade deeper */
+  --half-press: color-mix(in srgb, var(--fairway) 52%, transparent); /* the half that was hit, filled */
+  --half-rest: color-mix(in srgb, var(--fairway) 14%, transparent); /* the bottom half at 0 */
   --tint: color-mix(in srgb, var(--fairway) 11%, transparent);     /* resting fill: pad, penalty icons, toggle, buttons */
   --press: color-mix(in srgb, var(--fairway) 24%, transparent);
   --select: color-mix(in srgb, var(--fairway) 46%, transparent);   /* a chosen chip, mode or direction */
@@ -301,19 +305,22 @@ svg { display: block; }
 @container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: 13px; } }
 .pill {
   position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
-  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: 999px; background: var(--pill);
+  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: 999px;
 }
 /* A half: a button from the capsule's end to its midline, its round glyph at the outer end; pressed, the whole half tints. */
 .step { position: relative; display: grid; justify-items: center; width: 100%; min-height: 0; transition: background-color .12s ease-out; }
-.step.plus { align-items: start; padding-top: var(--glyph-inset); }
-.step.minus { align-items: end; padding-bottom: var(--glyph-inset); }
+/* Two tones, so the split reads at a glance (v21): the top half lighter, the bottom a shade deeper, both translucent
+   over the card; the half that was hit fills, and at 0 the bottom half rests light. */
+.step.plus { align-items: start; padding-top: var(--glyph-inset); background: var(--half-up); }
+.step.minus { align-items: end; padding-bottom: var(--glyph-inset); background: var(--half-down); }
+.step.minus:disabled { background: var(--half-rest); }
 .step:focus-visible { outline: 3px solid var(--sand); outline-offset: -3px; }
 .step span {
   width: var(--glyph); height: var(--glyph); border-radius: 50%; background: var(--white); color: var(--ink);
   display: grid; place-items: center; box-shadow: var(--lift); transition: transform .12s ease-out;
 }
 .step span svg { width: 56%; height: 56%; }
-.step:active:not(:disabled) { background: var(--press); }
+.step:active:not(:disabled) { background: var(--half-press); }
 .step:active:not(:disabled) span { box-shadow: 0 1px 2px var(--sh-2); transform: scale(.94); }
 .step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
 /* +1 or −1 beside the glyph for a moment after a tap, drifting outward (main.ts shows and hides it). */
