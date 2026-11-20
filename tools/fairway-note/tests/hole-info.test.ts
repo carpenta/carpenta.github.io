@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { COURSES, distanceLabel, holeInfo, publishedPar, type Course } from '../src/courses';
 import { courseShape, courseSvg, holeThumb, layoutBend, layoutIsland, type CourseFrame } from '../src/course-art';
@@ -178,8 +179,12 @@ describe('drawn course behind the screen', () => {
     const s = courseShape(4, 0, frame, 0);
     const svg = courseSvg(s, frame);
     expect(svg).toContain(`<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${(s.angle + 90).toFixed(1)})">`);
-    expect(svg).toMatch(/fill="url\(#course-gmow\)" opacity="\.07"/);
+    expect(svg).toMatch(/patternTransform="rotate\([^)]*\)"><rect class="a-green-stripe" width="7" height="14"\/><\/pattern>/);
+    expect(svg).toMatch(/fill="url\(#course-gmow\)"\/>/);
     expect(svg).not.toContain('stroke-opacity=".12"');
+    // Faint: the band is white at a few percent (the palette in style.css, v19).
+    const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+    expect(Number(/--art-green-stripe: color-mix\(in srgb, var\(--white\) (\d+)%, transparent\)/.exec(css)![1])).toBeLessThanOrEqual(10);
   });
 
   it('tucks the tee box behind 다음 홀 when told where the button is, so none of it peeks out below', () => {
@@ -238,10 +243,21 @@ describe('drawn course behind the screen', () => {
 
   it('draws the rough with grain, a vignette and a header shade, the fairway with its edge and first cut, and a bevelled tee', () => {
     const svg = courseSvg(courseShape(4, 0, frame, 0), frame);
-    for (const id of ['course-rough', 'course-grain', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
-    expect(svg).toContain('stroke="#386A2B" stroke-width="20"');
-    expect(svg).toContain('stroke="#549F47" stroke-width="10"');
-    expect(svg.match(/<circle [^>]*r="4.2" fill="#FFFFFF"/g)).toHaveLength(2);
+    for (const id of ['course-rough', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
+    // The grain is the page's noise tile (v22, src/grain.ts), which the drawing points at.
+    expect(svg).toContain('fill="url(#course-grain)"');
+    expect(svg).toMatch(/class="a-edge"[^>]* stroke-width="20"/);
+    expect(svg).toMatch(/class="a-cut"[^>]* stroke-width="10"/);
+    expect(svg.match(/<circle [^>]*r="4.2" class="a-pole-fill"/g)).toHaveLength(2);
+  });
+
+  it('takes every colour from the palette in style.css: no colour in the markup (v19)', () => {
+    for (const water of [false, true]) {
+      const svg = courseSvg(courseShape(4, 6, frame, 0, water), frame);
+      expect(svg).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
+      expect(svg).not.toMatch(/(fill|stroke|stop-color)="(?!none"|url\(|white")/);
+    }
+    for (const par of [3, 4, 5] as const) expect(holeThumb(par, 1, true)).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|(fill|stroke)="(?!none")/);
   });
 
   it('draws decorative markup from numbers only', () => {

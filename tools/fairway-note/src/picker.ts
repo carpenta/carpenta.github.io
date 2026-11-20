@@ -1,5 +1,4 @@
 import { AREAS, CUSTOM_NAME, MAX_CUSTOM_NAME, defaultNines, findCourse, resolveChoice, roundSetup, searchCourses, type Course } from './courses';
-import { roundLabel } from './round';
 import type { CourseChoice } from './storage';
 
 type Children = (Node | string | null | false)[];
@@ -58,6 +57,9 @@ export function openPicker(options: PickerOptions): void {
   onCancel = options.onCancel;
   choice = withHoles(resolveChoice(options.initial), options.holes ?? (options.initial?.holes === 9 ? 9 : 18));
   $('picker-len').hidden = options.holes !== undefined;
+  // Where the round's holes are fixed, the count stands in the toggle's place (v23: the name above no longer says it).
+  $('picker-holes').hidden = options.holes === undefined;
+  $('picker-holes').textContent = options.holes ? `${options.holes}홀` : '';
   area = null;
   $<HTMLInputElement>('picker-search').value = '';
   $('picker-cancel').hidden = mode === 'first';
@@ -73,7 +75,10 @@ export function openPicker(options: PickerOptions): void {
   // The dialog itself takes focus: not the search box, so the keyboard does not pop up, and not 이 코스로 시작,
   // which would show a focus ring nobody asked for. Tab goes on to the controls.
   dialog().focus();
-  $('picker-list').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'center' });
+  // The chosen course's row at the list's top (v23), never half a row; the list is its rows' offset parent.
+  const list = $('picker-list');
+  const chosen = list.querySelector<HTMLElement>('[aria-pressed="true"]')?.closest('li');
+  if (chosen) list.scrollTop = chosen.offsetTop;
 }
 
 /** The choice for 18 holes (no field) or one nine (`holes: 9`). */
@@ -164,7 +169,7 @@ function renderList(): void {
   const found = searchCourses($<HTMLInputElement>('picker-search').value, area);
   $('picker-list').replaceChildren(
     ...found.map(courseItem),
-    found.length ? '' : h('li', { class: 'empty muted' }, '찾는 골프장이 없습니다. 직접 입력으로 시작하세요.'),
+    found.length ? '' : h('li', { class: 'empty muted' }, '찾는 골프장이 없어요. 직접 입력으로 시작하세요.'),
     h('li', {}, h('button', { type: 'button', class: 'course custom', 'data-course': CUSTOM, 'aria-pressed': String(choice.course === null) },
       h('b', {}, CUSTOM_NAME),
       h('span', {}, '목록에 없는 골프장, Par 4로 시작해 홀마다 바꿔요'),
@@ -189,7 +194,7 @@ function renderChosen(): void {
   if (!course) {
     const input = h('input', { id: 'picker-name', type: 'text', maxlength: String(MAX_CUSTOM_NAME), placeholder: '골프장 이름', autocomplete: 'off', 'aria-label': '골프장 이름' });
     input.value = choice.name ?? '';
-    box.replaceChildren(input, h('p', { class: 'muted small' }, 'Par는 모두 4로 시작합니다. 홀마다 3·4·5로 바꿀 수 있습니다.'));
+    box.replaceChildren(input, h('p', { class: 'muted small' }, 'Par는 모두 4로 시작해요. 홀마다 3, 4, 5로 바꿀 수 있어요.'));
   } else {
     const setup = roundSetup(choice);
     const par = setup.pars.reduce((s, p) => s + p, 0);
@@ -210,14 +215,13 @@ function renderChosen(): void {
         source,
       );
     } else {
-      box.replaceChildren(h('div', { class: 'nine-row' }, h('span', { class: 'nine-fixed' }, `${setup.course.front} 9홀을 두 번 돕니다`)), source);
+      box.replaceChildren(h('div', { class: 'nine-row' }, h('span', { class: 'nine-fixed' }, `${setup.course.front} 9홀을 두 번 돌아요`)), source);
     }
   }
   setStartText();
 }
 
-/** The chosen course as it will show under the title, "… 9홀" for one nine. */
+/** The chosen course's name, or the typed one (v23): its nines are the rows right under it, 18 or 9 the toggle beside it. */
 function setStartText(): void {
-  const setup = roundSetup(choice);
-  $('picker-label').textContent = roundLabel({ course: setup.course, holes: setup.pars });
+  $('picker-label').textContent = roundSetup(choice).course.name;
 }

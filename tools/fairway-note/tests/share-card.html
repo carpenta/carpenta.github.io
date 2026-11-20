@@ -5,6 +5,8 @@
     <!-- Test-only page for tests/share-card.spec.ts, served by the Vite dev server; the build does not include it. Same CSP as index.html. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <title>Fairway Note share card test</title>
+    <!-- The app's palette: the card is drawn in its tokens. -->
+    <link rel="stylesheet" href="../src/style.css" />
     <script type="module" src="./share-card-page.ts"></script>
   </head>
   <body></body>

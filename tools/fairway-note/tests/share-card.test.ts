@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { analyze, newRound, type Hole, type Round } from '../src/round';
-import { SHARE_CARD_SIZE, markShapes, shareCardContent, shareCardFileName, shareCardLayout, type DrawOp, type TextOp } from '../src/share-card';
+import { SHARE_CARD_SIZE, SHARE_WEIGHTS, markShapes, shareCardContent, shareCardFileName, shareCardLayout, useSharePalette, type DrawOp, type TextOp } from '../src/share-card';
+
+// The app reads its palette from style.css when it draws; these tests draw in a fixed set of colours.
+useSharePalette({
+  turf: '#2F7D3A', putting: '#8CCB6E', ink: '#17301A', deep: '#16301D', paper: '#F3F7EF', red: '#C0392B', sand: '#D9B45A',
+  white: '#FFFFFF', pill: '#DCEBD5', muted: '#4E6450', line: '#D3E2CC', quiet: '#6E856C', sandTint: '#F7EBC9',
+  sandLine: '#E6CF8F', sandBand: '#EFD9A0', tabInk: '#A9C4A3', mark: '#DCE5D8',
+});
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
 const tee = (h: Hole, tag: 'fairway' | 'left' | 'right' | 'far-right'): Hole => ({ ...h, tags: { driver: [tag] } });
@@ -295,6 +303,17 @@ describe('share card layout', () => {
     const course = text(wide.ops, 'course');
     expect(course.width).toBeLessThanOrEqual(course.maxWidth);
     expect(course.width).toBe(course.text.length * course.size * 2);
+  });
+
+  it('draws every word in a face the app bundles, 600 or 800, so no weight is matched to a heavier face (v25)', () => {
+    const faces = [...readFileSync(new URL('../src/fonts.css', import.meta.url), 'utf8').matchAll(/font-weight:\s*(\d{3})/g)].map((m) => Number(m[1]));
+    expect([...SHARE_WEIGHTS].sort()).toEqual([600, 800]);
+    for (const weight of SHARE_WEIGHTS) expect(faces).toContain(weight);
+    // A whole round, one with unfinished holes (their dashes) and an empty one.
+    for (const round of [fullRound(), partRound(0, 9), newRound(new Date(2026, 10, 19))]) {
+      const weights = flat(shareCardLayout(round).ops).filter((op): op is TextOp => op.kind === 'text').map((op) => op.weight as number);
+      expect([...new Set(weights)].filter((weight) => !SHARE_WEIGHTS.includes(weight as never))).toEqual([]);
+    }
   });
 });
 

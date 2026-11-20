@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SHOT_TAGS, TAG_LABELS, analyze, bump, emptyHole, newRound, setTag, setTeeTag, strokes, tagAt, teeTag, type Hole, type Round } from '../src/round';
-import { detailLines, reportText } from '../src/report';
+import { analysisText, detailLines, reportText, roundCsv } from '../src/report';
 import { CORRUPT_PREFIX, STORAGE_KEY, loadRound, parseRound, preserveUnreadable, saveRound } from '../src/storage';
 
 function memory() {
@@ -218,7 +218,18 @@ describe('detail analysis', () => {
     r.current = 1;
     const lines = detailLines(analyze(r));
     expect(lines).toContain('티샷: 헛스윙 1');
-    expect(lines).toContain('어프로치: 벙커 1 · 헛스윙 1');
+    expect(lines).toContain('아이언: 벙커 1 · 헛스윙 1');
     expect(lines).toContain('헛스윙 2번이 타수에 들어갔습니다.');
+  });
+
+  it('shows a round saved before the rename under 아이언: the stored key and its tags stay `approach` (v20)', () => {
+    const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
+    holes[0] = { ...holes[0], driver: 1, approach: 2, putts: 1, tags: { approach: ['hazard', 'short'] } } as typeof holes[0];
+    const round = parseRound(JSON.stringify({ version: 1, date: '2026-11-19', current: 1, holes }))!;
+    expect(round.holes[0]).toMatchObject({ approach: 2, tags: { approach: ['hazard', 'short'] } });
+    const text = [...detailLines(analyze(round)), reportText(round), analysisText(round), roundCsv(round)].join('\n');
+    expect(text).toContain('아이언: 짧음 1 · 해저드 1');
+    expect(text).toContain('드라이버,아이언,퍼트');
+    expect(text).not.toContain('어프로치');
   });
 });

@@ -296,7 +296,7 @@ export function scoreName(toPar: number): ScoreName {
 }
 
 export type Area = 'driver' | 'approach' | 'putts' | 'penalty';
-export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '어프로치', putts: '퍼트', penalty: '벌타' };
+export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '아이언', putts: '퍼트', penalty: '벌타' };
 
 export interface Analysis {
   totals: Totals;

@@ -18,6 +18,7 @@ import {
   type Trends,
 } from './history';
 import { h, setText } from './dom';
+import { createRoundShare, dressRoundButtons, type RoundShare } from './share-round';
 
 /** What the page lends the past rounds and backup views. */
 export interface Page {
@@ -27,11 +28,9 @@ export interface Page {
   replace(next: Round): void;
   /** Scorecard tables and the total line, without links to holes. */
   scorecard(round: Round, a: Analysis): (Node | string)[];
-  analysis(a: Analysis): (Node | string)[];
-  /** Shares a round's report or copies it, writing the outcome into `status`. */
+  analysis(a: Analysis, round: Round): (Node | string)[];
+  /** Shares a round's report as text or copies it, writing the outcome into `status`. */
   share(round: Round, status: HTMLElement): Promise<void>;
-  /** The share button's label, or null when the browser can neither share nor copy. */
-  shareLabel: string | null;
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -48,7 +47,7 @@ let view: { list: HTMLOListElement; trends: HTMLElement; note: HTMLElement; empt
 function emptyState(): HTMLElement {
   const box = h('div', { id: 'history-empty', class: 'hist-empty' });
   // Static markup: a flag on a little green, drawn from numbers only.
-  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse cx="32" cy="40" rx="24" ry="6" fill="#8FCC71"/><ellipse cx="34" cy="39" rx="3" ry="1.4" fill="#17301A"/><path d="M34 39V8" stroke="#6E856C" stroke-width="2" stroke-linecap="round"/><path d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z" fill="#D2402F"/></svg>';
+  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse class="a-green-fill" cx="32" cy="40" rx="24" ry="6" stroke="none"/><ellipse class="a-cup" cx="34" cy="39" rx="3" ry="1.4"/><path class="a-pole-quiet" d="M34 39V8" stroke-width="2" stroke-linecap="round"/><path class="a-flag" d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z"/></svg>';
   box.append(h('p', { class: 'he-1' }, '아직 보관한 라운드가 없어요'), h('p', { class: 'he-2' }, '라운드를 마치고 "지난 라운드에 보관"을 누르면 여기에 쌓여요.'));
   return box;
 }
@@ -60,8 +59,9 @@ let sheet: {
   scorecard: HTMLElement;
   analysis: HTMLElement;
   email: HTMLAnchorElement;
-  share: HTMLButtonElement;
   status: HTMLElement;
+  /** 공유 and 이미지 저장 with the round's image, as in the summary (v23). */
+  sharing: RoundShare;
 } | null = null;
 /** The past round open in the dialog. */
 let shown: Entry | null = null;
@@ -134,16 +134,17 @@ function renderTrends(box: HTMLElement, t: Trends): void {
     box.replaceChildren();
     return;
   }
-  const items: [string, string][] = [['라운드', t.full === t.rounds ? `${t.rounds}회` : `${t.rounds}회 (18홀 ${t.full}회)`]];
+  // One value per tile, its qualifier small beside it, as in the summary (v23).
+  const items: [string, string, string][] = [['라운드', `${t.rounds}회`, t.full === t.rounds ? '' : `18홀 ${t.full}회`]];
   if (t.all) {
-    items.push(['평균 타수', `${one(t.all.strokes)} (${averageToPar(t.all.toPar)})`]);
-    if (t.recent) items.push([`최근 ${t.recent.rounds}라운드`, `${one(t.recent.strokes)} (${averageToPar(t.recent.toPar)})`]);
-    items.push(['라운드당 퍼트', `${one(t.all.putts)}개`], ['그린 적중', `${Math.round(t.all.gir)}%`], ['라운드당 OB', `${one(t.all.ob)}회`]);
+    items.push(['평균 타수', one(t.all.strokes), averageToPar(t.all.toPar)]);
+    if (t.recent) items.push([`최근 ${t.recent.rounds}라운드`, one(t.recent.strokes), averageToPar(t.recent.toPar)]);
+    items.push(['라운드당 퍼트', `${one(t.all.putts)}개`, ''], ['그린 적중', `${Math.round(t.all.gir)}%`, ''], ['라운드당 OB', `${one(t.all.ob)}회`, '']);
   }
   const note = !t.all
-    ? '18홀을 모두 끝낸 라운드가 생기면 평균이 나옵니다.'
-    : t.full < t.rounds ? '평균은 18홀을 모두 끝낸 라운드로 냅니다.' : '';
-  box.replaceChildren(h('dl', { class: 'metrics' }, ...items.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v)))));
+    ? '18홀을 모두 끝낸 라운드가 생기면 평균이 나와요.'
+    : t.full < t.rounds ? '평균은 18홀을 모두 끝낸 라운드로 내요.' : '';
+  box.replaceChildren(h('dl', { class: 'metrics' }, ...items.map(([k, v, small]) => h('div', {}, h('dt', {}, k), h('dd', {}, v, small ? h('small', {}, small) : null)))));
   if (t.series.length >= 2) box.append(sparkline(t.series));
   if (note) box.append(h('p', { class: 'muted small trend-note' }, note));
 }
@@ -155,9 +156,9 @@ function render(): void {
   renderTrends(view.trends, trends(entries));
   view.note.hidden = unreadable === 'none';
   setText(view.note, unreadable === 'kept'
-    ? '저장된 지난 라운드 중 읽을 수 없는 것이 있어 빼고 보여 줍니다. 원래 값은 이 기기에 따로 보관했습니다.'
+    ? '저장된 지난 라운드 중 읽을 수 없는 것이 있어 빼고 보여 줘요. 원래 값은 이 기기에 따로 보관했어요.'
     : unreadable === 'failed'
-      ? '저장된 지난 라운드 중 읽을 수 없는 것이 있습니다. 원래 값을 따로 보관할 공간이 없어 지난 라운드를 바꾸지 않습니다.'
+      ? '저장된 지난 라운드 중 읽을 수 없는 것이 있어요. 원래 값을 따로 보관할 공간이 없어 지난 라운드를 바꾸지 않아요.'
       : '');
 }
 
@@ -177,8 +178,12 @@ function buildSheet(): NonNullable<typeof sheet> {
   const close = h('button', { id: 'past-close', class: 'btn', type: 'button' }, '닫기');
   const scorecard = h('div', { id: 'past-scorecard' });
   const analysis = h('div', { id: 'past-analysis' });
-  const email = h('a', { id: 'past-email', class: 'btn primary', href: 'mailto:' }, '이메일로 보내기');
-  const share = h('button', { id: 'past-share', class: 'btn', type: 'button' });
+  // The summary's round buttons (v23): 공유 or 결과 복사, 이미지 저장 where the image cannot be shared, and email.
+  const share = h('button', { id: 'past-share', type: 'button', 'aria-label': '공유' });
+  const save = h('button', { id: 'past-save', type: 'button', 'aria-label': '이미지 저장', hidden: '' });
+  const email = h('a', { id: 'past-email', href: 'mailto:', 'aria-label': '이메일로 보내기' });
+  dressRoundButtons(share, save, email);
+  const row = h('div', { class: 'round-actions' }, share, save, email);
   const status = h('p', { id: 'past-status', class: 'muted small', role: 'status' });
   const remove = h('button', { id: 'past-delete', class: 'btn danger', type: 'button' }, '이 라운드 지우기');
   const dialog = h('dialog', { id: 'past', class: 'past', 'aria-labelledby': 'past-title' },
@@ -186,24 +191,29 @@ function buildSheet(): NonNullable<typeof sheet> {
     h('div', { class: 'past-body' },
       h('h3', {}, '스코어카드'), scorecard,
       h('h3', {}, '라운드 분석'), analysis,
-      h('div', { class: 'send-actions past-send' }, email, share),
+      row,
       status,
       remove,
     ),
   );
+  const sharing = createRoundShare({ save, status, container: dialog, row, shareText: (r) => page ? page.share(r, status) : Promise.resolve() });
   close.addEventListener('click', () => dialog.close());
   // Closed by the button, Escape, or any other close request the browser sends to a modal dialog.
   dialog.addEventListener('close', () => {
     shown = null;
+    sharing.close();
     document.documentElement.classList.remove('past-open');
   });
   remove.addEventListener('click', removeShown);
   share.addEventListener('click', () => {
-    if (shown && page) void page.share(shown.round, status);
+    if (shown) void sharing.share(shown.round);
+  });
+  save.addEventListener('click', () => {
+    if (shown) sharing.save(shown.round);
   });
   // A modal dialog sits in the top layer, so it can live at the end of the page whatever view mounts the list.
   document.body.append(dialog);
-  sheet = { dialog, title, course, scorecard, analysis, email, share, status };
+  sheet = { dialog, title, course, scorecard, analysis, email, status, sharing };
   return sheet;
 }
 
@@ -215,30 +225,30 @@ function show(e: Entry): void {
   setText(s.title, `${dateLabel(e.round.date)} 라운드`);
   setText(s.course, courseName(e.round));
   s.scorecard.replaceChildren(...page.scorecard(e.round, a));
-  s.analysis.replaceChildren(...page.analysis(a));
+  s.analysis.replaceChildren(...page.analysis(a, e.round));
   s.email.href = mailtoHref(e.round);
-  s.share.hidden = page.shareLabel === null;
-  setText(s.share, page.shareLabel ?? '');
   setText(s.status, '');
   if (!s.dialog.open) {
     s.dialog.showModal();
     document.documentElement.classList.add('past-open');
   }
   s.dialog.scrollTop = 0;
+  // The round's image is drawn after the dialog shows, so 공유 can hand it over within the tap (iPhone Safari).
+  s.sharing.open(e.round);
 }
 
 function removeShown(): void {
   const e = shown;
   if (!e || !sheet) return;
   const t = analyze(e.round).totals;
-  if (!confirm(`${dateLabel(e.round.date)} 라운드(${t.strokes}타)를 지난 라운드에서 지울까요? 백업 파일에 없으면 되돌릴 수 없습니다.`)) return;
+  if (!confirm(`${dateLabel(e.round.date)} 라운드(${t.strokes}타)를 지난 라운드에서 지울까요? 백업 파일에 없으면 되돌릴 수 없어요.`)) return;
   if (!saveHistory(withoutEntry(loadHistory(), e.id))) {
-    setText(sheet.status, '지우지 못했습니다. 이 브라우저에서는 저장할 수 없습니다.');
+    setText(sheet.status, '지우지 못했어요. 이 브라우저에서는 저장할 수 없어요.');
     return;
   }
   sheet.dialog.close();
   refreshHistory();
-  say(`${dateLabel(e.round.date)} 라운드를 지웠습니다.`);
+  say(`${dateLabel(e.round.date)} 라운드를 지웠어요.`);
 }
 
 /* ---------- for the page ---------- */
@@ -246,7 +256,7 @@ function removeShown(): void {
 /** The question before a new round replaces this one; `name` is how the question calls it (the earlier-day picker names its date). */
 export function newRoundQuestion(round: Round, name = '지금 라운드'): string {
   if (hasFinishedHole(round)) return `${name}를 지난 라운드에 보관하고 새로 시작할까요?`;
-  if (hasRecord(round)) return `끝낸 홀이 없어 지난 라운드에 보관하지 않습니다. ${name}를 지우고 새로 시작할까요?`;
+  if (hasRecord(round)) return `끝낸 홀이 없어 지난 라운드에 보관하지 않아요. ${name}를 지우고 새로 시작할까요?`;
   return `${name} 기록을 지우고 새로 시작할까요?`;
 }
 
@@ -254,11 +264,11 @@ export function newRoundQuestion(round: Round, name = '지금 라운드'): strin
 export function keepBeforeNewRound(round: Round): boolean {
   const result = archiveRound(round);
   if (result === 'failed') {
-    return confirm('지난 라운드에 보관하지 못했습니다(저장 공간이 부족하거나 이 브라우저에서는 저장할 수 없음). 그래도 새로 시작하면 지금 라운드는 지워집니다. 취소하고 "백업 파일 저장"으로 먼저 내보낼 수 있습니다.\n\n새로 시작할까요?');
+    return confirm('지난 라운드에 보관하지 못했어요(저장 공간이 부족하거나 이 브라우저에서는 저장할 수 없음). 그래도 새로 시작하면 지금 라운드는 지워져요. 취소하고 "백업 파일 저장"으로 먼저 내보낼 수 있어요.\n\n새로 시작할까요?');
   }
   if (result === 'kept') {
     refreshHistory();
-    say(`${dateLabel(round.date)} 라운드를 지난 라운드에 보관했습니다.`);
+    say(`${dateLabel(round.date)} 라운드를 지난 라운드에 보관했어요.`);
   }
   return true;
 }
