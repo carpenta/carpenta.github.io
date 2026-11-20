@@ -138,12 +138,13 @@
             <p class="sh-e2">홀마다 클럽 칸을 누르면 이 카드가 채워져요.</p>
             <button type="button" class="sh-go" id="sh-go">1번 홀 기록하기</button>
           </div>
-          <p class="edit-hint" id="edit-hint" hidden>파를 누를 때마다 3, 4, 5 순서로 바뀌어요. 다 고치면 완료를 누르세요.</p>
           <div id="scorecard"></div>
+          <!-- 파 수정's hint under the tables (v23), so the columns under the finger never move when it shows -->
+          <p class="edit-hint" id="edit-hint" hidden>홀 칸을 누를 때마다 Par가 3, 4, 5 순서로 바뀌어요. 다 고치면 완료를 누르세요.</p>
           <!-- The total in the 전반/후반 column under the subtotals, a bare number like them; its to-par just before it -->
           <div class="tot"><h3>합계</h3><span id="tot-holes">0홀</span><b class="tot-p" id="tot-topar"></b><b class="tot-n"><span id="tot-strokes">–</span><span class="sr-only" id="tot-unit"></span></b></div>
           <ul class="legend" id="legend" aria-label="기호"></ul>
-          <p id="par-source" class="par-source"></p>
+          <p id="par-source" class="par-source"><span id="card-tip">홀 칸을 누르면 그 홀 기록으로 가요. </span><span id="par-from"></span></p>
         </section>
 
         <section class="box lost" aria-labelledby="lost-title">
@@ -169,9 +170,11 @@
           <div class="sc-title"><h2>지난 라운드</h2><p id="hist-sub"></p></div>
           <span aria-hidden="true"></span>
         </header>
+        <!-- The title and the score on one baseline, then the course and "11월 20일, 5홀 기록" on lines of their own (v23) -->
         <section class="box now" aria-labelledby="now-title">
-          <div><h3 id="now-title">지금 라운드</h3><p id="now-sub" class="muted"></p></div>
+          <h3 id="now-title">지금 라운드</h3>
           <p class="big" id="now-score"></p>
+          <p id="now-sub" class="muted"><span class="now-course" id="now-course"></span><span class="now-meta" id="now-meta"></span></p>
           <button type="button" class="btn primary" id="now-continue">이어서 기록</button>
         </section>
         <!-- Filled by renderHistory(); the view can be mounted into any container. -->
@@ -344,29 +347,35 @@
 
     <dialog id="summary" class="sheet-dialog sum-sheet" aria-labelledby="sum-title">
       <div class="grab" aria-hidden="true"></div>
-      <header class="sum-head">
-        <div><h2 id="sum-title">라운드 요약</h2><p id="sum-sub"></p></div>
-        <button class="sum-close" type="button" id="sum-close" aria-label="요약 닫기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
-      </header>
-      <div class="sum-hero">
-        <div class="sum-ring" id="sum-ring" data-tone="over"><b id="sum-total">0</b><span>타</span></div>
-        <div class="sum-hero-txt"><p class="big" id="sum-vs"></p><p id="sum-count"></p></div>
-        <!-- The image 공유 sends (v16): drawn after the sheet opens, a calm placeholder until then. A tap shares or saves
-             it as the buttons below do, so it stays out of the accessibility tree and the tab order. -->
-        <div class="sum-card" id="sum-card" aria-hidden="true" hidden>
-          <img id="sum-card-img" alt="" width="56" height="70" hidden />
-          <span class="sum-badge"><svg class="b-share" viewBox="0 0 24 24" width="14" height="14"><path d="M12 15V4M8 8l4-4 4 4M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="b-save" viewBox="0 0 24 24" width="14" height="14"><path d="M12 4v11M8 11l4 4 4-4M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <!-- Everything above the round buttons (v23): it scrolls under them on a short screen, and the buttons stay put -->
+      <div class="sum-body" id="sum-body">
+        <header class="sum-head">
+          <div><h2 id="sum-title">라운드 요약</h2><p id="sum-sub"></p></div>
+          <button class="sum-close" type="button" id="sum-close" aria-label="요약 닫기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
+        </header>
+        <div class="sum-hero">
+          <div class="sum-ring" id="sum-ring" data-tone="over"><b id="sum-total">0</b><span>타</span></div>
+          <div class="sum-hero-txt"><p class="big" id="sum-vs"></p><p id="sum-count"></p></div>
+          <!-- The image 공유 sends (v16): drawn after the sheet opens, a calm placeholder until then. A tap shares or saves
+               it as the buttons below do, so it stays out of the accessibility tree and the tab order. -->
+          <div class="sum-card" id="sum-card" aria-hidden="true" hidden>
+            <img id="sum-card-img" alt="" width="56" height="70" hidden />
+            <span class="sum-badge" id="sum-badge"></span>
+          </div>
         </div>
+        <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
+        <dl class="sum-stats" id="sum-stats"></dl>
+        <!-- Said once under the tiles while no tee result is recorded, instead of a 페어웨이 안착 tile with no value -->
+        <p class="sum-hint" id="sum-hint" hidden>상세에서 티샷 방향을 고르면 페어웨이 안착이 보여요.</p>
+        <p class="sum-insight" id="sum-insight"></p>
+        <p id="sum-status" class="muted small" role="status"></p>
       </div>
-      <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
-      <dl class="sum-stats" id="sum-stats"></dl>
-      <p class="sum-insight" id="sum-insight"></p>
-      <p id="sum-status" class="muted small" role="status"></p>
-      <div class="sum-actions">
-        <button type="button" id="sum-share" aria-label="공유"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <!-- Where the share sheet cannot take the image: save it instead -->
-        <button type="button" id="sum-save" aria-label="이미지 저장" hidden><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 12v7h12v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></a>
+      <!-- Round buttons from the icon family (main.ts draws them): 공유 or 결과 복사, 이미지 저장 where the image cannot be
+           shared, email; 보관 takes the rest -->
+      <div class="sum-actions" id="sum-actions">
+        <button type="button" id="sum-share" aria-label="공유"></button>
+        <button type="button" id="sum-save" aria-label="이미지 저장" hidden></button>
+        <a id="sum-mail" href="mailto:" aria-label="이메일로 보내기"></a>
         <button type="button" class="primary" id="sum-archive">지난 라운드에 보관</button>
       </div>
     </dialog>
@@ -386,7 +395,7 @@
       <div class="grab" aria-hidden="true"></div>
       <header class="sum-head">
         <div><h2 id="check-title">라운드를 마칠까요?</h2><p id="check-sub"></p></div>
-        <button class="sum-close" type="button" id="check-close" aria-label="닫기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+        <button class="sum-close" type="button" id="check-close" aria-label="닫기"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg></button>
       </header>
       <ul class="check-list" id="check-list"></ul>
       <div class="check-actions">
@@ -452,11 +461,14 @@
         <!-- The chosen course, 18 or 9 holes and its nines; they scroll above the start button when they can't all fit -->
         <div class="pk-scroll">
           <div class="pk-name">
+            <!-- The course alone, up to two lines (v23): its nines are the rows right under it -->
             <p id="picker-label" class="picker-label"></p>
             <div class="pk-len" id="picker-len" role="group" aria-label="홀 수">
               <button type="button" data-holes="18" aria-pressed="true">18홀</button>
               <button type="button" data-holes="9" aria-pressed="false">9홀</button>
             </div>
+            <!-- Where the round's holes are fixed (코스 바꾸기), the count stands in the toggle's place -->
+            <span class="pk-holes" id="picker-holes" hidden></span>
           </div>
           <div id="picker-chosen" class="picker-chosen"></div>
         </div>

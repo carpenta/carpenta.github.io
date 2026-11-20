@@ -449,7 +449,7 @@ svg { display: block; }
 /* Four equal, labelled columns: 홈 (the link back to the site), then the three tabs. */
 .bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; align-items: center; }
 .tabs { grid-column: 2 / 5; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
-.tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; }
+.tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
 .tab .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
 .tab[aria-selected='true'] .ti { background: var(--select-on-dark); }
 .tab svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
@@ -457,7 +457,7 @@ svg { display: block; }
 .tab[aria-selected='true'] { color: var(--tab-on); }
 /* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
    The top right belongs to the score badge. */
-.home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; text-decoration: none; }
+.home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); text-decoration: none; }
 .home-link .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
 .home-link:active .ti { background: var(--press-on-dark); }
 
@@ -478,43 +478,18 @@ svg { display: block; }
   font-size: 15px; font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
 }
 .edit.on { background: var(--action); color: var(--on-action); }
-.edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
-.sc-title h2 { font-size: 17px; font-weight: 700; }
+/* Under the tables while 파 수정 is on (v23), on the tables' edges. */
+.edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: var(--w-help); text-wrap: pretty; }
+.sc-title h2 { font-size: 17px; font-weight: var(--w-label); }
 .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--card-r); padding: 16px var(--card-pad); box-shadow: 0 8px 24px var(--sh-1); }
-.sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0 0 14px; border-bottom: 1.5px solid var(--line); }
-.sum div { text-align: center; min-width: 0; }
-.sum dt { font-size: 13px; color: var(--muted); }
-.sum dd { margin: 4px 0 0; font-size: 22px; font-weight: 800; }
 .under { color: var(--red); }
-.nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 8px; }
-.nine-h h3 { font-size: 17px; font-weight: 700; }
-.nine-h span { font-size: 13px; color: var(--muted); }
-.tbl { display: grid; grid-template-columns: 28px repeat(5, minmax(0, 1fr)); column-gap: 8px; }
-.tbl + .tbl { margin-top: 8px; }
-.rowlbl { display: flex; flex-direction: column; }
-.rowlbl span, .col > span { height: 24px; display: grid; place-items: center; font-size: 13px; }
-.rowlbl span { justify-items: start; color: var(--muted); font-weight: 600; }
-.rowlbl span.sc-row, .col > span.sc-row { height: 42px; }
-.col { display: flex; flex-direction: column; border-radius: 12px; min-width: 0; overflow: hidden; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); }
-button.col:active { background: var(--press); }
-.col .no { font-weight: 800; background: var(--pill); }
-.col .pr { color: var(--muted); }
-.col.sub { background: var(--paper); box-shadow: none; }
-.col.sub .no { background: var(--line); }
-.col[aria-current='true'] { box-shadow: inset 0 0 0 2.5px var(--turf); }
-.col[aria-current='true'] .no { background: var(--action); color: var(--on-action); }
-/* 파 수정: the par cell grows into a button that steps 3, 4, 5. */
-.editing .rowlbl span.pr-row, .editing .col > .pr { height: 52px; }
-.col > .par-btn { height: 50px; margin: 1px; border-radius: 12px; background: var(--tint); font-size: 17px; font-weight: 800; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--fairway); }
-.col > .par-btn:active { background: var(--press); }
-.col > .par-btn.changed { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
-.sub-v { font-size: 17px; font-weight: 800; }
+.sub-v { font-size: 17px; font-weight: var(--w-value); }
 .m { width: 34px; height: 34px; color: var(--ink); }
 .m[data-tone='under'] { color: var(--red); }
 .m[data-tone='par'] { color: var(--turf); }
 .m[data-tone='none'] { color: var(--quiet); }
-.m b { position: relative; font-size: 20px; font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
+.m b { position: relative; font-size: 20px; font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
 .m[data-mark='birdie']::before { width: 29px; height: 29px; border-width: 2px; border-radius: 50%; }
 .m[data-mark='eagle']::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: 50%; }
 .m[data-mark='eagle']::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: 50%; }
@@ -530,7 +505,7 @@ button.col:active { background: var(--press); }
   margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 13px; color: var(--muted);
 }
 .legend li { display: flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
-.legend .lg-cap { grid-column: 1 / -1; font-weight: 700; color: var(--ink); }
+.legend .lg-cap { grid-column: 1 / -1; font-weight: var(--w-label); color: var(--ink); }
 /* The marks as large as in the table; the negative margin keeps the box no wider than the drawn mark. */
 .legend .m { transform: scale(.76); margin: -4px; }
 body.big .legend { --lg-col: 100px; }
@@ -540,75 +515,81 @@ body.big .legend { --lg-col: 100px; }
   --sum-w: 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto var(--sum-w); column-gap: 10px; align-items: baseline;
   margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line);
 }
-/* The five-and-four tables (파 수정, a past round) end in a 1fr column: their 28px labels and five 8px gaps share the rest. */
-.editing .tot, .past .tot { --sum-w: calc((100% - 68px) / 5); }
-.tot h3 { font-size: 17px; font-weight: 700; }
+.tot h3 { font-size: 17px; font-weight: var(--w-label); }
 .tot > span { font-size: 13px; color: var(--muted); }
-.tot b { font-size: 22px; font-weight: 800; white-space: nowrap; }
+.tot b { font-size: 22px; font-weight: var(--w-value); white-space: nowrap; }
 .tot .tot-p { font-size: 17px; text-align: right; }
 .tot .tot-n { text-align: center; }
-.par-source { margin-top: 10px; font-size: 13px; color: var(--muted); }
-.par-source a { color: var(--turf); font-weight: 600; }
+/* One help line: the hole columns open their hole (v23), then where the pars come from; the underline marks the link. */
+.par-source { margin-top: 10px; font-size: 13px; font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
+.par-source a { color: var(--turf); }
 
 .box { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--card-r); padding: var(--card-pad); box-shadow: 0 8px 24px var(--sh-1); }
-.box h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.box h3 { font-size: 17px; font-weight: var(--w-label); margin-bottom: 4px; text-wrap: balance; }
 .save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: 13px; text-align: center; }
-.box h4, .past h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
+.box h4, .past h4 { font-size: 15px; font-weight: var(--w-label); margin: 16px 0 8px; }
+#lost-note { text-wrap: pretty; }
+/* One bar for both charts (v23): 12px with a 6px radius, the fill too, on --off (white on a past round's paper), rows
+   8px apart, values bold; the same label, bar and value columns, so both charts' bars start and end together (v17). */
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-/* The same label, bar and value columns as 스코어 분포 below (.bar-row), so both charts' bars start and end together (v17). */
 .lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: 13px; }
-.lost-bars .bar { height: 10px; border-radius: 4px; background: var(--off); overflow: hidden; }
-.lost-bars .bar i { display: block; height: 100%; border-radius: 4px; background: var(--turf); }
+.lost-bars .bar { height: 12px; border-radius: 6px; background: var(--off); overflow: hidden; }
+.lost-bars .bar i { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
 .lost-bars li.worst .bar i { background: var(--sand); }
-.lost-bars .v { text-align: right; font-weight: 800; }
+.lost-bars .v { text-align: right; font-weight: var(--w-value); }
 
 .muted { color: var(--muted); }
 .small { font-size: 13px; margin-bottom: 8px; }
-.headline { font-size: 22px; font-weight: 700; }
-.headline .muted { font-size: 14px; font-weight: 400; }
+.headline { font-size: 22px; font-weight: var(--w-value); }
+.headline .muted { font-size: 15px; font-weight: var(--w-help); }
+/* Tiles (v23, the summary's grammar): a label, then one value on one line with its qualifier small beside it. */
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .metrics.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
 .metrics div { background: var(--paper); border-radius: 12px; padding: 8px 12px; min-width: 0; }
-.metrics dt { font-size: 13px; color: var(--muted); }
-.metrics dd { margin: 0; font-weight: 700; }
-.bars { display: grid; gap: 6px; }
+.metrics:not(.three) > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.metrics dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+.metrics dd { margin: 0; font-weight: var(--w-value); white-space: nowrap; }
+.metrics small { margin-left: 4px; font-size: 13px; font-weight: var(--w-help); color: var(--muted); }
+/* Par별 평균: "Par 4" and how many holes at the label's two ends, the average alone the value. */
+.metrics.three dt { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+.metrics.three dt small { margin-left: 0; white-space: nowrap; }
+.bars { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 5.5em 1fr 3em; align-items: center; gap: 8px; font-size: 13px; }
-.bar-track { height: 12px; background: var(--paper); border-radius: 6px; overflow: hidden; }
+.bar-track { height: 12px; background: var(--off); border-radius: 6px; overflow: hidden; }
 .bar-fill { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
 .bar-fill.score-eagle, .bar-fill.score-birdie { background: var(--red); }
 .bar-fill.score-bogey { background: var(--sand); }
 .bar-fill.score-double, .bar-fill.score-triple { background: var(--rough); }
-.bar-value { text-align: right; font-weight: 600; }
-.best-worst { margin-top: 12px; font-size: 14px; }
-.insights { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 14px; }
-.send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-.send-actions .btn { display: grid; place-items: center; text-align: center; text-decoration: none; color: inherit; }
-.send-actions .btn.primary { color: var(--on-action); }
+.bar-value { text-align: right; font-weight: var(--w-value); }
+.best-worst { margin-top: 12px; font-size: 15px; text-wrap: pretty; }
+.insights { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 15px; text-wrap: pretty; }
 #send-status:empty { display: none; }
 
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
-.box h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.box h2 { font-size: 17px; font-weight: var(--w-label); margin-bottom: 4px; }
 /* 지난 라운드: this round first, then the kept ones; the view's header already names it, so the list's own heading steps aside. */
-/* The score on the title's baseline, as each past round's row puts it (v17). */
-.now { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; align-items: baseline; }
-.now h3 { margin: 0; }
-.now p { font-size: 13px; margin-top: 2px; }
-.now .big { margin: 0; font-size: 22px; font-weight: 800; text-align: right; white-space: nowrap; }
+/* The score on the title's baseline, as each past round's row puts it (v17); under them the course, then the date and
+   the holes, each a line of its own across the card, so the score never squeezes them (v23). */
+.now { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title score' 'sub sub' 'btn btn'; column-gap: 8px; align-items: baseline; }
+.now h3 { grid-area: title; margin: 0; }
+.now .big { grid-area: score; margin: 0; font-size: 22px; font-weight: var(--w-value); text-align: right; white-space: nowrap; }
 .now .big.under { color: var(--red); }
-.now .big.none { font-size: 15px; font-weight: 600; color: var(--muted); }
-.now .btn { grid-column: 1 / -1; }
+.now .big.none { font-size: 15px; font-weight: var(--w-help); color: var(--muted); }
+#now-sub { grid-area: sub; min-width: 0; margin-top: 2px; font-size: 13px; }
+#now-sub > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.now .btn { grid-area: btn; margin-top: 12px; }
 #hist-view #history-title { display: none; }
 #hist-view #history { margin-bottom: 24px; }
 /* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v17). */
 #hist-view .history-trends { margin-top: 0; }
-.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: 800; vertical-align: middle; }
+.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: var(--w-value); vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: var(--red-tint); color: var(--red-ink); }
 .history-trends { margin: 8px 0 12px; }
 .history-trends .metrics { margin: 0; }
 .trend-note { margin: 8px 0 0; }
 .spark { display: grid; gap: 2px; margin-top: 10px; }
 .spark-cap { font-size: 13px; color: var(--muted); }
-.spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; font-weight: var(--w-label); }
 .spark-line { display: block; width: 100%; height: 32px; overflow: visible; }
 .spark-line polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
@@ -622,8 +603,8 @@ body.big .legend { --lg-col: 100px; }
   margin-inline: -4px; padding: 10px 4px; border-radius: 12px; text-align: left;
 }
 .past-item:active { background: var(--press); }
-.past-when { font-size: 17px; font-weight: 700; }
-.past-score { font-size: 20px; font-weight: 800; text-align: right; white-space: nowrap; }
+.past-when { font-size: 17px; font-weight: var(--w-label); }
+.past-score { font-size: 20px; font-weight: var(--w-value); text-align: right; white-space: nowrap; }
 .past-where, .past-meta { font-size: 13px; color: var(--muted); }
 .past-meta { text-align: right; white-space: nowrap; }
 #history-empty { margin: 4px 0 0; }
@@ -644,20 +625,22 @@ html.past-open { overflow: hidden; }
   background: var(--white); border-bottom: 1px solid var(--line);
 }
 .past-heading { min-width: 0; }
-.past-head h2 { font-size: 18px; font-weight: 700; }
+.past-head h2 { font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
 .past-head p { font-size: 13px; }
 .past-head .btn { flex: none; }
 .past-body { padding: 0 max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
-.past-body > h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+.past-body > h3 { font-size: 15px; font-weight: var(--w-label); margin: 16px 0 8px; }
 .past-body > h3:first-child { margin-top: 12px; }
-#past-scorecard .nine-h:first-child { margin-top: 0; }
-.past .past-send { margin-top: 16px; }
+/* The same nine-column tables as 스코어카드 (v23), white on the dialog's paper, 16px apart. */
+#past-scorecard .nine-tbl:first-child { margin-top: 0; }
+/* The summary's round buttons (v23): 공유 or 결과 복사, 이미지 저장 where the image cannot be shared, and email. */
+.round-actions { display: flex; gap: 8px; margin-top: 16px; }
 .past #past-delete { width: 100%; margin-top: 16px; }
 /* The round is shown on paper, not in a white card: its tiles and bar tracks turn white so they still read as tiles,
    and the text inside them as inset, not as stray indents (v17). */
 .past .metrics div, .past .bar-track { background: var(--white); }
 
-.btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: 700; }
+.btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: var(--w-label); }
 .btn.primary { background: var(--action); color: var(--on-action); }
 .btn.danger { background: var(--white); color: var(--red); box-shadow: inset 0 0 0 1.5px currentColor; }
 .notice { padding: 8px 12px; border-radius: 14px; background: var(--warn-tint); box-shadow: var(--float); font-size: 14px; }
@@ -672,7 +655,7 @@ html.past-open { overflow: hidden; }
 }
 .sheet-dialog::backdrop { background: var(--backdrop-strong); }
 .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
-.sheet-dialog h2 { font-size: 17px; font-weight: 700; }
+.sheet-dialog h2 { font-size: 17px; font-weight: var(--w-label); }
 /* The menu: one list, each item opening its own panel. */
 .menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: 0 -8px 32px var(--sh-2); }
 .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0 8px; }
@@ -698,19 +681,19 @@ html.past-open { overflow: hidden; }
 .backup > h2 { display: none; }
 .backup .muted.small { margin: 0; }
 .mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 36px 48px; align-items: center; gap: 8px; margin: 4px 0 0; }
-.mulligan-label b { display: block; font-size: 15px; }
+.mulligan-label b { display: block; font-size: 15px; font-weight: var(--w-label); }
 .mulligan-label span { display: block; font-size: 13px; color: var(--muted); }
-.step-sm { width: 48px; height: 48px; border-radius: 50%; background: var(--white); box-shadow: var(--lift); font-size: 24px; font-weight: 700; }
+.step-sm { width: 48px; height: 48px; border-radius: 50%; background: var(--white); box-shadow: var(--lift); font-size: 24px; font-weight: var(--w-label); }
 .step-sm.plus { background: var(--action); color: var(--on-action); }
 .step-sm:disabled { background: var(--off); color: var(--off-ink); box-shadow: none; }
-.step-count { text-align: center; font-size: 22px; font-weight: 800; }
+.step-count { text-align: center; font-size: 22px; font-weight: var(--w-value); }
 .menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: var(--w-label); }
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
   position: fixed; left: 50%; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 72px); transform: translateX(-50%); z-index: 6;
   max-width: calc(100vw - 24px); min-height: 44px; padding: 10px 16px; border-radius: 999px;
-  background: var(--ink); color: var(--on-dark); font-size: 14px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 14px var(--sh-2);
+  background: var(--ink); color: var(--on-dark); font-size: 14px; font-weight: var(--w-label); white-space: nowrap; box-shadow: 0 4px 14px var(--sh-2);
 }
 .update-prompt:disabled { opacity: .7; }
 
@@ -783,8 +766,8 @@ html.past-open { overflow: hidden; }
   flex: none; padding: max(14px, env(safe-area-inset-top)) var(--m) 0; color: var(--on-dark);
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 8px;
 }
-.pk-brand { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--on-dark-soft); }
-.picker-head h2 { margin-top: 6px; font-size: 34px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
+.pk-brand { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 13px; font-weight: var(--w-label); color: var(--on-dark-soft); }
+.picker-head h2 { margin-top: 6px; font-size: 34px; font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
 .picker-head .btn { min-height: 44px; background: var(--glass); color: var(--on-dark); }
 /* The title's line: the title, then 취소 or the link back to the site in one place at the header's inner edge. The row
    is fixed, so the title stays on it when the brand line above steps aside on short screens. */
@@ -795,7 +778,7 @@ html.past-open { overflow: hidden; }
    keep the line as tall as the title. White, not muted: the header is dark green (v17). */
 .picker-home {
   align-self: baseline; display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 -12px; padding: 0 0 0 8px;
-  color: var(--on-dark); font-size: 13px; font-weight: 600; white-space: nowrap;
+  color: var(--on-dark); font-size: 13px; font-weight: var(--w-label); white-space: nowrap;
   text-decoration: underline; text-decoration-color: var(--on-dark-line); text-underline-offset: 3px;
 }
 .picker-head:has(> #picker-cancel[hidden]) > h2 { align-self: baseline; }
@@ -813,21 +796,26 @@ html.past-open { overflow: hidden; }
 .picker-areas::-webkit-scrollbar { display: none; }
 .picker .chip {
   position: relative; flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 999px;
-  background: var(--scrim); color: var(--ink); font-size: 15px; font-weight: 700; box-shadow: var(--float);
+  background: var(--scrim); color: var(--ink); font-size: 15px; font-weight: var(--w-label); box-shadow: var(--float);
 }
 .picker .chip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
 .picker .chip[aria-pressed='true'] { background: var(--sun); }
 /* The list takes the room the rest leaves (from nothing, so a long list never squeezes the sheet below), down to a
-   row and a half; past that the sheet gives way instead (v18). */
+   row and a half; past that the sheet gives way instead (v18). It opens with the chosen course's row at its top and
+   comes to rest on whole rows (v23): the rows' offset parent, snapping to their tops. Mandatory: WebKit's proximity
+   lets a scroll stop 30px into a 67px row, where the list shows half rows again. */
 .picker-list {
-  flex: 1 1 0; min-height: 96px; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 16px var(--m) 0; padding: 0;
+  position: relative; flex: 1 1 0; min-height: 96px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory;
+  list-style: none; margin: 16px var(--m) 0; padding: 0;
   background: var(--white); border-radius: 24px; box-shadow: 0 8px 24px var(--sh-2); scrollbar-width: none;
 }
 .picker-list::-webkit-scrollbar { display: none; }
-.picker-list li + li { border-top: 1px solid var(--line); }
+/* The line under each row but the last, so a row at the list's top starts clean. */
+.picker-list > li { scroll-snap-align: start; }
+.picker-list > li:not(:last-child) { border-bottom: 1px solid var(--line); }
 .picker-list .course { width: 100%; min-height: 64px; padding: 12px 16px; border: 0; background: transparent; text-align: left; }
 .picker-list .course:active { background: var(--press); }
-.picker-list .course b { display: block; font-size: 17px; font-weight: 700; line-height: 1.3; }
+.picker-list .course b { display: block; font-size: 17px; font-weight: var(--w-label); line-height: 1.3; }
 .picker-list .course span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-list .course[aria-pressed='true'] { background: var(--chosen); box-shadow: inset 4px 0 0 var(--turf); }
 .picker-list .empty { padding: 16px; font-size: 15px; }
@@ -845,13 +833,18 @@ html.past-open { overflow: hidden; }
   mask-image: linear-gradient(transparent, black 6px, black calc(100% - 6px), transparent);
 }
 .pk-scroll::-webkit-scrollbar { display: none; }
-.picker-label { font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The course name row: the chosen course, then 18홀 / 9홀 (v11). */
+/* The chosen course's name alone (v23), whole on up to two balanced lines: its nines are the rows right under it. */
+.picker-label {
+  font-size: 17px; font-weight: var(--w-label); line-height: 1.3; text-wrap: balance;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+/* The course name row: the chosen course, then 18홀 / 9홀 (v11), centred on the name's one or two lines. */
 .pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .pk-name .picker-label { min-width: 0; }
+.pk-holes { flex: none; font-size: 15px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
 .pk-len { flex: none; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--tint); }
 .pk-len[hidden] { display: none; }
-.pk-len button { position: relative; min-width: 54px; height: 36px; padding: 0 10px; border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.pk-len button { position: relative; min-width: 54px; height: 36px; padding: 0 10px; border-radius: 999px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
 .pk-len button::after { content: ''; position: absolute; inset: -6px 0; }   /* a 48px touch area */
 .pk-len button[aria-pressed='true'] { background: var(--white); color: var(--ink); box-shadow: 0 1px 3px var(--sh-2); }
 .picker-chosen { display: grid; gap: 8px; }
@@ -859,14 +852,14 @@ html.past-open { overflow: hidden; }
 .picker-chosen input { width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); font: inherit; color: inherit; }
 .nine-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
 .nine-row:has(.nine-fixed) { grid-template-columns: minmax(0, 1fr) auto; }
-.nine-label { font-size: 15px; font-weight: 600; color: var(--muted); }
+.nine-label { font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
 /* The nines as equal columns, so 전반 and 후반 read as one grid; a longer name widens only its own column, and many
    nines scroll sideways (v17). */
 .nine-pick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: 700; }
+.nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: var(--w-label); }
 .nine-pick button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
 .nine-pick button[aria-checked='true'] { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
-.nine-fixed { min-width: 0; font-size: 15px; font-weight: 600; }
+.nine-fixed { min-width: 0; font-size: 15px; font-weight: var(--w-label); }
 .nine-row .swap { min-height: 44px; padding: 0 14px; font-size: 15px; }
 .picker-foot > .btn { flex: none; min-height: 52px; font-size: 17px; }
 @media (max-height: 599px) {
@@ -878,21 +871,35 @@ html.past-open { overflow: hidden; }
 
 /* ---------- round summary: what the recorded holes say ---------- */
 .sum-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 32px var(--sh-3); }
-.sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: center; }
-.sum-head h2 { font-size: 22px; font-weight: 700; }
+/* The round buttons never leave the screen (v23): everything above them is one scrolling body, which on a short screen
+   or in 큰 글씨 scrolls under them; a hairline over them says so, only while it can. */
+#summary[open] { display: flex; flex-direction: column; overflow: hidden; }
+#summary > .grab { flex: none; }
+/* 12px of room above and 6px beside, given back by the margins, so the close button's ring and touch area aren't cut. */
+.sum-body { flex: 1 1 auto; min-height: 0; margin: -12px -6px 0; padding: 12px 6px 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.sum-body::-webkit-scrollbar { display: none; }
+/* 클럽 상세's close (v23): a 44px disc with a 48px touch area, centred on the title's line, the preview well clear below. */
+.sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: start; }
+.sum-head h2 { font-size: 22px; font-weight: var(--w-label); text-wrap: balance; }
 .sum-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
-.sum-close { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); display: grid; place-items: center; }
+.sum-close { position: relative; width: 44px; height: 44px; margin-top: calc((22px * 1.45 - 44px) / 2); border-radius: 50%; background: var(--tint); color: var(--ink); display: grid; place-items: center; }
+.sum-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-columns: auto; column-gap: 16px; align-items: center; }
+/* The ring's white gap and hairline are drawn inside its 80px box (v23), so the box is the edge the eye sees: a 70px
+   disc on the content box, toned through background-color so the clip stays. */
 .sum-ring {
-  width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: var(--on-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line);
+  width: 80px; height: 80px; padding: 5px; border-radius: 50%; background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--line);
 }
-.sum-ring[data-tone='under'] { background: var(--red); }
-.sum-ring[data-tone='par'] { background: var(--turf); }
-.sum-ring b { font-size: 30px; font-weight: 800; line-height: 1; }
-.sum-ring span { font-size: 13px; font-weight: 700; margin-top: 3px; }
-.sum-hero-txt .big { font-size: 22px; font-weight: 800; }
-.sum-hero-txt .big.under { color: var(--red); }
+.sum-ring[data-tone='under'] { background-color: var(--red); }
+.sum-ring[data-tone='par'] { background-color: var(--turf); }
+.sum-ring b { font-size: 30px; font-weight: var(--w-value); line-height: 1; }
+.sum-ring span { font-size: 13px; font-weight: var(--w-label); margin-top: 3px; }
+/* 파 대비 as a label, the score as the value (v23). */
+.sum-hero-txt .big { font-size: 22px; font-weight: var(--w-label); }
+#sum-vs b { font-weight: var(--w-value); }
+#sum-vs .under { color: var(--red); }
+#sum-vs .none { font-size: 17px; font-weight: var(--w-help); }
 .sum-hero-txt p + p { font-size: 13px; color: var(--muted); margin-top: 4px; }
 /* The image 공유 sends (v17): 4:5 like the image, at the inner right edge, centred on the ring's line and smaller than
    the ring, so the score leads and the close button keeps its room. Deep turf, the image's own ground, holds its place
@@ -914,23 +921,58 @@ html.past-open { overflow: hidden; }
 .sum-marks { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .sum-marks li { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 14px; background: var(--paper); }
 .sum-marks small { font-size: 13px; color: var(--muted); white-space: nowrap; }
+/* One value per tile, on one line (v23); an odd last tile spans the row. */
 .sum-stats { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .sum-stats div { padding: 7px 12px; border-radius: 16px; background: var(--paper); min-width: 0; }
 .sum-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.sum-stats dt { font-size: 13px; color: var(--muted); }
-.sum-stats dd { margin: 3px 0 0; font-size: 17px; font-weight: 800; }
-.sum-stats dd small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
-.sum-insight { margin-top: 8px; padding: 10px 12px; border-radius: 16px; background: var(--sand-tint); font-size: 15px; font-weight: 700; }
+.sum-stats dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+.sum-stats dd { margin: 3px 0 0; font-size: 17px; font-weight: var(--w-value); white-space: nowrap; }
+.sum-stats dd small { font-size: 13px; font-weight: var(--w-help); color: var(--muted); margin-left: 4px; }
+/* Said once under the tiles, on their text's edge, while no tee result is recorded. */
+.sum-hint { margin: 6px 12px 0; font-size: 13px; font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
+/* Where the round lost most: the label, 8px, then the value, no colon (v23); otherwise one plain sentence. */
+.sum-insight {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 16px;
+  background: var(--sand-tint); font-size: 15px; font-weight: var(--w-help);
+}
+.sum-insight span { font-weight: var(--w-label); }
+.sum-insight b { font-weight: var(--w-value); }
 #sum-status { margin: 8px 0 0; }
 #sum-status:empty { display: none; }
-/* Round buttons (공유 or 결과 복사, 이미지 저장 where the image cannot be shared, email), then 보관 takes the rest. */
-.sum-actions { margin-top: 10px; display: flex; gap: 8px; }
-.sum-actions > * { flex: none; width: 52px; height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: 700; color: var(--turf); display: grid; place-items: center; text-decoration: none; }
-.sum-actions > :active { background: var(--pill); }
+/* Round buttons (공유 or 결과 복사, 이미지 저장 where the image cannot be shared, email), then 보관 takes the rest. Pinned
+   under the body (v23), on white, with a hairline across the sheet while the body scrolls under them. */
+.sum-actions { position: relative; flex: none; display: flex; gap: 8px; padding-top: 10px; background: var(--white); }
+.sum-actions::before { content: ''; position: absolute; top: 0; left: -16px; right: -16px; height: 1px; background: var(--line); opacity: 0; }
+#summary[data-overflow] .sum-actions::before { opacity: 1; }
+/* The same round buttons in a past round (v23). */
+.sum-actions > *, .round-actions > * {
+  flex: none; width: 52px; height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: var(--w-label);
+  color: var(--turf); display: grid; place-items: center; text-decoration: none;
+}
 .sum-actions .primary { flex: 1; width: auto; min-width: 0; background: var(--action); color: var(--on-action); font-size: 17px; }
-.sum-actions .primary:active:not(:disabled) { background: var(--action-press); }
 .sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
-.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: 700; box-shadow: inset 0 0 0 2px var(--turf); }
+.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: var(--w-label); box-shadow: inset 0 0 0 2px var(--turf); }
+
+/* ---------- press (v23): every control outside 기록 answers a tap with its colour, as 기록's do; colour only ----------
+   The tap highlight is off, so without this a press in sunlight reads as "didn't work" and invites a second tap.
+   Resting tint turns --press, a filled button --action-press, a white one --tint; on the dark picker a light chip turns
+   --veil and a glass button --press-on-dark; the danger button turns --red-tint, its red deepened so it still reads 4.5:1. */
+.btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .picker .chip,
+.ct-col, .sum-actions > *, .round-actions > * {
+  transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
+}
+.btn:active, .sum-close:active, .menu-close:active, .check-actions button:active, .nine-pick button:active, .pk-len button:active,
+button.ct-col:active, .sum-actions > :active, .round-actions > :active { background-color: var(--press); }
+.btn.primary:active, .sh-go:active, .edit.on:active, .check-actions .primary:active, .sum-actions .primary:active:not(:disabled) { background-color: var(--action-press); }
+.edit:not(.on):active, .sc-finish:active { background-color: var(--tint); }
+.picker .chip:active { background-color: var(--veil); }
+.picker-head .btn:active { background-color: var(--press-on-dark); }
+.pk-missing .btn:not(.primary):active { background-color: var(--white); }
+.btn.danger:active { background-color: var(--red-tint); color: var(--red-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .picker .chip,
+  .ct-col, .sum-actions > *, .round-actions > * { transition: none; }
+}
 
 /* ---------- motion (v13): dims fade in, small popovers rise 6px, sheets slide; all off with reduced motion ---------- */
 @keyframes fn-fade { from { opacity: 0; } }
@@ -945,65 +987,82 @@ html.past-open { overflow: hidden; }
   .strip[open]::backdrop, .hinfo[open]::backdrop, .numpick[open]::backdrop, .sheet-dialog[open]::backdrop { animation: none; }
 }
 
-/* ---------- type (v13): 800 only for numbers, 600–700 for labels, tabular digits wherever numbers line up ---------- */
+/* ---------- type: three weights (v15 on 기록, v23 everywhere): values 800, labels 600, helper text 400; size and colour
+   make the rest of the hierarchy. Tabular digits wherever numbers line up. ---------- */
 .hole-n { font-weight: var(--w-value); }
-.ct .r-h > .ct-s { font-weight: 700; }
-.tbl, .col, .strip-row, .sum-marks, .np-row, .sum-stats dd, .lost-bars .v, .past-score, .tot b, .now .big, .chip, .prog { font-variant-numeric: tabular-nums; }
+.ct, .strip-row, .sum-marks, .np-row, .sum-stats dd, .metrics dd, .lost-bars .v, .bar-value, .past-score, .tot b, .now .big, .chip, .prog { font-variant-numeric: tabular-nums; }
 
 /* ---------- first-run and empty states (v13) ---------- */
-.pk-first { grid-column: 1 / -1; grid-row: 3; margin-top: 4px; font-size: 15px; font-weight: 600; color: var(--on-dark-soft); }
+.pk-first { grid-column: 1 / -1; grid-row: 3; margin-top: 4px; font-size: 15px; font-weight: var(--w-help); color: var(--on-dark-soft); }
 .pk-first[hidden] { display: none; }
 @media (max-height: 599px) { .pk-first { display: none; } }
 .hist-empty { display: grid; justify-items: center; gap: 4px; padding: 16px 8px 8px; text-align: center; }
 .hist-empty[hidden] { display: none; }
-.hist-empty .he-1 { margin-top: 6px; font-size: 17px; font-weight: 700; }
-.hist-empty .he-2 { font-size: 15px; color: var(--muted); }
+.hist-empty .he-1 { margin-top: 6px; font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
+.hist-empty .he-2 { font-size: 15px; color: var(--muted); text-wrap: pretty; }
 
 /* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
 /* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v17). */
 .sc-hero { display: grid; grid-template-columns: 80px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 2px 0 14px; border-bottom: 1.5px solid var(--line); }
 .sc-hero[hidden], .sh-empty[hidden] { display: none; }
-/* The same ring as 라운드 요약's: 80px, 16px to the text (v17). */
-.sh-ring { width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: var(--on-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line); }
-.sh-ring[data-tone='under'] { background: var(--red); }
-.sh-ring[data-tone='par'] { background: var(--turf); }
-.sh-ring b { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.sh-ring span { margin-top: 3px; font-size: 13px; font-weight: 700; }
-.sh-topar { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* The same ring as 라운드 요약's: 80px, 16px to the text (v17), its halo inside the box (v23). */
+.sh-ring {
+  width: 80px; height: 80px; padding: 5px; border-radius: 50%; background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.sh-ring[data-tone='under'] { background-color: var(--red); }
+.sh-ring[data-tone='par'] { background-color: var(--turf); }
+.sh-ring b { font-size: 30px; font-weight: var(--w-value); line-height: 1; font-variant-numeric: tabular-nums; }
+.sh-ring span { margin-top: 3px; font-size: 13px; font-weight: var(--w-label); }
+/* 파 대비 as a label, the score as its value (v23). */
+.sh-topar { font-size: 22px; font-weight: var(--w-label); font-variant-numeric: tabular-nums; }
+#sum-topar { font-weight: var(--w-value); }
 .sh-topar .under { color: var(--red); }
 .sh-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
 .sh-stats { grid-column: 1 / -1; margin: 12px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .sh-stats div { padding: 8px 12px; border-radius: 14px; background: var(--paper); }
-.sh-stats dt { font-size: 13px; color: var(--muted); }
-.sh-stats dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sh-stats dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+.sh-stats dd { margin: 2px 0 0; font-size: 17px; font-weight: var(--w-value); font-variant-numeric: tabular-nums; }
 .sh-empty { padding: 6px 0 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
-.sh-e1 { font-size: 17px; font-weight: 700; }
-.sh-e2 { margin-top: 4px; font-size: 13px; color: var(--muted); }
-.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 15px; font-weight: 700; }
-.nine-tbl { display: block; width: 100%; margin-top: 16px; padding: 0; text-align: left; border-radius: 16px; color: var(--ink); }
-.nine-tbl:active .ct { background: var(--tint); }
+.sh-e1 { font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
+.sh-e2 { margin-top: 4px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 15px; font-weight: var(--w-label); }
+/* Each nine as one table, the same shape in every mode (v23): the label column, nine hole columns and the sum column on
+   one grid, each column four rows (26 / 26 / 40 / 26). On the round being recorded a hole's column is a button as tall
+   as the table, about 24px wide at 360 (WCAG 2.5.8), with the hole strip's 48×64 cells one tap away on the hole number. */
+.nine-tbl { margin-top: 16px; color: var(--ink); }
 .nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 0 8px; }
-.nt-h b { font-size: 17px; font-weight: 700; }
+.nt-h b { font-size: 17px; font-weight: var(--w-label); }
 .nt-h small { font-size: 13px; color: var(--muted); }
-.nt-go { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--turf); }
-.ct { display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: 14px; overflow: hidden; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); font-variant-numeric: tabular-nums; }
-.ct .r { display: contents; }
-.ct .r > span { display: grid; place-items: center; min-width: 0; height: 26px; font-size: 13px; }
-.ct .r-h > span { background: var(--pill); font-weight: 800; }
-.ct .r-p > span { color: var(--muted); border-bottom: 1px solid var(--line); }
-.ct .r-s > span { height: 40px; }
-.ct .r-t > span { color: var(--muted); border-top: 1px solid var(--line); }
-.ct .r > .ct-l { justify-items: start; padding-left: 6px; color: var(--muted); font-weight: 600; }
-.ct .r-h > .ct-l { background: var(--pill); color: var(--ink); }
-.ct .r > .ct-s { background: var(--paper); color: var(--ink); font-weight: 800; }
-.ct .r-h > .ct-s { background: var(--line); }
-.ct .r > .cur { background: var(--cur); }
-.ct .r-h > .cur { background: var(--action); color: var(--on-action); }
+.ct { position: relative; display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: 14px; overflow: hidden; background: var(--white); font-variant-numeric: tabular-nums; }
+/* The hairline round the table is drawn over the cells (v23): under them, the header row and the sum column covered it,
+   and on a past round's paper the sum column seemed to stand outside its table. */
+.ct::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--line); pointer-events: none; }
+.ct > * { display: flex; flex-direction: column; min-width: 0; }
+.ct :is(.c-hole, .c-par, .c-score, .c-putt) { display: grid; place-items: center; min-width: 0; height: 26px; font-size: 13px; }
+.ct .c-hole { background: var(--pill); font-weight: var(--w-label); }
+.ct .c-par { color: var(--muted); border-bottom: 1px solid var(--line); }
+.ct .c-score { height: 40px; }
+.ct .c-putt { color: var(--muted); border-top: 1px solid var(--line); }
+.ct-lbl :is(.c-hole, .c-par, .c-score, .c-putt) { justify-items: start; padding-left: 6px; color: var(--muted); font-weight: var(--w-label); }
+.ct-lbl .c-hole { color: var(--ink); }
+.ct-sum { background: var(--paper); }
+.ct-sum :is(.c-hole, .c-par, .c-score, .c-putt) { color: var(--ink); font-weight: var(--w-value); }
+.ct-sum .c-hole { background: var(--line); font-weight: var(--w-label); }
+.ct-col { color: var(--ink); }
+.ct-col.cur { background-color: var(--cur); }
+.ct-col.cur .c-hole { background: var(--action); color: var(--on-action); }
+/* Inset, so the table's rounded clip never cuts the ring. */
+button.ct-col:focus-visible { outline-offset: -3px; }
+/* 파 수정: each par cell reads as a key in the same column (nothing moves); a par changed from the course's is chosen. */
+.ct.editing .ct-col .c-par { position: relative; isolation: isolate; color: var(--ink); font-weight: var(--w-value); }
+.ct.editing .ct-col .c-par::before { content: ''; position: absolute; z-index: -1; inset: 2px 2px 3px; border-radius: 6px; background: var(--tint); box-shadow: inset 0 0 0 1.5px var(--fairway); }
+.ct.editing .ct-col .c-par.changed::before { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
 /* A 34px mark is wider than a hole's column (24–30px), and a grid item that overflows its column is put at the start
    instead of the middle, so the mark drifted 2–5px right of the hole number. The negative margin keeps its box narrower
    than any column; the drawn mark, scaled about its own middle, then sits on the column's middle (v17). */
 .ct .m { transform: scale(.76); margin-inline: -8px; }
-body.big .ct .r > span { font-size: 15px; }
+body.big .ct :is(.c-hole, .c-par, .c-score, .c-putt) { font-size: 15px; }
 
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */
 #course .marker text { font-size: 13px; font-weight: var(--w-label); fill: var(--on-dark); }
@@ -1075,17 +1134,23 @@ body.big .ct .r > span { font-size: 15px; }
 .strip::backdrop { background: var(--backdrop); }
 .strip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; padding: 0 16px; }
 .strip-head h2 { font-size: 17px; font-weight: var(--w-label); }
-.strip-note { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-.strip-note.warn { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--sand); }
-.strip-row { position: relative; display: flex; gap: 8px; overflow-x: auto; margin: 0; padding: 10px 16px 6px; list-style: none; scrollbar-width: none; overscroll-behavior-x: contain; }
-.strip-row > li { flex: none; display: flex; }
+.strip-note { font-size: 13px; font-weight: var(--w-help); color: var(--muted); white-space: nowrap; }
+.strip-note.warn { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: var(--w-label); box-shadow: inset 0 0 0 1.5px var(--sand); }
+/* Whole cells (v23): it opens with the two holes before this one in view, the first on the heading's edge, and comes
+   to rest on a cell's start. Whatever scrolls under the 16px edges fades out there instead of being chopped through. */
+.strip-row {
+  position: relative; display: flex; gap: 8px; overflow-x: auto; margin: 0; padding: 10px 16px 6px; list-style: none; scrollbar-width: none;
+  overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding-inline: 16px;
+  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+}
+.strip-row > li { flex: none; display: flex; scroll-snap-align: start; }
 .strip-row::-webkit-scrollbar { display: none; }
 .scell {
   flex: none; width: 48px; height: 64px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding-top: 5px; background: var(--white); border: 1px solid var(--line);
 }
 button.scell:active { background: var(--tint); }
-.scell .sc-no { height: 18px; font-size: 13px; font-weight: 800; line-height: 18px; color: var(--muted); }
+.scell .sc-no { height: 18px; font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
 .scell[aria-current='true'] { padding-top: 3.5px; border: 2.5px solid var(--turf); }
 .scell[aria-current='true'] .sc-no { color: var(--turf); }
 .scell[data-st='later'] { padding-top: 4.5px; background: var(--paper); border: 1.5px dashed var(--line-strong); }
@@ -1098,10 +1163,10 @@ button.scell:active { background: var(--tint); }
 .check-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .check-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--paper); }
 .ci { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--sand-tint); color: var(--sand-ink); }
-.check-list b { display: block; font-size: 15px; font-weight: 700; }
+.check-list b { display: block; font-size: 15px; font-weight: var(--w-label); }
 .check-list small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
 .check-actions { margin-top: 14px; display: grid; gap: 8px; }
-.check-actions button { height: 52px; border-radius: 999px; background: var(--tint); color: var(--turf); font-size: 17px; font-weight: 700; }
+.check-actions button { height: 52px; border-radius: 999px; background: var(--tint); color: var(--turf); font-size: 17px; font-weight: var(--w-label); }
 .check-actions .primary { background: var(--action); color: var(--on-action); }
 
 /* ---------- long-press a count: a one-row 0 … 5+ picker ---------- */
@@ -1124,7 +1189,7 @@ button.scell:active { background: var(--tint); }
 /* ---------- 메뉴: the 큰 글씨 switch, 앱 정보 ---------- */
 .mi.tg { grid-template-columns: 40px minmax(0, 1fr) 44px; }
 .sw { position: relative; width: 44px; height: 26px; border-radius: 13px; background: var(--off); box-shadow: inset 0 0 0 1.5px var(--switch-line); }
-.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px var(--sh-35); transition: transform .16s; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px var(--sh-3); transition: transform .16s; }
 .mi[aria-checked='true'] .sw { background: var(--turf); box-shadow: none; }
 .mi[aria-checked='true'] .sw::after { transform: translateX(18px); }
 .mpanel .ab-h { font-size: 15px; font-weight: var(--w-label); }
@@ -1150,7 +1215,7 @@ body.big .next { font-size: 20px; }
 body.big .toast { font-size: 17px; }
 body.big .tab-label { font-size: 15px; }
 body.big .sc-title h2 { font-size: 20px; }
-body.big .badge-name, body.big .rowlbl span, body.big .col > span, body.big .legend, body.big .mi small, body.big .sum-marks small,
+body.big .badge-name, body.big .legend, body.big .mi small, body.big .sum-marks small,
 body.big .check-list small, body.big .strip-note, body.big .scell .sc-no { font-size: 15px; }
 body.big .m b { font-size: 22px; }
 body.big .mi b, body.big .tot h3 { font-size: 20px; }
@@ -1208,21 +1273,21 @@ body.big .info-chip { font-size: 15px; }
 .pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: 24px; background: var(--sand-tint); box-shadow: inset 0 0 0 1.5px var(--sand), 0 8px 24px var(--sh-2); color: var(--sand-ink); }
 .pk-missing[hidden] { display: none; }
 .pk-missing .nc-head { display: flex; align-items: center; gap: 10px; }
-.pk-missing h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+.pk-missing h3 { margin: 0; font-size: 17px; font-weight: var(--w-label); color: var(--ink); }
 .pk-missing .nc-ico { background: var(--veil); color: var(--sand-ink); }
 .pk-missing > p { margin-top: 8px; font-size: 15px; line-height: 1.45; }
 .pk-missing .pm-status:empty { display: none; }
-.pk-missing .pm-status { font-weight: 700; }
+.pk-missing .pm-status { font-weight: var(--w-label); }
 .pk-missing .btn:not(.primary) { background: var(--veil); }
 
 /* ---------- the home-screen card on 지난 라운드 ---------- */
 .home-card .nc-head { display: flex; align-items: center; gap: 10px; }
-.home-card .nc-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.home-card .nc-head h3 { margin: 0; font-size: 15px; font-weight: var(--w-label); }
 .nc-ico { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--tint); color: var(--turf); }
-.hc-more > p, .hc-text { margin-top: 10px; font-size: 15px; line-height: 1.45; color: var(--muted); }
+.hc-more > p, .hc-text { margin-top: 10px; font-size: 15px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .steps { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .steps li { padding: 10px 12px; border-radius: 14px; background: var(--paper); font-size: 15px; line-height: 1.5; }
-.steps b { display: block; font-size: 13px; color: var(--muted); }
+.steps b { display: block; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
 .nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 /* ---------- the long-press coach mark: once, on hole 1 of the first round (centred on the midline's count row) ---------- */
