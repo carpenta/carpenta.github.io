@@ -75,6 +75,9 @@
 
         <div class="sheet-wrap" id="sheet-wrap">
           <span class="ver" id="app-version" aria-hidden="true"></span>
+          <!-- The credit for a hole drawn from OpenStreetMap (v27): the version's twin at the card's left end, shown with that
+               drawing only. A link to OSM's copyright page; the CSP is unchanged, as following a link is navigation. -->
+          <a class="osm-credit" id="osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창" hidden>© OpenStreetMap</a>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
             <div class="clubs" id="clubs"></div>
 
@@ -347,7 +350,7 @@
             <h3 class="ab-h">쓰는 법</h3>
             <p class="muted">숫자를 길게 누르면 0부터 5 이상까지 바로 골라요. 홀 번호를 누르면 18홀이 한눈에 보여요.</p>
             <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
-            <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 실제 배치는 공식 홀 안내를 보세요.</p>
+            <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 에버리스 골프리조트는 OpenStreetMap 지도 데이터(<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, ODbL, 새 창">© OpenStreetMap 기여자, ODbL</a>)로 실제 홀 모양을 그려요. 실제 배치는 공식 홀 안내를 보세요.</p>
           </div>
         </li>
       </ul>
@@ -396,6 +399,7 @@
       <ul class="hi-notes" id="hole-notes" aria-label="홀 특징"></ul>
       <p class="hi-none" id="hi-none" hidden>적어 둔 특징이 없는 홀이에요.</p>
       <p class="hi-art" id="hi-art" hidden>그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.</p>
+      <p class="hi-osm" id="hi-osm" hidden>그림은 OpenStreetMap 지도 데이터로 그린 실제 홀 모양이에요. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창">© OpenStreetMap 기여자</a></p>
       <a class="hi-link" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>공식 홀 안내 보기<svg data-icon="external-link" width="14" height="14"></svg></a>
     </dialog>
 

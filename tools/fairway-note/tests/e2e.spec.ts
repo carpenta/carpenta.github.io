@@ -13,6 +13,18 @@ async function open(page: Page) {
   await expect(page.locator('#picker')).toBeHidden();
 }
 
+/**
+ * Starts a round on another course from the picker's search. Since v27 Everis is drawn from OpenStreetMap, so the
+ * schematic's own tests run on courses it does not draw (에코랜드, 라온).
+ */
+async function openCourse(page: Page, query: string, name: string) {
+  await page.goto('/');
+  await page.getByRole('searchbox', { name: '골프장 검색' }).fill(query);
+  await page.locator('#picker-list button', { hasText: name }).click();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+}
+
 /** One tap per stroke on a club's + or on a penalty. */
 async function tap(page: Page, key: string, times = 1) {
   for (let i = 0; i < times; i++) await page.getByRole('button', { name: `${LABEL[key]} 하나 더하기` }).click();
@@ -284,7 +296,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v26');
+  await expect(page.locator('#app-version')).toHaveText('v27');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -319,12 +331,15 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v26');
+  await expect(page.locator('#menu-version')).toHaveText('v27');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v26');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v27');
+  // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
+  await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
+  await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -403,8 +418,10 @@ test('moves the round to another course from the menu, keeping its strokes', asy
 });
 
 test('draws the hole behind the screen by its par, new for each hole', async ({ page }) => {
-  await open(page);
+  // The schematic, on a course OpenStreetMap does not draw (v27): 에코랜드 와일드·비치힐스.
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
   const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'schematic');
   await expect(course.locator('.fairway')).toHaveCount(1);
   await expect(course.locator('.flag')).toHaveCount(1);
   const greenD = async () => course.locator('.green').getAttribute('d');
@@ -415,12 +432,12 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await page.getByRole('button', { name: '다음 홀로 이동' }).click();
   await expect(page.locator('#hole-par')).toHaveText('Par 3');
   await expect(course.locator('.fairway')).toHaveCount(0);
-  // Everis publishes this par 3's length.
-  await expect(page.locator('#hole-distance')).toHaveText('151 m');
+  // 에코랜드 publishes this par 3's length. Its "넓은 연못" names no place, so no pond is drawn.
+  await expect(page.locator('#hole-distance')).toHaveText('화이트 145 m');
   await expect(course.locator('.water')).toHaveCount(0);
-  // 새별 7 is an island green by the course's own guide: the only 새별 hole drawn with water.
+  // 비치힐스 8 is an island green by the course's own guide: water round the green.
   await showCard(page);
-  await pickHole(page, 6);
+  await pickHole(page, 16);
   await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
   await expect(course.locator('.water')).toHaveCount(1);
   // The tee box sits behind 다음 홀, none of it in the gap above the tab bar.
@@ -457,17 +474,19 @@ function offGreen(): string[] {
 for (const [width, height] of [[390, 844], [375, 667]]) {
   test(`draws only the bunkers and water a hole note names, off the green and its flag, and says so in 홀 안내 at ${width}×${height} (v22)`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await open(page);
+    // The schematic, on a course OpenStreetMap does not draw (v27): 라온 스톤·레이크.
+    await openCourse(page, '라온', '라온 골프클럽');
     const course = page.locator('#course');
-    // 새별 1 ("내리막, 블라인드 티샷, 좌우 OB") names neither: nothing drawn, and 홀 안내 says nothing about the drawing.
+    await expect(course).toHaveAttribute('data-art', 'schematic');
+    // 스톤 2 ("약한 오르막, 짧은 파4, 좌우 숲") names neither: nothing drawn, and 홀 안내 says nothing about the drawing.
+    await pickHole(page, 1);
     await expect(course.locator('.bunker')).toHaveCount(0);
     await expect(course.locator('.water')).toHaveCount(0);
     await page.locator('#info-btn').click();
     await expect(page.locator('#hole-pop')).toBeVisible();
     await expect(page.locator('#hi-art')).toBeHidden();
     await page.keyboard.press('Escape');
-    // 새별 4 ("그린 둘러싼 벙커·해저드, 비치 벙커"): three bunkers round the par 3 green. The plain 해저드 can be dry and the
-    // 비치 벙커 has no place, so neither is drawn.
+    // 스톤 4 ("내리막, 그린 주변 벙커 3개"): three bunkers round the par 3 green.
     await pickHole(page, 3);
     await expect(course.locator('.bunker')).toHaveCount(3);
     await expect(course.locator('.water')).toHaveCount(0);
@@ -475,6 +494,12 @@ for (const [width, height] of [[390, 844], [375, 667]]) {
     await page.locator('#info-btn').click();
     await expect(page.locator('#hi-art')).toBeVisible();
     await expect(page.locator('#hi-art')).toHaveText('그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.');
+    await page.keyboard.press('Escape');
+    // 스톤 7 ("내리막, 그린 앞 우측 벙커, 좌측 해저드"): the bunker only. A plain 해저드 can be dry, so it is not drawn as water.
+    await pickHole(page, 6);
+    await expect(course.locator('.bunker')).toHaveCount(1);
+    await expect(course.locator('.water')).toHaveCount(0);
+    expect(await page.evaluate(offGreen)).toEqual([]);
     expect(await sideScroll(page)).toBe(0);
   });
 }
@@ -503,16 +528,19 @@ test('grains the drawn course from noise tiles made once on a canvas, with no SV
   expect(await tile('grain-turf')).toBe(turf);
 });
 
+/** Each drawn distance pill's label (SVG text in the page font) and the room the pill gives it. */
+const markerFits = (page: Page) => page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => ({
+  label: g.querySelector('text')!.textContent,
+  text: (g.querySelector('text') as SVGTextElement).getComputedTextLength(),
+  pill: Number(g.querySelector('rect')!.getAttribute('width')),
+})));
+
 test('fits the drawn distance pills to their labels in the page font, with room on each side (v24)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await open(page);
+  // The schematic on 에코랜드 와일드 1 (342 m) shows 100 m and 150 m in a tall band (v27: Everis is drawn from OpenStreetMap).
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
   await page.evaluate(() => document.fonts.ready);
-  // 새별 1 (381 m) shows 100 m and 150 m in a tall band; each label is SVG text drawn in the page's font.
-  const fit = await page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => ({
-    label: g.querySelector('text')!.textContent,
-    text: (g.querySelector('text') as SVGTextElement).getComputedTextLength(),
-    pill: Number(g.querySelector('rect')!.getAttribute('width')),
-  })));
+  const fit = await markerFits(page);
   expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
   for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
 });
@@ -538,10 +566,200 @@ test('draws a pond in front of a par 3 green and a bunker on its left, as the ho
   expect(bunker.x + bunker.width / 2).toBeLessThan(green.x);
 });
 
+// ---------- Everis drawn from OpenStreetMap (v27) ----------
+
+const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
+/** What main.ts writes on the drawing for an OpenStreetMap hole: the back tee, the greens' middle, px per metre, the line. */
+const osmAxis = (page: Page) => page.locator('#course').evaluate((el) => ({
+  tee: el.dataset.tee!.split(',').map(Number),
+  green: el.dataset.green!.split(',').map(Number),
+  scale: Number(el.dataset.scale),
+  line: el.dataset.line!.split(' ').map((p) => p.split(',').map(Number)),
+}));
+
+test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link beside it and in 홀 안내, with no request or new storage (v27)', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if ((url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') || request.method() !== 'GET' || request.postData()) requests.push(request.url());
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  // 새별 1 as OpenStreetMap maps it: one fairway, two greens (the flag on one), five tees and seven bunkers.
+  await expect(course.locator('.fairway')).toHaveCount(1);
+  await expect(course.locator('.green')).toHaveCount(1);
+  await expect(course.locator('.green2')).toHaveCount(1);
+  await expect(course.locator('.tee')).toHaveCount(1);
+  await expect(course.locator('.tee2')).toHaveCount(4);
+  await expect(course.locator('.bunker')).toHaveCount(7);
+  await expect(course.locator('.flag')).toHaveCount(1);
+  // The credit beside the drawing: a link to OpenStreetMap's copyright page, in a new tab, legible on whatever is under it.
+  const credit = page.locator('#osm-credit');
+  await expect(credit).toBeVisible();
+  await expect(credit).toHaveText('© OpenStreetMap');
+  await expect(credit).toHaveAttribute('href', OSM_COPYRIGHT);
+  await expect(credit).toHaveAttribute('target', '_blank');
+  await expect(credit).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(credit).toHaveAccessibleName(/^© OpenStreetMap/);
+  const [legible] = await contrastOf(page, [{ sel: '#osm-credit', min: 4.5, unders: OVER_ART }]);
+  expect(legible.size).toBeGreaterThanOrEqual(13);
+  expect(legible.ratio!).toBeGreaterThanOrEqual(4.5);
+  // Its touch area is at least 24px each way (WCAG 2.2 target size), without reaching into the card.
+  const area = await credit.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const after = getComputedStyle(el, '::after');
+    const grow = (v: string) => Math.max(0, -parseFloat(v) || 0);
+    return { w: r.width + grow(after.left) + grow(after.right), h: r.height + grow(after.top) + grow(after.bottom), bottom: r.bottom + grow(after.bottom) };
+  });
+  expect(Math.min(area.w, area.h)).toBeGreaterThanOrEqual(24);
+  expect(area.bottom).toBeLessThanOrEqual((await page.locator('#sheet').boundingBox())!.y + 0.5);
+  // 홀 안내 says where the shape comes from, with the same link; v22's line about approximate hazards is the schematic's.
+  await page.locator('#info-btn').click();
+  await expect(page.locator('#hi-osm')).toBeVisible();
+  await expect(page.locator('#hi-osm a')).toHaveAttribute('href', OSM_COPYRIGHT);
+  await expect(page.locator('#hi-osm a')).toHaveAttribute('target', '_blank');
+  await expect(page.locator('#hi-art')).toBeHidden();
+  await page.keyboard.press('Escape');
+  // The next hole is its own shape, still from OpenStreetMap.
+  const green = await course.locator('.green').getAttribute('d');
+  await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+  await expect(page.locator('#hole-n')).toHaveText('2');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  expect(await course.locator('.green').getAttribute('d')).not.toBe(green);
+  await expect(credit).toBeVisible();
+  // At its real scale a long hole's approach reaches into the band: 새별 3 (par 5) shows its 100 m pill, which fits its
+  // label as the schematic's do.
+  await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+  await expect(page.locator('#hole-n')).toHaveText('3');
+  await page.evaluate(() => document.fonts.ready);
+  const fit = await markerFits(page);
+  expect(fit.map((f) => f.label)).toEqual(['100 m']);
+  for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
+  // Bundled: no request left the page, and nothing new was stored.
+  expect(requests).toEqual([]);
+  expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
+    .toEqual({ keys: [PREFS_KEY, STORAGE_KEY].sort(), sessionStorage: 0, cookies: '' });
+  expect(await page.evaluate(async () => (await indexedDB.databases()).length)).toBe(0);
+});
+
+test('keeps the schematic, with no OpenStreetMap credit, on a course it does not draw (v27)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
+  await expect(page.locator('#osm-credit')).toBeHidden();
+  await page.locator('#info-btn').click();
+  await expect(page.locator('#hole-pop')).toBeVisible();
+  await expect(page.locator('#hi-osm')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
+  await expect(page.locator('#osm-credit')).toBeHidden();
+  expect(await sideScroll(page)).toBe(0);
+});
+
+test('keeps the schematic, with no credit, on the Everis holes OpenStreetMap does not match and on a screen with no open band (v27)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const course = page.locator('#course');
+  const credit = page.locator('#osm-credit');
+  // 레이크 4 and 5 (holes 13 and 14 of 새별·레이크) stay on the schematic; 레이크 6 is drawn from OpenStreetMap.
+  for (const [index, art] of [[12, 'schematic'], [13, 'schematic'], [14, 'osm']] as const) {
+    await pickHole(page, index);
+    await expect(course, `hole ${index + 1}`).toHaveAttribute('data-art', art);
+    if (art === 'osm') await expect(credit).toBeVisible();
+    else await expect(credit).toBeHidden();
+  }
+  // A short screen (375×553) has no open band for the drawing and its credit: the schematic, as before.
+  await page.setViewportSize({ width: 375, height: 553 });
+  await pickHole(page, 0);
+  await expect(course).toHaveAttribute('data-art', 'schematic');
+  await expect(credit).toBeHidden();
+  await expect(page.locator('#hole-thumb')).toBeVisible();
+  expect(await sideScroll(page)).toBe(0);
+});
+
+for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+  test(`lines up an OpenStreetMap hole and its credit within 1px at ${width}×${height} (v27)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page);
+    await atRest(page);
+    const course = page.locator('#course');
+    await expect(course).toHaveAttribute('data-art', 'osm');
+    const sheet = await rect(page, '#sheet');
+    const credit = await rect(page, '#osm-credit');
+    const go = await rect(page, '#go-next');
+    // The credit mirrors the version pill: on the card's left edge, 6px above it, the same height and line.
+    expectAligned(credit.x, sheet.x, 'credit left = card left');
+    expectAligned(credit.y + credit.height, sheet.y - 6, 'credit bottom 6px above the card');
+    expect(credit.y).toBeGreaterThanOrEqual((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 4);
+    if (await page.locator('#app-version').isVisible()) {
+      const ver = await rect(page, '#app-version');
+      expectAligned(credit.y, ver.y, 'credit top = version top');
+      expectAligned(credit.height, ver.height, 'credit height = version height');
+      expect(credit.x + credit.width).toBeLessThan(ver.x - 8);
+    }
+    // The axis: the back tee behind 다음 홀's middle, the greens' middle straight above it.
+    const axis = await osmAxis(page);
+    expectAligned(axis.tee[0], width / 2, 'back tee on the screen middle');
+    expectAligned(axis.tee[1], go.y + go.height / 2 - 1.5, 'back tee behind 다음 홀');
+    expectAligned(axis.green[0], width / 2, 'greens straight above the tee');
+    expectAligned(axis.line[0][0], axis.tee[0], 'line starts at the tee (x)');
+    expectAligned(axis.line[0][1], axis.tee[1], 'line starts at the tee (y)');
+    expectAligned(axis.line[axis.line.length - 1][1], axis.green[1], 'line ends at the greens');
+    // The drawn back tee holds that point, and the cup stands on the flagged green.
+    const inside = await course.evaluate((el, at) => {
+      const svg = el as unknown as SVGSVGElement;
+      const p = svg.createSVGPoint();
+      [p.x, p.y] = at;
+      const cup = el.querySelector('.a-cup')!;
+      const q = svg.createSVGPoint();
+      q.x = Number(cup.getAttribute('cx'));
+      q.y = Number(cup.getAttribute('cy'));
+      return { tee: el.querySelector<SVGGeometryElement>('.tee')!.isPointInFill(p), cup: el.querySelector<SVGGeometryElement>('.green')!.isPointInFill(q) };
+    }, axis.tee);
+    expect(inside).toEqual({ tee: true, cup: true });
+    // Nothing drawn to be read sits under the credit: not the flag, not a distance pill.
+    const clearOfCredit = () => page.evaluate((c) => [...document.querySelectorAll('#course .flag, #course .marker')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.right > c.x && r.left < c.x + c.width && r.bottom > c.y && r.top < c.y + c.height;
+    }).length, credit);
+    expect(await clearOfCredit()).toBe(0);
+    expect(await sideScroll(page)).toBe(0);
+    // A tall band reaches a long hole's approach: 새별 3 (par 5) shows its 100 m marker, its distance along the line of play
+    // from the greens' middle at the drawing's scale.
+    if (height < 800) return;
+    await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+    await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+    await expect(page.locator('#hole-n')).toHaveText('3');
+    const long = await osmAxis(page);
+    const markers = await course.locator('.marker circle').evaluateAll((list) => list.map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), d: Number(c.closest('g')!.querySelector('text')!.textContent!.replace(' m', '')) })));
+    expect(markers.map((m) => m.d)).toEqual([100]);
+    for (const m of markers) {
+      let along = 0;
+      let found = NaN;
+      for (let i = long.line.length - 1; i > 0; i--) {
+        const [a, b] = [long.line[i], long.line[i - 1]];
+        const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const t = ((m.x - a[0]) * (b[0] - a[0]) + (m.y - a[1]) * (b[1] - a[1])) / (seg * seg);
+        if (t >= -0.01 && t <= 1.01 && Math.abs((m.x - a[0]) * (b[1] - a[1]) - (m.y - a[1]) * (b[0] - a[0])) / seg < 0.6) {
+          found = along + t * seg;
+          break;
+        }
+        along += seg;
+      }
+      expectAligned(found, m.d * long.scale, `${m.d} m marker along the line`);
+      expect(m.y, `${m.d} m marker in the band`).toBeLessThan(sheet.y);
+    }
+    expect(await clearOfCredit()).toBe(0);
+  });
+}
+
 test.describe('with hole notes in the course data', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
-  test('shows the length, handicap, layout note and official guide link, and bends a dogleg', async ({ page }) => {
+  test('shows the length, handicap, layout note and official guide link', async ({ page }) => {
     await open(page);
     // Everis 새별 1 as its own hole guide gives it: one length with no tee name, the handicap and a short note.
     await expect(page.locator('#hole-distance')).toHaveText('381 m');
@@ -567,17 +785,37 @@ test.describe('with hole notes in the course data', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('#hole-pop')).toBeHidden();
     await expect(infoBtn).toBeFocused();
-    // 레이크 1 (hole 10) bends right, so its green sits right of a straight hole's.
     await showCard(page);
     await pickHole(page, 9);
     await expect(page.locator('#hole-notes li')).toHaveText(['우 도그렉', '그린 뒤 내리막']);
     await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 5');
+  });
+
+  test('bends a dogleg on the schematic: a right-hand dogleg’s green sits right of a straight hole’s', async ({ page }) => {
+    // 에코랜드 와일드 5 ("우 도그렉, …") bends right, so its drawn green sits right of a straight hole's.
+    await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+    await pickHole(page, 4);
+    await expect(page.locator('#hole-notes li').first()).toHaveText('우 도그렉');
+    await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
     const straight = await page.evaluate(() => innerWidth * 0.47);
     await expect.poll(async () => {
       const box = (await page.locator('#course .green').boundingBox())!;
       return box.x + box.width / 2;
     }).toBeGreaterThan(straight);
   });
+});
+
+test('shows Everis 레이크 1’s right-hand dogleg from OpenStreetMap: the line of play bends left of the tee–green line, then into the green (v27)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await open(page);
+  await pickHole(page, 9);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  const line = await course.evaluate((el) => el.dataset.line!.split(' ').map((p) => p.split(',').map(Number)));
+  const axis = line[0][0];
+  // A right-hand dogleg: straight out to the elbow, which lies left of the straight tee–green line, then right to the green.
+  expect(Math.min(...line.map(([x]) => x))).toBeLessThan(axis - 8);
+  expect(line[line.length - 1][0]).toBeCloseTo(axis, 0);
 });
 
 test('keeps the round after reload and starts a new one on request', async ({ page }) => {

@@ -231,6 +231,13 @@ svg { display: block; }
 .hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
 /* The version, quietly, just above the card's right end on 기록 (and in the menu's 앱 정보): the user reads it in screenshots. */
 .ver { position: absolute; z-index: 1; right: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: 999px; background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; line-height: 20px; font-weight: var(--w-label); pointer-events: none; }
+/* The © OpenStreetMap link (v27): the version's twin at the card's left end, shown while the hole is drawn from OpenStreetMap.
+   Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds room (--credit-reach,
+   2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On its dark pill the focus ring is light. */
+.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: 999px; background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; line-height: 20px; font-weight: var(--w-label); white-space: nowrap; text-decoration: none; }
+.osm-credit::after { content: ''; position: absolute; inset: calc(-1 * var(--credit-reach)) -4px -6px; }
+.osm-credit:active { background: var(--deep-glass); }
+.osm-credit:focus-visible { outline-color: var(--on-dark); }
 #hole-title.two .hole-n { font-size: 28px; }
 #hole-title.two .hole-u { font-size: 15px; }
 .info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
@@ -1288,7 +1295,9 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .hi-facts { margin-top: 2px; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: var(--w-label); }
-.hi-none, .hi-art { margin-top: 8px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+.hi-none, .hi-art, .hi-osm { margin-top: 8px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+/* The OpenStreetMap credit in 홀 안내 and 앱 정보 (v27): a link inside the sentence, underlined so it reads as one. */
+.hi-osm a, .ab-foot a { color: var(--turf); font-weight: var(--w-label); text-decoration: underline; text-underline-offset: 2px; }
 .hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 15px; font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
 body.big .meta { height: 32px; font-size: 15px; }
 body.big .prog { height: 24px; }
@@ -1462,8 +1471,9 @@ body.big .vc-privacy { font-size: 15px; line-height: 20px; }
   white-space: normal; line-height: 19px; text-wrap: balance;
 }
 body.big .toast.vc #toast-msg { line-height: 20px; }
-/* As wide as the card, it would leave the version label's top showing over its right end: the label steps aside meanwhile. */
-.sheet-wrap:has(> .toast.vc:not([hidden])) > .ver { visibility: hidden; }
+/* As wide as the card, it would leave the version label's top showing over its right end: the label steps aside meanwhile,
+   and so does the © OpenStreetMap link at its left end (v27). */
+.sheet-wrap:has(> .toast.vc:not([hidden])) > :is(.ver, .osm-credit) { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .vc-sheet[open], .vc-sheet[open]::backdrop { animation: none; }
 }
