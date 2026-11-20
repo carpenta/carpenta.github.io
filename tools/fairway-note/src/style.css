@@ -229,7 +229,10 @@ svg { display: block; }
 }
 .step:active:not(:disabled) span { background: var(--tint); box-shadow: 0 1px 2px rgb(23 48 26 / .18); }
 .step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
-.count { font-size: clamp(22px, calc((var(--pill-h) - 2 * var(--pill-pad) - 2 * var(--step) - 16px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
+/* Trimmed to its digits' cap height, the count is sized for 10px above and below it between + and −: 2px more than
+   the 8px it needs, so fonts that draw taller digits than the Mac's (Linux, Android) still keep it clear. 1.38 turns
+   a cap height into a font size (v18). */
+.count { font-size: clamp(22px, calc((var(--pill-h) - 2 * var(--pill-pad) - 2 * var(--step) - 20px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
 .count.zero { color: #6e856c; }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
@@ -962,10 +965,12 @@ body.big .check-list small, body.big .strip-note, body.big .scell .sc-no { font-
 body.big .m b { font-size: 22px; }
 body.big .mi b, body.big .tot h3 { font-size: 20px; }
 @media (max-height: 599px) {
-  /* Short screens: bigger letters, the same heights */
-  body.big { --count: 44px; --pill-base: 412px; }
+  /* Short screens: bigger letters, the same heights. The pills keep their full height, so the counts stay as large as
+     with 큰 글씨 off; the toggle gives the 2px the taller 벌타 labels take (v18). */
+  body.big { --count: 44px; --pill-base: 408px; }
   body.big .chip { height: 28px; }
   body.big .club-lbl { height: 18px; }
+  body.big .modes { margin-top: 12px; }
 }
 
 /* ---------- one header row (v10): Par, length, HDCP and progress in one pill, then 홀 안내 ---------- */

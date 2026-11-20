@@ -1566,8 +1566,13 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
   });
 }
 
-// Linux and Android draw Hangul and digits with wider fonts (Noto Sans CJK) than the Mac (Apple SD Gothic Neo). Wider
-// letters stand in for them here, so the same no-overlap and fit rules are proven on every machine.
+// Linux and Android draw Hangul and digits with other fonts (DejaVu Sans, Noto Sans CJK) than the Mac (SF, Apple SD
+// Gothic Neo): wider, with another ascent, descent and cap height. Stand-ins prove the same rules on every machine.
+// Wider letters for the widths.
+const WIDER = '* { letter-spacing: .1em !important; }';
+// For the heights: Verdana and Arial Unicode MS (taller digits, a deeper ascent and descent; Linux, which has neither,
+// falls back to its own fonts), spaced wider, with lines a tenth taller wherever a line takes the body's height.
+const OTHER_TYPE = "* { font-family: Verdana, 'Arial Unicode MS', sans-serif !important; letter-spacing: .1em !important; } body { line-height: 1.6 !important; }";
 for (const [width, height] of [[360, 640], [375, 553]]) {
   test.describe(`with wider type, as on Linux and Android, on a ${width}×${height} phone`, () => {
     // Only to add the widening style: the page's own CSP blocks injected styles.
@@ -1575,7 +1580,7 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
 
     test('the hole switcher stays centred and clear of the badge, and 기록 still fits', async ({ page }) => {
       await open(page);
-      await page.addStyleTag({ content: '* { letter-spacing: .1em !important; }' });
+      await page.addStyleTag({ content: WIDER });
       for (const hole of [0, 9]) {
         if (hole === 9) await pickHole(page, 9);
         for (const mode of ['기본', '상세'] as const) {
@@ -1600,6 +1605,30 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
         }
       }
     });
+
+    test('with other fonts, each count keeps 8px clear of + and −, in 큰 글씨 too', async ({ page }) => {
+      await open(page);
+      for (const big of [false, true]) {
+        if (big) {
+          await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) ?? '{}'), big: true })), PREFS_KEY);
+          await page.reload();
+          await expect(page.locator('body')).toHaveClass(/big/);
+        }
+        await page.addStyleTag({ content: OTHER_TYPE });
+        for (const mode of ['기본', '상세'] as const) {
+          await page.getByRole('button', { name: mode, exact: true }).click();
+          await atRest(page);
+          for (const key of ['driver', 'approach', 'putts']) {
+            const [plus, n, minus] = await Promise.all([`.club-${key} .plus span`, `#count-${key}`, `.club-${key} .minus span`].map((s) => rect(page, s)));
+            const where = `${big ? '큰 글씨 ' : ''}${mode} ${key}`;
+            expect(n.y - (plus.y + plus.height), where).toBeGreaterThanOrEqual(8);
+            expect(minus.y - (n.y + n.height), where).toBeGreaterThanOrEqual(8);
+          }
+        }
+      }
+    });
+
+
   });
 }
 
