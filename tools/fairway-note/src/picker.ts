@@ -63,13 +63,16 @@ export function openPicker(options: PickerOptions): void {
   $('picker-cancel').hidden = mode === 'first';
   $('picker-cancel').textContent = options.cancelLabel ?? '취소';
   $('picker-title').textContent = options.title ?? '어디서 치세요?';
+  // The first visit says what the app is not: no sign-up, records only on this phone.
+  $('picker-first').hidden = mode !== 'first';
   $('picker-start').textContent = options.startLabel ?? '이 코스로 시작';
   renderAreas();
   renderList();
   renderChosen();
   if (!dialog().open) dialog().showModal();
-  // Start is focused, not the search box, so opening the picker never pops up the keyboard.
-  $('picker-start').focus();
+  // The dialog itself takes focus: not the search box, so the keyboard does not pop up, and not 이 코스로 시작,
+  // which would show a focus ring nobody asked for. Tab goes on to the controls.
+  dialog().focus();
   $('picker-list').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'center' });
 }
 
@@ -150,10 +153,10 @@ function renderAreas(): void {
 }
 
 function courseItem(c: Course): HTMLLIElement {
-  const nines = c.nines.length === 1 ? '9홀' : `${c.nines.length * 9}홀 · ${c.nines.map((n) => n.name.ko).join('·')}`;
+  const nines = c.nines.length === 1 ? '9홀' : `${c.nines.length * 9}홀 ${c.nines.map((n) => n.name.ko).join('·')}`;
   return h('li', {}, h('button', { type: 'button', class: 'course', 'data-course': c.id, 'aria-pressed': String(choice.course === c.id) },
     h('b', {}, c.name.ko),
-    h('span', {}, `${c.region} · ${nines}`),
+    h('span', {}, `${c.region}, ${nines}`),
   ));
 }
 
@@ -164,7 +167,7 @@ function renderList(): void {
     found.length ? '' : h('li', { class: 'empty muted' }, '찾는 골프장이 없습니다. 직접 입력으로 시작하세요.'),
     h('li', {}, h('button', { type: 'button', class: 'course custom', 'data-course': CUSTOM, 'aria-pressed': String(choice.course === null) },
       h('b', {}, CUSTOM_NAME),
-      h('span', {}, '목록에 없는 골프장 · Par 4로 시작, 홀마다 바꾸기'),
+      h('span', {}, '목록에 없는 골프장, Par 4로 시작해 홀마다 바꿔요'),
     )),
   );
 }
@@ -190,7 +193,7 @@ function renderChosen(): void {
   } else {
     const setup = roundSetup(choice);
     const par = setup.pars.reduce((s, p) => s + p, 0);
-    const source = h('p', { class: 'muted small' }, `${course.region} · Par ${par} · 공식 스코어카드 (${course.checked} 확인)`);
+    const source = h('p', { class: 'muted small' }, `${course.region}, Par ${par}, 공식 스코어카드(${course.checked} 확인)`);
     if (nine) {
       // One nine: no 후반, and the row is the course to play.
       box.replaceChildren(course.nines.length > 1
@@ -201,7 +204,7 @@ function renderChosen(): void {
     } else if (course.nines.length === 2) {
       box.replaceChildren(
         h('div', { class: 'nine-row' },
-          h('span', { class: 'nine-fixed' }, `전반 ${setup.course.front} · 후반 ${setup.course.back}`),
+          h('span', { class: 'nine-fixed' }, `전반 ${setup.course.front}, 후반 ${setup.course.back}`),
           h('button', { type: 'button', class: 'btn swap', id: 'picker-swap' }, '전·후반 바꾸기'),
         ),
         source,

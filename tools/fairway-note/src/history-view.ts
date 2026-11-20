@@ -43,6 +43,15 @@ let unreadable: 'none' | 'kept' | 'failed' = 'none';
 let started = false;
 /** The mounted view, once renderHistory() has run. */
 let view: { list: HTMLOListElement; trends: HTMLElement; note: HTMLElement; empty: HTMLElement; status: HTMLElement } | null = null;
+
+/** No kept rounds yet: a small flag drawing and two calm lines. */
+function emptyState(): HTMLElement {
+  const box = h('div', { id: 'history-empty', class: 'hist-empty' });
+  // Static markup: a flag on a little green, drawn from numbers only.
+  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse cx="32" cy="40" rx="24" ry="6" fill="#8FCC71"/><ellipse cx="34" cy="39" rx="3" ry="1.4" fill="#17301A"/><path d="M34 39V8" stroke="#6E856C" stroke-width="2" stroke-linecap="round"/><path d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z" fill="#D2402F"/></svg>';
+  box.append(h('p', { class: 'he-1' }, '아직 보관한 라운드가 없어요'), h('p', { class: 'he-2' }, '라운드를 마치고 "지난 라운드에 보관"을 누르면 여기에 쌓여요.'));
+  return box;
+}
 /** The dialog for one past round, built on first use. */
 let sheet: {
   dialog: HTMLDialogElement;
@@ -79,7 +88,7 @@ function item(e: Entry): HTMLLIElement {
   const t = a.totals;
   const when = dateLabel(e.round.date);
   const where = courseName(e.round);
-  const ob = t.ob ? ` · OB ${t.ob}` : '';
+  const ob = t.ob ? `, OB ${t.ob}` : '';
   return h('li', {},
     h('button', {
       type: 'button',
@@ -90,7 +99,7 @@ function item(e: Entry): HTMLLIElement {
       h('span', { class: 'past-when' }, when),
       h('span', { class: 'past-score' }, `${t.strokes}타 `, h('span', { class: toParClass(a.toPar) }, formatToPar(a.toPar))),
       h('span', { class: 'past-where' }, where),
-      h('span', { class: 'past-meta' }, `${t.holes}홀 · 퍼트 ${t.putts}${ob}`),
+      h('span', { class: 'past-meta' }, `${t.holes}홀, 퍼트 ${t.putts}${ob}`),
     ),
   );
 }
@@ -279,7 +288,7 @@ export function renderHistory(container: HTMLElement, p: Page): void {
     list,
     trends: h('div', { id: 'history-trends', class: 'history-trends', hidden: '' }),
     note: h('p', { id: 'history-note', class: 'muted small', hidden: '' }),
-    empty: h('p', { id: 'history-empty', class: 'muted small' }, '아직 보관한 라운드가 없습니다. "새 라운드 시작"을 누르면 끝낸 홀이 있는 지금 라운드가 여기에 보관됩니다.'),
+    empty: emptyState(),
     status: h('p', { id: 'history-status', class: 'muted small', role: 'status' }),
   };
   container.setAttribute('aria-labelledby', 'history-title');

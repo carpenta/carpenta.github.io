@@ -29,6 +29,15 @@ async function showCard(page: Page) {
   await expect(page.locator('#card-view')).toBeVisible();
 }
 
+/** Opens hole `index` from 스코어카드: its nine's table opens the hole strip in 기록, and the hole's cell opens it. */
+async function pickHole(page: Page, index: number) {
+  await showCard(page);
+  await page.locator(`#scorecard .nine-tbl[data-nine="${index < 9 ? 0 : 9}"]`).click();
+  await expect(page.locator('#strip')).toBeVisible();
+  await page.locator(`#strip [data-jump="${index}"]`).click();
+  await expect(page.locator('#strip')).toBeHidden();
+}
+
 async function showEntry(page: Page) {
   await tab(page, '기록').click();
   await expect(page.locator('#entry')).toBeVisible();
@@ -117,7 +126,7 @@ test('counts each club with one tap and totals the round without network or othe
   await expect(page.locator('#sum-putts')).toHaveText('5');
   await expect(page.locator('#sum-ob')).toHaveText('1');
   await expect(page.locator('#tot-holes')).toHaveText('3홀');
-  await expect(page.locator('#scorecard [data-hole="1"] .m')).toHaveAttribute('data-mark', 'double');
+  await expect(page.locator('#scorecard .r-s [data-col="1"] .m')).toHaveAttribute('data-mark', 'double');
 
   expect(requests).toEqual([]);
   expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
@@ -260,34 +269,53 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v12');
+  await expect(page.locator('#app-version')).toHaveText('v13');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
   await open(page);
   await showCard(page);
-  await expect(page.locator('#scorecard [data-hole="0"]')).toHaveAttribute('aria-current', 'true');
-  await page.locator('#scorecard [data-hole="11"]').click();
+  // Nothing recorded: a first-run line with a way to the hole, and blank cells, not dashes.
+  await expect(page.locator('#sh-empty')).toBeVisible();
+  await expect(page.locator('#sc-hero')).toBeHidden();
+  await expect(page.locator('#scorecard .r-s [data-col="0"]')).toHaveText('');
+  await expect(page.locator('#scorecard .r-h [data-col="0"]')).toHaveClass(/cur/);
+  // Each nine is one button: it opens the hole strip in 기록 at that nine.
+  const back = page.getByRole('button', { name: /^레이크 후반, 기록 없음\. 눌러서 홀 고르기$/ });
+  await back.click();
   await expect(page.locator('#entry')).toBeVisible();
+  await expect(page.locator('#strip')).toBeVisible();
+  await expect(page.locator('#strip [data-jump="9"]')).toBeFocused();
+  await page.locator('#strip [data-jump="11"]').click();
   await expect(page.locator('#hole-title')).toHaveText('12번 홀');
   await showCard(page);
-  await expect(page.locator('#scorecard [data-hole="11"]')).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('#scorecard .r-h [data-col="11"]')).toHaveClass(/cur/);
+  await expect(page.locator('#scorecard .r-h [data-col="0"]')).not.toHaveClass(/cur/);
+  await page.getByRole('button', { name: '12번 홀 기록하기' }).click();
+  await expect(page.locator('#entry')).toBeVisible();
+  // Once a hole is finished the hero shows the round so far.
+  await tap(page, 'driver');
+  await tap(page, 'putts', 2);
+  await next(page).click();
+  await showCard(page);
+  await expect(page.locator('#sc-hero')).toBeVisible();
+  await expect(page.locator('#sh-sub')).toHaveText('18홀 중 1홀 기록');
 });
 
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v12');
+  await expect(page.locator('#menu-version')).toHaveText('v13');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v12');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v13');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
   await expect(page.locator('#mulligan-count')).toHaveText('1');
-  await expect(page.locator('#mulligan-sub')).toHaveText('1번 홀 1개 · 타수에 넣지 않아요');
+  await expect(page.locator('#mulligan-sub')).toHaveText('1번 홀 1개, 타수에 넣지 않아요');
   await closeMenu(page);
   // A mulligan alone does not record the hole.
   await expect(page.locator('#hole-name')).toHaveText('기록 전');
@@ -327,7 +355,7 @@ test('changes pars in 파 수정 on the scorecard, one tap per step from 3 to 5'
   await expect(first).toHaveText('3');
   await page.getByRole('button', { name: '완료' }).click();
   await expect(page.locator('#edit-hint')).toBeHidden();
-  await expect(page.locator('#scorecard .col[data-hole] .pr').first()).toHaveText('3');
+  await expect(page.locator('#scorecard .r-p [data-col="0"]')).toHaveText('3');
   expect((await stored(page)).holes[0].par).toBe(3);
   await showEntry(page);
   await expect(page.locator('#hole-par')).toHaveText('Par 3');
@@ -375,7 +403,7 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await expect(course.locator('.water')).toHaveCount(0);
   // 새별 7 is an island green by the course's own guide: the only hole drawn with water.
   await showCard(page);
-  await page.locator('#scorecard [data-hole="6"]').click();
+  await pickHole(page, 6);
   await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
   await expect(course.locator('.water')).toHaveCount(1);
 });
@@ -409,7 +437,7 @@ test.describe('with hole notes in the course data', () => {
     await expect(infoBtn).toBeFocused();
     // 레이크 1 (hole 10) bends right, so its green sits right of a straight hole's.
     await showCard(page);
-    await page.locator('#scorecard [data-hole="9"]').click();
+    await pickHole(page, 9);
     await expect(page.locator('#hole-notes li')).toHaveText(['우 도그렉', '그린 뒤 내리막']);
     await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 5');
     const straight = await page.evaluate(() => innerWidth * 0.47);
@@ -425,7 +453,7 @@ test('keeps the round after reload and starts a new one on request', async ({ pa
   await tap(page, 'driver');
   await tap(page, 'putts', 2);
   await showCard(page);
-  await page.locator('#scorecard [data-hole="4"]').click();
+  await pickHole(page, 4);
   await page.reload();
   await expect(page.locator('#hole-title')).toHaveText('5번 홀');
   await expect(page.locator('#sum-strokes')).toHaveText('3');
@@ -482,7 +510,7 @@ test('moves between holes, stops at the ends and ends the round on the last hole
   await expect(page.locator('#hole-title')).toHaveText('1번 홀');
   await expect(page.locator('#hole-strokes')).toHaveText('–');
   await showCard(page);
-  await page.locator('#scorecard [data-hole="17"]').click();
+  await pickHole(page, 17);
   await expect(page.locator('#next-hole')).toBeDisabled();
   await expect(page.getByRole('button', { name: '드라이버 하나 빼기' })).toBeDisabled();
   await expect(next(page)).toHaveText('라운드 마치기');
@@ -730,9 +758,9 @@ test('a 9-hole round from the picker: one nine on every screen, saved and kept a
   await expect(page.locator('#picker-label')).toContainText('9홀');
   await page.locator('#picker-cancel').click();
   await showCard(page);
-  await expect(page.locator('#scorecard .scorecard')).toHaveCount(1);
-  await expect(page.locator('#scorecard .nine-h')).toHaveText('레이크9홀');
-  await expect(page.locator('#scorecard .col.sub .no')).toHaveText(['합계']);
+  await expect(page.locator('#scorecard .nine-tbl')).toHaveCount(1);
+  await expect(page.locator('#scorecard .nt-h b')).toHaveText('레이크');
+  await expect(page.locator('#scorecard .r-h .ct-s')).toHaveText(['9홀']);
   // Every hole recorded and putted: the summary opens at once.
   await page.getByRole('button', { name: '라운드 마치기' }).click();
   await expect(page.locator('#summary')).toBeVisible();
@@ -1294,7 +1322,7 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
   }, selectors);
   const checks = await measure(['.club-lbl', '#hole-par', '#prog-n', '#info-btn', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
   await showCard(page);
-  checks.push(...await measure(['.sum dt', '.rowlbl span', '.col .pr', '.nine-h span', '.metrics dt']));
+  checks.push(...await measure(['.sh-stats dt', '.ct .ct-l', '.ct .r-p > span', '.nt-h small', '.nt-go', '.metrics dt']));
   for (const { selector, size, contrast } of checks) {
     expect(size, selector).toBeGreaterThanOrEqual(13);
     expect(contrast, selector).toBeGreaterThanOrEqual(4.5);
@@ -1472,7 +1500,7 @@ test('offers to reopen when a new version is waiting', async ({ page }) => {
     await open(page);
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await page.reload();
-    const prompt = page.getByRole('button', { name: '새 버전이 있습니다 · 다시 열기' });
+    const prompt = page.getByRole('button', { name: '새 버전이 있어요. 다시 열기' });
     await expect(prompt).toHaveCount(0);
     await tap(page, 'driver');
     writeFileSync(swPath, `${original}\n// next deploy\n`);
@@ -1511,7 +1539,9 @@ test.describe('course picker', () => {
     await page.goto('/');
     await expect(page.locator('#picker')).toBeVisible();
     await expect(page.locator('#picker-label')).toHaveText('에버리스 골프리조트 새별·레이크');
-    await expect(page.getByRole('button', { name: '이 코스로 시작' })).toBeFocused();
+    // The dialog itself has focus: not the search box (no keyboard) and not 이 코스로 시작 (no ring nobody asked for).
+    await expect(page.locator('#picker')).toBeFocused();
+    await expect(page.locator('#picker-search')).not.toBeFocused();
     const start = (await page.getByRole('button', { name: '이 코스로 시작' }).boundingBox())!;
     expect(start.y + start.height).toBeLessThanOrEqual(553);
     expect(await sideScroll(page)).toBe(0);
@@ -1519,7 +1549,7 @@ test.describe('course picker', () => {
     await expect(page.locator('#picker-label')).toHaveText('에버리스 골프리조트 새별·파인');
     await page.getByRole('button', { name: '이 코스로 시작' }).tap();
     await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·파인');
-    const pars = await page.locator('#scorecard .col[data-hole] .pr').allTextContents();
+    const pars = await page.locator('#scorecard .r-p [data-col]').allTextContents();
     expect(pars.slice(9, 18)).toEqual(['4', '4', '4', '5', '3', '4', '4', '3', '5']);
     await expect(page.locator('#par-source a')).toHaveText('공식 스코어카드');
     await page.reload();
@@ -1548,7 +1578,7 @@ test.describe('course picker', () => {
     await page.getByRole('textbox', { name: '골프장 이름' }).fill('동네 골프장');
     await page.getByRole('button', { name: '이 코스로 시작' }).tap();
     await expect(page.locator('#course-name')).toHaveText('동네 골프장');
-    expect(new Set(await page.locator('#scorecard .col[data-hole] .pr').allTextContents())).toEqual(new Set(['4']));
+    expect(new Set(await page.locator('#scorecard .r-p [data-col]').allTextContents())).toEqual(new Set(['4']));
     await expect(page.locator('#par-source')).toContainText('Par 4로 시작');
   });
 });
@@ -1559,7 +1589,7 @@ test('keeps the pars of a round saved before courses could be chosen', async ({ 
   await page.reload();
   await expect(page.locator('#picker')).toBeHidden();
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
-  expect((await page.locator('#scorecard .col[data-hole] .pr').allTextContents()).slice(0, 3)).toEqual(['3', '4', '4']);
+  expect((await page.locator('#scorecard .r-p [data-col]').allTextContents()).slice(0, 3)).toEqual(['3', '4', '4']);
   await expect(page.locator('#sum-strokes')).toHaveText('3');
 });
 
@@ -1708,7 +1738,7 @@ test('keeps a finished round among past rounds when a new one starts', async ({ 
   await expect(item.locator('.past-when')).toHaveText(/^\d{4}년 \d{1,2}월 \d{1,2}일$/);
   await expect(item.locator('.past-where')).toHaveText('에버리스 골프리조트 새별·레이크');
   await expect(item.locator('.past-score')).toHaveText('9타 +1');
-  await expect(item.locator('.past-meta')).toHaveText('2홀 · 퍼트 4 · OB 1');
+  await expect(item.locator('.past-meta')).toHaveText('2홀, 퍼트 4, OB 1');
   await expect(page.locator('#history-empty')).toBeHidden();
   await expect(page.locator('#history-status')).toContainText('라운드를 지난 라운드에 보관했습니다');
   // Kept under its own key next to the new round, and still there after a reload.

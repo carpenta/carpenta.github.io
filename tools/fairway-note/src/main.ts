@@ -881,8 +881,39 @@ function table(r: Round, a: Analysis, from: number, to: number, sub: string | nu
   return box;
 }
 
+/**
+ * One nine of the round being recorded as a classic scorecard table: holes as columns and the nine's subtotal, rows
+ * 홀, 파, 타수, 퍼트, the current hole's column marked, blank cells for holes not finished. The whole table is one
+ * button: it opens the hole strip at that nine.
+ */
+function classicNine(r: Round, a: Analysis, start: number): HTMLElement {
+  const course = roundCourse(r);
+  const single = r.holes.length === 9;
+  const name = (start === 0 ? course.front : course.back) || (single ? '9홀' : start === 0 ? '전반 9홀' : '후반 9홀');
+  const label = single ? '9홀' : start === 0 ? '전반' : '후반';
+  const t = start === 0 ? a.front : a.back;
+  const cols = Array.from({ length: 9 }, (_, k) => start + k);
+  const cell = (k: number, ...content: (Node | string)[]) => h('span', { class: k === r.current ? 'cur' : '', 'data-col': String(k) }, ...content);
+  const score = (k: number) => {
+    const x = r.holes[k];
+    if (!finished(r, k)) return '';
+    const d = strokes(x) - x.par;
+    return h('span', { class: 'm', 'data-mark': markOf(d), 'data-tone': toneOf(d) }, h('b', {}, String(strokes(x))));
+  };
+  const row = (cls: string, head: string, cells: HTMLElement[], sum: string) => h('span', { class: `r ${cls}` }, h('span', { class: 'ct-l' }, head), ...cells, h('span', { class: 'ct-s' }, sum));
+  const par = cols.reduce((n, k) => n + r.holes[k].par, 0);
+  return h('button', { type: 'button', class: 'nine-tbl', 'data-nine': String(start), 'aria-label': `${name} ${label}, ${t.holes ? `${t.holes}홀 ${t.strokes}타` : '기록 없음'}. 눌러서 홀 고르기` },
+    h('span', { class: 'nt-h' }, h('b', {}, name), h('small', {}, label), h('span', { class: 'nt-go' }, '홀 고르기')),
+    h('span', { class: 'ct', 'aria-hidden': 'true' },
+      row('r-h', '홀', cols.map((k) => cell(k, String(k + 1))), label),
+      row('r-p', '파', cols.map((k) => cell(k, String(r.holes[k].par))), String(par)),
+      row('r-s', '타수', cols.map((k) => cell(k, score(k))), t.holes ? String(t.strokes) : ''),
+      row('r-t', '퍼트', cols.map((k) => cell(k, finished(r, k) ? String(r.holes[k].putts) : '')), t.holes ? String(t.putts) : '')));
+}
+
 /** A round's nines as scorecard columns, each nine in its own `.scorecard` block: two, or one for a 9-hole round. */
 function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
+  if (mode === 'open') return r.holes.length === 9 ? [classicNine(r, a, 0)] : [classicNine(r, a, 0), classicNine(r, a, 9)];
   const course = roundCourse(r);
   const single = r.holes.length === 9;
   const side = (start: number) => (single ? '9홀' : start === 0 ? '전반' : '후반');
@@ -902,13 +933,19 @@ function totalLine(a: Analysis): HTMLElement {
 
 function renderCard(a: Analysis): void {
   const course = roundCourse(round);
-  setText($('sc-sub'), `${course.name} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  setText($('sc-sub'), `${course.name} ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
   $('sc-sheet').classList.toggle('editing', editPar);
   const edit = $('edit-par');
   setText(edit, editPar ? '완료' : '파 수정');
   edit.classList.toggle('on', editPar);
   $('edit-hint').hidden = !editPar;
   const t = a.totals;
+  // The hero, or a first-run line with a way to the hole when nothing is recorded yet.
+  $('sc-hero').hidden = t.holes === 0;
+  $('sh-empty').hidden = t.holes > 0;
+  setText($('sh-go'), `${round.current + 1}번 홀 기록하기`);
+  setAttr($('sh-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
+  setText($('sh-sub'), `${round.holes.length}홀 중 ${t.holes}홀 기록`);
   setText($('sum-strokes'), String(t.strokes));
   const topar = $('sum-topar');
   setText(topar, toParText(t.holes ? a.toPar : 0));
@@ -925,8 +962,11 @@ function renderCard(a: Analysis): void {
 
   const areas = Object.keys(AREA_LABELS) as Area[];
   const most = Math.max(...areas.map((k) => a.lost[k]));
-  setText($('lost-note'), !t.holes
-    ? '홀을 기록하면 보여요.'
+  // 타수를 잃은 곳 waits for three finished holes: one or two say little.
+  const waiting = t.holes < 3;
+  $('lost-bars').hidden = waiting;
+  setText($('lost-note'), waiting
+    ? `${3 - t.holes}홀 더 기록하면 어디서 타수를 잃었는지 보여요.`
     : a.worstAreas.length
       ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, 어프로치 Par−3번, 퍼트 2번을 기준으로 셌어요.`
       : '기준보다 잃은 타수가 없어요.');
@@ -960,20 +1000,20 @@ function analysisNodes(a: Analysis): (Node | string)[] {
     ['1퍼트', `${a.onePutts}홀`],
     ['3퍼트 이상', `${a.threePutts}홀`],
     ['그린 적중', `${a.girHoles}/${t.holes} (${pct(a.girHoles, t.holes)}%)`],
-    ['벌타', `OB ${t.ob} · 해저드 ${t.hazard} (+${t.ob + t.hazard}타)`],
+    ['벌타', `OB ${t.ob}, 해저드 ${t.hazard} (+${t.ob + t.hazard}타)`],
     ['멀리건', `${t.mulligan}회`],
   ];
   const maxDist = Math.max(...Object.values(a.distribution));
   return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
-      t.holes < round.holes.length ? h('span', { class: 'muted' }, ` · 남은 ${round.holes.length - t.holes}홀`) : null),
+      t.holes < round.holes.length ? h('span', { class: 'muted' }, `, 남은 ${round.holes.length - t.holes}홀`) : null),
     h('dl', { class: 'metrics' }, ...metrics.flatMap(([k, v]) => [h('div', {}, h('dt', {}, k), h('dd', {}, v))])),
     h('h4', {}, '스코어 분포'),
     h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
     h('h4', {}, 'Par별 평균'),
     h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {}, h('dt', {}, `Par ${p.par}`), h('dd', {}, p.holes ? `${one(p.average)}타 (${p.holes}홀)` : '—')))),
     a.best && a.worst
-      ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}) · 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
+      ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}), 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
       : '',
     h('h4', {}, '정리'),
     h('ul', { class: 'insights' }, ...insights(a).map((s) => h('li', {}, s))),
@@ -1052,7 +1092,7 @@ function renderCourse(): void {
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.replaceChildren(...(source
-    ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인) · 파 수정에서 홀마다 바꿀 수 있습니다.`]
+    ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인). 파 수정에서 홀마다 바꿀 수 있어요.`]
     : ['직접 입력한 코스라 Par 4로 시작했습니다. 파 수정에서 홀마다 바꿀 수 있습니다.']));
 }
 
@@ -1065,7 +1105,7 @@ function renderMenu(): void {
   setText($('mulligan-count'), String(cur.mulligan));
   $<HTMLButtonElement>('mulligan-minus').disabled = cur.mulligan === 0;
   $<HTMLButtonElement>('mulligan-plus').disabled = cur.mulligan >= MAX_COUNT;
-  setText($('mulligan-sub'), `${round.current + 1}번 홀 ${cur.mulligan}개 · 타수에 넣지 않아요`);
+  setText($('mulligan-sub'), `${round.current + 1}번 홀 ${cur.mulligan}개, 타수에 넣지 않아요`);
   setText($('menu-version'), VERSION_LABEL);
   setText($('about-version'), VERSION_LABEL);
   setText($('new-question'), newRoundQuestion(round));
@@ -1160,7 +1200,7 @@ function renderSummary(): void {
   const [front, back] = nineNames();
   const playedNine = nine === 'front' ? front : back;
   setText($('sum-title'), nine || round.holes.length === 9 ? '9홀 라운드 요약' : '라운드 요약');
-  setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : roundLabel(round)} · ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : roundLabel(round)}, ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
   setAttr($('sum-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
   setText($('sum-total'), String(t.strokes));
   const vs = $('sum-vs');
@@ -1184,7 +1224,7 @@ function renderSummary(): void {
     ...(nine || count === 9 ? [] : [stat('전반', ...half(a.front) as [string, string]), stat('후반', ...half(a.back) as [string, string])]),
     stat('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
     stat('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
-    stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷을 고르면'),
+    stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷 방향을 고르면 보여요'),
     stat('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
     stat('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
   );
@@ -1443,7 +1483,8 @@ function renderStrip(): void {
   setText(note, missed.length ? `기록 안 한 홀 ${missed.length}개` : `${a.totals.holes}홀 기록`);
 }
 
-function openStrip(): void {
+/** Opens the hole strip with `at` (the current hole by default) in view and focused. */
+function openStrip(at = round.current): void {
   hideToast();
   renderStrip();
   const dialog = $<HTMLDialogElement>('strip');
@@ -1452,7 +1493,7 @@ function openStrip(): void {
   dialog.showModal();
   setAttr($('hole-btn'), 'aria-expanded', 'true');
   const row = $('strip-row');
-  const here = row.querySelector<HTMLElement>('[aria-current="true"]')!;
+  const here = row.querySelector<HTMLElement>(`[data-jump="${at}"]`)!;
   row.scrollLeft = here.offsetLeft - (row.clientWidth - here.offsetWidth) / 2;
   here.focus({ preventScroll: true });
 }
@@ -1480,7 +1521,7 @@ function bindHoleInfo(): void {
 function bindStrip(): void {
   const dialog = $<HTMLDialogElement>('strip');
   closeOnBackdrop(dialog);
-  $('hole-btn').addEventListener('click', openStrip);
+  $('hole-btn').addEventListener('click', () => openStrip());
   dialog.addEventListener('close', () => {
     setAttr($('hole-btn'), 'aria-expanded', 'false');
     $('hole-btn').focus();
@@ -1507,7 +1548,7 @@ function bindStrip(): void {
 function renderNow(a: Analysis = analyze(round)): void {
   const t = a.totals;
   setText($('now-title'), roundless ? '다음 라운드' : '지금 라운드');
-  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${roundLabel(round)} · ${dateLabel(round.date).replace(/^\d+년 /, '')} · ${t.holes}홀 기록`);
+  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${roundLabel(round)}, ${dateLabel(round.date).replace(/^\d+년 /, '')}, ${t.holes}홀 기록`);
   setText($('now-continue'), roundless ? '코스 고르고 시작' : '이어서 기록');
   const score = $('now-score');
   setText(score, roundless ? '' : t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
@@ -1589,7 +1630,7 @@ function saveMessage(): { text: string; problem: boolean } {
   if (detached) return { text: '저장된 기록이 다른 탭에서 지워졌거나 읽을 수 없습니다. 이 탭의 기록은 다음 입력 때 다시 저장됩니다.', problem: true };
   if (rescued) return { text: '저장된 기록을 읽을 수 없어 새 라운드로 시작합니다. 원래 값은 이 기기에 따로 보관했습니다.', problem: true };
   if (trimmed) return { text: '저장된 세부 기록 일부를 읽을 수 없어 빼고 불러왔습니다. 원래 값은 이 기기에 따로 보관했습니다.', problem: true };
-  return { text: `${dateLabel(round.date)} 라운드 · 이 기기에만 자동 저장됩니다.`, problem: false };
+  return { text: `${dateLabel(round.date)} 라운드. 이 기기에만 자동으로 저장돼요.`, problem: false };
 }
 
 function render(changed?: string): void {
@@ -1624,6 +1665,7 @@ function bind(): void {
     h('span', { class: 'm', 'data-mark': m, 'data-tone': tone, 'aria-hidden': 'true' }, h('b', {}, String(n))), label, h('span', { class: 'sr-only' }, `, ${n}타 ${shape}`))));
   $('toast-undo').addEventListener('click', restore);
   $('now-continue').addEventListener('click', () => show('entry'));
+  $('sh-go').addEventListener('click', () => show('entry', true));
   bindHomeCard();
   bindBackupCard();
   bindSummary();
@@ -1640,6 +1682,14 @@ function bind(): void {
       cyclePar(Number(par.dataset.parHole));
       return;
     }
+    // A nine's table: 기록 with the hole strip open there (at the current hole when it is in that nine).
+    const table = target.closest<HTMLButtonElement>('button[data-nine]');
+    if (table) {
+      const start = Number(table.dataset.nine);
+      show('entry');
+      openStrip(round.current >= start && round.current < start + 9 ? round.current : start);
+      return;
+    }
     const column = target.closest<HTMLButtonElement>('button[data-hole]');
     if (!column) return;
     go(Number(column.dataset.hole));
@@ -1652,9 +1702,7 @@ function bind(): void {
   });
   // The current round stays until a course is chosen; cancelling the picker keeps it (startRound keeps it among past rounds).
   const startNew = () => openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
-  $('new-round').addEventListener('click', () => {
-    if (confirm(newRoundQuestion(round))) startNew();
-  });
+  // The menu's 새 라운드 shows its question in the panel and opens the picker (bindMenu); only the banner asks here.
   $('stale-new').addEventListener('click', () => {
     if (confirm(newRoundQuestion(round))) startNew();
   });

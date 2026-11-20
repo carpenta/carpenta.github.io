@@ -97,7 +97,7 @@ svg { display: block; }
 /* The hole number is a button: it opens the hole strip. */
 .hole-title {
   position: relative; height: 48px; padding: 0 6px 0 8px; border-radius: 24px;
-  display: flex; align-items: center; gap: 2px; font-weight: 800; white-space: nowrap; text-align: left; color: var(--ink);
+  display: flex; align-items: center; gap: 2px; font-weight: 700; white-space: nowrap; text-align: left; color: var(--ink);
 }
 .hole-title:active, .hole-title[aria-expanded='true'] { background: var(--tint); }
 .hole-chev { flex: none; margin-left: 4px; color: var(--turf); transition: transform .16s; }
@@ -250,7 +250,7 @@ svg { display: block; }
 .dir:active { background: var(--tint); }
 .dir.far { background: var(--tint); box-shadow: none; }
 .dir[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
-.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: 800; background: #c9e5bf; }
+.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: 700; background: #c9e5bf; }
 
 /* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke.
    기본 keeps the two centred with "빼기" in its own slot to the right; 상세 packs them under the pad. */
@@ -307,8 +307,9 @@ svg { display: block; }
   background: var(--deep); display: flex; justify-content: center;
 }
 /* 스코어카드 · 기록 · 지난 라운드, with 기록 in the centre; the way home at the left, balanced by an empty column. */
-.bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; }
-.tabs { grid-column: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 4px; }
+/* Four equal, labelled columns: 홈 (the link back to the site), then the three tabs. */
+.bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; align-items: center; }
+.tabs { grid-column: 2 / 5; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
 .tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; }
 .tab .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
 .tab[aria-selected='true'] .ti { background: rgb(91 170 79 / .2); }
@@ -317,8 +318,9 @@ svg { display: block; }
 .tab[aria-selected='true'] { color: var(--fairway); font-weight: 700; }
 /* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
    The top right belongs to the score badge. */
-.home-link { grid-column: 1; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; color: var(--tab-ink); }
-.home-link:active { background: rgb(255 255 255 / .08); }
+.home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; text-decoration: none; }
+.home-link .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
+.home-link:active .ti { background: rgb(255 255 255 / .08); }
 
 /* ---------- 스코어카드 ---------- */
 .sc { --m: 10px; background: var(--paper); overflow-y: auto; scrollbar-width: none; }
@@ -505,7 +507,7 @@ html.past-open { overflow: hidden; }
 /* The menu: one list, each item opening its own panel. */
 .menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: 0 -8px 32px rgb(8 28 10 / .25); }
 .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px 8px; }
-.menu-head h2 { font-size: 22px; font-weight: 800; }
+.menu-head h2 { font-size: 22px; font-weight: 700; }
 .menu-head span { font-size: 13px; color: var(--muted); }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li + li { border-top: 1px solid var(--line); }
@@ -600,7 +602,7 @@ html.past-open { overflow: hidden; }
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 8px;
 }
 .pk-brand { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: rgb(255 255 255 / .82); }
-.picker-head h2 { margin-top: 6px; font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; }
+.picker-head h2 { margin-top: 6px; font-size: 34px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
 .picker-head .btn { min-height: 44px; background: rgb(255 255 255 / .16); color: #fff; }
 .pk-search {
   flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
@@ -634,7 +636,7 @@ html.past-open { overflow: hidden; }
   flex: none; margin-top: 12px; display: grid; gap: 10px; padding: 16px var(--m) max(14px, env(safe-area-inset-bottom));
   background: var(--white); border-radius: 28px 28px 0 0; box-shadow: 0 -8px 28px rgb(8 28 10 / .28);
 }
-.picker-label { font-weight: 800; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-label { font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The course name row: the chosen course, then 18홀 / 9홀 (v11). */
 .pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .pk-name .picker-label { min-width: 0; }
@@ -666,7 +668,7 @@ html.past-open { overflow: hidden; }
 /* ---------- round summary: what the recorded holes say ---------- */
 .sum-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 32px rgb(8 28 10 / .3); }
 .sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: center; }
-.sum-head h2 { font-size: 22px; font-weight: 800; }
+.sum-head h2 { font-size: 22px; font-weight: 700; }
 .sum-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .sum-close { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); display: grid; place-items: center; }
 .sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; }
@@ -698,6 +700,74 @@ html.past-open { overflow: hidden; }
 .sum-actions .primary { background: var(--turf); color: #fff; font-size: 17px; }
 .sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
 .sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: 700; box-shadow: inset 0 0 0 2px var(--turf); }
+
+/* ---------- motion (v13): dims fade in, small popovers rise 6px, sheets slide; all off with reduced motion ---------- */
+@keyframes fn-fade { from { opacity: 0; } }
+@keyframes fn-rise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fn-sheet { from { opacity: .6; transform: translateY(28px); } }
+.strip[open]::backdrop, .hinfo[open]::backdrop, .numpick[open]::backdrop, .sheet-dialog[open]::backdrop { animation: fn-fade .16s ease-out; }
+.strip[open], .hinfo[open], .numpick[open], .picker[open] { animation: fn-rise .16s ease-out; }
+.sheet-dialog[open] { animation: fn-sheet .22s cubic-bezier(.2, .8, .2, 1); }
+.picker:focus { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  .strip[open], .hinfo[open], .numpick[open], .picker[open], .sheet-dialog[open],
+  .strip[open]::backdrop, .hinfo[open]::backdrop, .numpick[open]::backdrop, .sheet-dialog[open]::backdrop { animation: none; }
+}
+
+/* ---------- type (v13): 800 only for numbers, 600–700 for labels, tabular digits wherever numbers line up ---------- */
+.hole-n { font-weight: 800; }
+.ct .r-h > .ct-s { font-weight: 700; }
+.tbl, .col, .strip-row, .sum-marks, .np-row, .sum-stats dd, .lost-bars .v, .past-score, .tot b, .now .big, .chip, .prog { font-variant-numeric: tabular-nums; }
+
+/* ---------- first-run and empty states (v13) ---------- */
+.pk-first { grid-column: 1 / -1; grid-row: 3; margin-top: 4px; font-size: 15px; font-weight: 600; color: rgb(255 255 255 / .85); }
+.pk-first[hidden] { display: none; }
+@media (max-height: 599px) { .pk-first { display: none; } }
+.hist-empty { display: grid; justify-items: center; gap: 4px; padding: 16px 8px 8px; text-align: center; }
+.hist-empty[hidden] { display: none; }
+.hist-empty .he-1 { margin-top: 6px; font-size: 17px; font-weight: 700; }
+.hist-empty .he-2 { font-size: 15px; color: var(--muted); }
+
+/* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
+.sc-hero { display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 14px; align-items: center; padding: 2px 4px 14px; border-bottom: 1.5px solid var(--line); }
+.sc-hero[hidden], .sh-empty[hidden] { display: none; }
+.sh-ring { width: 76px; height: 76px; border-radius: 50%; background: var(--deep); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line); }
+.sh-ring[data-tone='under'] { background: var(--red); }
+.sh-ring[data-tone='par'] { background: var(--turf); }
+.sh-ring b { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.sh-ring span { margin-top: 2px; font-size: 13px; font-weight: 700; }
+.sh-topar { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sh-topar .under { color: var(--red); }
+.sh-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.sh-stats { grid-column: 1 / -1; margin: 12px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sh-stats div { padding: 8px 12px; border-radius: 14px; background: var(--paper); }
+.sh-stats dt { font-size: 13px; color: var(--muted); }
+.sh-stats dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sh-empty { padding: 6px 4px 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
+.sh-e1 { font-size: 17px; font-weight: 700; }
+.sh-e2 { margin-top: 4px; font-size: 13px; color: var(--muted); }
+.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: 999px; background: var(--turf); color: #fff; font-size: 15px; font-weight: 700; }
+.nine-tbl { display: block; width: 100%; margin-top: 16px; padding: 0; text-align: left; border-radius: 16px; color: var(--ink); }
+.nine-tbl:active .ct { background: var(--tint); }
+.nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 8px; }
+.nt-h b { font-size: 17px; font-weight: 700; }
+.nt-h small { font-size: 13px; color: var(--muted); }
+.nt-go { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--turf); }
+.ct { display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: 14px; overflow: hidden; background: var(--white); box-shadow: inset 0 0 0 1px var(--line); font-variant-numeric: tabular-nums; }
+.ct .r { display: contents; }
+.ct .r > span { display: grid; place-items: center; min-width: 0; height: 26px; font-size: 13px; }
+.ct .r-h > span { background: var(--pill); font-weight: 800; }
+.ct .r-p > span { color: var(--muted); border-bottom: 1px solid var(--line); }
+.ct .r-s > span { height: 40px; }
+.ct .r-t > span { color: var(--muted); border-top: 1px solid var(--line); }
+.ct .r > .ct-l { justify-items: start; padding-left: 6px; color: var(--muted); font-weight: 600; }
+.ct .r-h > .ct-l { background: var(--pill); color: var(--ink); }
+.ct .r > .ct-s { background: var(--paper); color: var(--ink); font-weight: 800; }
+.ct .r-h > .ct-s { background: var(--line); }
+.ct .r > .cur { background: #e6f2df; }
+.ct .r-h > .cur { background: var(--turf); color: #fff; }
+.ct .m { transform: scale(.76); }
+body.big .ct .r > span { font-size: 15px; }
 
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */
 #course .marker text { font-size: 13px; font-weight: 700; fill: #fff; }
