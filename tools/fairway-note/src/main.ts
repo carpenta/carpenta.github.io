@@ -692,8 +692,12 @@ function count(key: Counter, delta: number, order: Pen[] = added.get(round.curre
 }
 
 function addPenalty(key: Pen): void {
-  if (!count(key, 1)) return;
-  added.set(round.current, [...(added.get(round.current) ?? []), key]);
+  // The order first: count() redraws the penalty row, and its 빼기 names the last penalty in this order (v21). The toast's
+  // 되돌리기 gets the order from before, so it takes back this one only.
+  const index = round.current;
+  const before = added.get(index) ?? [];
+  added.set(index, [...before, key]);
+  if (!count(key, 1, before)) added.set(index, before);
 }
 
 /** The penalty "빼기" (기본) takes off: the last OB or 해저드 added on this hole, or one that is counted. */

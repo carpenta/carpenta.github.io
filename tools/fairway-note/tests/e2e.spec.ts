@@ -3661,6 +3661,34 @@ test('a line that ends with 다음 홀 records the hole and moves on, and one �
   expect(back.holes[0]).toMatchObject({ driver: 0, approach: 0, putts: 0 });
 });
 
+test('빼기 names the penalty it takes off: after an OB and then a 해저드 it reads 해저드, by taps and by a spoken line (v21)', async ({ page }) => {
+  await open(page);
+  const undo = page.locator('#pen-undo');
+  // Two taps: OB, then 해저드.
+  await tap(page, 'ob');
+  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
+  await tap(page, 'hazard');
+  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
+  await expect(undo).toContainText('해저드 빼기');
+  await undo.click();
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
+  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
+  // The toast still takes back only the last tap's penalty, and 빼기 follows it.
+  await tap(page, 'hazard');
+  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
+  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
+  // One spoken line on the next hole: OB, then 해저드, in the order said.
+  await next(page).click();
+  await voiceOn(page);
+  await say(page, 'OB 해저드');
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
+  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
+  await expect(undo).toContainText('해저드 빼기');
+});
+
 test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alone adds one, and 7번 홀 jumps there', async ({ page }) => {
   await open(page);
   await voiceOn(page);
