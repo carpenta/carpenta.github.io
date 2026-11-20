@@ -207,7 +207,8 @@ describe('placing the named hazards on the drawn hole (v22)', () => {
       }
       for (const m of s.markers) {
         boxes.push({ x0: m.x - 6.5, y0: m.y - 6.5, x1: m.x + 6.5, y1: m.y + 6.5 });
-        boxes.push({ x0: m.x + 10, y0: m.y - 11, x1: m.x + 10 + (m.d === 100 ? 46 : 48), y1: m.y + 11 });
+        // The label pill as drawn: 54px since the bundled font (v24).
+        boxes.push({ x0: m.x + 10, y0: m.y - 11, x1: m.x + 10 + 54, y1: m.y + 11 });
       }
       for (const h of s.hazards) {
         hazards++;

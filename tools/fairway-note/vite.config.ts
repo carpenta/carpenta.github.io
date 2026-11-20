@@ -21,8 +21,23 @@ function offlineServiceWorker(): Plugin {
   };
 }
 
+// The bundled font's licence text beside the built font files: the SIL OFL asks that every copy carry it (v24).
+function fontLicence(): Plugin {
+  let root = '';
+  return {
+    name: 'fairway-note-font-licence',
+    apply: 'build',
+    configResolved(config) {
+      root = config.root;
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'assets/Pretendard-LICENSE.txt', source: readFileSync(join(root, 'src/fonts/LICENSE.txt')) });
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
   build: { target: 'es2022' },
-  plugins: [offlineServiceWorker()],
+  plugins: [fontLicence(), offlineServiceWorker()],
 });

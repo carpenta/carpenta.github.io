@@ -280,7 +280,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v23');
+  await expect(page.locator('#app-version')).toHaveText('v24');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -315,12 +315,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v23');
+  await expect(page.locator('#menu-version')).toHaveText('v24');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v23');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v24');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -497,6 +497,20 @@ test('grains the drawn course from noise tiles made once on a canvas, with no SV
   // Made once: the next hole draws with the same tile.
   await next(page).click();
   expect(await tile('grain-turf')).toBe(turf);
+});
+
+test('fits the drawn distance pills to their labels in the page font, with room on each side (v24)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await page.evaluate(() => document.fonts.ready);
+  // 새별 1 (381 m) shows 100 m and 150 m in a tall band; each label is SVG text drawn in the page's font.
+  const fit = await page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => ({
+    label: g.querySelector('text')!.textContent,
+    text: (g.querySelector('text') as SVGTextElement).getComputedTextLength(),
+    pill: Number(g.querySelector('rect')!.getAttribute('width')),
+  })));
+  expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
+  for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
 });
 
 test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
@@ -2365,6 +2379,18 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
   });
 }
 
+/* ---------- the bundled font (v24): Pretendard, so every phone lays text out with the same metrics ---------- */
+
+/** The bundled font's faces as the page sees them, once it is laid out and every font it asked for has settled. */
+const pretendardFaces = (page: Page) => page.evaluate(async () => {
+  document.body.getBoundingClientRect();
+  await document.fonts.ready;
+  return [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === 'Pretendard')
+    .map((f) => ({ weight: f.weight === 'normal' ? '400' : f.weight, status: f.status }));
+});
+/** AGENTS.md's check that a font is really used: after `document.fonts.ready`, a face of the family has loaded. */
+const loadedWeights = async (page: Page) => (await pretendardFaces(page)).filter((f) => f.status === 'loaded').map((f) => f.weight).sort();
+
 test('opens and records offline after the first visit', async ({ page, context }) => {
   await open(page);
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -2375,6 +2401,9 @@ test('opens and records offline after the first visit', async ({ page, context }
   // The stylesheet and the drawn course came from the cache too.
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('.clubs')!).display)).toBe('grid');
   await expect(page.locator('#course .green')).toHaveCount(1);
+  // So did the font (v24): its faces load, none fails.
+  expect((await pretendardFaces(page)).filter((f) => f.status === 'error')).toEqual([]);
+  expect((await loadedWeights(page)).length).toBeGreaterThan(0);
   await tap(page, 'driver');
   await tap(page, 'hazard');
   await tap(page, 'putts', 2);
@@ -2387,8 +2416,133 @@ test('precaches every built file under the tool path', async ({ request }) => {
   for (const file of ['index.html', 'manifest.webmanifest', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png']) expect(source).toContain(`"${file}"`);
   expect(source).toMatch(/"assets\/[^"]+\.js"/);
   expect(source).toMatch(/"assets\/[^"]+\.css"/);
+  // The bundled font's three faces and its licence (v24).
+  for (const face of ['Regular', 'SemiBold', 'ExtraBold']) expect(source).toMatch(new RegExp(`"assets/Pretendard-${face}\\.subset-[^"/]+\\.woff2"`));
+  expect(source).toContain('"assets/Pretendard-LICENSE.txt"');
   expect(source).not.toMatch(/"\//);
   expect(source).not.toContain('design/');
+});
+
+test.describe('the bundled font (v24)', () => {
+  test.use({ viewport: { width: 375, height: 553 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('draws the app in Pretendard: one same-origin woff2 face per weight token, shown with swap, all three loaded by the first screens', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#picker')).toBeVisible();
+    expect(await loadedWeights(page)).not.toEqual([]);
+    // The @font-face rules: 400, 600 and 800 (--w-help, --w-label, --w-value), each a woff2 of the app's own build,
+    // with no local() copy, which could be another version measuring differently.
+    const faces = await page.evaluate(() => [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules]
+      .filter((rule): rule is CSSFontFaceRule => rule instanceof CSSFontFaceRule)
+      .map((rule) => {
+        const src = rule.style.getPropertyValue('src');
+        const urls = [...src.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((m) => new URL(m[1], sheet.href ?? location.href));
+        const weight = rule.style.getPropertyValue('font-weight');
+        return {
+          family: rule.style.getPropertyValue('font-family').replace(/["']/g, ''),
+          weight: weight === 'normal' ? '400' : weight,
+          display: rule.style.getPropertyValue('font-display'),
+          local: src.includes('local('),
+          files: urls.map((url) => (url.origin === location.origin ? url.pathname.split('/').slice(-2).join('/') : url.href)),
+        };
+      })));
+    expect(faces).toEqual([
+      { family: 'Pretendard', weight: '400', display: 'swap', local: false, files: [expect.stringMatching(/^assets\/Pretendard-Regular\.subset-[^/]+\.woff2$/)] },
+      { family: 'Pretendard', weight: '600', display: 'swap', local: false, files: [expect.stringMatching(/^assets\/Pretendard-SemiBold\.subset-[^/]+\.woff2$/)] },
+      { family: 'Pretendard', weight: '800', display: 'swap', local: false, files: [expect.stringMatching(/^assets\/Pretendard-ExtraBold\.subset-[^/]+\.woff2$/)] },
+    ]);
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--w-help').trim())).toBe('400');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--w-label').trim())).toBe('600');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--w-value').trim())).toBe('800');
+    await page.getByRole('button', { name: '이 코스로 시작' }).click();
+    await expect(page.locator('#picker')).toBeHidden();
+    // A finished hole, so 스코어카드 has its table.
+    await tap(page, 'driver');
+    await tap(page, 'putts');
+    await showCard(page);
+    // The picker, 기록 and 스코어카드 use all three; none failed to load.
+    expect(await loadedWeights(page)).toEqual(['400', '600', '800']);
+    expect((await pretendardFaces(page)).filter((f) => f.status === 'error')).toEqual([]);
+    // Pretendard comes first, the system fonts after it for anything it lacks.
+    for (const selector of ['body', '#hole-n', '#count-driver', '#hole-strokes', '#scorecard .ct']) {
+      expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).fontFamily), selector)
+        .toMatch(/^["']?Pretendard["']?, -apple-system, ["']?Apple SD Gothic Neo["']?, ["']?Noto Sans KR["']?, system-ui, sans-serif$/);
+    }
+  });
+
+  test('keeps digits tabular in Pretendard wherever numbers line up, at each of the three weights', async ({ page }) => {
+    await open(page);
+    await tap(page, 'driver');
+    await tap(page, 'putts');
+    for (const selector of ['#hole-n', '#count-driver', '#hole-strokes', '#prog-p']) {
+      expect(await page.locator(selector).evaluate((el) => getComputedStyle(el).fontVariantNumeric), selector).toContain('tabular-nums');
+    }
+    await showCard(page);
+    expect(await page.locator('#scorecard .ct').first().evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toContain('tabular-nums');
+    // Ten ones and ten zeros in the page's own font: as wide as each other with tabular-nums, and far apart without
+    // it, so the subset still carries tnum and the font is what draws them.
+    const widths = await page.evaluate(async () => {
+      const probe = document.createElement('span');
+      probe.style.position = 'absolute';
+      probe.style.whiteSpace = 'nowrap';
+      probe.style.fontSize = '40px';
+      document.body.append(probe);
+      const out: Record<string, { faces: number; tabular: number[]; proportional: number[] }> = {};
+      for (const weight of ['400', '600', '800']) {
+        const faces = (await document.fonts.load(`${weight} 40px Pretendard`)).length;
+        probe.style.fontWeight = weight;
+        const measure = (numeric: string) => ['1111111111', '0000000000'].map((digits) => {
+          probe.style.fontVariantNumeric = numeric;
+          probe.textContent = digits;
+          return probe.getBoundingClientRect().width;
+        });
+        out[weight] = { faces, tabular: measure('tabular-nums'), proportional: measure('proportional-nums') };
+      }
+      probe.remove();
+      return out;
+    });
+    for (const [weight, w] of Object.entries(widths)) {
+      expect(w.faces, `${weight}: a Pretendard face`).toBe(1);
+      expect(Math.abs(w.tabular[0] - w.tabular[1]), `${weight}: tabular ones and zeros`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(w.proportional[0] - w.proportional[1]), `${weight}: proportional ones and zeros`).toBeGreaterThan(20);
+    }
+  });
+
+  test('keeps the hole number’s line box and baseline whatever system font sits behind Pretendard', async ({ page }) => {
+    await open(page);
+    // The hole number's box, its baseline (an empty inline-block sits on it) and the line it shares with "번 홀".
+    const measure = () => page.evaluate(async () => {
+      document.body.getBoundingClientRect();
+      await document.fonts.ready;
+      const n = document.querySelector('#hole-n')!;
+      const probe = document.createElement('span');
+      probe.style.display = 'inline-block';
+      n.append(probe);
+      const box = n.getBoundingClientRect();
+      const line = document.querySelector('#hole-title')!.getBoundingClientRect();
+      const baseline = probe.getBoundingClientRect().bottom;
+      probe.remove();
+      return { top: box.top, height: box.height, width: box.width, baseline: baseline - box.top, lineTop: line.top, lineHeight: line.height };
+    });
+    // The CSSOM may set a custom property under the page's CSP; nothing else changes.
+    const stack = (value: string | null) => page.evaluate((v) => {
+      if (v === null) document.documentElement.style.removeProperty('--font');
+      else document.documentElement.style.setProperty('--font', v);
+    }, value);
+    for (const hole of [0, 9]) {
+      if (hole === 9) await pickHole(page, 9);
+      await atRest(page);
+      const own = await measure();
+      for (const fallback of ['serif', 'monospace', "Verdana, 'Arial Unicode MS', sans-serif"]) {
+        await stack(`'Pretendard', ${fallback}`);
+        const other = await measure();
+        for (const key of Object.keys(own) as (keyof typeof own)[]) {
+          expect(Math.abs(other[key] - own[key]), `hole ${hole + 1}, then ${fallback}: ${key} ${other[key]} vs ${own[key]}`).toBeLessThanOrEqual(0.1);
+        }
+      }
+      await stack(null);
+    }
+  });
 });
 
 test('offers to reopen when a new version is waiting', async ({ page }) => {

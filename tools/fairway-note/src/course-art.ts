@@ -257,8 +257,8 @@ export const ROOMY_BAND = 110;
 
 /** The flag's width for a pole (the drawing and the room kept round it). */
 const flagWidth = (pole: number) => Math.max(13, pole * 0.46);
-/** A distance marker's label width. */
-const markerWidth = (d: number) => (d === 100 ? 46 : 48);
+/** A distance marker's label width: "100 m" or "150 m" in the bundled Pretendard (v24; 13px, 600) is 39px, so 7px each side. */
+const markerWidth = (_d: number) => 54;
 
 interface Box { x0: number; y0: number; x1: number; y1: number }
 /** Kept clear round each hazard, and its outline's reach beyond its axes (the smooth curve through the outline points). */
