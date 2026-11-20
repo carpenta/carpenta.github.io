@@ -2506,30 +2506,45 @@ test.describe('the bundled font (v24)', () => {
     expect(await page.locator('#scorecard .ct').first().evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toContain('tabular-nums');
     // Ten ones and ten zeros in the page's own font: as wide as each other with tabular-nums, and far apart without
     // it, so the subset still carries tnum and the font is what draws them.
-    const widths = await page.evaluate(async () => {
-      const probe = document.createElement('span');
-      probe.style.position = 'absolute';
-      probe.style.whiteSpace = 'nowrap';
-      probe.style.fontSize = '40px';
-      document.body.append(probe);
-      const out: Record<string, { faces: number; tabular: number[]; proportional: number[] }> = {};
-      for (const weight of ['400', '600', '800']) {
-        const faces = (await document.fonts.load(`${weight} 40px Pretendard`)).length;
-        probe.style.fontWeight = weight;
-        const measure = (numeric: string) => ['1111111111', '0000000000'].map((digits) => {
-          probe.style.fontVariantNumeric = numeric;
-          probe.textContent = digits;
-          return probe.getBoundingClientRect().width;
-        });
-        out[weight] = { faces, tabular: measure('tabular-nums'), proportional: measure('proportional-nums') };
-      }
-      probe.remove();
+    // Each face is loaded for these very characters before anything is measured, and the page gets two frames to take
+    // it up (v26): on Linux CI a face that load() had just returned still left the 400 digits in a system font once
+    // (ones and zeros 10px apart with tabular-nums; Pretendard's tabular ones and zeros are one advance, 1258 units).
+    const faces = await page.evaluate(async () => {
+      const out: Record<string, number> = {};
+      for (const weight of ['400', '600', '800']) out[weight] = (await document.fonts.load(`${weight} 40px Pretendard`, '0123456789')).length;
+      await document.fonts.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       return out;
     });
-    for (const [weight, w] of Object.entries(widths)) {
-      expect(w.faces, `${weight}: a Pretendard face`).toBe(1);
-      expect(Math.abs(w.tabular[0] - w.tabular[1]), `${weight}: tabular ones and zeros`).toBeLessThanOrEqual(0.5);
-      expect(Math.abs(w.proportional[0] - w.proportional[1]), `${weight}: proportional ones and zeros`).toBeGreaterThan(20);
+    // The digits at one weight, with what the fonts behind Pretendard make of them, so a failure says which font drew.
+    const digits = (weight: string) => page.evaluate((weight) => {
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position: absolute; white-space: nowrap; font-size: 40px';
+      probe.style.fontWeight = weight;
+      const behind = probe.cloneNode() as HTMLElement;
+      behind.style.fontFamily = getComputedStyle(document.body).fontFamily.replace(/^["']?Pretendard["']?,\s*/, '');
+      document.body.append(probe, behind);
+      const measure = (el: HTMLElement, numeric: string) => ['1111111111', '0000000000'].map((text) => {
+        el.style.fontVariantNumeric = numeric;
+        el.textContent = text;
+        return Math.round(el.getBoundingClientRect().width * 1000) / 1000;
+      });
+      const tabular = measure(probe, 'tabular-nums');
+      const proportional = measure(probe, 'proportional-nums');
+      const out = {
+        tabular, proportional, behind: measure(behind, 'tabular-nums'),
+        tabularEqual: Math.abs(tabular[0] - tabular[1]) <= 0.5, proportionalApart: Math.abs(proportional[0] - proportional[1]) > 20,
+      };
+      probe.remove();
+      behind.remove();
+      return out;
+    }, weight);
+    for (const weight of ['400', '600', '800']) {
+      expect(faces[weight], `${weight}: a Pretendard face`).toBe(1);
+      // Measured again for up to two seconds while the face takes over from the system font; the bounds stay ≤ 0.5px and
+      // > 20px, and the widths come with any failure.
+      await expect.poll(() => digits(weight), { message: `${weight}: tabular ones and zeros as wide as each other, proportional ones far apart`, timeout: 2000 })
+        .toEqual(expect.objectContaining({ tabularEqual: true, proportionalApart: true }));
     }
   });
 
