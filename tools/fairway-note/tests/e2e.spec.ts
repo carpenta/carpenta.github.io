@@ -2448,6 +2448,11 @@ test('precaches every built file under the tool path', async ({ request }) => {
   expect(source).not.toContain('design/');
 });
 
+/** Pretendard's own advances for 0 and 1 in the bundled subsets, in units of 2048 per em, read from the woff2s' hmtx
+ * and GSUB tnum (v26): the tabular pair shares one advance at each weight. */
+const FONT_ADVANCES = { 400: { tabular: 1258, zero: 1220, one: 898 }, 600: { tabular: 1314, zero: 1308, one: 940 }, 800: { tabular: 1368, zero: 1396, one: 980 } } as const;
+const px = (units: number) => `${((units / 2048) * 40).toFixed(3)}px`;
+
 test.describe('the bundled font (v24)', () => {
   test.use({ viewport: { width: 375, height: 553 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
@@ -2504,6 +2509,11 @@ test.describe('the bundled font (v24)', () => {
     }
     await showCard(page);
     expect(await page.locator('#scorecard .ct').first().evaluate((el) => getComputedStyle(el).fontVariantNumeric)).toContain('tabular-nums');
+    // Unhinted advances everywhere (v26): Linux CI's FreeType hinted each glyph on its own, so Pretendard's tabular 1
+    // came out 25px and its 0 24px at 40px although the font gives both 1258 units; phones never hint advances.
+    for (const selector of ['body', '#scorecard .ct', '#hole-n', '#count-driver']) {
+      expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).textRendering), selector).toMatch(/^geometricprecision$/i);
+    }
     // Ten ones and ten zeros in the page's own font: as wide as each other with tabular-nums, and far apart without
     // it, so the subset still carries tnum and the font is what draws them.
     // Each face is loaded for these very characters before anything is measured, and the page gets two frames to take
@@ -2531,19 +2541,29 @@ test.describe('the bundled font (v24)', () => {
       });
       const tabular = measure(probe, 'tabular-nums');
       const proportional = measure(probe, 'proportional-nums');
+      // One glyph's advance as drawn, to set beside the font's own (FONT_ADVANCES) when this ever fails.
+      const glyph = (numeric: string, text: string) => {
+        probe.style.fontVariantNumeric = numeric;
+        probe.textContent = text;
+        return Math.round(probe.getBoundingClientRect().width * 1000) / 1000;
+      };
       const out = {
         tabular, proportional, behind: measure(behind, 'tabular-nums'),
+        advances: { tabular: { 0: glyph('tabular-nums', '0'), 1: glyph('tabular-nums', '1') }, proportional: { 0: glyph('proportional-nums', '0'), 1: glyph('proportional-nums', '1') } },
+        textRendering: getComputedStyle(probe).textRendering,
         tabularEqual: Math.abs(tabular[0] - tabular[1]) <= 0.5, proportionalApart: Math.abs(proportional[0] - proportional[1]) > 20,
       };
       probe.remove();
       behind.remove();
       return out;
     }, weight);
-    for (const weight of ['400', '600', '800']) {
+    for (const weight of ['400', '600', '800'] as const) {
       expect(faces[weight], `${weight}: a Pretendard face`).toBe(1);
       // Measured again for up to two seconds while the face takes over from the system font; the bounds stay ≤ 0.5px and
-      // > 20px, and the widths come with any failure.
-      await expect.poll(() => digits(weight), { message: `${weight}: tabular ones and zeros as wide as each other, proportional ones far apart`, timeout: 2000 })
+      // > 20px, and the widths, each glyph's advance as drawn and the font's own come with any failure.
+      const font = FONT_ADVANCES[weight];
+      const own = `the font's own at 40px: tabular 0 and 1 ${px(font.tabular)}, proportional 0 ${px(font.zero)} and 1 ${px(font.one)}`;
+      await expect.poll(() => digits(weight), { message: `${weight}: tabular ones and zeros as wide as each other, proportional ones far apart (${own})`, timeout: 2000 })
         .toEqual(expect.objectContaining({ tabularEqual: true, proportionalApart: true }));
     }
   });

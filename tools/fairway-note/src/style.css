@@ -142,9 +142,14 @@
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--rough); color: var(--ink); font: 16px/1.45 var(--font); font-variant-numeric: tabular-nums; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+/* geometricPrecision (v26): the font's own advances everywhere, unhinted. Pretendard carries no hinting, so Linux's
+   FreeType hinted each glyph on its own and moved advances by up to a pixel: the tabular 1 came out 25px and the 0
+   24px at 40px (CI) though the font gives both 1258 units. Phones and Macs never hint advances, so nothing moves there. */
+body { background: var(--rough); color: var(--ink); font: 16px/1.45 var(--font); font-variant-numeric: tabular-nums; text-rendering: geometricPrecision; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
 html:lang(ko) body { word-break: keep-all; }
 p, h1, h2, h3 { margin: 0; font: inherit; }
+/* Chromium's own form-control style sets text-rendering back to auto, so they take the page's (v26). */
+button, input, select, textarea { text-rendering: inherit; }
 button {
   font: inherit; color: inherit; margin: 0; padding: 0; border: 0; background: none;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
