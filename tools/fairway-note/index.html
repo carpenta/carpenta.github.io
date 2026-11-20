@@ -436,15 +436,17 @@
       </section>
       <ul id="picker-list" class="picker-list" aria-label="골프장"></ul>
       <div class="picker-foot">
-        <!-- The chosen course, and 18 or 9 holes -->
-        <div class="pk-name">
-          <p id="picker-label" class="picker-label"></p>
-          <div class="pk-len" id="picker-len" role="group" aria-label="홀 수">
-            <button type="button" data-holes="18" aria-pressed="true">18홀</button>
-            <button type="button" data-holes="9" aria-pressed="false">9홀</button>
+        <!-- The chosen course, 18 or 9 holes and its nines; they scroll above the start button when they can't all fit -->
+        <div class="pk-scroll">
+          <div class="pk-name">
+            <p id="picker-label" class="picker-label"></p>
+            <div class="pk-len" id="picker-len" role="group" aria-label="홀 수">
+              <button type="button" data-holes="18" aria-pressed="true">18홀</button>
+              <button type="button" data-holes="9" aria-pressed="false">9홀</button>
+            </div>
           </div>
+          <div id="picker-chosen" class="picker-chosen"></div>
         </div>
-        <div id="picker-chosen" class="picker-chosen"></div>
         <button id="picker-start" class="btn primary" type="button">이 코스로 시작</button>
       </div>
     </dialog>

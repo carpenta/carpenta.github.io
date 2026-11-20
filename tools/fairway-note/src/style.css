@@ -696,8 +696,10 @@ html.past-open { overflow: hidden; }
 }
 .picker .chip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
 .picker .chip[aria-pressed='true'] { background: var(--fairway); }
+/* The list takes the room the rest leaves (from nothing, so a long list never squeezes the sheet below), down to a
+   row and a half; past that the sheet gives way instead (v18). */
 .picker-list {
-  flex: 1 1 auto; min-height: 96px; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 16px var(--m) 0; padding: 0;
+  flex: 1 1 0; min-height: 96px; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 16px var(--m) 0; padding: 0;
   background: var(--white); border-radius: 24px; box-shadow: 0 8px 24px rgb(8 28 10 / .25); scrollbar-width: none;
 }
 .picker-list::-webkit-scrollbar { display: none; }
@@ -708,11 +710,20 @@ html.past-open { overflow: hidden; }
 .picker-list .course span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-list .course[aria-pressed='true'] { background: #f2f8ee; box-shadow: inset 4px 0 0 var(--turf); }
 .picker-list .empty { padding: 16px; font-size: 15px; }
-/* The chosen course rises from the bottom as a sheet, with its nines and the start button. */
+/* The chosen course rises from the bottom as a sheet, with its nines and the start button. Where it can't all fit
+   (wider type on a short screen) the course and its nines scroll inside the sheet, and 이 코스로 시작 stays on
+   screen under them (v18). */
 .picker-foot {
-  flex: none; margin-top: 12px; display: grid; gap: 10px; padding: 16px var(--m) max(14px, env(safe-area-inset-bottom));
+  flex: 0 1 auto; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; padding: 16px var(--m) max(14px, env(safe-area-inset-bottom));
   background: var(--white); border-radius: 28px 28px 0 0; box-shadow: 0 -8px 28px rgb(8 28 10 / .28);
 }
+/* 6px of room inside the scroller, given back by the margin, so focus rings and touch areas at its edges aren't cut.
+   The room fades out top and bottom: empty at rest, it softens only what scrolls past the edge. */
+.pk-scroll {
+  flex: 0 1 auto; min-height: 0; display: grid; gap: 10px; margin: -6px; padding: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  mask-image: linear-gradient(transparent, #000 6px, #000 calc(100% - 6px), transparent);
+}
+.pk-scroll::-webkit-scrollbar { display: none; }
 .picker-label { font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The course name row: the chosen course, then 18홀 / 9홀 (v11). */
 .pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
@@ -736,7 +747,7 @@ html.past-open { overflow: hidden; }
 .nine-pick button[aria-checked='true'] { background: var(--fairway); }
 .nine-fixed { min-width: 0; font-size: 15px; font-weight: 600; }
 .nine-row .swap { min-height: 44px; padding: 0 14px; font-size: 15px; }
-.picker-foot > .btn { min-height: 52px; font-size: 17px; }
+.picker-foot > .btn { flex: none; min-height: 52px; font-size: 17px; }
 @media (max-height: 599px) {
   .pk-brand { display: none; }
   .picker-head h2 { margin-top: 0; font-size: 28px; }

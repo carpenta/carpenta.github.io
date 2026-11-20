@@ -1628,6 +1628,27 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       }
     });
 
+    test('with other fonts, the first course picker keeps the link home and 이 코스로 시작 on screen, the list between them', async ({ page }) => {
+      await page.goto('/');
+      await page.addStyleTag({ content: OTHER_TYPE });
+      await expect(page.locator('#picker')).toBeVisible();
+      await settled(page);
+      const home = await rect(page, '#picker a[href="../../"]');
+      expect(home.y, 'link home').toBeGreaterThanOrEqual(0);
+      // The list still shows a row and a half, under the header and above the button.
+      const list = await rect(page, '#picker-list');
+      expect(list.y).toBeGreaterThanOrEqual(home.y + home.height);
+      expect(list.height).toBeGreaterThanOrEqual(96);
+      const start = await rect(page, '#picker-start');
+      expect(list.y + list.height).toBeLessThanOrEqual(start.y);
+      expect(start.y + start.height, '이 코스로 시작').toBeLessThanOrEqual(height);
+      // The chosen course's last line still comes into view above the button, which stays where it is.
+      await page.locator('#picker-chosen .small').scrollIntoViewIfNeeded();
+      const line = await rect(page, '#picker-chosen .small');
+      expect(line.y + line.height).toBeLessThanOrEqual(start.y);
+      expect(await rect(page, '#picker-start')).toEqual(start);
+      expect(await sideScroll(page)).toBe(0);
+    });
 
   });
 }
