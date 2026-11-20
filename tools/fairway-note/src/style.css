@@ -394,7 +394,7 @@ button.col:active { background: var(--tint); }
 .m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; border-radius: 2px; }
 .m[data-mark='triple']::before { width: 28px; height: 28px; border-radius: 3px; background: currentColor; }
 .m[data-mark='triple'] b { color: #fff; }
-/* 스코어카드 legend (v16): the 파 4 기준 line, then the six marks on a grid. Three columns line up with the hero's
+/* 스코어카드 legend (v17): the 파 4 기준 line, then the six marks on a grid. Three columns line up with the hero's
    퍼트·OB·해저드 tiles (same 1fr columns, same 8px gap); 큰 글씨 on a narrow phone takes two. */
 .legend {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--lg-col, 92px), 1fr)); gap: 4px 8px; align-items: center;
@@ -405,7 +405,7 @@ button.col:active { background: var(--tint); }
 /* The marks as large as in the table; the negative margin keeps the box no wider than the drawn mark. */
 .legend .m { transform: scale(.76); margin: -4px; }
 body.big .legend { --lg-col: 100px; }
-/* 합계 (v16): the round's total sits in the tables' 전반/후반 column (--sum-w wide, on the right edge) under the
+/* 합계 (v17): the round's total sits in the tables' 전반/후반 column (--sum-w wide, on the right edge) under the
    subtotals, as a bare number like them; its to-par stands just before it. */
 .tot {
   --sum-w: 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto var(--sum-w); column-gap: 10px; align-items: baseline;
@@ -426,7 +426,7 @@ body.big .legend { --lg-col: 100px; }
 .save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: 13px; text-align: center; }
 .box h4, .past h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-/* The same label, bar and value columns as 스코어 분포 below (.bar-row), so both charts' bars start and end together (v16). */
+/* The same label, bar and value columns as 스코어 분포 below (.bar-row), so both charts' bars start and end together (v17). */
 .lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: 13px; }
 .lost-bars .bar { height: 10px; border-radius: 4px; background: var(--off); overflow: hidden; }
 .lost-bars .bar i { display: block; height: 100%; border-radius: 4px; background: var(--turf); }
@@ -460,7 +460,7 @@ body.big .legend { --lg-col: 100px; }
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
 .box h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
 /* 지난 라운드: this round first, then the kept ones; the view's header already names it, so the list's own heading steps aside. */
-/* The score on the title's baseline, as each past round's row puts it (v16). */
+/* The score on the title's baseline, as each past round's row puts it (v17). */
 .now { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; align-items: baseline; }
 .now h3 { margin: 0; }
 .now p { font-size: 13px; margin-top: 2px; }
@@ -470,7 +470,7 @@ body.big .legend { --lg-col: 100px; }
 .now .btn { grid-column: 1 / -1; }
 #hist-view #history-title { display: none; }
 #hist-view #history { margin-bottom: 24px; }
-/* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v16). */
+/* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v17). */
 #hist-view .history-trends { margin-top: 0; }
 .topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: 800; vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: #f8dedb; color: #9e2c21; }
@@ -485,7 +485,7 @@ body.big .legend { --lg-col: 100px; }
 .history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
 .history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
-/* The text on the card's edges like everything else in it; only the pressed background reaches 4px past them (v16). */
+/* The text on the card's edges like everything else in it; only the pressed background reaches 4px past them (v17). */
 .past-item {
   width: calc(100% + 8px); min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center;
   margin-inline: -4px; padding: 10px 4px; border-radius: 12px; text-align: left;
@@ -523,7 +523,7 @@ html.past-open { overflow: hidden; }
 .past .past-send { margin-top: 16px; }
 .past #past-delete { width: 100%; margin-top: 16px; }
 /* The round is shown on paper, not in a white card: its tiles and bar tracks turn white so they still read as tiles,
-   and the text inside them as inset, not as stray indents (v16). */
+   and the text inside them as inset, not as stray indents (v17). */
 .past .metrics div, .past .bar-track { background: var(--white); }
 
 .btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: 700; }
@@ -656,7 +656,7 @@ html.past-open { overflow: hidden; }
 .picker-head > .btn, .picker-home { grid-column: 2; grid-row: 2; }
 /* The first picker covers the whole screen, the tab bar's 홈 too, and has no 취소: this link is its way back to the
    site (AGENTS.md). On the title's baseline, its right edge on the inner edge, a 44px target whose negative margins
-   keep the line as tall as the title. White, not muted: the header is dark green (v16). */
+   keep the line as tall as the title. White, not muted: the header is dark green (v17). */
 .picker-home {
   align-self: baseline; display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 -12px; padding: 0 0 0 8px;
   color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap;
@@ -665,7 +665,7 @@ html.past-open { overflow: hidden; }
 .picker-head:has(> #picker-cancel[hidden]) > h2 { align-self: baseline; }
 /* From the menu or an earlier day's round, 취소 leads back to the app and its tab bar's 홈 instead. */
 .picker-head:has(> #picker-cancel:not([hidden])) > .picker-home { display: none; }
-/* 16px in, so the search icon starts on the list rows' text edge (v16). */
+/* 16px in, so the search icon starts on the list rows' text edge (v17). */
 .pk-search {
   flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
   border-radius: 16px; background: var(--white); color: var(--muted); box-shadow: var(--float);
@@ -714,7 +714,7 @@ html.past-open { overflow: hidden; }
 .nine-row:has(.nine-fixed) { grid-template-columns: minmax(0, 1fr) auto; }
 .nine-label { font-size: 15px; font-weight: 600; color: var(--muted); }
 /* The nines as equal columns, so 전반 and 후반 read as one grid; a longer name widens only its own column, and many
-   nines scroll sideways (v16). */
+   nines scroll sideways (v17). */
 .nine-pick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: 700; }
 .nine-pick button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
@@ -747,7 +747,7 @@ html.past-open { overflow: hidden; }
 .sum-hero-txt .big { font-size: 22px; font-weight: 800; }
 .sum-hero-txt .big.under { color: var(--red); }
 .sum-hero-txt p + p { font-size: 13px; color: var(--muted); margin-top: 4px; }
-/* The image 공유 sends (v15): 4:5 like the image, at the inner right edge, centred on the ring's line and smaller than
+/* The image 공유 sends (v17): 4:5 like the image, at the inner right edge, centred on the ring's line and smaller than
    the ring, so the score leads and the close button keeps its room. Deep turf, the image's own ground, holds its place
    until it is drawn; then it fades in with a badge for what a tap does (share, or save where files cannot be shared). */
 .sum-card {
@@ -813,10 +813,10 @@ html.past-open { overflow: hidden; }
 .hist-empty .he-2 { font-size: 15px; color: var(--muted); }
 
 /* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
-/* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v16). */
+/* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v17). */
 .sc-hero { display: grid; grid-template-columns: 80px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 2px 0 14px; border-bottom: 1.5px solid var(--line); }
 .sc-hero[hidden], .sh-empty[hidden] { display: none; }
-/* The same ring as 라운드 요약's: 80px, 16px to the text (v16). */
+/* The same ring as 라운드 요약's: 80px, 16px to the text (v17). */
 .sh-ring { width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line); }
 .sh-ring[data-tone='under'] { background: var(--red); }
 .sh-ring[data-tone='par'] { background: var(--turf); }
@@ -854,7 +854,7 @@ html.past-open { overflow: hidden; }
 .ct .r-h > .cur { background: var(--turf); color: #fff; }
 /* A 34px mark is wider than a hole's column (24–30px), and a grid item that overflows its column is put at the start
    instead of the middle, so the mark drifted 2–5px right of the hole number. The negative margin keeps its box narrower
-   than any column; the drawn mark, scaled about its own middle, then sits on the column's middle (v16). */
+   than any column; the drawn mark, scaled about its own middle, then sits on the column's middle (v17). */
 .ct .m { transform: scale(.76); margin-inline: -8px; }
 body.big .ct .r > span { font-size: 15px; }
 

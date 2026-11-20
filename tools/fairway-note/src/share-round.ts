@@ -5,7 +5,7 @@ import type { Round } from './round';
 import { drawShareCard, shareCardFileName } from './share-card';
 
 /**
- * The round summary's 공유 with the share card (v15). The card is drawn once the summary is on screen and shown there
+ * The round summary's 공유 with the share card (v16). The card is drawn once the summary is on screen and shown there
  * as a small preview (a `data:` URL: the CSP allows `img-src 'self' data:`, not `blob:`). Where the browser can share
  * files, 공유 hands the PNG to the share sheet with the report's title and text; where it can share only text, 공유 sends
  * the report as before; with no share sheet, 공유 is 결과 복사. Wherever the image cannot be shared as a file,

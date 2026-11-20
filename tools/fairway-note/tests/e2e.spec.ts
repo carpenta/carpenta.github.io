@@ -1734,7 +1734,7 @@ test('shares the round with the phone share sheet', async ({ page }) => {
   expect(shared[0].title).toContain('3타 (-1)');
 });
 
-/* ---------- the summary's 공유: the round as an image (v15) ---------- */
+/* ---------- the summary's 공유: the round as an image (v16) ---------- */
 
 type SharedData = { title?: string; text?: string; files: { name: string; type: string; size: number; head: number[] }[] };
 const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -2107,7 +2107,7 @@ test('keeps the pars of a round saved before courses could be chosen', async ({ 
   await expect(page.locator('#sum-strokes')).toHaveText('3');
 });
 
-/* ---------- alignment (v16): one grid on 스코어카드, 지난 라운드 and 코스 선택 ---------- */
+/* ---------- alignment (v17): one grid on 스코어카드, 지난 라운드 and 코스 선택 ---------- */
 
 // Helper names are this block's own (spanOf, within1px …): other versions' tests define rect and atRest at the top level.
 type Span = { x: number; y: number; width: number; height: number };
