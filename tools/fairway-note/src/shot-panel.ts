@@ -13,9 +13,16 @@ import { $, h, setText } from './dom';
  */
 export const PANEL_ROWS: { [K in Tagged]: ShotTag<K>[][] } = {
   driver: [['left', 'fairway', 'right'], ['long', 'short'], ['far-left', 'whiff', 'far-right'], ['ob-left', 'mishit', 'ob-right']],
-  approach: [['left', 'green', 'right'], ['long', 'short'], ['bunker', 'hazard', 'whiff']],
+  approach: [['left', 'green', 'right'], ['long', 'short'], ['hazard', 'whiff']],
   putts: [['left', 'in', 'right'], ['long', 'short']],
 };
+
+/**
+ * Details still read from rounds saved before (the live site) but no longer offered (v18): an approach's 벙커, since
+ * 상세's 벙커 counts bunkers and one bunker must not be recorded twice. Such a chip shows only on a shot that carries
+ * it, so it can be seen and cleared.
+ */
+export const LEGACY_TAGS: { [K in Tagged]?: ShotTag<K>[] } = { approach: ['bunker'] };
 
 /** What one of a club's shots is called: every drive is a tee shot (a re-tee after OB too), putts are putts. */
 const SHOT_NOUN: Record<Tagged, string> = { driver: '티샷', approach: '샷', putts: '퍼트' };
@@ -206,9 +213,14 @@ function renderPanel(): void {
     // Rebuilt only when the club changes, so a chip keeps focus after it is tapped. Static icon markup from icons.ts.
     box.dataset.key = key;
     $('sp-ico').innerHTML = CLUB_ICONS[key];
-    box.replaceChildren(...PANEL_ROWS[key].flatMap((row) => (row as string[]).map((tag) => {
-      const kind = `${row.length === 2 ? ' half' : ''}${tag.startsWith('ob-') ? ' ob' : ''}`;
+    const rows: { tags: string[]; legacy: boolean }[] = [
+      ...PANEL_ROWS[key].map((tags) => ({ tags: tags as string[], legacy: false })),
+      ...(LEGACY_TAGS[key] ?? []).map((tag) => ({ tags: [tag as string], legacy: true })),
+    ];
+    box.replaceChildren(...rows.flatMap((row) => row.tags.map((tag) => {
+      const kind = `${row.tags.length === 2 ? ' half' : ''}${tag.startsWith('ob-') ? ' ob' : ''}`;
       const chip = h('button', { type: 'button', class: `sp-chip${kind}`, 'data-tag': tag, 'aria-pressed': 'false' }, h('span', { class: 'sp-lbl' }));
+      if (row.legacy) chip.dataset.legacy = '';
       const glyph = GLYPHS[tag];
       // Static icon markup, never user input.
       if (glyph) chip.insertAdjacentHTML(glyph[1] === 'before' ? 'afterbegin' : 'beforeend', glyph[0]);
@@ -221,6 +233,10 @@ function renderPanel(): void {
   for (const chip of box.querySelectorAll<HTMLButtonElement>('button[data-tag]')) {
     setText(chip.querySelector('.sp-lbl')!, chipLabel(key, chip.dataset.tag!, cur.par));
     setAttr(chip, 'aria-pressed', String(chip.dataset.tag === chosen));
+    // An old-only detail shows on the shot that carries it, and goes once cleared (focus moves on to the first chip).
+    const gone = chip.dataset.legacy !== undefined && chip.dataset.tag !== chosen;
+    if (gone && document.activeElement === chip) box.querySelector<HTMLButtonElement>('button[data-tag]')!.focus();
+    chip.hidden = gone;
   }
   // With two shots or more, which one the chips write: the last one first, those with a detail marked.
   const row = $('sp-shots');

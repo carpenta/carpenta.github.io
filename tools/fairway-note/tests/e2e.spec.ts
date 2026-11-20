@@ -2823,7 +2823,7 @@ const NOUN: Record<string, string> = { driver: '티샷', approach: '샷', putts:
 /** Each club's chips row by row: left, the target and right, then long and short, then the rest. */
 const PANEL_CHIPS: Record<string, string[]> = {
   driver: ['좌', '페어웨이', '우', '김', '짧음', '많이 좌', '헛스윙', '많이 우', '좌 OB', '뒤땅/토핑', '우 OB'],
-  approach: ['좌', '온그린', '우', '김', '짧음', '벙커', '해저드', '헛스윙'],
+  approach: ['좌', '온그린', '우', '김', '짧음', '해저드', '헛스윙'],
   putts: ['좌', '들어감', '우', '김', '짧음'],
 };
 
@@ -2835,7 +2835,7 @@ test('a tap on a club’s number opens its detail panel; a chip records the shot
   });
   await open(page);
   await expect(panel(page)).toBeHidden();
-  const picks: [string, string][] = [['approach', '벙커'], ['driver', '우'], ['putts', '들어감']];
+  const picks: [string, string][] = [['approach', '해저드'], ['driver', '우'], ['putts', '들어감']];
   for (const [key, chip] of picks) {
     await tap(page, key);
     const num = numberOf(page, key);
@@ -2843,7 +2843,7 @@ test('a tap on a club’s number opens its detail panel; a chip records the shot
     await num.click();
     await expect(page.getByRole('dialog', { name: `${LABEL[key]} 1번째 ${NOUN[key]}` })).toBeVisible();
     await expect(num).toHaveAttribute('aria-expanded', 'true');
-    await expect(panel(page).locator('#sp-chips button')).toHaveText(PANEL_CHIPS[key]);
+    await expect(panel(page).locator('#sp-chips button:visible')).toHaveText(PANEL_CHIPS[key]);
     // One shot: nothing to choose between.
     await expect(panel(page).locator('#sp-shots')).toBeHidden();
     await panelChip(page, chip).click();
@@ -2856,7 +2856,7 @@ test('a tap on a club’s number opens its detail panel; a chip records the shot
     await expect(num).toHaveAccessibleName(`${LABEL[key]} 1, 샷 세부 1개`);
   }
   await expect(page.locator('#hole-strokes')).toHaveText('3');
-  expect((await stored(page)).holes[0].tags).toEqual({ driver: ['right'], approach: ['bunker'], putts: ['in'] });
+  expect((await stored(page)).holes[0].tags).toEqual({ driver: ['right'], approach: ['hazard'], putts: ['in'] });
 
   await page.reload();
   for (const [key, chip] of picks) {
@@ -2867,7 +2867,7 @@ test('a tap on a club’s number opens its detail panel; a chip records the shot
   }
   // The analysis and the report carry them, as on the live site.
   await showCard(page);
-  await expect(page.locator('#analysis .details')).toContainText('어프로치: 벙커 1');
+  await expect(page.locator('#analysis .details')).toContainText('어프로치: 해저드 1');
 
   expect(requests).toEqual([]);
   expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
@@ -3032,6 +3032,15 @@ test('shows the details of a round saved by the live site in each club’s panel
   expect(saved[0].tags).toEqual({ driver: ['fairway'], approach: ['short', 'green'], putts: ['long', 'in'] });
   expect(saved[1]).toMatchObject({ ob: 1, obByTag: 1, tags: { driver: ['ob-right', 'left'], approach: ['bunker'], putts: ['in'] } });
   expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('fairway-note:corrupt:')))).toEqual([]);
+  // The live site's approach 벙커 has no chip now (상세's 벙커 counts it), but a shot that has it shows it, to clear.
+  await next(page).click();
+  await numberOf(page, 'approach').click();
+  await expect(panelChip(page, '벙커')).toHaveAttribute('aria-pressed', 'true');
+  await panelChip(page, '벙커').click();
+  await expect(panelChip(page, '벙커')).toBeHidden();
+  await expect(panel(page).locator('#sp-chips button:visible')).toHaveText(PANEL_CHIPS.approach);
+  await page.keyboard.press('Escape');
+  expect((await stored(page)).holes[1].tags).toEqual({ driver: ['ob-right', 'left'], putts: ['in'] });
 });
 
 test('큰 글씨 keeps every chip of the panel whole and inside it at 360px', async ({ page }) => {
@@ -3090,7 +3099,7 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
             return {
               panel: box(el),
               overflow: el.scrollWidth - el.clientWidth,
-              chips: [...el.querySelectorAll('#sp-chips button')].map(box),
+              chips: [...el.querySelectorAll('#sp-chips button')].filter((b) => b.getClientRects().length).map(box),
               targets: [...el.querySelectorAll('button')].filter((b) => b.getClientRects().length).map(box),
             };
           });

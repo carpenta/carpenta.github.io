@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SHOT_TAGS, TAGGED, analyze, emptyHole, strokes, type Hole } from '../src/round';
 import { STORAGE_KEY, loadRound, preserveUnreadable, readRound, saveRound } from '../src/storage';
-import { PANEL_ROWS, chooseTag, firstShot } from '../src/shot-panel';
+import { LEGACY_TAGS, PANEL_ROWS, chooseTag, firstShot } from '../src/shot-panel';
 
 function memory() {
   const map = new Map<string, string>();
@@ -20,10 +20,10 @@ function memory() {
 const shots = (h: Hole, driver: number, approach = 0, putts = 0): Hole => ({ ...h, driver, approach, putts });
 
 describe('club detail panel layout', () => {
-  it('lays out every chip of each club exactly once, in rows of three or two', () => {
+  it('lays out every chip of each club exactly once, in rows of three or two; an old-only detail is kept to read', () => {
     for (const key of TAGGED) {
       const placed = PANEL_ROWS[key].flat();
-      expect([...placed].sort(), key).toEqual([...SHOT_TAGS[key]].sort());
+      expect([...placed, ...(LEGACY_TAGS[key] ?? [])].sort(), key).toEqual([...SHOT_TAGS[key]].sort());
       expect(new Set(placed).size, key).toBe(placed.length);
       for (const row of PANEL_ROWS[key]) expect([2, 3], `${key} ${row.join(' ')}`).toContain(row.length);
     }
@@ -35,6 +35,13 @@ describe('club detail panel layout', () => {
     expect(PANEL_ROWS.putts).toEqual([['left', 'in', 'right'], ['long', 'short']]);
     // The rest keeps each side on its own column: left things on the left, right things on the right.
     expect(PANEL_ROWS.driver.slice(2)).toEqual([['far-left', 'whiff', 'far-right'], ['ob-left', 'mishit', 'ob-right']]);
+  });
+
+  it('offers no 벙커 chip for an approach: 상세\'s 벙커 counts it, so a bunker is never recorded twice', () => {
+    expect(PANEL_ROWS.approach.flat()).not.toContain('bunker');
+    expect(PANEL_ROWS.approach.slice(2)).toEqual([['hazard', 'whiff']]);
+    // Rounds saved before (the live site) may carry it: it is still read, and shown only on a shot that has it.
+    expect(LEGACY_TAGS.approach).toEqual(['bunker']);
   });
 });
 
