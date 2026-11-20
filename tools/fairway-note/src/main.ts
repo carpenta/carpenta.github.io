@@ -924,11 +924,15 @@ function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
   return single ? [nine(0)] : [nine(0), nine(9)];
 }
 
-/** The total line under the nines, for a past round (the current round's is static markup). */
+/**
+ * The total line under the nines, for a past round (the current round's is static markup): holes, to-par, then the
+ * total in the 전반/후반 column as a bare number like the subtotals above it ("타" is read, not shown).
+ */
 function totalLine(a: Analysis): HTMLElement {
   const t = a.totals;
-  return h('div', { class: 'tot' }, h('h3', {}, '합계'), h('span', {}, `${t.holes}홀`), h('b', {}, `${t.strokes}타`),
-    h('b', { class: t.holes && a.toPar < 0 ? 'under' : '' }, toParText(t.holes ? a.toPar : 0)));
+  return h('div', { class: 'tot' }, h('h3', {}, '합계'), h('span', {}, `${t.holes}홀`),
+    h('b', { class: `tot-p${t.holes && a.toPar < 0 ? ' under' : ''}` }, toParText(t.holes ? a.toPar : 0)),
+    h('b', { class: 'tot-n' }, h('span', {}, String(t.strokes)), h('span', { class: 'sr-only' }, '타')));
 }
 
 function renderCard(a: Analysis): void {
@@ -955,9 +959,12 @@ function renderCard(a: Analysis): void {
   setText($('sum-hazard'), String(t.hazard));
   $('scorecard').replaceChildren(...scorecardNodes(round, a, editPar ? 'edit' : 'open'));
   setText($('tot-holes'), `${t.holes}홀`);
-  setText($('tot-strokes'), `${t.strokes}타`);
+  // The total sits in the 전반/후반 column under the subtotals: a bare number like them ("타" is read, not shown), and
+  // a dash with no to-par before any hole is recorded, as the empty subtotals above it are blank.
+  setText($('tot-strokes'), t.holes ? String(t.strokes) : '–');
+  setText($('tot-unit'), t.holes ? '타' : '');
   const total = $('tot-topar');
-  setText(total, toParText(t.holes ? a.toPar : 0));
+  setText(total, t.holes ? toParText(a.toPar) : '');
   total.classList.toggle('under', t.holes > 0 && a.toPar < 0);
 
   const areas = Object.keys(AREA_LABELS) as Area[];

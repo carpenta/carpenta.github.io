@@ -333,7 +333,7 @@ svg { display: block; }
   font-size: 15px; font-weight: 700; color: var(--turf); white-space: nowrap;
 }
 .edit.on { background: var(--turf); color: #fff; }
-.edit-hint { margin: 12px 2px 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
+.edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
 .sc-title h2 { font-size: 17px; font-weight: 700; }
 .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: 32px; padding: 16px 10px; box-shadow: 0 8px 24px rgb(23 48 26 / .12); }
@@ -342,7 +342,7 @@ svg { display: block; }
 .sum dt { font-size: 13px; color: var(--muted); }
 .sum dd { margin: 4px 0 0; font-size: 22px; font-weight: 800; }
 .under { color: var(--red); }
-.nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 2px 8px; }
+.nine-h { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 8px; }
 .nine-h h3 { font-size: 17px; font-weight: 700; }
 .nine-h span { font-size: 13px; color: var(--muted); }
 .tbl { display: grid; grid-template-columns: 28px repeat(5, minmax(0, 1fr)); column-gap: 8px; }
@@ -378,16 +378,30 @@ button.col:active { background: var(--tint); }
 .m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; border-radius: 2px; }
 .m[data-mark='triple']::before { width: 28px; height: 28px; border-radius: 3px; background: currentColor; }
 .m[data-mark='triple'] b { color: #fff; }
-/* 스코어카드 legend */
-.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 13px; color: var(--muted); }
-.legend li { display: inline-flex; align-items: center; gap: 1px; }
-.legend .lg-cap { font-weight: 700; color: var(--ink); }
-.legend .m { transform: scale(.82); margin: -2px; }
-.tot { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line); }
+/* 스코어카드 legend (v16): the 파 4 기준 line, then the six marks on a grid. Three columns line up with the hero's
+   퍼트·OB·해저드 tiles (same 1fr columns, same 8px gap); 큰 글씨 on a narrow phone takes two. */
+.legend {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--lg-col, 92px), 1fr)); gap: 4px 8px; align-items: center;
+  margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 13px; color: var(--muted);
+}
+.legend li { display: flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
+.legend .lg-cap { grid-column: 1 / -1; font-weight: 700; color: var(--ink); }
+/* The marks as large as in the table; the negative margin keeps the box no wider than the drawn mark. */
+.legend .m { transform: scale(.76); margin: -4px; }
+body.big .legend { --lg-col: 100px; }
+/* 합계 (v16): the round's total sits in the tables' 전반/후반 column (--sum-w wide, on the right edge) under the
+   subtotals, as a bare number like them; its to-par stands just before it. */
+.tot {
+  --sum-w: 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto var(--sum-w); column-gap: 10px; align-items: baseline;
+  margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line);
+}
+/* The five-and-four tables (파 수정, a past round) end in a 1fr column: their 28px labels and five 8px gaps share the rest. */
+.editing .tot, .past .tot { --sum-w: calc((100% - 68px) / 5); }
 .tot h3 { font-size: 17px; font-weight: 700; }
-.tot span { font-size: 13px; color: var(--muted); }
-.tot b { margin-left: auto; font-size: 22px; font-weight: 800; }
-.tot b + b { margin-left: 8px; min-width: 52px; text-align: right; }
+.tot > span { font-size: 13px; color: var(--muted); }
+.tot b { font-size: 22px; font-weight: 800; white-space: nowrap; }
+.tot .tot-p { font-size: 17px; text-align: right; }
+.tot .tot-n { text-align: center; }
 .par-source { margin-top: 10px; font-size: 13px; color: var(--muted); }
 .par-source a { color: var(--turf); font-weight: 600; }
 
@@ -396,7 +410,8 @@ button.col:active { background: var(--tint); }
 .save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: 13px; text-align: center; }
 .box h4, .past h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; }
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-.lost-bars li { display: grid; grid-template-columns: 64px 1fr 32px; align-items: center; gap: 8px; font-size: 13px; }
+/* The same label, bar and value columns as 스코어 분포 below (.bar-row), so both charts' bars start and end together (v16). */
+.lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: 13px; }
 .lost-bars .bar { height: 10px; border-radius: 4px; background: var(--off); overflow: hidden; }
 .lost-bars .bar i { display: block; height: 100%; border-radius: 4px; background: var(--turf); }
 .lost-bars li.worst .bar i { background: var(--sand); }
@@ -408,7 +423,7 @@ button.col:active { background: var(--tint); }
 .headline .muted { font-size: 14px; font-weight: 400; }
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .metrics.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
-.metrics div { background: var(--paper); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.metrics div { background: var(--paper); border-radius: 12px; padding: 8px 12px; min-width: 0; }
 .metrics dt { font-size: 13px; color: var(--muted); }
 .metrics dd { margin: 0; font-weight: 700; }
 .bars { display: grid; gap: 6px; }
@@ -429,7 +444,8 @@ button.col:active { background: var(--tint); }
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
 .box h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
 /* 지난 라운드: this round first, then the kept ones; the view's header already names it, so the list's own heading steps aside. */
-.now { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; align-items: center; }
+/* The score on the title's baseline, as each past round's row puts it (v16). */
+.now { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; align-items: baseline; }
 .now h3 { margin: 0; }
 .now p { font-size: 13px; margin-top: 2px; }
 .now .big { margin: 0; font-size: 22px; font-weight: 800; text-align: right; white-space: nowrap; }
@@ -438,6 +454,8 @@ button.col:active { background: var(--tint); }
 .now .btn { grid-column: 1 / -1; }
 #hist-view #history-title { display: none; }
 #hist-view #history { margin-bottom: 24px; }
+/* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v16). */
+#hist-view .history-trends { margin-top: 0; }
 .topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: 800; vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: #f8dedb; color: #9e2c21; }
 .history-trends { margin: 8px 0 12px; }
@@ -451,9 +469,10 @@ button.col:active { background: var(--tint); }
 .history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
 .history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
+/* The text on the card's edges like everything else in it; only the pressed background reaches 4px past them (v16). */
 .past-item {
-  width: 100%; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center;
-  padding: 10px 4px; border-radius: 12px; text-align: left;
+  width: calc(100% + 8px); min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center;
+  margin-inline: -4px; padding: 10px 4px; border-radius: 12px; text-align: left;
 }
 .past-item:active { background: var(--tint); }
 .past-when { font-size: 17px; font-weight: 700; }
@@ -487,6 +506,9 @@ html.past-open { overflow: hidden; }
 #past-scorecard .nine-h:first-child { margin-top: 0; }
 .past .past-send { margin-top: 16px; }
 .past #past-delete { width: 100%; margin-top: 16px; }
+/* The round is shown on paper, not in a white card: its tiles and bar tracks turn white so they still read as tiles,
+   and the text inside them as inset, not as stray indents (v16). */
+.past .metrics div, .past .bar-track { background: var(--white); }
 
 .btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: 700; }
 .btn.primary { background: var(--turf); color: #fff; }
@@ -604,8 +626,24 @@ html.past-open { overflow: hidden; }
 .pk-brand { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: rgb(255 255 255 / .82); }
 .picker-head h2 { margin-top: 6px; font-size: 34px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
 .picker-head .btn { min-height: 44px; background: rgb(255 255 255 / .16); color: #fff; }
+/* The title's line: the title, then 취소 or the link back to the site in one place at the header's inner edge. The row
+   is fixed, so the title stays on it when the brand line above steps aside on short screens. */
+.picker-head > h2 { grid-column: 1; grid-row: 2; }
+.picker-head > .btn, .picker-home { grid-column: 2; grid-row: 2; }
+/* The first picker covers the whole screen, the tab bar's 홈 too, and has no 취소: this link is its way back to the
+   site (AGENTS.md). On the title's baseline, its right edge on the inner edge, a 44px target whose negative margins
+   keep the line as tall as the title. White, not muted: the header is dark green (v16). */
+.picker-home {
+  align-self: baseline; display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 -12px; padding: 0 0 0 8px;
+  color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap;
+  text-decoration: underline; text-decoration-color: rgb(255 255 255 / .55); text-underline-offset: 3px;
+}
+.picker-head:has(> #picker-cancel[hidden]) > h2 { align-self: baseline; }
+/* From the menu or an earlier day's round, 취소 leads back to the app and its tab bar's 홈 instead. */
+.picker-head:has(> #picker-cancel:not([hidden])) > .picker-home { display: none; }
+/* 16px in, so the search icon starts on the list rows' text edge (v16). */
 .pk-search {
-  flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
   border-radius: 16px; background: var(--white); color: var(--muted); box-shadow: var(--float);
 }
 .picker-search { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 17px; color: var(--ink); }
@@ -651,8 +689,10 @@ html.past-open { overflow: hidden; }
 .nine-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
 .nine-row:has(.nine-fixed) { grid-template-columns: minmax(0, 1fr) auto; }
 .nine-label { font-size: 15px; font-weight: 600; color: var(--muted); }
-.nine-pick { display: flex; gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nine-pick button { position: relative; flex: 1 0 auto; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: 700; }
+/* The nines as equal columns, so 전반 and 후반 read as one grid; a longer name widens only its own column, and many
+   nines scroll sideways (v16). */
+.nine-pick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: 700; }
 .nine-pick button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
 .nine-pick button[aria-checked='true'] { background: var(--fairway); }
 .nine-fixed { min-width: 0; font-size: 15px; font-weight: 600; }
@@ -729,27 +769,29 @@ html.past-open { overflow: hidden; }
 .hist-empty .he-2 { font-size: 15px; color: var(--muted); }
 
 /* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
-.sc-hero { display: grid; grid-template-columns: 76px minmax(0, 1fr); column-gap: 14px; align-items: center; padding: 2px 4px 14px; border-bottom: 1.5px solid var(--line); }
+/* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v16). */
+.sc-hero { display: grid; grid-template-columns: 80px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 2px 0 14px; border-bottom: 1.5px solid var(--line); }
 .sc-hero[hidden], .sh-empty[hidden] { display: none; }
-.sh-ring { width: 76px; height: 76px; border-radius: 50%; background: var(--deep); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line); }
+/* The same ring as 라운드 요약's: 80px, 16px to the text (v16). */
+.sh-ring { width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line); }
 .sh-ring[data-tone='under'] { background: var(--red); }
 .sh-ring[data-tone='par'] { background: var(--turf); }
 .sh-ring b { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.sh-ring span { margin-top: 2px; font-size: 13px; font-weight: 700; }
+.sh-ring span { margin-top: 3px; font-size: 13px; font-weight: 700; }
 .sh-topar { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sh-topar .under { color: var(--red); }
-.sh-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.sh-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
 .sh-stats { grid-column: 1 / -1; margin: 12px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .sh-stats div { padding: 8px 12px; border-radius: 14px; background: var(--paper); }
 .sh-stats dt { font-size: 13px; color: var(--muted); }
 .sh-stats dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.sh-empty { padding: 6px 4px 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
+.sh-empty { padding: 6px 0 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
 .sh-e1 { font-size: 17px; font-weight: 700; }
 .sh-e2 { margin-top: 4px; font-size: 13px; color: var(--muted); }
 .sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: 999px; background: var(--turf); color: #fff; font-size: 15px; font-weight: 700; }
 .nine-tbl { display: block; width: 100%; margin-top: 16px; padding: 0; text-align: left; border-radius: 16px; color: var(--ink); }
 .nine-tbl:active .ct { background: var(--tint); }
-.nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 4px 8px; }
+.nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 0 8px; }
 .nt-h b { font-size: 17px; font-weight: 700; }
 .nt-h small { font-size: 13px; color: var(--muted); }
 .nt-go { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--turf); }
@@ -766,7 +808,10 @@ html.past-open { overflow: hidden; }
 .ct .r-h > .ct-s { background: var(--line); }
 .ct .r > .cur { background: #e6f2df; }
 .ct .r-h > .cur { background: var(--turf); color: #fff; }
-.ct .m { transform: scale(.76); }
+/* A 34px mark is wider than a hole's column (24–30px), and a grid item that overflows its column is put at the start
+   instead of the middle, so the mark drifted 2–5px right of the hole number. The negative margin keeps its box narrower
+   than any column; the drawn mark, scaled about its own middle, then sits on the column's middle (v16). */
+.ct .m { transform: scale(.76); margin-inline: -8px; }
 body.big .ct .r > span { font-size: 15px; }
 
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */

@@ -132,7 +132,8 @@
           </div>
           <p class="edit-hint" id="edit-hint" hidden>파를 누를 때마다 3, 4, 5 순서로 바뀌어요. 다 고치면 완료를 누르세요.</p>
           <div id="scorecard"></div>
-          <div class="tot"><h3>합계</h3><span id="tot-holes">0홀</span><b id="tot-strokes">0타</b><b id="tot-topar">이븐</b></div>
+          <!-- The total in the 전반/후반 column under the subtotals, a bare number like them; its to-par just before it -->
+          <div class="tot"><h3>합계</h3><span id="tot-holes">0홀</span><b class="tot-p" id="tot-topar"></b><b class="tot-n"><span id="tot-strokes">–</span><span class="sr-only" id="tot-unit"></span></b></div>
           <ul class="legend" id="legend" aria-label="기호"></ul>
           <p id="par-source" class="par-source"></p>
         </section>
@@ -387,6 +388,8 @@
         <p class="pk-brand"><span>Fairway Note</span><span id="picker-version"></span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
+        <!-- The picker covers the tab bar's 홈, so it carries its own way back to the site (AGENTS.md) -->
+        <a class="picker-home" href="../../">carpenta.github.io</a>
         <button id="picker-cancel" class="btn" type="button">취소</button>
       </div>
       <label class="pk-search">
