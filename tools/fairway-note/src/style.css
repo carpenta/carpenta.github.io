@@ -1072,7 +1072,7 @@ body.big .info-chip { font-size: 15px; }
    turf with white, a dot on those with a detail. */
 .sp-shots { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 8px; }
 .sp-shots button {
-  position: relative; height: 44px; border-radius: 12px; background: var(--tint); color: var(--ink); font-size: 17px; font-weight: 800;
+  position: relative; height: 44px; border-radius: 12px; background: var(--tint); color: var(--ink); font-size: 17px; font-weight: var(--w-value);
   transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
 }
 .sp-shots button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
@@ -1086,7 +1086,7 @@ body.big .info-chip { font-size: 15px; }
 .sp-chip {
   position: relative; grid-column: span 2; height: 44px; min-width: 0; padding: 0 4px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; gap: 3px;
-  background: var(--tint); color: var(--ink); font-size: 15px; font-weight: 700; white-space: nowrap;
+  background: var(--tint); color: var(--ink); font-size: 15px; font-weight: var(--w-label); white-space: nowrap;
   transition-property: background-color, box-shadow; transition-duration: .12s; transition-timing-function: ease-out;
 }
 .sp-chip svg { flex: none; }
