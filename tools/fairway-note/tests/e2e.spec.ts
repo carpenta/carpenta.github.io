@@ -107,7 +107,11 @@ test('counts each club with one tap and totals the round without network or othe
   await tap(page, 'putts', 3);
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   await expect(page.locator('#hole-strokes')).toHaveText('6');
-  await expect(page.locator('#hole-name')).toHaveText('더블 보기');
+  // The 60px badge says 더블, as the scorecard's marks do; its spoken name keeps the whole word.
+  await expect(page.locator('#hole-name')).toHaveText('더블');
+  await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 6타 더블 보기');
+  const [word, ring] = [(await page.locator('#hole-name').boundingBox())!, (await page.locator('#badge').boundingBox())!];
+  expect(word.width).toBeLessThanOrEqual(ring.width - 12);
 
   await next(page).click();
   await expect(page.locator('#hole-par')).toHaveText('Par 5');
