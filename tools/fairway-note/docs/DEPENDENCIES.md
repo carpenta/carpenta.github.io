@@ -1,11 +1,11 @@
 # Runtime dependencies
 
-The bundle contains code written in this package, `src/data/courses.json` (golf course pars taken from each course's own published scorecard; see Course data in DESIGN.md) and one font. The app uses no runtime CDN: every file is served from the app's own folder and precached by its service worker.
+The bundle contains code written in this package, `src/data/courses.json` (golf course pars taken from each course's own published scorecard; see Course data in DESIGN.md), one font and an icon set's outline SVGs. The app uses no runtime CDN: every file is served from the app's own folder and precached by its service worker.
 
 | Dependency | Version | Licence | Source | In this package |
 | --- | --- | --- | --- | --- |
 | Pretendard (font) | 1.3.9 | SIL Open Font License 1.1, Reserved Font Name "Pretendard" | https://github.com/orioncactus/pretendard (npm `pretendard@1.3.9`, files fetched from https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2-subset/) | `src/fonts/`, bundled (v24) |
-| Tabler Icons (outline SVGs) | 3.52.0 | MIT | https://github.com/tabler/tabler-icons (npm `@tabler/icons@3.52.0`, files fetched from https://cdn.jsdelivr.net/npm/@tabler/icons@3.52.0/icons/outline/) | `vendor/tabler/`, vendored only: not in the bundle yet |
+| Tabler Icons (outline SVGs) | 3.52.0 | MIT | https://github.com/tabler/tabler-icons (npm `@tabler/icons@3.52.0`, files fetched from https://cdn.jsdelivr.net/npm/@tabler/icons@3.52.0/icons/outline/) | `vendor/tabler/`; since v25 the build draws 23 into `index.html` and bundles the 12 the scripts draw |
 
 ## Pretendard 1.3.9
 
@@ -22,7 +22,7 @@ The official KS X 1001 subset files, unmodified (subsetting them again would mak
 
 ## Tabler Icons 3.52.0
 
-30 outline SVGs, 12,815 bytes in all, unmodified, with the package's `LICENSE` (1,073 bytes, SHA-256 `b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db`, "Copyright (c) 2020-2026 Paweł Kuna"): `menu-2`, `chevron-left`, `chevron-right`, `chevron-up`, `chevron-down`, `chevrons-left`, `chevrons-right`, `home`, `table`, `pencil`, `history`, `share-2`, `upload`, `download`, `mail`, `microphone`, `x`, `flag-3`, `plus`, `minus`, `send`, `rotate-clockwise`, `text-size`, `info-circle`, `external-link`, `search`, `copy`, `check`, `dots-vertical`, `golf`. Each holds only `<svg>` and `<path>` with presentation attributes: no script, event attribute, style or external reference. Nothing imports them yet; the app icon each one stands for is listed under Icons in DESIGN.md. When they are wired in, the MIT notice has to ship with the built files too.
+30 outline SVGs, 12,815 bytes in all, unmodified, with the package's `LICENSE` (1,073 bytes, SHA-256 `b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db`, "Copyright (c) 2020-2026 Paweł Kuna"): `menu-2`, `chevron-left`, `chevron-right`, `chevron-up`, `chevron-down`, `chevrons-left`, `chevrons-right`, `home`, `table`, `pencil`, `history`, `share-2`, `upload`, `download`, `mail`, `microphone`, `x`, `flag-3`, `plus`, `minus`, `send`, `rotate-clockwise`, `text-size`, `info-circle`, `external-link`, `search`, `copy`, `check`, `dots-vertical`, `golf`. Each holds only `<svg>` and `<path>` with presentation attributes: no script, event attribute, style or external reference. Since v25 the build draws the 23 that `index.html` names into it and the scripts import the 12 they draw, each by name, without the wrapper or the invisible bounding box; `check`, `golf` and `upload` are unused. DESIGN.md's Icons table lists the app icon each one is. The MIT notice ships beside the built files as `assets/Tabler-LICENSE.txt` (unmodified), and the worker precaches it.
 
 ## Development-only tools
 
