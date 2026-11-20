@@ -3,7 +3,7 @@ import { newRound, type Hole, type Round } from '../src/round';
 import { BACKUP_APP, BACKUP_FORMAT, backupName, backupOf, backupText, parseBackup, planImport, settleImport } from '../src/backup';
 import { type Entry } from '../src/history';
 
-const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, hazard: 0, mulligan });
+const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, hazard: 0, mulligan, bunker: 0 });
 
 function roundOn(date: string, list: Hole[], current = list.length): Round {
   const [y, m, d] = date.split('-').map(Number);

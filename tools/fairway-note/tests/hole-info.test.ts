@@ -158,6 +158,39 @@ describe('drawn course behind the screen', () => {
     expect(courseSvg(courseShape(3, 6, frame, 0), frame)).not.toContain('class="water"');
   });
 
+  it('keeps a par 3 green from filling a tall band, still the largest green', () => {
+    const tall: CourseFrame = { ...frame, bandTop: 100, bandBottom: 320 };
+    const [p3, p4] = ([3, 4] as const).map((p) => courseShape(p, 0, tall, 0));
+    expect(p3.green.rx).toBeLessThanOrEqual(frame.width * 0.17 + 0.01);
+    expect(p3.green.rx).toBeGreaterThan(p4.green.rx);
+  });
+
+  it('fades an island green\'s water in below the chips, and on a tall band sets the green low enough for its water', () => {
+    const svg = courseSvg(courseShape(3, 6, frame, 0, true), frame);
+    expect(svg).toMatch(new RegExp(`<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}">`));
+    expect(svg).toMatch(/<g mask="url\(#course-wmask\)"><path class="water"/);
+    const tall: CourseFrame = { ...frame, bandTop: 100, bandBottom: 320 };
+    const g = courseShape(3, 6, tall, 0, true).green;
+    expect(g.cy - g.ry * 1.78).toBeGreaterThanOrEqual(tall.bandTop + 6 - 0.5);
+  });
+
+  it('mows the green in faint bands across the line of play, not rings that read as contours', () => {
+    const s = courseShape(4, 0, frame, 0);
+    const svg = courseSvg(s, frame);
+    expect(svg).toContain(`<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${(s.angle + 90).toFixed(1)})">`);
+    expect(svg).toMatch(/fill="url\(#course-gmow\)" opacity="\.07"/);
+    expect(svg).not.toContain('stroke-opacity=".12"');
+  });
+
+  it('tucks the tee box behind 다음 홀 when told where the button is, so none of it peeks out below', () => {
+    for (const par of [3, 4, 5] as const) {
+      const s = courseShape(par, 0, { ...frame, teeY: 577 }, 0);
+      expect(s.tee.y).toBe(577);
+      // Without the button's place, the tee stays near the bottom as before.
+      expect(courseShape(par, 0, frame, 0).tee.y).toBeGreaterThan(frame.height - 80);
+    }
+  });
+
   it('leaves the flag out when the open band is too short to show it whole', () => {
     expect(courseShape(4, 0, { ...frame, bandTop: 180, bandBottom: 200 }, 0).pin).toBeNull();
   });

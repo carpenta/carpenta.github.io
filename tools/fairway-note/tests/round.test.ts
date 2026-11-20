@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, scoreWord, strokes, totals, type Hole, type Round } from '../src/round';
 
-const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
+const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan, bunker: 0 });
 
 /** A round with these holes filled in, currently on the last hole (so earlier holes are finished). */
 function roundOf(list: Hole[], current = HOLE_LAST): Round {
@@ -46,7 +46,7 @@ describe('hole', () => {
   it('counts every shot plus one penalty stroke per OB and per hazard, never mulligans', () => {
     expect(strokes(hole(4, 2, 1, 2, 1, 2))).toBe(6);
     expect(strokes(hole(4, 1, 2, 2, 1, 0, 1))).toBe(7);
-    expect(emptyHole()).toEqual({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0 });
+    expect(emptyHole()).toEqual({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0, bunker: 0 });
   });
 
   it('is played once a stroke or penalty is entered, not for a mulligan alone', () => {
@@ -186,6 +186,17 @@ describe('round', () => {
     r.current = 1;
     expect(finished(r, 0)).toBe(true);
     expect(analyze(r).toPar).toBe(-1);
+  });
+
+  it('counts the hole being played once the round is finished with 라운드 마치기, chip-in or not', () => {
+    const r = roundOf([hole(4, 1, 1, 2), hole(4, 1, 2, 0)], 1);
+    expect(finished(r, 1)).toBe(false);
+    r.closed = true;
+    expect(finished(r, 1)).toBe(true);
+    expect(analyze(r).totals).toMatchObject({ holes: 2, strokes: 7 });
+    // A hole with nothing on it is still not played.
+    r.holes[1] = hole(4, 0, 0, 0);
+    expect(finished(r, 1)).toBe(false);
   });
 
   it('does not let a better hole hide losses on another', () => {

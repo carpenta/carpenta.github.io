@@ -34,7 +34,7 @@ export function hasRecord(round: Round): boolean {
 /** The same round however it was saved: its date and every hole's par, counts and tags, in a fixed order. */
 export function fingerprint(round: Round): string {
   const holes = round.holes.map((h) =>
-    [h.par, ...COUNTERS.map((k) => h[k]), ...TAGGED.map((k) => (h.tags?.[k] ?? []).map((t) => t ?? '-').join(',')), h.obByTag ?? 0].join(':'));
+    [h.par, ...COUNTERS.map((k) => h[k] ?? 0), ...TAGGED.map((k) => (h.tags?.[k] ?? []).map((t) => t ?? '-').join(',')), h.obByTag ?? 0].join(':'));
   return `${round.date}|${holes.join(';')}`;
 }
 

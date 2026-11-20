@@ -24,21 +24,21 @@
       <section class="view entry" id="entry" role="tabpanel" aria-labelledby="tab-entry">
         <header class="top">
           <button class="round menu" type="button" data-menu aria-label="메뉴" aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
           <div class="switcher">
             <button class="round" type="button" id="prev-hole" aria-label="이전 홀">
-              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
             </button>
             <!-- The hole number opens the hole strip: every hole at a glance, skipped holes marked -->
             <h1 class="hole-h">
               <button class="hole-title" type="button" id="hole-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="strip">
                 <span class="hole-txt"><span class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></span><span class="hole-sub" id="hole-sub" aria-hidden="true"></span><span class="ticks" id="ticks" aria-hidden="true"></span></span>
-                <svg class="hole-chev" viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg class="hole-chev" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5"/></svg>
               </button>
             </h1>
             <button class="round" type="button" id="next-hole" aria-label="다음 홀로 이동">
-              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
             </button>
           </div>
           <!-- One row (v10): Par, length and HDCP as text with the progress chips, all in one pill, then 홀 안내 -->
@@ -107,7 +107,7 @@
       <section class="view sc" id="card-view" role="tabpanel" aria-labelledby="tab-card" hidden>
         <header class="sc-top">
           <button class="round menu" type="button" data-menu aria-label="메뉴" aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
           <div class="sc-title"><h2>스코어카드</h2><p id="sc-sub"></p></div>
           <button class="edit" type="button" id="edit-par" aria-pressed="false">파 수정</button>
@@ -155,7 +155,7 @@
       <section class="view sc" id="hist-view" role="tabpanel" aria-labelledby="tab-hist" hidden>
         <header class="sc-top plain">
           <button class="round menu" type="button" data-menu aria-label="메뉴" aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
           </button>
           <div class="sc-title"><h2>지난 라운드</h2><p id="hist-sub"></p></div>
           <span aria-hidden="true"></span>
@@ -204,12 +204,12 @@
       <div class="bar">
         <!-- 홈: the way back to the site, a labelled column like the tabs (AGENTS.md: visible at every width) -->
         <a class="home-link" href="../../" aria-label="홈, carpenta.github.io로 돌아가기">
-          <span class="ti"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v8.5h11V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4.5 20 11"/><path d="M6.5 9.5v10h11v-10"/><path d="M10.2 19.5v-5h3.6v5"/></svg></span>
           <span class="tab-label">홈</span>
         </a>
         <div class="tabs" role="tablist">
           <button class="tab" type="button" role="tab" id="tab-card" aria-selected="false" aria-controls="card-view" tabindex="-1">
-            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 12h17M9.2 5v14M14.8 5v14"/></svg></span>
+            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 10h17M9.2 10v9M14.8 10v9"/></svg></span>
             <span class="tab-label">스코어카드</span>
           </button>
           <button class="tab" type="button" role="tab" id="tab-entry" aria-selected="true" aria-controls="entry" tabindex="0">
@@ -217,7 +217,7 @@
             <span class="tab-label">기록</span>
           </button>
           <button class="tab" type="button" role="tab" id="tab-hist" aria-selected="false" aria-controls="hist-view" tabindex="-1">
-            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="M12 8v4l3 2"/></svg></span>
+            <span class="ti"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.8h3.8"/><path d="M12 8.5V12l2.8 1.8"/></svg></span>
             <span class="tab-label">지난 라운드</span>
           </button>
         </div>
@@ -375,6 +375,7 @@
       <div class="np-row" id="np-row" role="group" aria-labelledby="np-title"></div>
     </dialog>
     <p class="sr-only" id="lp-hint">숫자를 길게 누르면 0부터 5 이상까지 바로 고를 수 있어요</p>
+    <p class="sr-only" id="lp-hint-pen">길게 누르면 개수를 0부터 5 이상까지 바로 고를 수 있어요</p>
 
     <!-- The hole strip, opened from the hole number -->
     <dialog id="strip" class="strip" aria-labelledby="strip-title">

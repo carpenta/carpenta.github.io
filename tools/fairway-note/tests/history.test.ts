@@ -39,7 +39,7 @@ function memory() {
 
 const corruptKeys = (kv: ReturnType<typeof memory>) => [...kv.map.keys()].filter((k) => k.startsWith(CORRUPT_PREFIX)).sort();
 
-const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, hazard: 0, mulligan });
+const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, hazard: 0, mulligan, bunker: 0 });
 
 /** A round on `date` with these holes filled in, currently on the hole after them (so they are finished). */
 function roundOn(date: string, list: Hole[], current = list.length): Round {
@@ -87,7 +87,7 @@ describe('keeping a round', () => {
   it('never keeps the same round twice, whatever the hole being shown or the key order', () => {
     const tagged = roundOn('2026-11-19', [{ ...hole(4, 1, 0, 2), tags: { putts: [null, 'in'], driver: ['left'] } }]);
     const list = withRound([], tagged, 1000, 'a');
-    const reordered = roundOn('2026-11-19', [{ tags: { driver: ['left'], putts: [null, 'in'] }, mulligan: 0, hazard: 0, ob: 0, putts: 2, approach: 0, driver: 1, par: 4 }]);
+    const reordered = roundOn('2026-11-19', [{ tags: { driver: ['left'], putts: [null, 'in'] }, bunker: 0, mulligan: 0, hazard: 0, ob: 0, putts: 2, approach: 0, driver: 1, par: 4 }]);
     expect(fingerprint(reordered)).toBe(fingerprint(tagged));
     expect(withRound(list, { ...reordered, current: 7, lastEdited: 5 }, 2000, 'b')).toBe(list);
     // Another day, another count or another tag is another round.

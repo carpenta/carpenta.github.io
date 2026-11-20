@@ -186,7 +186,7 @@ test('adds a penalty stroke for each OB or hazard and takes the last one off wit
   await tap(page, 'hazard');
   await tap(page, 'putts');
   await next(page).click();
-  expect((await stored(page)).holes[0]).toEqual({ par: 4, driver: 1, approach: 0, putts: 1, ob: 0, hazard: 1, mulligan: 0 });
+  expect((await stored(page)).holes[0]).toEqual({ par: 4, driver: 1, approach: 0, putts: 1, ob: 0, hazard: 1, mulligan: 0, bunker: 0 });
   await showCard(page);
   await expect(page.locator('#sum-hazard')).toHaveText('1');
   await expect(page.locator('#analysis')).toContainText('해저드 1회로 벌타 1타가 더해졌습니다');
@@ -269,7 +269,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v13');
+  await expect(page.locator('#app-version')).toHaveText('v14');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -305,12 +305,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v13');
+  await expect(page.locator('#menu-version')).toHaveText('v14');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v13');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v14');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -406,6 +406,14 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await pickHole(page, 6);
   await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
   await expect(course.locator('.water')).toHaveCount(1);
+  // The tee box sits behind 다음 홀, none of it in the gap above the tab bar.
+  for (const index of [0, 1, 3]) {
+    await pickHole(page, index);
+    const tee = (await course.locator('.tee').boundingBox())!;
+    const go = (await next(page).boundingBox())!;
+    expect(tee.y, `hole ${index + 1}`).toBeGreaterThanOrEqual(go.y);
+    expect(tee.y + tee.height + 3, `hole ${index + 1}`).toBeLessThanOrEqual(go.y + go.height);
+  }
 });
 
 test.describe('with hole notes in the course data', () => {
@@ -628,6 +636,48 @@ test('a long press on a count sets it straight to 0 … 5+, and the toast takes 
   await expect(page.locator('#numpick')).toBeHidden();
   await expect(count(page, 'putts')).toHaveText('6');
   expect((await stored(page)).holes[0].putts).toBe(6);
+});
+
+/** Holds the pointer on a penalty until the same 0 … 5+ picker opens, then lets go. */
+async function longPressPen(page: Page, key: 'ob' | 'hazard' | 'bunker') {
+  const box = (await page.locator(`#stake-${key} .pen-icon`).boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(page.locator('#numpick')).toBeVisible();
+  await page.mouse.up();
+}
+
+test('a long press on a penalty sets its count straight away in either mode, and a tap still adds one', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await tap(page, 'ob', 2);
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('2');
+  await expect(page.locator('#stake-ob')).toHaveAttribute('aria-describedby', 'lp-hint-pen');
+  await longPressPen(page, 'ob');
+  await expect(page.locator('#np-title')).toHaveText('OB 몇 번 났나요?');
+  await expect(page.getByRole('button', { name: '2번', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '2번', exact: true })).toBeFocused();
+  // Letting go adds nothing.
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('2');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
+  await expect(page.locator('#numpick')).toBeHidden();
+  await expect(page.locator('#stake-ob .pen-count')).toBeHidden();
+  await expect(page.locator('#hole-strokes')).toHaveText('–');
+  await expect(page.locator('#toast-msg')).toHaveText('OB 0으로');
+  await expect(page.locator('#stake-ob')).toBeFocused();
+  expect((await stored(page)).holes[0].ob).toBe(0);
+  // 벙커 in 상세, 해저드 in 기본; a short tap still adds one.
+  await longPressPen(page, 'bunker');
+  await expect(page.locator('#np-title')).toHaveText('벙커에 몇 번 들어갔나요?');
+  await page.getByRole('button', { name: '3번', exact: true }).click();
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  await longPressPen(page, 'hazard');
+  await page.getByRole('button', { name: '1번', exact: true }).click();
+  await tap(page, 'hazard');
+  expect((await stored(page)).holes[0]).toMatchObject({ ob: 0, hazard: 2, bunker: 3 });
+  // 빼기 takes off the 해저드 just tapped.
+  await page.getByRole('button', { name: '해저드 하나 빼기' }).click();
+  expect((await stored(page)).holes[0].hazard).toBe(1);
 });
 
 test('큰 글씨 in the menu makes the numbers larger, stays after a reload, and still fits small phones', async ({ page }) => {
@@ -1060,6 +1110,38 @@ test('keeps a hole in progress out of the score until it is putted, and counts a
   await expect(page.locator('#sum-topar')).toHaveText('−1');
 });
 
+test('라운드 마치기 counts a chip-in on the last hole the way 다음 홀 does, in the summary and among past rounds', async ({ page }) => {
+  await open(page);
+  // Holes 1–17 in 4 with two putts each; on 18 a drive and a chip-in, no putt.
+  await seed(page, Object.fromEntries(Array.from({ length: 17 }, (_, i) => [i, { driver: 1, approach: 1, putts: 2 }])), 17);
+  await tap(page, 'driver');
+  await tap(page, 'approach');
+  await expect(page.locator('#hole-name')).toHaveText('진행 중');
+  await expect(next(page)).toHaveText('라운드 마치기');
+  await next(page).click();
+  await expect(page.locator('#check-list li')).toHaveText(['퍼트가 없는 홀 1개18번 홀. 칩인으로 끝났다면 그대로 두세요.']);
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await expect(page.locator('#summary')).toBeVisible();
+  await expect(page.locator('#sum-total')).toHaveText('70');
+  await expect(page.locator('#sum-count')).toHaveText('18홀을 모두 기록했어요');
+  // Finished: back on 기록 the hole shows its result, until it is recorded on again.
+  await page.getByRole('button', { name: '요약 닫기' }).click();
+  await expect(page.locator('#hole-name')).not.toHaveText('진행 중');
+  await tap(page, 'approach');
+  await expect(page.locator('#hole-name')).toHaveText('진행 중');
+  await next(page).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await expect(page.locator('#sum-total')).toHaveText('71');
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await expect(page.locator('#history-list .past-meta')).toHaveText(['18홀, 퍼트 34']);
+  // Read back from storage, the kept round still counts hole 18.
+  await page.reload();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await tab(page, '지난 라운드').click();
+  await expect(page.locator('#history-list .past-meta')).toHaveText(['18홀, 퍼트 34']);
+});
+
 test('stops counting at 15 and announces taps in one live region', async ({ page }) => {
   await open(page);
   await expect(page.locator('[aria-live]')).toHaveCount(1);
@@ -1257,6 +1339,91 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       expect(last.y + last.height).toBeLessThanOrEqual(tabs.y);
       expect(await sideScroll(page)).toBe(0);
       await expect(page.locator('.home-link')).toBeVisible();
+    });
+  });
+}
+
+/** Two edges or centres, in CSS px, that should line up: within 1px. */
+function expectAligned(actual: number, expected: number, what: string) {
+  expect(Math.abs(actual - expected), `${what}: ${actual.toFixed(1)} vs ${expected.toFixed(1)}`).toBeLessThanOrEqual(1);
+}
+const rect = async (page: Page, selector: string) => (await page.locator(selector).first().boundingBox())!;
+const midX = (b: { x: number; width: number }) => b.x + b.width / 2;
+const midY = (b: { y: number; height: number }) => b.y + b.height / 2;
+const atRest = (page: Page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+
+for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+  test.describe(`lined up on a ${width}×${height} phone`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('기록 sits on one grid: switcher centred, chips and menu on the card edge, badge and penalties on the stepper columns', async ({ page }) => {
+      await open(page);
+      for (const mode of ['기본', '상세'] as const) {
+        if (mode === '상세') await page.getByRole('button', { name: '상세', exact: true }).click();
+        await atRest(page);
+        const sheet = await rect(page, '#sheet');
+        expectAligned(midX(await rect(page, '#entry .switcher')), width / 2, `${mode}: hole switcher centre`);
+        expectAligned((await rect(page, '#entry .top .menu')).x, sheet.x, `${mode}: menu button left edge`);
+        const ver = await rect(page, '#app-version');
+        expectAligned(ver.x + ver.width, sheet.x + sheet.width, `${mode}: version right edge`);
+        expectAligned(midY(ver), midY(await rect(page, '#entry .top .menu')), `${mode}: version on the top bar's centre line`);
+        if (mode === '상세') {
+          // The direction pad runs from the card's content edge to the other, like the tee line.
+          const pad = await page.locator('#pad button').all();
+          const [first, last] = [(await pad[0].boundingBox())!, (await pad[pad.length - 1].boundingBox())!];
+          const line = await rect(page, '.tee-line');
+          expectAligned(first.x, line.x, '상세: pad left edge');
+          expectAligned(last.x + last.width, line.x + line.width, '상세: pad right edge');
+        }
+        const [c1, c2, c3] = await Promise.all(['driver', 'approach', 'putts'].map((k) => rect(page, `.club-${k} .pill`)));
+        expectAligned(midX(c2), width / 2, `${mode}: middle stepper`);
+        const badge = await rect(page, '#badge');
+        expectAligned(badge.x + badge.width, sheet.x + sheet.width, `${mode}: badge right edge on the card edge`);
+        expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), midX(c1), `${mode}: OB under 드라이버`);
+        expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), midX(c3), `${mode}: 해저드 under 퍼터`);
+        if (mode === '기본') {
+          expectAligned((await rect(page, '#hole-info')).x, sheet.x, '기본: chips left edge');
+          await expect(page.locator('#stake-bunker')).toBeHidden();
+          await tap(page, 'ob');
+          await atRest(page);
+          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(c2), '기본: 빼기 under 어프로치');
+        } else {
+          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), midX(c2), '상세: 벙커 under 어프로치');
+          // The 0 … 5+ picker spans the card, its first and last choice on the card's content edge.
+          await longPressPen(page, 'hazard');
+          const pick = await rect(page, '#numpick');
+          expectAligned(pick.x, sheet.x, 'picker left edge');
+          expectAligned(pick.x + pick.width, sheet.x + sheet.width, 'picker right edge');
+          const choices = page.locator('#np-row button');
+          expectAligned((await choices.first().boundingBox())!.x, c1.x, 'picker 0 on the content edge');
+          const last = (await choices.last().boundingBox())!;
+          expectAligned(last.x + last.width, c3.x + c3.width, 'picker 5+ on the content edge');
+          await page.keyboard.press('Escape');
+        }
+      }
+    });
+
+    test('the menu button, the right-hand action and the card keep their place on every tab', async ({ page }) => {
+      await open(page);
+      await atRest(page);
+      const menu = await rect(page, '#entry .top .menu');
+      const sheet = await rect(page, '#sheet');
+      const ver = await rect(page, '#app-version');
+      await showCard(page);
+      const cardMenu = await rect(page, '#card-view .sc-top .menu');
+      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(cardMenu[k], menu[k], `스코어카드 menu ${k}`);
+      const edit = await rect(page, '#edit-par');
+      expectAligned(edit.x + edit.width, ver.x + ver.width, '파 수정 right edge');
+      expectAligned(midY(edit), midY(menu), '파 수정 middle');
+      expectAligned(midX(await rect(page, '#card-view .sc-title')), width / 2, '스코어카드 title centre');
+      const card = await rect(page, '#sc-sheet');
+      expectAligned(card.x, sheet.x, 'card left edge');
+      expectAligned(card.x + card.width, sheet.x + sheet.width, 'card right edge');
+      await tab(page, '지난 라운드').click();
+      await expect(page.locator('#hist-view')).toBeVisible();
+      const histMenu = await rect(page, '#hist-view .sc-top .menu');
+      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(histMenu[k], menu[k], `지난 라운드 menu ${k}`);
+      expectAligned(midX(await rect(page, '#hist-view .sc-title')), width / 2, '지난 라운드 title centre');
     });
   });
 }

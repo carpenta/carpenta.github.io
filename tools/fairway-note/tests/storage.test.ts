@@ -23,7 +23,7 @@ describe('storage', () => {
     const kv = memory();
     const r = newRound(new Date(2026, 10, 19));
     r.current = 4;
-    r.holes[4] = { par: 3, driver: 1, approach: 0, putts: 2, ob: 0, hazard: 1, mulligan: 1 };
+    r.holes[4] = { par: 3, driver: 1, approach: 0, putts: 2, ob: 0, hazard: 1, mulligan: 1, bunker: 0 };
     expect(saveRound(r, kv)).toBe(true);
     expect(loadRound(kv)).toEqual(r);
     expect(JSON.parse(kv.getItem(STORAGE_KEY)!).holes[4].hazard).toBe(1);
@@ -176,6 +176,13 @@ describe('storage', () => {
     expect(old).not.toBeNull();
     expect(old?.lastEdited).toBeUndefined();
     expect(parseRound(JSON.stringify({ ...r, lastEdited: 'soon' }))?.lastEdited).toBeUndefined();
+  });
+
+  it('keeps a round finished with 라운드 마치기 finished, and reads anything else as not finished', () => {
+    const r = newRound(new Date(2026, 10, 19));
+    expect(parseRound(JSON.stringify({ ...r, closed: true }))?.closed).toBe(true);
+    expect(parseRound(JSON.stringify(r))?.closed).toBeUndefined();
+    expect(parseRound(JSON.stringify({ ...r, closed: 'yes' }))?.closed).toBeUndefined();
   });
 
   it('copies an unreadable value aside before saving over it', () => {

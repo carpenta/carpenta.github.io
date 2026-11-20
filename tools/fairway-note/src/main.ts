@@ -3,7 +3,6 @@ import {
   AREA_LABELS,
   MAX_COUNT,
   PARS,
-  PENALTIES,
   SCORE_LABELS,
   TAGGED,
   TAG_LABELS,
@@ -31,7 +30,7 @@ import {
   type ShotTag,
   type Tagged,
 } from './round';
-import { CLUB_ICONS } from './icons';
+import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
 import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
 import { analysisText, csvName, dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText, roundCsv } from './report';
@@ -45,19 +44,16 @@ import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from '
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
 
-type Penalty = (typeof PENALTIES)[number];
+/** The penalty row: OB and 해저드 add a stroke each; 벙커 (상세) is noted only. */
+const PENS = ['ob', 'bunker', 'hazard'] as const;
+type Pen = (typeof PENS)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
 
-const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건' };
+const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커' };
 /** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
 const labelOf = (key: Counter, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
 const PLUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const MINUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-/** The OB stake is white with a dark band, the hazard stake red, as on a course. */
-const STAKES: Record<Penalty, string> = {
-  ob: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#fff" stroke="#17301A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.5h8v4.5H8z" fill="#17301A"/></svg>',
-  hazard: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#C0392B" stroke="#8C2A20" stroke-width="1.6" stroke-linejoin="round"/></svg>',
-};
 /** The badge's scorecard mark in a 40×40 box. pathLength 1 lets a birdie or better draw itself. */
 const SHAPES: Record<Mark, string> = {
   none: '',
@@ -121,7 +117,7 @@ const untouched = loaded !== null && loaded.course === undefined && !loaded.hole
 /** 기본 or 상세, kept in memory. */
 let mode: 'basic' | 'detail' = 'basic';
 /** Penalties in the order they were added on each hole, so "빼기" takes off the last one. Not saved. */
-const added = new Map<number, Penalty[]>();
+const added = new Map<number, Pen[]>();
 /** Holes whose birdie or better has had its moment, so it plays once until the score changes back. */
 const celebrated = new Set<number>();
 /** 파 수정 on the scorecard: each par cell becomes a button that steps 3, 4, 5. */
@@ -148,18 +144,21 @@ function update(next: Round, changed?: string): void {
   render(changed);
 }
 
-/** Changes one hole; false when nothing changed. */
-function setHoleAt(index: number, patch: (h: Hole) => Hole, changed?: string): boolean {
+/** Changes one hole; false when nothing changed. `reopen`: recording on it again takes back 라운드 마치기. */
+function setHoleAt(index: number, patch: (h: Hole) => Hole, changed?: string, reopen = false): boolean {
   const before = round.holes[index];
   const after = patch(before);
   if (after === before) return false;
   const holes = round.holes.slice();
   holes[index] = after;
-  update({ ...round, holes }, changed);
+  const next: Round = { ...round, holes };
+  if (reopen) delete next.closed;
+  update(next, changed);
   return true;
 }
 
-const setHole = (patch: (h: Hole) => Hole, changed?: string) => setHoleAt(round.current, patch, changed);
+/** A shot, penalty or tee result on the hole being played. A par change (파 수정) is not recording on it. */
+const setHole = (patch: (h: Hole) => Hole, changed?: string) => setHoleAt(round.current, patch, changed, true);
 
 /* ---------- views: 스코어카드, 기록 and 지난 라운드 ---------- */
 
@@ -210,7 +209,9 @@ function bindViews(): void {
 function go(index: number): void {
   if (index < 0 || index >= lastHole() + 1 || index === round.current) return;
   hideToast();
-  update({ ...round, current: index });
+  const next: Round = { ...round, current: index };
+  delete next.closed;
+  update(next);
   $('sheet').scrollTop = 0;
   scrollHint();
   announce(`${index + 1}번 홀, Par ${hole().par}`);
@@ -359,6 +360,9 @@ function drawCourse(): void {
     frame.bandTop = $('hole-info').getBoundingClientRect().bottom + 6;
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
     frame.right = $('badge').getBoundingClientRect().left - 6;
+    // The tee box (27px with its bevel) centred behind 다음 홀.
+    const go = $('go-next').getBoundingClientRect();
+    frame.teeY = go.top + go.height / 2 - 1.5;
   }
   const info = holeInfo(roundCourse(round), round.current);
   const bend = layoutBend(info?.layout);
@@ -366,7 +370,7 @@ function drawCourse(): void {
   // The official length in metres, for the 100 m / 150 m markers a tall band shows.
   const first = info?.distances?.[0];
   const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
-  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), hole().par, round.current, bend, island, length].join(',');
+  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length].join(',');
   if (svg.dataset.key === key) return;
   svg.dataset.key = key;
   svg.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
@@ -437,8 +441,14 @@ function dismissCoach(): void {
   $('clubs').classList.remove('coached');
 }
 
-let press: { pill: HTMLElement; key: Tagged; id: number; x: number; y: number; timer: number; fired: boolean } | null = null;
-let pickKey: Tagged | null = null;
+/** A club's count or a penalty: both open the same 0 … 5+ picker on a long press. */
+type Pickable = Tagged | Pen;
+const isPen = (key: Pickable): key is Pen => (PENS as readonly string[]).includes(key);
+/** What the picker asks for a penalty; a club asks how many times it was played. */
+const PEN_QUESTION: Record<Pen, string> = { ob: 'OB 몇 번 났나요?', hazard: '해저드에 몇 번 들어갔나요?', bunker: '벙커에 몇 번 들어갔나요?' };
+
+let press: { el: HTMLElement; key: Pickable; id: number; x: number; y: number; timer: number; fired: boolean } | null = null;
+let pickKey: Pickable | null = null;
 /**
  * The press that opened the picker is still held, or was let go a moment ago. Its release lands on the picker's
  * backdrop (the modal covers the + and − buttons, so it never counts a stroke) and must not close it.
@@ -449,31 +459,47 @@ let releasedAt = 0;
 function cancelPress(): void {
   if (!press) return;
   window.clearTimeout(press.timer);
-  press.pill.classList.remove('pressing');
+  press.el.classList.remove('pressing');
   press = null;
 }
 
 /** 3으로, 2로: the particle a spoken number takes. */
 const toParticle = (n: number) => ([0, 3, 6].includes(n % 10) ? '으로' : '로');
 
-/** Sets a club's count; 5+ keeps a count already above five. Can be taken back from the toast like a tap. */
-function setCount(key: Tagged, n: number): void {
+/** The penalty order with `key` added `delta` times, or its latest |delta| taken off: 빼기 takes the last one added. */
+function reorder(order: Pen[], key: Pen, delta: number): Pen[] {
+  const next = order.slice();
+  for (let d = delta; d > 0; d--) next.push(key);
+  for (let d = -delta; d > 0; d--) {
+    const at = next.lastIndexOf(key);
+    if (at >= 0) next.splice(at, 1);
+  }
+  return next;
+}
+
+/** Sets a club's or a penalty's count; 5+ keeps a count already above five. Can be taken back from the toast like a tap. */
+function setCount(key: Pickable, n: number): void {
   const index = round.current;
   const before = hole();
   const target = n === 5 ? Math.max(5, before[key]) : n;
   if (target === before[key]) return;
-  if (!setHole((x) => bump(x, key, target - x[key]), key)) return;
+  const order = added.get(index) ?? [];
+  if (isPen(key)) added.set(index, reorder(order, key, target - before[key]));
+  if (!setHole((x) => bump(x, key, target - x[key]), key)) {
+    added.set(index, order);
+    return;
+  }
   navigator.vibrate?.(8);
   const label = labelOf(key, hole().par);
   announce(`${index + 1}번 홀 ${label} ${hole()[key]}, ${strokes(hole())}타`);
-  showToast(`${label} ${target}${toParticle(target)}`, { index, hole: before, added: [...(added.get(index) ?? [])] });
+  showToast(`${label} ${target}${toParticle(target)}`, { index, hole: before, added: [...order] });
 }
 
-function openNumPick(key: Tagged, pill: HTMLElement): void {
+function openNumPick(key: Pickable, pill: HTMLElement): void {
   pickKey = key;
   hideToast();
   const cur = hole();
-  setText($('np-title'), `${labelOf(key, cur.par)} 몇 번 쳤나요?`);
+  setText($('np-title'), isPen(key) ? PEN_QUESTION[key] : `${labelOf(key, cur.par)} 몇 번 쳤나요?`);
   $('np-row').replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('button', {
     type: 'button', 'data-np': String(n), 'aria-pressed': String(n === 5 ? cur[key] >= 5 : cur[key] === n), 'aria-label': n === 5 ? '5번 이상' : `${n}번`,
   }, n === 5 ? '5+' : String(n))));
@@ -497,7 +523,8 @@ function bindNumPick(): void {
     if (event.target === dialog && outside && !holding && Date.now() - releasedAt > 150) dialog.close();
   });
   dialog.addEventListener('close', () => {
-    if (pickKey) document.querySelector<HTMLElement>(`.club-${pickKey} .plus`)?.focus({ preventScroll: true });
+    // Back to the button the press started on: the club's +, or the penalty itself.
+    if (pickKey) document.querySelector<HTMLElement>(isPen(pickKey) ? `#stake-${pickKey}` : `.club-${pickKey} .plus`)?.focus({ preventScroll: true });
     pickKey = null;
   });
   $('np-row').addEventListener('click', (event) => {
@@ -507,21 +534,29 @@ function bindNumPick(): void {
     dialog.close();
     setCount(key, Number(b.dataset.np));
   });
+  // Held for half a second, a club's pill or a penalty opens the picker; a shorter press is an ordinary tap.
+  const startPress = (e: PointerEvent, el: HTMLElement, key: Pickable) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    cancelPress();
+    el.classList.add('pressing');
+    const p = { el, key, id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0, fired: false };
+    p.timer = window.setTimeout(() => {
+      p.fired = true;
+      el.classList.remove('pressing');
+      holding = true;
+      openNumPick(key, el);
+    }, 500);
+    press = p;
+  };
   const clubs = $('clubs');
   clubs.addEventListener('pointerdown', (e) => {
     const pill = (e.target as HTMLElement).closest<HTMLElement>('.pill');
-    if (!pill || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    cancelPress();
-    pill.classList.add('pressing');
-    const key = pill.closest<HTMLElement>('.club')!.dataset.key as Tagged;
-    const p = { pill, key, id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0, fired: false };
-    p.timer = window.setTimeout(() => {
-      p.fired = true;
-      pill.classList.remove('pressing');
-      holding = true;
-      openNumPick(key, pill);
-    }, 500);
-    press = p;
+    if (pill) startPress(e, pill, pill.closest<HTMLElement>('.club')!.dataset.key as Tagged);
+  });
+  const pens = $('pens');
+  pens.addEventListener('pointerdown', (e) => {
+    const pen = (e.target as HTMLElement).closest<HTMLElement>('button.pen');
+    if (pen) startPress(e, pen, pen.dataset.pen as Pen);
   });
   // Moving away (a swipe or a scroll) is not a long press.
   document.addEventListener('pointermove', (e) => {
@@ -537,22 +572,27 @@ function bindNumPick(): void {
   };
   document.addEventListener('pointerup', end);
   document.addEventListener('pointercancel', end);
-  // No copy menu or text selection on a held count.
+  // No copy menu or text selection on a held count or penalty.
   clubs.addEventListener('contextmenu', (e) => e.preventDefault());
+  pens.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
+/**
+ * The penalty row sits on the steppers' columns: OB under 드라이버, 해저드 under 퍼터, and in the middle 빼기 (기본) or
+ * 벙커 (상세). In that order in the document too, so Tab goes left to right.
+ */
 function buildPens(): void {
   const box = $('pens');
-  for (const key of PENALTIES) {
-    const pen = h('button', { type: 'button', class: 'pen', id: `stake-${key}`, 'data-pen': key, 'aria-label': `${LABELS[key]} 하나 더하기` },
+  for (const key of PENS) {
+    const pen = h('button', { type: 'button', class: 'pen', id: `stake-${key}`, 'data-pen': key, 'aria-label': `${LABELS[key]} 하나 더하기`, 'aria-describedby': 'lp-hint-pen' },
       h('span', { class: 'pen-icon' }, h('span', { class: 'pen-count zero' }, '0')), h('span', { class: 'pen-lbl' }, LABELS[key]));
-    pen.querySelector('.pen-icon')!.insertAdjacentHTML('afterbegin', STAKES[key]);
+    pen.querySelector('.pen-icon')!.insertAdjacentHTML('afterbegin', PEN_ICONS[key]);
     box.append(pen);
+    if (key === 'bunker') box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', hidden: '' }));
   }
-  box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', hidden: '' }));
   box.addEventListener('click', (event) => {
     const pen = (event.target as HTMLElement).closest<HTMLButtonElement>('button.pen');
-    if (pen && !pen.disabled) addPenalty(pen.dataset.pen as Penalty);
+    if (pen && !pen.disabled) addPenalty(pen.dataset.pen as Pen);
   });
   $('pen-undo').addEventListener('click', undoPenalty);
 }
@@ -560,7 +600,7 @@ function buildPens(): void {
 /* ---------- undo: the last + or − or penalty can be taken back for four seconds ---------- */
 
 /** The hole as it was before the last change, and its penalty order. Not saved. */
-let undoable: { index: number; hole: Hole; added: Penalty[] } | null = null;
+let undoable: { index: number; hole: Hole; added: Pen[] } | null = null;
 let toastTimer = 0;
 
 function showToast(text: string, before: NonNullable<typeof undoable>): void {
@@ -592,7 +632,7 @@ function restore(): void {
  * One stroke more or less on a club, a penalty or a mulligan; the hole's score follows. A club or penalty change can
  * be taken back from the toast; `order` is the penalty order to bring back with it.
  */
-function count(key: Counter, delta: number, order: Penalty[] = added.get(round.current) ?? []): boolean {
+function count(key: Counter, delta: number, order: Pen[] = added.get(round.current) ?? []): boolean {
   const index = round.current;
   const before = hole();
   if (!setHole((x) => bump(x, key, delta), key)) return false;
@@ -603,15 +643,15 @@ function count(key: Counter, delta: number, order: Penalty[] = added.get(round.c
   return true;
 }
 
-function addPenalty(key: Penalty): void {
+function addPenalty(key: Pen): void {
   if (!count(key, 1)) return;
   added.set(round.current, [...(added.get(round.current) ?? []), key]);
 }
 
-/** The penalty "빼기" takes off: the last one added on this hole, or one that is counted. */
-function undoTarget(): Penalty | null {
+/** The penalty "빼기" (기본) takes off: the last OB or 해저드 added on this hole, or one that is counted. */
+function undoTarget(): Pen | null {
   const cur = hole();
-  const order = (added.get(round.current) ?? []).filter((k) => cur[k] > 0);
+  const order = (added.get(round.current) ?? []).filter((k) => k !== 'bunker' && cur[k] > 0);
   return order.at(-1) ?? (cur.ob > 0 ? 'ob' : cur.hazard > 0 ? 'hazard' : null);
 }
 
@@ -807,7 +847,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(miss, 'aria-pressed', String(missLabel !== null));
   setAttr(miss, 'aria-label', `미스샷 ${missLabel ?? '없음'}. 누를 때마다 헛스윙, 뒤땅/토핑, 없음 순서로 바뀌어요`);
 
-  for (const key of PENALTIES) {
+  for (const key of PENS) {
     const n = cur[key];
     const pen = $<HTMLButtonElement>(`stake-${key}`);
     pen.classList.toggle('on', n > 0);
@@ -1239,9 +1279,11 @@ function renderSummary(): void {
   $<HTMLButtonElement>('sum-archive').disabled = t.holes === 0;
 }
 
+/** Only 라운드 마치기 opens it: the player moves on from the hole being played, which then counts like any other. */
 function openSummary(from: HTMLElement): void {
   summaryOpener = from;
   hideToast();
+  if (!round.closed) update({ ...round, closed: true });
   setText($('sum-status'), '');
   renderSummary();
   $<HTMLDialogElement>('summary').showModal();
@@ -1402,12 +1444,12 @@ function requestFinish(from: HTMLElement): void {
   const list = $('check-list');
   list.hidden = items.length === 0;
   list.replaceChildren(...items.map(([kind, title, detail]) => {
-    const icon = h('span', { class: 'ci', 'aria-hidden': 'true' });
+    const mark = h('span', { class: 'ci', 'aria-hidden': 'true' });
     // Static markup: a dashed square for an empty hole, the putter for a missing putt.
-    icon.innerHTML = kind === 'blank'
-      ? '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="4.5" y="4.5" width="15" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.6"/></svg>'
-      : CLUB_ICONS.putts.replace('<svg', '<svg width="20" height="20"');
-    return h('li', {}, icon, h('span', {}, h('b', {}, title), h('small', {}, detail)));
+    mark.innerHTML = kind === 'blank'
+      ? '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="4.5" y="4.5" width="15" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.75" stroke-dasharray="3 2.6"/></svg>'
+      : icon('putter', 20);
+    return h('li', {}, mark, h('span', {}, h('b', {}, title), h('small', {}, detail)));
   }));
   const go = c.nine ? (c.nine === 'front' ? 9 : 0) : c.blank.length ? c.blank[0] : c.noPutt[0];
   setText($('check-finish'), c.nine ? '9홀 라운드로 마치기' : '그대로 마치기');

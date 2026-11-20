@@ -72,8 +72,8 @@ function parseHole(v: unknown): { hole: Hole; lossy: boolean } | null {
   if (!PARS.includes(o.par as Par)) return null;
   const hole = { par: o.par as Par } as Hole;
   for (const key of COUNTERS) {
-    // Rounds saved before the hazard counter have none. Any count present must be valid: it is part of the score.
-    const v = key === 'hazard' && o[key] === undefined ? 0 : o[key];
+    // Rounds saved before the hazard or bunker counter have none. Any count present must be valid: it is part of the score.
+    const v = (key === 'hazard' || key === 'bunker') && o[key] === undefined ? 0 : o[key];
     if (!isCount(v)) return null;
     hole[key] = v;
   }
@@ -116,6 +116,7 @@ export function readRound(text: string | null): { round: Round; lossy: boolean }
   const current = Number.isInteger(r.current) && (r.current as number) >= 0 && (r.current as number) < holes.length ? (r.current as number) : 0;
   const round: Round = { version: 1, date: r.date, current, holes };
   if (typeof r.lastEdited === 'number' && Number.isFinite(r.lastEdited) && r.lastEdited > 0) round.lastEdited = r.lastEdited;
+  if (r.closed === true) round.closed = true;
   // Rounds saved before courses could be chosen have none and keep their pars; a broken one is unreadable.
   if ('course' in r) {
     const course = parseCourse(r.course);

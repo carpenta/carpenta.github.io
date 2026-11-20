@@ -40,8 +40,8 @@ export function roundLabel(round: Pick<Round, 'course'> & { holes: ArrayLike<unk
   return round.holes.length === 9 ? `${label} 9홀` : label;
 }
 
-/** Counted items on a hole. OB and hazard add one penalty stroke each; mulligans are noted but never counted. */
-export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'hazard', 'mulligan'] as const;
+/** Counted items on a hole. OB and hazard add one penalty stroke each; mulligans and bunkers are noted but never counted. */
+export const COUNTERS = ['driver', 'approach', 'putts', 'ob', 'hazard', 'mulligan', 'bunker'] as const;
 /** Penalties: each adds one stroke. */
 export const PENALTIES = ['ob', 'hazard'] as const;
 export type Counter = (typeof COUNTERS)[number];
@@ -83,6 +83,8 @@ export interface Hole {
   /** Penalty area drops, one penalty stroke each. Rounds saved before it existed read as 0. */
   hazard: number;
   mulligan: number;
+  /** Times in a bunker (상세, v14): noted, never a stroke. Rounds saved before it existed read as 0. */
+  bunker: number;
   /** Optional shot details. Missing when nothing is tagged, and in rounds saved before tags existed. */
   tags?: ShotTags;
   /** How many of the OB penalties were added by choosing an OB tag, so clearing the tag can take them back. */
@@ -99,10 +101,15 @@ export interface Round {
   lastEdited?: number;
   /** Missing in rounds saved before courses could be chosen: those are DEFAULT_COURSE. */
   course?: RoundCourse;
+  /**
+   * Set by 라운드 마치기: the player has moved on from the hole being played, as 다음 홀 does on the other holes, so it
+   * counts without a putt (a chip-in on the last hole). Recording on that hole again, or going to another, clears it.
+   */
+  closed?: true;
 }
 
 export function emptyHole(par: Par = DEFAULT_PAR): Hole {
-  return { par, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0 };
+  return { par, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0, bunker: 0 };
 }
 
 export function localDate(now = new Date()): string {
@@ -204,11 +211,6 @@ export function played(h: Hole): boolean {
   return strokes(h) > 0;
 }
 
-/**
- * A hole counts toward totals and analysis once it is finished: holed with a putt, or left for
- * another hole (a chip-in has no putt). The hole being played without a putt yet is in progress,
- * so a tee shot alone never shows as an eagle.
- */
 /** A round left untouched this long is offered to continue or replace on load. */
 export const STALE_MS = 12 * 60 * 60 * 1000;
 
@@ -219,9 +221,14 @@ export function isStale(round: Round, now = new Date()): boolean {
   return round.date !== localDate(now);
 }
 
+/**
+ * A hole counts toward totals and analysis once it is finished: holed with a putt, or left for another hole or by
+ * 라운드 마치기 (a chip-in has no putt). The hole being played without a putt yet is in progress, so a tee shot alone
+ * never shows as an eagle.
+ */
 export function finished(round: Round, index: number): boolean {
   const h = round.holes[index];
-  return played(h) && (h.putts > 0 || index !== round.current);
+  return played(h) && (h.putts > 0 || index !== round.current || round.closed === true);
 }
 
 /** Green in regulation: on the green (at least one putt) in par minus two strokes, penalty strokes included. */

@@ -25,6 +25,8 @@ export interface CourseFrame {
   bandBottom: number;
   /** The green keeps left of this (the score badge). */
   right: number;
+  /** Where the tee box is drawn: behind 다음 홀, so none of it peeks out between the button and the tab bar (v14). */
+  teeY?: number;
 }
 
 /** Our own plan of a hole, tee at the bottom of the screen and green at the top. No bunkers are drawn, and water only round an island green the note names. */
@@ -64,17 +66,20 @@ export function courseShape(par: Par, index: number, frame: CourseFrame, bend: B
   const k = par === 3 ? 0 : par === 4 ? 1 : 2;
   const band = bandBottom - bandTop;
   const roomy = band >= ROOMY_BAND;
-  // A par 3's green is near and large; a par 5's is far and small. Smaller where the approach shows too.
-  const rx = W * [0.27, 0.2, 0.165][k] * (roomy ? 0.8 : 1);
+  // A par 3's green is near and large; a par 5's is far and small. Smaller where the approach shows too, and a par 3's
+  // no wider than 17% of the screen there, so a tall band does not fill with green (v14).
+  const rx0 = W * [0.27, 0.2, 0.165][k] * (roomy ? 0.8 : 1);
+  const rx = roomy && k === 0 ? Math.min(rx0, W * 0.17) : rx0;
   const ry = rx * 0.66;
   const turn = k === 0 ? 0 : bend;
   const cx = clamp(Math.min(W * 0.47, right - rx * 0.75) + turn * W * 0.12, rx, right - rx * 0.75);
   // A shorter pole on a short band, so phones (a 24px band) still show the flag.
   const pole = roomy ? [40, 34, 30][k] : band >= 30 ? Math.max(18, Math.min([40, 34, 30][k], band - 16)) : Math.max(14, band - 8);
-  // The pin and flag stand in the open band: near its top when it is tall, else just above the sheet's edge.
-  const pinY = roomy ? bandTop + pole + 6 : band > 40 ? bandBottom - 10 : bandBottom - 4;
+  // The pin and flag stand in the open band: near its top when it is tall, else just above the sheet's edge. On a tall
+  // band an island green sits low enough that its water starts below the chips.
+  const pinY = roomy ? Math.max(bandTop + pole + 6, island ? bandTop + 6 + ry * 1.6 : 0) : band > 40 ? bandBottom - 10 : bandBottom - 4;
   const cy = pinY + ry * 0.18;
-  const tee = { x: W / 2, y: H - [64, 56, 52][k], width: W * [0.3, 0.26, 0.24][k] };
+  const tee = { x: W / 2, y: frame.teeY ?? H - [64, 56, 52][k], width: W * [0.3, 0.26, 0.24][k] };
 
   let fairway: [number, number][] | null = null;
   const markers: CourseShape['markers'] = [];
@@ -144,6 +149,11 @@ export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
     '<radialGradient id="course-vignette" cx="50%" cy="50%" r="75%"><stop offset="0.62" stop-color="#0B200D" stop-opacity="0"/><stop offset="1" stop-color="#0B200D" stop-opacity=".38"/></radialGradient>',
     '<linearGradient id="course-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B200D" stop-opacity=".42"/><stop offset=".22" stop-color="#0B200D" stop-opacity="0"/></linearGradient>',
     '<linearGradient id="course-teebox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A2D987"/><stop offset="1" stop-color="#84C468"/></linearGradient>',
+    // Faint mowing bands on the green, across the line of play (rings read as contours).
+    `<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(shape.angle + 90)})"><rect width="7" height="14" fill="#FFFFFF"/></pattern>`,
+    // An island green's water fades in over 30px below the top of the open band, under the chips.
+    `<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>`,
+    `<mask id="course-wmask"><rect width="${W}" height="${H}" fill="url(#course-wfade)"/></mask>`,
     '</defs>',
     `<rect width="${W}" height="${H}" fill="url(#course-rough)"/><rect width="${W}" height="${H}" fill="url(#course-grain)"/>`,
   ];
@@ -159,15 +169,14 @@ export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
     return [g.cx + Math.cos(a) * g.rx * r * s, g.cy + Math.sin(a) * g.ry * r * s];
   });
   if (shape.water) {
-    out.push(`<path class="water" d="${smooth(ring(1.78))}" fill="#4F90B8"/>`);
+    out.push(`<g mask="url(#course-wmask)"><path class="water" d="${smooth(ring(1.78))}" fill="#4F90B8"/>`);
     out.push(`<path d="${smooth(ring(1.66))}" fill="none" stroke="#86BCD9" stroke-width="2.5" opacity=".8"/>`);
-    out.push(`<path d="${smooth(ring(1.5))}" fill="none" stroke="#6FA9CB" stroke-width="1.5" stroke-dasharray="10 14" opacity=".7"/>`);
+    out.push(`<path d="${smooth(ring(1.5))}" fill="none" stroke="#6FA9CB" stroke-width="1.5" stroke-dasharray="10 14" opacity=".7"/></g>`);
   }
-  // The green: its fringe, a softly domed surface and faint mowing rings.
+  // The green: its fringe, a softly domed surface and faint mowing bands.
   out.push(`<path d="${smooth(ring(1.17))}" fill="#6CB257" stroke="#4E963F" stroke-width="1.5"/>`);
   out.push(`<path class="green" d="${smooth(ring(1))}" fill="url(#course-dome)"/>`);
-  out.push(`<path d="${smooth(ring(0.72))}" fill="none" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="5"/>`);
-  out.push(`<path d="${smooth(ring(0.42))}" fill="none" stroke="#FFFFFF" stroke-opacity=".1" stroke-width="5"/>`);
+  out.push(`<path d="${smooth(ring(1))}" fill="url(#course-gmow)" opacity=".07"/>`);
   if (pin) {
     // The pole's shadow, the cup, the pole and a flag that waves.
     const fw = Math.max(13, pin.pole * 0.46);
