@@ -43,7 +43,7 @@ import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
-import { bindSummaryShare, closeSummaryShare, openSummaryShare, saveSummaryImage, shareSummary } from './share-round';
+import { createRoundShare, dressRoundButtons } from './share-round';
 import { bindShotPanel, renderShotPanel } from './shot-panel';
 
 /** The penalty row: OB and 해저드 add a stroke each; 벙커 (상세) is noted only. */
@@ -911,92 +911,63 @@ function renderEntry(a: Analysis, changed?: string): void {
 /** How a scorecard is shown: the current round's columns open holes or, in 파 수정, step pars; a past round's only read. */
 type CardMode = 'open' | 'edit' | 'read';
 
-/** A hole's column: a button that opens the hole, a column whose par cell is the button (파 수정), or plain (a past round). */
-function holeColumn(r: Round, i: number, mode: CardMode): HTMLElement {
-  const x = r.holes[i];
-  const done = finished(r, i);
-  const s = strokes(x);
-  const d = s - x.par;
-  const published = publishedPar(roundCourse(r), i);
-  const par = mode === 'edit'
-    ? h('button', { type: 'button', class: `par-btn${published !== null && x.par !== published ? ' changed' : ''}`, 'data-par-hole': String(i), 'aria-label': `${i + 1}번 홀 Par ${x.par}, 누르면 바뀜` }, String(x.par))
-    : h('span', { class: 'pr' }, String(x.par));
-  const cells = [
-    h('span', { class: 'no' }, String(i + 1)),
-    par,
-    h('span', { class: 'sc-row' }, h('span', { class: 'm', 'data-mark': done ? markOf(d) : 'none', 'data-tone': done ? toneOf(d) : 'none' }, h('b', {}, done ? String(s) : '–'))),
-    h('span', { class: 'pt' }, done ? String(x.putts) : ''),
-  ];
-  if (mode === 'read') return h('div', { class: 'col' }, ...cells);
-  if (mode === 'edit') return h('div', { class: 'col', 'aria-current': String(i === r.current) }, ...cells);
-  const state = done ? `, ${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : ', 기록 없음';
-  return h('button', { type: 'button', class: 'col', 'data-hole': String(i), 'aria-current': String(i === r.current), 'aria-label': `${i + 1}번 홀로 가기, Par ${x.par}${state}` }, ...cells);
-}
-
-/** 파 수정: Par 3 → 4 → 5 → 3, keeping focus on the same hole's button. */
+/** 파 수정: Par 3 → 4 → 5 → 3, keeping focus on the same hole's column. */
 function cyclePar(index: number): void {
   const next = PARS[(PARS.indexOf(round.holes[index].par) + 1) % PARS.length];
   setHoleAt(index, (x) => ({ ...x, par: next }));
-  document.querySelector<HTMLButtonElement>(`button[data-par-hole="${index}"]`)?.focus();
+  document.querySelector<HTMLButtonElement>(`#scorecard [data-hole="${index}"]`)?.focus();
   announce(`${index + 1}번 홀 Par ${next}`);
 }
 
-function table(r: Round, a: Analysis, from: number, to: number, sub: string | null, mode: CardMode): HTMLElement {
-  const labels = h('div', { class: 'rowlbl', 'aria-hidden': 'true' }, h('span', {}, '홀'), h('span', { class: 'pr-row' }, '파'), h('span', { class: 'sc-row' }, '타수'), h('span', {}, '퍼트'));
-  const box = h('div', { class: 'tbl' }, labels);
-  for (let i = from; i < to; i++) box.append(holeColumn(r, i, mode));
-  if (sub) {
-    // The nine this subtotal closes: holes 1–9 or 10–18.
-    const start = from >= 9 ? 9 : 0;
-    const t = a[start === 0 ? 'front' : 'back'];
-    const par = r.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
-    box.append(h('div', { class: 'col sub' }, h('span', { class: 'no' }, sub), h('span', { class: 'pr' }, String(par)),
-      h('span', { class: 'sc-row' }, h('b', { class: 'sub-v' }, t.holes ? String(t.strokes) : '–')), h('span', { class: 'pt' }, t.holes ? String(t.putts) : '')));
-  }
-  return box;
-}
-
 /**
- * One nine of the round being recorded as a classic scorecard table: holes as columns and the nine's subtotal, rows
- * 홀, 파, 타수, 퍼트, the current hole's column marked, blank cells for holes not finished. The whole table is one
- * button: it opens the hole strip at that nine.
+ * One nine as a classic scorecard table, the same shape in every mode (v22): a label column, nine hole columns and the
+ * nine's sum column on one grid, each column four rows (홀, 파, 타수, 퍼트), blank cells for holes not finished. In the
+ * round being recorded each hole's column is a button, as tall as the table: it opens that hole in 기록 (`open`) or
+ * steps its par (`edit`, 파 수정), and the current hole's column is marked. In a past round the columns only read.
  */
-function classicNine(r: Round, a: Analysis, start: number): HTMLElement {
+function nineTable(r: Round, a: Analysis, start: number, mode: CardMode): HTMLElement {
   const course = roundCourse(r);
   const single = r.holes.length === 9;
   const name = (start === 0 ? course.front : course.back) || (single ? '9홀' : start === 0 ? '전반 9홀' : '후반 9홀');
   const label = single ? '9홀' : start === 0 ? '전반' : '후반';
   const t = start === 0 ? a.front : a.back;
-  const cols = Array.from({ length: 9 }, (_, k) => start + k);
-  const cell = (k: number, ...content: (Node | string)[]) => h('span', { class: k === r.current ? 'cur' : '', 'data-col': String(k) }, ...content);
-  const score = (k: number) => {
-    const x = r.holes[k];
-    if (!finished(r, k)) return '';
-    const d = strokes(x) - x.par;
-    return h('span', { class: 'm', 'data-mark': markOf(d), 'data-tone': toneOf(d) }, h('b', {}, String(strokes(x))));
+  const par = r.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
+  const heading = `${mode}-nine-${start}`;
+  /** The four cells of a column; screen readers get the column's name or line instead. */
+  const cells = (hole: string, parCell: HTMLElement, score: Node | string, putts: string) => [
+    h('span', { class: 'c-hole', 'aria-hidden': 'true' }, hole), parCell,
+    h('span', { class: 'c-score', 'aria-hidden': 'true' }, score), h('span', { class: 'c-putt', 'aria-hidden': 'true' }, putts),
+  ];
+  const column = (i: number) => {
+    const x = r.holes[i];
+    const done = finished(r, i);
+    const s = strokes(x);
+    const d = s - x.par;
+    const published = publishedPar(course, i);
+    const changed = mode === 'edit' && published !== null && x.par !== published;
+    const content = cells(String(i + 1), h('span', { class: `c-par${changed ? ' changed' : ''}`, 'aria-hidden': 'true' }, String(x.par)),
+      done ? h('span', { class: 'm', 'data-mark': markOf(d), 'data-tone': toneOf(d) }, h('b', {}, String(s))) : '', done ? String(x.putts) : '');
+    const state = done ? `${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : '기록 없음';
+    if (mode === 'read') return h('div', { class: 'ct-col', 'data-hole': String(i) }, h('span', { class: 'sr-only' }, `${i + 1}번 홀, Par ${x.par}, ${state}`), ...content);
+    return h('button', {
+      type: 'button',
+      class: `ct-col${i === r.current ? ' cur' : ''}`,
+      'data-hole': String(i),
+      'aria-current': String(i === r.current),
+      'aria-label': mode === 'edit' ? `${i + 1}번 홀 Par ${x.par}, 누르면 바뀜` : `${i + 1}번 홀로 가기, Par ${x.par}, ${state}`,
+    }, ...content);
   };
-  const row = (cls: string, head: string, cells: HTMLElement[], sum: string) => h('span', { class: `r ${cls}` }, h('span', { class: 'ct-l' }, head), ...cells, h('span', { class: 'ct-s' }, sum));
-  const par = cols.reduce((n, k) => n + r.holes[k].par, 0);
-  return h('button', { type: 'button', class: 'nine-tbl', 'data-nine': String(start), 'aria-label': `${name} ${label}, ${t.holes ? `${t.holes}홀 ${t.strokes}타` : '기록 없음'}. 눌러서 홀 고르기` },
-    h('span', { class: 'nt-h' }, h('b', {}, name), h('small', {}, label), h('span', { class: 'nt-go' }, '홀 고르기')),
-    h('span', { class: 'ct', 'aria-hidden': 'true' },
-      row('r-h', '홀', cols.map((k) => cell(k, String(k + 1))), label),
-      row('r-p', '파', cols.map((k) => cell(k, String(r.holes[k].par))), String(par)),
-      row('r-s', '타수', cols.map((k) => cell(k, score(k))), t.holes ? String(t.strokes) : ''),
-      row('r-t', '퍼트', cols.map((k) => cell(k, finished(r, k) ? String(r.holes[k].putts) : '')), t.holes ? String(t.putts) : '')));
+  const labels = h('div', { class: 'ct-lbl', 'aria-hidden': 'true' }, ...cells('홀', h('span', { class: 'c-par' }, '파'), '타수', '퍼트'));
+  const sum = h('div', { class: 'ct-sum' }, h('span', { class: 'sr-only' }, `${label} 합계, Par ${par}, ${t.holes ? `${t.holes}홀 ${t.strokes}타, 퍼트 ${t.putts}` : '기록 없음'}`),
+    ...cells(label, h('span', { class: 'c-par', 'aria-hidden': 'true' }, String(par)), t.holes ? String(t.strokes) : '', t.holes ? String(t.putts) : ''));
+  return h('div', { class: 'nine-tbl', role: 'group', 'aria-labelledby': heading },
+    h('p', { class: 'nt-h', id: heading }, h('b', {}, name), h('small', {}, label)),
+    h('div', { class: `ct${mode === 'edit' ? ' editing' : ''}` }, labels, ...Array.from({ length: 9 }, (_, k) => column(start + k)), sum));
 }
 
-/** A round's nines as scorecard columns, each nine in its own `.scorecard` block: two, or one for a 9-hole round. */
+/** A round's nines as scorecard tables: two, or one for a 9-hole round. */
 function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
-  if (mode === 'open') return r.holes.length === 9 ? [classicNine(r, a, 0)] : [classicNine(r, a, 0), classicNine(r, a, 9)];
-  const course = roundCourse(r);
-  const single = r.holes.length === 9;
-  const side = (start: number) => (single ? '9홀' : start === 0 ? '전반' : '후반');
-  const nine = (start: number) => h('div', { class: 'scorecard' },
-    h('div', { class: 'nine-h' }, h('h3', {}, (start === 0 ? course.front : course.back) || (single ? '9홀' : start === 0 ? '전반 9홀' : '후반 9홀')), h('span', {}, side(start))),
-    table(r, a, start, start + 5, null, mode),
-    table(r, a, start + 5, start + 9, single ? '합계' : side(start), mode));
-  return single ? [nine(0)] : [nine(0), nine(9)];
+  return r.holes.length === 9 ? [nineTable(r, a, 0, mode)] : [nineTable(r, a, 0, mode), nineTable(r, a, 9, mode)];
 }
 
 /**
@@ -1018,6 +989,8 @@ function renderCard(a: Analysis): void {
   setText(edit, editPar ? '완료' : '파 수정');
   edit.classList.toggle('on', editPar);
   $('edit-hint').hidden = !editPar;
+  // While 파 수정 is on a column steps its par, so the tip about opening holes steps aside.
+  $('card-tip').hidden = editPar;
   const t = a.totals;
   // The hero, or a first-run line with a way to the hole when nothing is recorded yet.
   $('sc-hero').hidden = t.holes === 0;
@@ -1073,27 +1046,31 @@ function renderAnalysis(a: Analysis): void {
   $('analysis').replaceChildren(...analysisNodes(a));
 }
 
-/** The analysis of a round, for this round and for past ones. */
-function analysisNodes(a: Analysis): (Node | string)[] {
+/** A tile as the summary writes it (v22): a label, one value on one line, and its qualifier small beside the value. */
+const tile = (label: Node | string, value: string, small = '') => h('div', {}, h('dt', {}, label), h('dd', {}, value, small ? h('small', {}, small) : null));
+
+/** The analysis of a round, for this round and for past ones; `holes` is the round's length (18, or 9). */
+function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)[] {
   const t = a.totals;
-  if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나옵니다.')];
-  const metrics = [
-    ['평균 퍼트', `${one(a.puttsPerHole)}개/홀`],
-    ['1퍼트', `${a.onePutts}홀`],
-    ['3퍼트 이상', `${a.threePutts}홀`],
-    ['그린 적중', `${a.girHoles}/${t.holes} (${pct(a.girHoles, t.holes)}%)`],
-    ['벌타', `OB ${t.ob}, 해저드 ${t.hazard} (+${t.ob + t.hazard}타)`],
-    ['멀리건', `${t.mulligan}회`],
-  ];
+  if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나와요.')];
   const maxDist = Math.max(...Object.values(a.distribution));
   return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
-      t.holes < round.holes.length ? h('span', { class: 'muted' }, `, 남은 ${round.holes.length - t.holes}홀`) : null),
-    h('dl', { class: 'metrics' }, ...metrics.flatMap(([k, v]) => [h('div', {}, h('dt', {}, k), h('dd', {}, v))])),
+      t.holes < holes ? h('span', { class: 'muted' }, `, 남은 ${holes - t.holes}홀`) : null),
+    h('dl', { class: 'metrics' },
+      tile('평균 퍼트', `${one(a.puttsPerHole)}개/홀`),
+      tile('1퍼트', `${a.onePutts}홀`),
+      tile('3퍼트 이상', `${a.threePutts}홀`),
+      tile('그린 적중', `${a.girHoles}/${t.holes}`, `${pct(a.girHoles, t.holes)}%`),
+      tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
+      tile('멀리건', `${t.mulligan}회`)),
     h('h4', {}, '스코어 분포'),
     h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
     h('h4', {}, 'Par별 평균'),
-    h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {}, h('dt', {}, `Par ${p.par}`), h('dd', {}, p.holes ? `${one(p.average)}타 (${p.holes}홀)` : '—')))),
+    // The par in the label and how many holes at the label's other end, so the average alone is the value.
+    h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {},
+      h('dt', {}, h('span', {}, `Par ${p.par}`), p.holes ? h('small', {}, `${p.holes}홀`) : null),
+      h('dd', {}, p.holes ? `${one(p.average)}타` : '–')))),
     a.best && a.worst
       ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}), 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
       : '',
@@ -1112,8 +1089,8 @@ function renderSend(a: Analysis): void {
   const ready = a.totals.holes > 0;
   $('send-actions').hidden = !ready;
   setText($('send-note'), ready
-    ? '이메일은 휴대폰 메일 앱이 열리고 스코어카드와 분석이 본문에 채워집니다. 받는 사람은 메일 앱에서 넣으세요.'
-    : '홀을 끝내면 스코어카드와 분석을 이메일이나 메신저로 보낼 수 있습니다.');
+    ? '이메일은 휴대폰 메일 앱이 열리고 스코어카드와 분석이 본문에 채워져요. 받는 사람은 메일 앱에서 넣으세요.'
+    : '홀을 끝내면 스코어카드와 분석을 이메일이나 메신저로 보낼 수 있어요.');
   if (ready) $<HTMLAnchorElement>('send-email').href = mailtoHref(round);
   const share = $<HTMLButtonElement>('send-share');
   share.hidden = !canShare && !canCopy;
@@ -1153,15 +1130,15 @@ async function shareReport(r: Round, status: HTMLElement): Promise<void> {
       setText(status, '');
     } catch (error) {
       // Closing the share sheet is not an error worth showing.
-      if ((error as DOMException).name !== 'AbortError') setText(status, '공유하지 못했습니다. 이메일로 보내기를 써 주세요.');
+      if ((error as DOMException).name !== 'AbortError') setText(status, '공유하지 못했어요. 이메일로 보내기를 써 주세요.');
     }
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    setText(status, '결과를 복사했습니다. 메신저나 메모에 붙여 넣으세요.');
+    setText(status, '결과를 복사했어요. 메신저나 메모에 붙여 넣으세요.');
   } catch {
-    setText(status, '복사하지 못했습니다. 이메일로 보내기를 써 주세요.');
+    setText(status, '복사하지 못했어요. 이메일로 보내기를 써 주세요.');
   }
 }
 
@@ -1169,13 +1146,14 @@ function renderCourse(): void {
   const course = roundCourse(round);
   setText($('course-name'), roundLabel(round));
   const source = courseSource(course);
-  const box = $('par-source');
+  // After the tip about the hole columns (#card-tip, v22), where the pars come from.
+  const box = $('par-from');
   const key = source ? `${source.source}|${source.checked}` : 'custom';
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.replaceChildren(...(source
     ? ['기본 Par 출처: ', h('a', { href: source.source, target: '_blank', rel: 'noopener noreferrer' }, '공식 스코어카드'), ` (${source.checked} 확인). 파 수정에서 홀마다 바꿀 수 있어요.`]
-    : ['직접 입력한 코스라 Par 4로 시작했습니다. 파 수정에서 홀마다 바꿀 수 있습니다.']));
+    : ['직접 입력한 코스라 Par 4로 시작했어요. 파 수정에서 홀마다 바꿀 수 있어요.']));
 }
 
 /* ---------- menu: course, version and mulligans ---------- */
@@ -1285,39 +1263,39 @@ function renderSummary(): void {
   setText($('sum-sub'), `${nine ? `${roundCourse(round).name} ${playedNine}` : roundLabel(round)}, ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
   setAttr($('sum-ring'), 'data-tone', t.holes ? toneOf(a.toPar) : 'over');
   setText($('sum-total'), String(t.strokes));
-  const vs = $('sum-vs');
-  setText(vs, t.holes ? `파 대비 ${toParText(a.toPar)}` : '기록한 홀이 없어요');
-  vs.classList.toggle('under', t.holes > 0 && a.toPar < 0);
+  // 파 대비 as a label and the score as its value (v22); with nothing recorded, one plain sentence.
+  $('sum-vs').replaceChildren(...(t.holes
+    ? [h('span', {}, '파 대비'), ' ', h('b', { class: a.toPar < 0 ? 'under' : '' }, toParText(a.toPar))]
+    : [h('span', { class: 'none' }, '기록한 홀이 없어요')]));
   const count = round.holes.length;
   setText($('sum-count'), !t.holes ? '홀을 기록하면 여기에 보여요' : nine ? `${playedNine} 9홀을 모두 기록했어요` : t.holes === count ? `${count}홀을 모두 기록했어요` : `${t.holes}홀만 기록했어요. 기록한 홀만 계산해요`);
   const d = a.distribution;
   const marks: [Mark, string, number][] = [['eagle', '이글', d.eagle], ['birdie', '버디', d.birdie], ['par', '파', d.par], ['bogey', '보기', d.bogey], ['double', '더블', d.double], ['triple', '트리플+', d.triple]];
+  // A count of 0 steps back in the quiet ink, so 이글 0 never shouts as loud as 더블 2 (v22).
   $('sum-marks').replaceChildren(...marks.map(([m, label, n]) => h('li', {},
-    h('span', { class: 'm', 'data-mark': m, 'data-tone': m === 'eagle' || m === 'birdie' ? 'under' : m === 'par' ? 'par' : 'over' }, h('b', {}, String(n))),
+    h('span', { class: 'm', 'data-mark': m, 'data-tone': n === 0 ? 'none' : m === 'eagle' || m === 'birdie' ? 'under' : m === 'par' ? 'par' : 'over' }, h('b', {}, String(n))),
     h('small', {}, m === 'triple' ? h('span', { 'aria-hidden': 'true' }, label) : label, m === 'triple' ? h('span', { class: 'sr-only' }, '트리플 이상') : null))));
   const done = round.holes.map((x, i) => ({ x, i })).filter(({ i }) => finished(round, i));
   const drives = done.filter(({ x }) => x.par >= 4 && teeTag(x) !== null);
   const hit = drives.filter(({ x }) => teeTag(x) === 'fairway').length;
   const half = (n: typeof a.front) => (n.holes ? [`${n.strokes}타`, toParText(n.strokes - n.par)] : ['기록 없음', '']);
   const best = a.best ? round.holes[a.best.hole - 1] : null;
-  const stat = (label: string, value: string, small = '') => h('div', {}, h('dt', {}, label), h('dd', {}, value, small ? h('small', {}, small) : null));
-  // A 9-hole round has no other nine to compare.
+  // One value per tile, on one line (v22). 페어웨이 안착 waits for a tee result; until then its hint is said once, under the tiles.
   $('sum-stats').replaceChildren(
-    ...(nine || count === 9 ? [] : [stat('전반', ...half(a.front) as [string, string]), stat('후반', ...half(a.back) as [string, string])]),
-    stat('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
-    stat('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
-    stat('페어웨이 안착', drives.length ? `${hit}/${drives.length}` : '기록 없음', drives.length ? `${pct(hit, drives.length)}%` : '상세에서 티샷 방향을 고르면 보여요'),
-    stat('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
-    stat('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
+    // A 9-hole round has no other nine to compare.
+    ...(nine || count === 9 ? [] : [tile('전반', ...half(a.front) as [string, string]), tile('후반', ...half(a.back) as [string, string])]),
+    tile('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
+    tile('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
+    drives.length ? tile('페어웨이 안착', `${hit}/${drives.length}`, `${pct(hit, drives.length)}%`) : '',
+    tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
+    tile('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
   );
-  setText($('sum-insight'), !t.holes
-    ? '홀을 기록하면 어디서 타수를 잃었는지 보여요.'
-    : a.worstAreas.length
-      ? `타수를 가장 많이 잃은 곳: ${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')} +${a.lost[a.worstAreas[0]]}`
-      : '기준보다 잃은 타수가 없어요.');
+  $('sum-hint').hidden = drives.length > 0 || !t.holes;
+  // Where the round lost most: the label, then the value, no colon between (v22); otherwise one sentence.
+  $('sum-insight').replaceChildren(...(t.holes && a.worstAreas.length
+    ? [h('span', {}, '타수를 가장 많이 잃은 곳'), ' ', h('b', {}, `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')} +${a.lost[a.worstAreas[0]]}`)]
+    : [!t.holes ? '홀을 기록하면 어디서 타수를 잃었는지 보여요.' : '기준보다 잃은 타수가 없어요.']));
   $<HTMLAnchorElement>('sum-mail').href = mailtoHref(round);
-  $('sum-share').hidden = !canShare && !canCopy;
-  setAttr($('sum-share'), 'aria-label', canShare ? '공유' : '결과 복사');
   $<HTMLButtonElement>('sum-archive').disabled = t.holes === 0;
 }
 
@@ -1329,8 +1307,16 @@ function openSummary(from: HTMLElement): void {
   setText($('sum-status'), '');
   renderSummary();
   $<HTMLDialogElement>('summary').showModal();
+  $('sum-body').scrollTop = 0;
+  fitSummary();
   // The share image is drawn after the sheet shows, with a placeholder until then.
-  openSummaryShare(round);
+  summaryShare.open(round);
+}
+
+/** A hairline over the round buttons while the rest of the summary can scroll under them (v22). */
+function fitSummary(): void {
+  const body = $('sum-body');
+  $('summary').toggleAttribute('data-overflow', body.scrollHeight - body.clientHeight > 0);
 }
 
 /** 지난 라운드에 보관: the round joins the past rounds and the app waits, as on a first visit, for the next course. */
@@ -1403,15 +1389,31 @@ function pickFirst(): void {
   openPicker({ mode: 'new', initial: loadPrefs(), cancelLabel: '닫기', onStart: startRound });
 }
 
+/** The summary's 공유 and 이미지 저장 with the round's image (src/share-round.ts); the past round has its own. */
+const summaryShare = createRoundShare({
+  save: $('sum-save'),
+  status: $('sum-status'),
+  container: $('summary'),
+  row: $('sum-actions'),
+  preview: $('sum-card'),
+  image: $<HTMLImageElement>('sum-card-img'),
+  shareText: (r) => shareReport(r, $('sum-status')),
+});
+
 function bindSummary(): void {
   const dialog = $<HTMLDialogElement>('summary');
   $('sum-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => summaryOpener?.focus());
   // 공유 sends the round as an image where the share sheet takes files; otherwise the text share or copy as before.
-  dialog.addEventListener('close', closeSummaryShare);
-  bindSummaryShare((r) => shareReport(r, $('sum-status')));
-  $('sum-share').addEventListener('click', () => void shareSummary(round));
-  $('sum-save').addEventListener('click', () => saveSummaryImage(round));
+  dialog.addEventListener('close', () => summaryShare.close());
+  dressRoundButtons($('sum-share'), $('sum-save'), $('sum-mail'));
+  // The preview's badge: what a tap on it does, share or save (static icon markup from icons.ts).
+  $('sum-badge').innerHTML = icon('share', 14, 'b-share') + icon('download', 14, 'b-save');
+  $('sum-share').addEventListener('click', () => void summaryShare.share(round));
+  $('sum-save').addEventListener('click', () => summaryShare.save(round));
+  // The hairline over the buttons follows whatever changes the body's height: the screen, the status line, 큰 글씨.
+  const fit = new ResizeObserver(fitSummary);
+  for (const el of [$('sum-body'), ...$('sum-body').children]) fit.observe(el);
   $('sum-archive').addEventListener('click', keepFinishedRound);
   $('finish-round').addEventListener('click', () => requestFinish($('finish-round')));
   bindCheck();
@@ -1584,7 +1586,10 @@ function openStrip(at = round.current): void {
   setAttr($('hole-btn'), 'aria-expanded', 'true');
   const row = $('strip-row');
   const here = row.querySelector<HTMLElement>(`[data-jump="${at}"]`)!;
-  row.scrollLeft = here.offsetLeft - (row.clientWidth - here.offsetWidth) / 2;
+  // Two holes before this one in view, the first on the heading's edge (v22): no cell cut at the start, and the row
+  // snaps to whole cells from there. Near the end the row simply stops at its last cell.
+  const from = row.querySelector<HTMLElement>(`[data-jump="${Math.max(0, at - 2)}"]`)!;
+  row.scrollLeft = from.offsetLeft - parseFloat(getComputedStyle(row).paddingLeft);
   here.focus({ preventScroll: true });
 }
 
@@ -1638,18 +1643,25 @@ function bindStrip(): void {
 function renderNow(a: Analysis = analyze(round)): void {
   const t = a.totals;
   setText($('now-title'), roundless ? '다음 라운드' : '지금 라운드');
-  setText($('now-sub'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : `${roundLabel(round)}, ${dateLabel(round.date).replace(/^\d+년 /, '')}, ${t.holes}홀 기록`);
+  // Two lines of their own under the title (v22): the course, then the date and the holes, which never break.
+  setText($('now-course'), roundless ? '코스를 고르면 1번 홀부터 시작해요.' : roundLabel(round));
+  setText($('now-meta'), roundless ? '' : `${dateLabel(round.date).replace(/^\d+년 /, '')}, ${t.holes}홀 기록`);
+  $('now-meta').hidden = roundless;
   setText($('now-continue'), roundless ? '코스 고르고 시작' : '이어서 기록');
   const score = $('now-score');
   setText(score, roundless ? '' : t.holes ? `${t.strokes}타 ${toParText(a.toPar)}` : '아직 없음');
   score.classList.toggle('under', t.holes > 0 && a.toPar < 0);
   score.classList.toggle('none', !t.holes);
   const kept = document.querySelectorAll('#history-list > li').length;
-  setText($('hist-sub'), kept ? `보관한 라운드 ${kept}개` : '아직 보관한 라운드가 없어요');
+  // A count, never the empty card's own sentence again (v22).
+  setText($('hist-sub'), `보관한 라운드 ${kept}개`);
   // The backup reminder after keeping a round; the home-screen card otherwise (once a round is kept, until 알겠어요,
   // and not when opened from the home screen). Never both at once.
   const card = $('backup-card');
   card.hidden = backupNudge === null;
+  // While the reminder says the round is kept, the list's own line says it to screen readers only (the list mounts
+  // after the first render).
+  document.getElementById('history-status')?.classList.toggle('sr-only', !card.hidden);
   setText($('bk-h'), backupNudge === 'saved' ? '백업 파일을 저장했어요' : '라운드를 보관했어요');
   setText($('bk-text'), backupNudge === 'saved' ? '폰을 바꾸면 메뉴의 백업과 복원에서 이 파일을 열면 돼요.' : '기록은 이 기기에만 있어요. 폰을 바꾸거나 브라우저가 기록을 지울 때를 대비해 백업 파일을 저장해 두세요.');
   $('bk-save').hidden = backupNudge === 'saved';
@@ -1670,6 +1682,9 @@ function bindBackupCard(): void {
   });
   $('bk-later').addEventListener('click', () => {
     backupNudge = null;
+    // The card said the round is kept; the list's line, which says the same, goes with it (v22).
+    const status = document.getElementById('history-status');
+    if (status) setText(status, '');
     renderNow();
     $('tab-hist').focus();
   });
@@ -1716,10 +1731,10 @@ function startRound(choice: CourseChoice): void {
 
 /** What the save line says, and whether it is a problem 기록 should show too. */
 function saveMessage(): { text: string; problem: boolean } {
-  if (!saved) return { text: '이 브라우저에서는 저장할 수 없습니다. 새로고침하면 기록이 지워집니다.', problem: true };
-  if (detached) return { text: '저장된 기록이 다른 탭에서 지워졌거나 읽을 수 없습니다. 이 탭의 기록은 다음 입력 때 다시 저장됩니다.', problem: true };
-  if (rescued) return { text: '저장된 기록을 읽을 수 없어 새 라운드로 시작합니다. 원래 값은 이 기기에 따로 보관했습니다.', problem: true };
-  if (trimmed) return { text: '저장된 세부 기록 일부를 읽을 수 없어 빼고 불러왔습니다. 원래 값은 이 기기에 따로 보관했습니다.', problem: true };
+  if (!saved) return { text: '이 브라우저에서는 저장할 수 없어요. 새로고침하면 기록이 지워져요.', problem: true };
+  if (detached) return { text: '저장된 기록이 다른 탭에서 지워졌거나 읽을 수 없어요. 이 탭의 기록은 다음 입력 때 다시 저장돼요.', problem: true };
+  if (rescued) return { text: '저장된 기록을 읽을 수 없어 새 라운드로 시작해요. 원래 값은 이 기기에 따로 보관했어요.', problem: true };
+  if (trimmed) return { text: '저장된 세부 기록 일부를 읽을 수 없어 빼고 불러왔어요. 원래 값은 이 기기에 따로 보관했어요.', problem: true };
   return { text: `${dateLabel(round.date)} 라운드. 이 기기에만 자동으로 저장돼요.`, problem: false };
 }
 
@@ -1739,7 +1754,7 @@ function render(changed?: string): void {
   setText(notice, message.problem ? message.text : '');
   notice.hidden = !message.problem;
   $('stale').hidden = !stale;
-  if (stale) setText($('stale-text'), `${dateLabel(round.date)}에 기록하던 라운드입니다.`);
+  if (stale) setText($('stale-text'), `${dateLabel(round.date)}에 기록하던 라운드예요.`);
   drawCourse();
   requestAnimationFrame(scrollHint);
 }
@@ -1767,31 +1782,22 @@ function bind(): void {
   $('prev-hole').addEventListener('click', () => changeHole(-1));
   $('next-hole').addEventListener('click', () => changeHole(1));
   $('go-next').addEventListener('click', goNext);
-  // A hole on the scorecard opens in 기록; in 파 수정 its par button steps the par instead.
+  // A hole's column on the scorecard opens that hole in 기록 in one tap (v22); in 파 수정 it steps the par instead.
   $('scorecard').addEventListener('click', (event) => {
-    const target = event.target as HTMLElement;
-    const par = target.closest<HTMLButtonElement>('button[data-par-hole]');
-    if (par) {
-      cyclePar(Number(par.dataset.parHole));
-      return;
-    }
-    // A nine's table: 기록 with the hole strip open there (at the current hole when it is in that nine).
-    const table = target.closest<HTMLButtonElement>('button[data-nine]');
-    if (table) {
-      const start = Number(table.dataset.nine);
-      show('entry');
-      openStrip(round.current >= start && round.current < start + 9 ? round.current : start);
-      return;
-    }
-    const column = target.closest<HTMLButtonElement>('button[data-hole]');
+    const column = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-hole]');
     if (!column) return;
-    go(Number(column.dataset.hole));
+    const k = Number(column.dataset.hole);
+    if (editPar) {
+      cyclePar(k);
+      return;
+    }
+    go(k);
     show('entry');
   });
   $('edit-par').addEventListener('click', () => {
     editPar = !editPar;
     render();
-    announce(editPar ? '파 수정: 파를 누를 때마다 3, 4, 5 순서로 바뀌어요' : '파 수정 완료');
+    announce(editPar ? '파 수정: 홀 칸을 누를 때마다 Par가 3, 4, 5 순서로 바뀌어요' : '파 수정 완료');
   });
   // The current round stays until a course is chosen; cancelling the picker keeps it (startRound keeps it among past rounds).
   const startNew = () => openPicker({ mode: 'new', initial: loadPrefs(), onStart: startRound });
@@ -1875,10 +1881,12 @@ const lent: Page = {
     if (pickerOpen()) closePicker();
   },
   scorecard: (r, a) => [...scorecardNodes(r, a, 'read'), totalLine(a)],
-  analysis: analysisNodes,
+  analysis: (a, r) => analysisNodes(a, r.holes.length),
   share: shareReport,
-  shareLabel: canShare ? '공유하기' : canCopy ? '결과 복사' : null,
 };
+// iPhone Safari shows :active only on pages that listen for touches; a passive no-op listener lets every control
+// answer a press (v22) and changes nothing else.
+document.addEventListener('touchstart', () => {}, { passive: true });
 renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
 bindMissing();

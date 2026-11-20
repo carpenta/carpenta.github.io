@@ -19,6 +19,11 @@ const PATHS = {
   chevRight: '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
   chevLeft2: '<path d="M11.5 5.5 5 12l6.5 6.5M18.5 5.5 12 12l6.5 6.5"/>',
   chevRight2: '<path d="M5.5 5.5 12 12l-6.5 6.5M12.5 5.5 19 12l-6.5 6.5"/>',
+  // Sending a round (v22): out of an open tray to share, into it to save, two sheets to copy, an envelope to mail.
+  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5.5 12.5V18a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-5.5"/>',
+  download: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5.5 12.5V18a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-5.5"/>',
+  copy: '<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>',
+  mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4.5 7.5 12 13l7.5-5.5"/>',
 } as const;
 
 export type IconName = keyof typeof PATHS;
