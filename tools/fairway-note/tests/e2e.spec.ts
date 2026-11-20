@@ -268,7 +268,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v15');
+  await expect(page.locator('#app-version')).toHaveText('v16');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -304,12 +304,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v15');
+  await expect(page.locator('#menu-version')).toHaveText('v16');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v15');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v16');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -1733,6 +1733,252 @@ test('shares the round with the phone share sheet', async ({ page }) => {
   const shared = await page.evaluate(() => (window as unknown as { shared: { title: string; text: string }[] }).shared);
   expect(shared[0].title).toContain('3타 (-1)');
 });
+
+/* ---------- the summary's 공유: the round as an image (v15) ---------- */
+
+type SharedData = { title?: string; text?: string; files: { name: string; type: string; size: number; head: number[] }[] };
+const PNG_HEAD = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * Stands in for the Web Share API: 'files' shares files too (as iPhone Safari does), 'text' shares only text, 'none'
+ * has no share at all. Each share is kept in `window.shared`, with each file's name, type, size and first bytes.
+ */
+async function useShare(page: Page, mode: 'files' | 'text' | 'none') {
+  await page.addInitScript((m) => {
+    const w = window as unknown as { shared: unknown[] };
+    w.shared = [];
+    if (m === 'none') {
+      Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value: undefined });
+      return;
+    }
+    Object.defineProperty(Navigator.prototype, 'canShare', { configurable: true, value: (data?: ShareData) => (data?.files?.length ? m === 'files' : true) });
+    Object.defineProperty(Navigator.prototype, 'share', {
+      configurable: true,
+      value: async (data: ShareData = {}) => {
+        const files = [];
+        for (const f of data.files ?? []) files.push({ name: f.name, type: f.type, size: f.size, head: [...new Uint8Array(await f.slice(0, 8).arrayBuffer())] });
+        w.shared.push({ title: data.title, text: data.text, files });
+      },
+    });
+  }, mode);
+}
+
+const sharedData = (page: Page) => page.evaluate(() => (window as unknown as { shared: SharedData[] }).shared);
+
+/** Collects every request that leaves the page or sends something, as the first test in this file does. */
+function outgoing(page: Page): string[] {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if ((url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') || request.method() !== 'GET' || request.postData()) requests.push(request.url());
+  });
+  return requests;
+}
+
+/** The summary test's round (holes 1–3: a par, a birdie and a double with an OB, 14 strokes, +1), finished from 스코어카드. */
+async function finishRound(page: Page) {
+  await open(page);
+  await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 1, putts: 1 }, 2: { driver: 1, ob: 1, approach: 3, putts: 2 } }, 3);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await expect(page.locator('#summary')).toBeVisible();
+}
+
+/** The preview: a tap on it does what the buttons do with the image, so it is kept out of the accessibility tree. */
+const preview = (page: Page) => page.locator('#sum-card');
+const previewImage = (page: Page) => preview(page).locator('img');
+
+test('공유 in the summary shares the round as one PNG where the browser can share files', async ({ page }) => {
+  await useShare(page, 'files');
+  await finishRound(page);
+  const summary = page.locator('#summary');
+  // The image is drawn as the sheet opens, so 공유 can hand it over at once. Nothing to save where it can be shared.
+  await expect(previewImage(page)).toBeVisible();
+  await expect(page.locator('#sum-save')).toBeHidden();
+  await expect(preview(page)).toHaveAttribute('aria-hidden', 'true');
+  const date = (await stored(page)).date;
+  await summary.getByRole('button', { name: '공유', exact: true }).click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  const [data] = await sharedData(page);
+  expect(data.files).toHaveLength(1);
+  expect(data.files[0]).toMatchObject({ name: `fairway-note-${date}.png`, type: 'image/png', head: PNG_HEAD });
+  expect(data.files[0].size).toBeGreaterThan(0);
+  // The same title and text as the text share.
+  expect(data.title).toMatch(/^에버리스 골프리조트 새별·레이크 \d{4}년 \d{1,2}월 \d{1,2}일 라운드 14타 \(\+1\)$/);
+  expect(data.text).toContain('3번 Par5: 7타 (+2) 드1 어3 퍼2 OB 1');
+  await expect(page.locator('#sum-status')).toHaveText('');
+  // A tap on the preview, which carries a share badge, shares the same image.
+  await expect(preview(page).locator('.b-share')).toBeVisible();
+  await expect(preview(page).locator('.b-save')).toBeHidden();
+  await preview(page).click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(2);
+  expect((await sharedData(page))[1].files).toEqual(data.files);
+});
+
+test('공유 in the summary shares the report text as before where the browser cannot share files, and the image can be saved', async ({ page }) => {
+  await useShare(page, 'text');
+  await finishRound(page);
+  const summary = page.locator('#summary');
+  await expect(previewImage(page)).toBeVisible();
+  await summary.getByRole('button', { name: '공유', exact: true }).click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  const [data] = await sharedData(page);
+  expect(data.files).toEqual([]);
+  expect(data.title).toMatch(/라운드 14타 \(\+1\)$/);
+  expect(data.text).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2');
+  // The image the preview shows is still within reach: 이미지 저장 sits next to 공유.
+  await expect(summary.getByRole('button', { name: '이미지 저장' })).toBeVisible();
+});
+
+test('without a share sheet the summary saves the image next to 결과 복사, which still copies the report', async ({ page, context, browserName }, testInfo) => {
+  await useClipboard(page, context, browserName);
+  await useShare(page, 'none');
+  const requests = outgoing(page);
+  await finishRound(page);
+  const summary = page.locator('#summary');
+  const date = (await stored(page)).date;
+  const [download] = await Promise.all([page.waitForEvent('download'), summary.getByRole('button', { name: '이미지 저장' }).click()]);
+  expect(download.suggestedFilename()).toBe(`fairway-note-${date}.png`);
+  const file = testInfo.outputPath('card.png');
+  await download.saveAs(file);
+  const bytes = readFileSync(file);
+  expect([...bytes.subarray(0, 8)]).toEqual(PNG_HEAD);
+  // The IHDR chunk: 1080 wide, 1350 tall.
+  expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([1080, 1350]);
+  await expect(page.locator('#sum-status')).toHaveText(`이미지를 저장했어요 (fairway-note-${date}.png).`);
+  await summary.getByRole('button', { name: '결과 복사' }).click();
+  await expect(page.locator('#sum-status')).toContainText('복사했습니다');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2');
+  // The preview carries a save badge, and a tap on it saves the same file.
+  await expect(preview(page).locator('.b-save')).toBeVisible();
+  await expect(preview(page).locator('.b-share')).toBeHidden();
+  const [again] = await Promise.all([page.waitForEvent('download'), preview(page).click()]);
+  expect(again.suggestedFilename()).toBe(`fairway-note-${date}.png`);
+  expect(requests).toEqual([]);
+});
+
+test('the summary opens at once with a calm placeholder, then shows a small preview of the image', async ({ page }) => {
+  // Holds the PNG encoding until the test lets it go.
+  await page.addInitScript(() => {
+    const w = window as unknown as { encode?: () => void };
+    const toBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<HTMLCanvasElement['toBlob']>) {
+      w.encode = () => toBlob.apply(this, args);
+    };
+  });
+  await useShare(page, 'files');
+  await finishRound(page);
+  // A plain deep-turf block, the image's own ground, with no badge until the image is there.
+  await expect(preview(page)).toBeVisible();
+  await expect(preview(page)).toHaveAttribute('data-state', 'drawing');
+  await expect(previewImage(page)).toBeHidden();
+  await expect(preview(page).locator('.sum-badge')).toBeHidden();
+  expect(await preview(page).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(22, 48, 29)');
+  await expect.poll(() => page.evaluate(() => typeof (window as unknown as { encode?: () => void }).encode)).toBe('function');
+  await page.evaluate(() => (window as unknown as { encode: () => void }).encode());
+  await expect(previewImage(page)).toBeVisible();
+  await expect(preview(page)).toHaveAttribute('data-state', 'ready');
+  await expect(preview(page).locator('.sum-badge')).toBeVisible();
+  await expect(previewImage(page)).toHaveAttribute('src', /^data:image\/png;base64,/);
+  expect(await previewImage(page).evaluate((el: HTMLImageElement) => [el.naturalWidth, el.naturalHeight])).toEqual([1080, 1350]);
+});
+
+test('a summary with no finished hole has no image to preview or save', async ({ page }) => {
+  await useShare(page, 'none');
+  await open(page);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await expect(page.locator('#summary')).toBeVisible();
+  await expect(page.locator('#sum-vs')).toHaveText('기록한 홀이 없어요');
+  await expect(preview(page)).toBeHidden();
+  await expect(page.locator('#sum-save')).toBeHidden();
+});
+
+test('draws, previews and shares the image without any request or new storage', async ({ page }) => {
+  const requests = outgoing(page);
+  await useShare(page, 'files');
+  await finishRound(page);
+  await expect(previewImage(page)).toBeVisible();
+  await page.locator('#summary').getByRole('button', { name: '공유', exact: true }).click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  expect(requests).toEqual([]);
+  expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
+    .toEqual({ keys: [PREFS_KEY, STORAGE_KEY].sort(), sessionStorage: 0, cookies: '' });
+  expect(await page.evaluate(async () => (await indexedDB.databases()).length)).toBe(0);
+});
+
+for (const [width, height] of [[360, 640], [390, 844]]) {
+  test.describe(`the summary's image on a ${width}×${height} phone`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('lines the preview and the share and save buttons up with the sheet, without sideways scrolling', async ({ page, context, browserName }) => {
+      // No share sheet: the action row is at its fullest, 결과 복사 and 이미지 저장 before email and 보관.
+      await useClipboard(page, context, browserName);
+      await useShare(page, 'none');
+      await finishRound(page);
+      await expect(previewImage(page)).toBeVisible();
+      const summary = page.locator('#summary');
+      // Measured at rest: once the sheet has slid up and the image has faded in.
+      await summary.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
+      // The sheet's inner edges: its box less its padding.
+      const inner = await summary.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return { left: r.left + parseFloat(s.paddingLeft), right: r.right - parseFloat(s.paddingRight), outerLeft: r.left, outerRight: r.right };
+      });
+      const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+      const ring = await box('#sum-ring');
+      const card = await box('#sum-card');
+      // The hero row runs from the inner left edge (the score ring) to the inner right edge (the preview), so it is
+      // centred in the sheet. The preview is 4:5 like the image, smaller than the ring and centred on its line.
+      expect(Math.abs(ring.x - inner.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(card.x + card.width - inner.right)).toBeLessThanOrEqual(1);
+      expect(Math.abs((ring.x - inner.outerLeft) - (inner.outerRight - (card.x + card.width)))).toBeLessThanOrEqual(1);
+      expect(Math.abs(card.y + card.height / 2 - (ring.y + ring.height / 2))).toBeLessThanOrEqual(1);
+      expect(card.height).toBeLessThan(ring.height);
+      expect(card.width / card.height).toBeCloseTo(0.8, 2);
+      // It keeps clear of the close button above it.
+      const close = await box('#sum-close');
+      expect(card.y - (close.y + close.height)).toBeGreaterThanOrEqual(12);
+      // The image fills the preview exactly, and the badge sits inside its corner.
+      const image = (await previewImage(page).boundingBox())!;
+      for (const [v, k] of [[image.x, card.x], [image.y, card.y], [image.width, card.width], [image.height, card.height]]) expect(Math.abs(v - k)).toBeLessThanOrEqual(0.5);
+      const badge = await box('#sum-card .sum-badge');
+      expect(badge.x).toBeGreaterThanOrEqual(card.x);
+      expect(badge.y).toBeGreaterThanOrEqual(card.y);
+      expect(Math.abs(card.x + card.width - (badge.x + badge.width) - (card.y + card.height - (badge.y + badge.height)))).toBeLessThanOrEqual(0.5);
+      // One row of buttons from edge to edge: the same height, on one line, with equal gaps, each glyph centred.
+      const row = [await box('#sum-share'), await box('#sum-save'), await box('#sum-mail'), await box('#sum-archive')];
+      expect(Math.abs(row[0].x - inner.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(row[3].x + row[3].width - inner.right)).toBeLessThanOrEqual(1);
+      const gaps = row.slice(1).map((b, k) => b.x - (row[k].x + row[k].width));
+      for (const gap of gaps) expect(Math.abs(gap - gaps[0])).toBeLessThanOrEqual(1);
+      for (const b of row) {
+        expect(Math.abs(b.y - row[0].y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(b.height - row[0].height)).toBeLessThanOrEqual(1);
+        expect(b.height).toBeGreaterThanOrEqual(48);
+      }
+      expect(Math.abs(row[0].width - row[1].width)).toBeLessThanOrEqual(1);
+      for (const id of ['#sum-share', '#sum-save', '#sum-mail']) {
+        const button = await box(id);
+        const glyph = (await page.locator(`${id} svg`).boundingBox())!;
+        expect(Math.abs(glyph.x + glyph.width / 2 - (button.x + button.width / 2)), id).toBeLessThanOrEqual(1);
+        expect(Math.abs(glyph.y + glyph.height / 2 - (button.y + button.height / 2)), id).toBeLessThanOrEqual(1);
+      }
+      // 지난 라운드에 보관 stays on one line beside three round buttons.
+      expect(await page.locator('#sum-archive').evaluate((el) => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+      })).toBe(1);
+      expect(await sideScroll(page)).toBe(0);
+      expect(await summary.evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+    });
+  });
+}
 
 test('opens and records offline after the first visit', async ({ page, context }) => {
   await open(page);

@@ -43,6 +43,7 @@ import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
+import { bindSummaryShare, closeSummaryShare, openSummaryShare, saveSummaryImage, shareSummary } from './share-round';
 
 /** The penalty row: OB and 해저드 add a stroke each; 벙커 (상세) is noted only. */
 const PENS = ['ob', 'bunker', 'hazard'] as const;
@@ -1306,6 +1307,8 @@ function openSummary(from: HTMLElement): void {
   setText($('sum-status'), '');
   renderSummary();
   $<HTMLDialogElement>('summary').showModal();
+  // The share image is drawn after the sheet shows, with a placeholder until then.
+  openSummaryShare(round);
 }
 
 /** 지난 라운드에 보관: the round joins the past rounds and the app waits, as on a first visit, for the next course. */
@@ -1382,7 +1385,11 @@ function bindSummary(): void {
   const dialog = $<HTMLDialogElement>('summary');
   $('sum-close').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => summaryOpener?.focus());
-  $('sum-share').addEventListener('click', () => void shareReport(round, $('sum-status')));
+  // 공유 sends the round as an image where the share sheet takes files; otherwise the text share or copy as before.
+  dialog.addEventListener('close', closeSummaryShare);
+  bindSummaryShare((r) => shareReport(r, $('sum-status')));
+  $('sum-share').addEventListener('click', () => void shareSummary(round));
+  $('sum-save').addEventListener('click', () => saveSummaryImage(round));
   $('sum-archive').addEventListener('click', keepFinishedRound);
   $('finish-round').addEventListener('click', () => requestFinish($('finish-round')));
   bindCheck();

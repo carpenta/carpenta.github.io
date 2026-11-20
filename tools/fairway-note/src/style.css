@@ -695,7 +695,7 @@ html.past-open { overflow: hidden; }
 .sum-head h2 { font-size: 22px; font-weight: 700; }
 .sum-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .sum-close { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); display: grid; place-items: center; }
-.sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; }
+.sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-columns: auto; column-gap: 16px; align-items: center; }
 .sum-ring {
   width: 80px; height: 80px; border-radius: 50%; background: var(--deep); color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 0 4px var(--white), 0 0 0 5.5px var(--line);
@@ -707,6 +707,23 @@ html.past-open { overflow: hidden; }
 .sum-hero-txt .big { font-size: 22px; font-weight: 800; }
 .sum-hero-txt .big.under { color: var(--red); }
 .sum-hero-txt p + p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+/* The image 공유 sends (v15): 4:5 like the image, at the inner right edge, centred on the ring's line and smaller than
+   the ring, so the score leads and the close button keeps its room. Deep turf, the image's own ground, holds its place
+   until it is drawn; then it fades in with a badge for what a tap does (share, or save where files cannot be shared). */
+.sum-card {
+  position: relative; grid-column: 3; width: 56px; height: 70px; border-radius: 10px; overflow: hidden;
+  background: var(--deep); box-shadow: var(--lift); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.sum-card img { display: block; width: 100%; height: 100%; animation: fn-fade .2s ease-out; }
+.sum-card:active img { opacity: .82; }
+.sum-badge {
+  position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--tint); color: var(--turf); display: grid; place-items: center; box-shadow: 0 1px 3px rgb(8 28 10 / .35);
+}
+.sum-card[data-state='drawing'] .sum-badge, .sum-card[data-act='share'] .b-save, .sum-card[data-act='save'] .b-share { display: none; }
+@media (prefers-reduced-motion: reduce) { .sum-card img { animation: none; } }
+/* Narrower beside the preview, the line under the score breaks evenly, between its sentences where it can. */
+.sum-hero-txt p + p { text-wrap: balance; }
 .sum-marks { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .sum-marks li { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 14px; background: var(--paper); }
 .sum-marks small { font-size: 13px; color: var(--muted); white-space: nowrap; }
@@ -719,9 +736,12 @@ html.past-open { overflow: hidden; }
 .sum-insight { margin-top: 8px; padding: 10px 12px; border-radius: 16px; background: var(--sand-tint); font-size: 15px; font-weight: 700; }
 #sum-status { margin: 8px 0 0; }
 #sum-status:empty { display: none; }
-.sum-actions { margin-top: 10px; display: grid; grid-template-columns: 52px 52px minmax(0, 1fr); gap: 8px; }
-.sum-actions > * { height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: 700; color: var(--turf); display: grid; place-items: center; text-decoration: none; }
-.sum-actions .primary { background: var(--turf); color: #fff; font-size: 17px; }
+/* Round buttons (공유 or 결과 복사, 이미지 저장 where the image cannot be shared, email), then 보관 takes the rest. */
+.sum-actions { margin-top: 10px; display: flex; gap: 8px; }
+.sum-actions > * { flex: none; width: 52px; height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: 700; color: var(--turf); display: grid; place-items: center; text-decoration: none; }
+.sum-actions > :active { background: var(--pill); }
+.sum-actions .primary { flex: 1; width: auto; min-width: 0; background: var(--turf); color: #fff; font-size: 17px; }
+.sum-actions .primary:active:not(:disabled) { background: #276b31; }
 .sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
 .sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: 700; box-shadow: inset 0 0 0 2px var(--turf); }
 
