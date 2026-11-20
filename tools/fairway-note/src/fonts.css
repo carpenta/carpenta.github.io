@@ -1,0 +1,28 @@
+/* The app's own font (v23): Pretendard 1.3.9, so every phone lays text out with the same widths, heights and
+   baselines; the system fonts did not (Android and Linux drew Hangul and digits wider, on another baseline).
+   The official KS X 1001 subset files, unmodified. Copyright 2021 Kil Hyung-jin, with Reserved Font Name Pretendard,
+   under the SIL Open Font License 1.1 (fonts/LICENSE.txt, also shipped beside the built fonts).
+   One static face per weight token in style.css: --w-help 400, --w-label 600, --w-value 800.
+   No local() source: an installed Pretendard of another version could measure differently. swap shows the system font
+   until a face has loaded, which after the first visit comes from the offline cache. */
+@font-face {
+  font-family: 'Pretendard';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/Pretendard-Regular.subset.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Pretendard';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/Pretendard-SemiBold.subset.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Pretendard';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./fonts/Pretendard-ExtraBold.subset.woff2') format('woff2');
+}

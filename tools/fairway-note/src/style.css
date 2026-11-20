@@ -96,7 +96,9 @@
   --art-flag-shade: color-mix(in oklab, var(--red) 72%, var(--ink));
   --art-vignette: .38;  /* how dark the edges and the top get */
   --art-shade: .42;
-  --font: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  /* The bundled Pretendard first (v23, fonts.css: 400, 600 and 800, one face per weight token below; 700 draws in 800).
+     The system fonts only stand in for what it lacks (⋮, emoji, rare syllables) and until it has loaded. */
+  --font: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   /* One screen inset on every tab (v14): the menu button, the cards, the chips and the right-hand action share it. */
   --m: 16px;
   --card-pad: 16px;                /* one card padding: the 기록 sheet, the scorecard and the boxes */
