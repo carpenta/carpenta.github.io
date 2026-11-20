@@ -474,6 +474,14 @@ svg { display: block; }
 /* ---------- 스코어카드 ---------- */
 .sc { background: var(--paper); overflow-y: auto; scrollbar-width: none; }
 .sc::-webkit-scrollbar { display: none; }
+/* More below (v26): with no scrollbar, a soft fade over the bottom edge of 스코어카드 and 지난 라운드 says so while they
+   can scroll further, as on 기록's card (main.ts's scrollHint). Sticky at the view's bottom and pulled up by its own
+   height, so it adds no scroll; taps go through it. */
+.sc::after {
+  content: ''; position: sticky; bottom: 0; z-index: 1; flex: none; height: 36px; margin-top: -36px;
+  background: linear-gradient(transparent, var(--paper) 85%); pointer-events: none; opacity: 0;
+}
+.sc.more::after { opacity: 1; }
 /* The same first row as 기록's top bar: the menu button in the same place on every tab, the title in the centre,
    the right-hand action (파 수정) on the same inset as 기록's version. */
 .sc-top {
@@ -492,6 +500,14 @@ svg { display: block; }
 .edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: var(--w-help); text-wrap: pretty; }
 .sc-title h2 { font-size: 17px; font-weight: var(--w-label); }
 .sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 스코어카드 | 분석 (v26): the picker's 18홀 | 9홀 at the cards' width under the title row, the chosen half a white pill on
+   the tint. 44px tall with 3px padding, so the radii are concentric (22 outside, 19 inside), each half reaching 48px to
+   the touch; 12px from the title row (its 10px and 2px) and from the card under it. */
+.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin: 2px var(--m) 12px; padding: 3px; border-radius: 999px; background: var(--tint); }
+.sc-switch button { position: relative; min-width: 0; height: 38px; border-radius: 999px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
+.sc-switch button::after { content: ''; position: absolute; inset: -5px 0; }   /* a 48px touch area */
+.sc-switch button[aria-checked='true'] { background: var(--white); color: var(--ink); box-shadow: 0 1px 3px var(--sh-2); }
+.sc-analysis { flex: none; }
 .sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--card-r); padding: 16px var(--card-pad); box-shadow: 0 8px 24px var(--sh-1); }
 .under { color: var(--red); }
 .sub-v { font-size: 17px; font-weight: var(--w-value); }
@@ -967,11 +983,11 @@ html.past-open { overflow: hidden; }
    The tap highlight is off, so without this a press in sunlight reads as "didn't work" and invites a second tap.
    Resting tint turns --press, a filled button --action-press, a white one --tint; on the dark picker a light chip turns
    --veil and a glass button --press-on-dark; the danger button turns --red-tint, its red deepened so it still reads 4.5:1. */
-.btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .picker .chip,
+.btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
 .ct-col, .sum-actions > *, .round-actions > * {
   transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
 }
-.btn:active, .sum-close:active, .menu-close:active, .check-actions button:active, .nine-pick button:active, .pk-len button:active,
+.btn:active, .sum-close:active, .menu-close:active, .check-actions button:active, .nine-pick button:active, .pk-len button:active, .sc-switch button:active,
 button.ct-col:active, .sum-actions > :active, .round-actions > :active { background-color: var(--press); }
 .btn.primary:active, .sh-go:active, .edit.on:active, .check-actions .primary:active, .sum-actions .primary:active:not(:disabled) { background-color: var(--action-press); }
 .edit:not(.on):active, .sc-finish:active { background-color: var(--tint); }
@@ -980,7 +996,7 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .pk-missing .btn:not(.primary):active { background-color: var(--white); }
 .btn.danger:active { background-color: var(--red-tint); color: var(--red-ink); }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .picker .chip,
+  .btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
   .ct-col, .sum-actions > *, .round-actions > * { transition: none; }
 }
 

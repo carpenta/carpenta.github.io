@@ -211,6 +211,55 @@ function bindViews(): void {
     e.preventDefault();
     show(target, true);
   });
+  bindPanes();
+  // 스코어카드 and 지난 라운드 say when there is more below (v26): on scroll, and whenever their content or the screen
+  // changes size (a round recorded, a pane chosen, the past rounds drawn, 큰 글씨).
+  const cue = new ResizeObserver(() => scrollHint());
+  for (const id of ['card-view', 'hist-view']) {
+    const v = $(id);
+    v.addEventListener('scroll', scrollHint, { passive: true });
+    for (const el of [v, ...v.children]) cue.observe(el);
+  }
+}
+
+/** 스코어카드's pane (v26): its tables or the round's analysis, kept in memory like the view. */
+type Pane = 'card' | 'analysis';
+let pane: Pane = 'card';
+
+function showPane(next: Pane, focus = false): void {
+  const changed = next !== pane;
+  pane = next;
+  for (const radio of document.querySelectorAll<HTMLButtonElement>('#sc-switch [role="radio"]')) {
+    const on = radio.dataset.pane === pane;
+    radio.setAttribute('aria-checked', String(on));
+    radio.tabIndex = on ? 0 : -1;
+    if (on && focus) radio.focus();
+  }
+  $('sc-sheet').hidden = pane !== 'card';
+  $('sc-analysis').hidden = pane !== 'analysis';
+  // 파 수정 belongs to the tables: it steps aside with them, and ends there.
+  $('edit-par').hidden = pane !== 'card';
+  if (pane !== 'card' && editPar) {
+    editPar = false;
+    render();
+  }
+  // Each pane opens at its top, so 분석 shows its first heading right under the switch.
+  if (changed) $('card-view').scrollTop = 0;
+  scrollHint();
+}
+
+function bindPanes(): void {
+  const radios = [...document.querySelectorAll<HTMLButtonElement>('#sc-switch [role="radio"]')];
+  for (const radio of radios) radio.addEventListener('click', () => showPane(radio.dataset.pane as Pane));
+  // A radio group: the arrows move to the other choice and choose it, going round; Home and End go to the ends.
+  $('sc-switch').addEventListener('keydown', (event) => {
+    const at = radios.findIndex((radio) => radio.dataset.pane === pane);
+    const step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[event.key];
+    const to = event.key === 'Home' ? 0 : event.key === 'End' ? radios.length - 1 : step === undefined ? -1 : (at + step + radios.length) % radios.length;
+    if (to < 0) return;
+    event.preventDefault();
+    showPane(radios[to].dataset.pane as Pane, true);
+  });
 }
 
 /* ---------- moving between holes: the arrows, 다음 홀 and a swipe all slide ---------- */
@@ -420,6 +469,11 @@ function drawCourse(): void {
 function scrollHint(): void {
   const sheet = $('sheet');
   $('sheet-wrap').classList.toggle('more', !$('entry').hidden && sheet.scrollHeight - sheet.clientHeight - sheet.scrollTop > 4);
+  // 스코어카드 and 지난 라운드 (v26): the same fade at their bottom edge while they can scroll further.
+  for (const id of ['card-view', 'hist-view']) {
+    const v = $(id);
+    v.classList.toggle('more', !v.hidden && v.scrollHeight - v.clientHeight - v.scrollTop > 4);
+  }
 }
 
 /* ---------- 기록: top bar, pills, badge, 상세, penalties ---------- */

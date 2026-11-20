@@ -264,7 +264,8 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await expect(page.locator('#card-view')).toBeHidden();
   await card.click();
   await expect(page.locator('#entry')).toBeHidden();
-  await expect(page.locator('#analysis')).toBeVisible();
+  // 스코어카드 opens on its tables (v26: the analysis is behind 분석, beside them).
+  await expect(page.locator('#scorecard')).toBeVisible();
   await card.focus();
   await page.keyboard.press('ArrowRight');
   await expect(entry).toBeFocused();
@@ -283,7 +284,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v25');
+  await expect(page.locator('#app-version')).toHaveText('v26');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -318,12 +319,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v25');
+  await expect(page.locator('#menu-version')).toHaveText('v26');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v25');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v26');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -2003,6 +2004,8 @@ for (const [width, height] of [[390, 844], [375, 553]]) {
         { sel: '.sh-stats dt', min: 4.5 }, { sel: '.ct-lbl .c-par', min: 4.5 }, { sel: '.ct-col .c-par', min: 4.5 }, { sel: '.nt-h small', min: 4.5 },
         { sel: '#par-source', min: 4.5 }, { sel: ".m[data-tone='under'] b", min: 3 }, { sel: ".m[data-tone='par'] b", min: 3 }, { sel: '#sh-ring b', min: 3 },
         { sel: '#scorecard .ct-col.cur .c-hole', min: 4.5 },
+        // 스코어카드 | 분석 (v26): the chosen half on its white pill, the other in --muted on the tint.
+        { sel: "#sc-switch [aria-checked='true']", min: 4.5 }, { sel: "#sc-switch [aria-checked='false']", min: 4.5 },
       ]);
       await page.locator('#finish-round').tap();
       await page.getByRole('button', { name: '그대로 마치기' }).tap();
@@ -2751,14 +2754,19 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       const items = await spansOf(page, '#legend li:not(.lg-cap)');
       expect(items).toHaveLength(6);
       items.forEach((item, i) => within1px(item.x, tiles[i % 3].x, `legend item ${i + 1}`));
-      // Both bar charts start and end their bars at the same x; text in a tile sits 12px in, in the hero and in 라운드 분석.
+      // Both bar charts start and end their bars at the same x; text in a tile sits 12px in, in the hero and in 라운드 분석
+      // (v26: behind 분석, then back to the tables).
+      within1px((await spanOf(page, '#sc-hero .sh-stats dt')).x - tiles[0].x, 12, 'hero tile text');
+      await page.getByRole('radio', { name: '분석', exact: true }).tap();
+      await settled(page);
       const lost = await spanOf(page, '#lost-bars .bar');
       const spread = await spanOf(page, '#analysis .bar-track');
       within1px(lost.x, spread.x, 'bars, start');
       within1px(endOf(lost), endOf(spread), 'bars, end');
-      within1px((await spanOf(page, '#sc-hero .sh-stats dt')).x - tiles[0].x, 12, 'hero tile text');
       const metric = await spanOf(page, '#analysis .metrics > div');
       within1px((await spanOf(page, '#analysis .metrics dt')).x - metric.x, 12, '분석 tile text');
+      await page.getByRole('radio', { name: '스코어카드', exact: true }).tap();
+      await settled(page);
       // 파 수정 keeps the same nine-column tables (v23): the heading and the hint keep their edges, the total its 전반 column.
       await page.locator('#edit-par').tap();
       await expect(page.locator('#edit-hint')).toBeVisible();
@@ -4418,6 +4426,7 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await open(page);
       await seed(page, SEVEN_HOLES, 5);
       await tab(page, '스코어카드').tap();
+      await page.getByRole('radio', { name: '분석', exact: true }).tap();
       await settled(page);
       const bars = await page.locator('#lost-bars .bar, #lost-bars .bar i, #analysis .bar-track, #analysis .bar-fill').evaluateAll((list) => list.map((el) => ({
         h: el.getBoundingClientRect().height, r: getComputedStyle(el).borderTopLeftRadius,
@@ -5056,4 +5065,146 @@ test('draws the share image in the bundled Pretendard, its weights loaded before
   // Each weight it draws in was asked for before the first word.
   const before = log.slice(0, log.findIndex((line) => line.startsWith('text '))).filter((line) => line.startsWith('load ')).join(' | ');
   for (const weight of new Set(texts.map((line) => /^text (\d{3}) /.exec(line)?.[1] ?? '400'))) expect(before, `weight ${weight}`).toMatch(new RegExp(`load ${weight} [\\d.]+px ["']?Pretendard`));
+});
+
+/* ---------- v26: 스코어카드 | 분석, and a cue wherever 스코어카드 and 지난 라운드 scroll ---------- */
+
+/** The 스코어카드 | 분석 switch's two choices (a radio group, so the tab bar keeps the only tab named 스코어카드). */
+const pane = (page: Page, name: '스코어카드' | '분석') => page.getByRole('radiogroup', { name: '스코어카드 보기' }).getByRole('radio', { name, exact: true });
+/** The fade at the bottom of a scrolling view, as drawn. */
+const cueOf = (page: Page, view: string) => page.locator(view).evaluate((el) => getComputedStyle(el, '::after').opacity);
+/** Whether a view can scroll further down from where it is. */
+const moreBelow = (page: Page, view: string) => page.locator(view).evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop > 4);
+
+for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
+  test.describe(`스코어카드 | 분석 on a ${width}×${height} phone (v26)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true });
+
+    test('shows the switch on the cards’ edges without scrolling, and 분석 opens the analysis at its top', async ({ page }) => {
+      await open(page);
+      await seed(page, SEVEN_HOLES, 5);
+      await tab(page, '스코어카드').tap();
+      await settled(page);
+      const sw = await spanOf(page, '#sc-switch');
+      const sheet = await spanOf(page, '#sc-sheet');
+      const bar = await spanOf(page, '#views');
+      // On screen before any scrolling, above the tab bar, on the cards' edges (the 16px grid).
+      expect(await page.locator('#card-view').evaluate((el) => el.scrollTop)).toBe(0);
+      expect(sw.y).toBeGreaterThanOrEqual(0);
+      expect(sw.y + sw.height).toBeLessThanOrEqual(bar.y);
+      within1px(sw.x, 16, 'switch, left');
+      within1px(sw.x, sheet.x, 'switch on the card, left');
+      within1px(endOf(sw), endOf(sheet), 'switch on the card, right');
+      // Two equal halves with their words in the middle, each a 48px target.
+      const halves = await spansOf(page, '#sc-switch [role="radio"]');
+      expect(halves).toHaveLength(2);
+      within1px(halves[0].width, halves[1].width, 'halves');
+      for (const h of await page.locator('#sc-switch [role="radio"]').evaluateAll((list) => list.map((el) => {
+        const r = el.getBoundingClientRect();
+        const after = getComputedStyle(el, '::after');
+        const touch = r.height + (parseFloat(after.top) < 0 ? -parseFloat(after.top) : 0) + (parseFloat(after.bottom) < 0 ? -parseFloat(after.bottom) : 0);
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const words = range.getBoundingClientRect();
+        return { touch, off: words.x + words.width / 2 - (r.x + r.width / 2) };
+      }))) {
+        expect(h.touch).toBeGreaterThanOrEqual(48);
+        expect(Math.abs(h.off)).toBeLessThanOrEqual(1);
+      }
+      await expect(pane(page, '스코어카드')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.locator('#sc-sheet')).toBeVisible();
+      await expect(page.locator('#sc-analysis')).toBeHidden();
+      // From the bottom of the tables, 분석 shows the analysis from its first heading, under the switch.
+      await page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await pane(page, '분석').tap();
+      await expect(pane(page, '분석')).toHaveAttribute('aria-checked', 'true');
+      await expect(page.locator('#sc-sheet')).toBeHidden();
+      await expect(page.locator('#sc-analysis')).toBeVisible();
+      await settled(page);
+      const head = await spanOf(page, '#lost-title');
+      expect(head.y).toBeGreaterThanOrEqual((await spanOf(page, '#sc-switch')).y + sw.height);
+      expect(head.y + head.height).toBeLessThanOrEqual(bar.y);
+      await expect(page.locator('#analysis .headline')).toContainText('7홀');
+      // 라운드 마치기 is still at the end, on the cards' edges.
+      await page.locator('#finish-round').scrollIntoViewIfNeeded();
+      const finish = await spanOf(page, '#finish-round');
+      expect(finish.y + finish.height).toBeLessThanOrEqual(bar.y);
+      within1px(finish.x, sw.x, '라운드 마치기, left');
+      expect(await page.locator('#card-view').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+    });
+  });
+}
+
+test('the 스코어카드 | 분석 switch is a radio group: arrows choose, the choice stays across tabs, and 파 수정 steps aside on 분석 (v26)', async ({ page }) => {
+  await open(page);
+  await seed(page, SEVEN_HOLES, 5);
+  await showCard(page);
+  const card = pane(page, '스코어카드');
+  const analysis = pane(page, '분석');
+  await expect(card).toHaveAttribute('tabindex', '0');
+  await expect(analysis).toHaveAttribute('tabindex', '-1');
+  await card.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(analysis).toBeFocused();
+  await expect(analysis).toHaveAttribute('aria-checked', 'true');
+  await expect(card).toHaveAttribute('aria-checked', 'false');
+  await expect(analysis).toHaveAttribute('tabindex', '0');
+  await expect(page.locator('#sc-analysis')).toBeVisible();
+  await expect(page.locator('#sc-sheet')).toBeHidden();
+  // 파 수정 belongs to the tables: it steps aside on 분석.
+  await expect(page.locator('#edit-par')).toBeHidden();
+  await page.keyboard.press('ArrowRight');
+  await expect(card).toBeFocused();
+  await expect(card).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#edit-par')).toBeVisible();
+  // 파 수정 on, then 분석: it ends there, and the tables come back as they were.
+  await page.locator('#edit-par').click();
+  await expect(page.locator('#edit-par')).toHaveText('완료');
+  await analysis.click();
+  await card.click();
+  await expect(page.locator('#edit-par')).toHaveText('파 수정');
+  await expect(page.locator('#edit-hint')).toBeHidden();
+  // The choice stays while the other tabs are used, as the view does.
+  await analysis.click();
+  await tab(page, '기록').click();
+  await tab(page, '스코어카드').click();
+  await expect(analysis).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#sc-analysis')).toBeVisible();
+  // A hole opened from the analysis' tables is still a tap away: 스코어카드 shows them again.
+  await card.click();
+  await expect(page.locator('#scorecard button[data-hole="4"]')).toBeVisible();
+});
+
+test('a soft fade at the bottom says 스코어카드 and 지난 라운드 have more below, only while they do (v26)', async ({ page }) => {
+  const seen = new Set<boolean>();
+  const check = async (view: string, what: string) => {
+    const more = await moreBelow(page, view);
+    seen.add(more);
+    await expect.poll(() => cueOf(page, view), what).toBe(more ? '1' : '0');
+  };
+  // A short phone: the tables run under the tab bar, then end.
+  await page.setViewportSize({ width: 375, height: 553 });
+  await open(page);
+  await seed(page, SEVEN_HOLES, 5);
+  await showCard(page);
+  await check('#card-view', '스코어카드 at its top');
+  expect(await moreBelow(page, '#card-view')).toBe(true);
+  await page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await check('#card-view', '스코어카드 at its end');
+  expect(await moreBelow(page, '#card-view')).toBe(false);
+  await pane(page, '분석').click();
+  await check('#card-view', '분석 at its top');
+  await page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await check('#card-view', '분석 at its end');
+  // A tall phone and a new round: 분석 and 지난 라운드 fit, so no fade.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => localStorage.clear());
+  await open(page);
+  await showCard(page);
+  await pane(page, '분석').click();
+  await check('#card-view', 'an empty 분석');
+  expect(await moreBelow(page, '#card-view')).toBe(false);
+  await tab(page, '지난 라운드').click();
+  await check('#hist-view', 'an empty 지난 라운드');
+  expect(seen).toEqual(new Set([true, false]));
 });

@@ -120,6 +120,12 @@
           <div class="sc-title"><h2>스코어카드</h2><p id="sc-sub"></p></div>
           <button class="edit" type="button" id="edit-par" aria-pressed="false">파 수정</button>
         </header>
+        <!-- 스코어카드 | 분석 (v26): the tables or the round's analysis, one at a time, so the analysis never waits below an
+             unmarked fold. A radio group, so the tab bar keeps the only tab named 스코어카드; the choice is kept in memory. -->
+        <div class="sc-switch" id="sc-switch" role="radiogroup" aria-label="스코어카드 보기">
+          <button type="button" role="radio" id="sc-pick-card" data-pane="card" aria-checked="true" tabindex="0">스코어카드</button>
+          <button type="button" role="radio" id="sc-pick-analysis" data-pane="analysis" aria-checked="false" tabindex="-1">분석</button>
+        </div>
 
         <section class="sc-sheet" id="sc-sheet" aria-label="합계와 홀별 스코어">
           <!-- The round so far: the score in a ring, against par, holes recorded, then putts, OB and hazards -->
@@ -147,16 +153,19 @@
           <p id="par-source" class="par-source"><span id="card-tip">홀 칸을 누르면 그 홀 기록으로 가요. </span><span id="par-from"></span></p>
         </section>
 
-        <section class="box lost" aria-labelledby="lost-title">
-          <h3 id="lost-title">타수를 잃은 곳</h3>
-          <p id="lost-note" class="muted">홀을 기록하면 보여요.</p>
-          <ul class="lost-bars" id="lost-bars"></ul>
-        </section>
+        <!-- 분석 (v26): where the strokes went, then the round's analysis -->
+        <div class="sc-analysis" id="sc-analysis" hidden>
+          <section class="box lost" aria-labelledby="lost-title">
+            <h3 id="lost-title">타수를 잃은 곳</h3>
+            <p id="lost-note" class="muted">홀을 기록하면 보여요.</p>
+            <ul class="lost-bars" id="lost-bars"></ul>
+          </section>
 
-        <section class="box" aria-labelledby="analysis-title">
-          <h3 id="analysis-title">라운드 분석</h3>
-          <div id="analysis"></div>
-        </section>
+          <section class="box" aria-labelledby="analysis-title">
+            <h3 id="analysis-title">라운드 분석</h3>
+            <div id="analysis"></div>
+          </section>
+        </div>
 
         <button class="sc-finish" type="button" id="finish-round">라운드 마치기</button>
         <p id="save-state" class="muted save-line"></p>
