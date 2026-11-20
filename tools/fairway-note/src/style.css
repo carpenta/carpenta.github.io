@@ -493,8 +493,10 @@ body.big .legend { --lg-col: 100px; }
 .history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
 /* The text on the card's edges like everything else in it; only the pressed background reaches 4px past them (v17). */
+/* Each line's two ends on one baseline, the score on its date's whatever the font's ascent; the lines centred (v18). */
 .past-item {
-  width: calc(100% + 8px); min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: center;
+  width: calc(100% + 8px); min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px;
+  align-items: baseline; align-content: center;
   margin-inline: -4px; padding: 10px 4px; border-radius: 12px; text-align: left;
 }
 .past-item:active { background: var(--tint); }

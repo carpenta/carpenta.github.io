@@ -1650,6 +1650,20 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       expect(await sideScroll(page)).toBe(0);
     });
 
+    test('with other fonts, 지난 라운드 keeps each score on its title’s baseline', async ({ page }) => {
+      await open(page);
+      await seed(page, SEVEN_HOLES, 5);
+      await seedHistory(page, [10, 12, 8]);
+      await page.addStyleTag({ content: OTHER_TYPE });
+      await tab(page, '지난 라운드').tap();
+      await expect(pastItems(page)).toHaveCount(3);
+      await settled(page);
+      within1px(await baselineOf(page, '#now-score'), await baselineOf(page, '#now-title'), '지금 라운드 score');
+      for (const n of [1, 2, 3]) {
+        const row = `#history-list li:nth-child(${n})`;
+        within1px(await baselineOf(page, `${row} .past-score`), await baselineOf(page, `${row} .past-when`), `row ${n} score`);
+      }
+    });
   });
 }
 
