@@ -34,7 +34,7 @@ export const CLUB_ICONS: Record<Tagged, string> = { driver: icon('driver'), appr
 
 /** The penalty row: the OB stake (white, dark band) and the hazard stake (red) stay filled; the bunker is a line icon. */
 export const PEN_ICONS = {
-  ob: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#fff" stroke="#17301A" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.5h8v4.5H8z" fill="#17301A"/></svg>',
-  hazard: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path d="M8 2h8v20l-4 7-4-7z" fill="#C0392B" stroke="#8C2A20" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  ob: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path class="stake-ob" d="M8 2h8v20l-4 7-4-7z" stroke-width="1.6" stroke-linejoin="round"/><path class="stake-band" d="M8 6.5h8v4.5H8z"/></svg>',
+  hazard: '<svg viewBox="0 0 24 32" width="20" height="28" aria-hidden="true"><path class="stake-hazard" d="M8 2h8v20l-4 7-4-7z" stroke-width="1.6" stroke-linejoin="round"/></svg>',
   bunker: icon('bunker', 26),
 } as const;

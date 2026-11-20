@@ -15,24 +15,24 @@ const M = 72;
 /** The app's own font stack (`--font` in style.css): system fonts only, nothing is downloaded. */
 const FONT = "-apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif";
 
-const C = {
-  turf: '#2F7D3A',
-  putting: '#8CCB6E',
-  ink: '#17301A',
-  deep: '#16301D',
-  paper: '#F3F7EF',
-  red: '#C0392B',
-  sand: '#D9B45A',
-  white: '#FFFFFF',
-  pill: '#DCEBD5',
-  muted: '#4E6450',
-  line: '#D3E2CC',
-  quiet: '#6E856C',
-  sandTint: '#F7EBC9',
-  sandLine: '#E6CF8F',
-  sandBand: '#EFD9A0',
-  tabInk: '#A9C4A3',
-} as const;
+/** The image's colours: the app's palette (style.css), read from the page when the image is drawn (v19). */
+export type SharePalette = Record<'turf' | 'putting' | 'ink' | 'deep' | 'paper' | 'red' | 'sand' | 'white' | 'pill' | 'muted' | 'line' | 'quiet' | 'sandTint' | 'sandLine' | 'sandBand' | 'tabInk' | 'mark', string>;
+/** The palette token behind each of the image's colours. */
+export const SHARE_TOKENS: Readonly<Record<keyof SharePalette, string>> = {
+  turf: '--turf', putting: '--putting', ink: '--ink', deep: '--deep', paper: '--paper', red: '--red', sand: '--sand',
+  white: '--white', pill: '--pill', muted: '--muted', line: '--line', quiet: '--quiet', sandTint: '--sand-tint',
+  sandLine: '--sand', sandBand: '--sand-band', tabInk: '--tab-ink', mark: '--on-dark-2',
+};
+let C: SharePalette;
+/** Sets the colours the image is drawn in: `readSharePalette()` in the app, a fixed set in tests. */
+export function useSharePalette(palette: SharePalette): void {
+  C = palette;
+}
+/** An opaque `#rrggbb` colour at opacity `a`, for the image's washes, shadows and rules. */
+function alpha(color: string, a: number): string {
+  const n = parseInt(color.slice(1, 7), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
 
 /* ---------- content: the numbers on the card ---------- */
 
@@ -266,7 +266,8 @@ export function markShapes(mark: ScoreName, cx: number, cy: number, size: number
   }
 }
 
-const TONE_COLOR: Record<Tone, string> = { under: C.red, par: C.turf, over: C.ink };
+/** A score's colour: red under par, green at par, ink over. */
+const toneColor = (tone: Tone): string => ({ under: C.red, par: C.turf, over: C.ink })[tone];
 
 /** The visual middle of digits and Latin capitals above the baseline, as a share of the font size. */
 const CAP = 0.36;
@@ -297,10 +298,10 @@ function background(o: Ops): void {
   const band = 170;
   const top = (x: number) => vx + ((x - vx) * -vy) / (H - vy);
   for (let b = -5 * band; b < W + 5 * band; b += 2 * band) {
-    o.push({ kind: 'poly', points: [[top(b), 0], [top(b + band), 0], [b + band, H], [b, H]], fill: 'rgba(255,255,255,0.035)' });
+    o.push({ kind: 'poly', points: [[top(b), 0], [top(b + band), 0], [b + band, H], [b, H]], fill: alpha(C.white, 0.035) });
   }
-  o.push({ kind: 'rect', x: 0, y: 0, w: W, h: H, fill: { type: 'radial', coords: [300, 380, 0, 300, 380, 760], stops: [[0, 'rgba(140,203,110,0.16)'], [1, 'rgba(140,203,110,0)']] } });
-  o.push({ kind: 'rect', x: 0, y: 0, w: W, h: H, fill: { type: 'linear', coords: [0, 0, 0, H], stops: [[0, 'rgba(4,14,7,0)'], [0.6, 'rgba(4,14,7,0)'], [1, 'rgba(4,14,7,0.42)']] } });
+  o.push({ kind: 'rect', x: 0, y: 0, w: W, h: H, fill: { type: 'radial', coords: [300, 380, 0, 300, 380, 760], stops: [[0, alpha(C.putting, 0.16)], [1, alpha(C.putting, 0)]] } });
+  o.push({ kind: 'rect', x: 0, y: 0, w: W, h: H, fill: { type: 'linear', coords: [0, 0, 0, H], stops: [[0, alpha(C.ink, 0)], [0.6, alpha(C.ink, 0)], [1, alpha(C.ink, 0.42)]] } });
 }
 
 function header(o: Ops, c: ShareCardContent): void {
@@ -368,7 +369,7 @@ function scorecard(o: Ops, c: ShareCardContent, cardY: number): void {
   const rows = one ? ROWS.one : ROWS.two;
   const table = rows.no + rows.par + rows.score + rows.putts;
   const inner = CARD.w - 2 * CARD.pad;
-  o.push({ kind: 'rect', id: 'card', x: CARD.x, y: cardY, w: CARD.w, h: cardHeight(c.scorecard.length), r: 40, fill: C.paper, shadow: { color: 'rgba(0,0,0,0.28)', blur: 40, y: 14 } });
+  o.push({ kind: 'rect', id: 'card', x: CARD.x, y: cardY, w: CARD.w, h: cardHeight(c.scorecard.length), r: 40, fill: C.paper, shadow: { color: alpha(C.ink, 0.28), blur: 40, y: 14 } });
 
   const x0 = CARD.x + CARD.pad;
   const labelW = 56;
@@ -380,7 +381,7 @@ function scorecard(o: Ops, c: ShareCardContent, cardY: number): void {
     const title = o.text(`nine-${nine.key}-title`, nine.title, x0, top + 30, 30, 800, C.ink, 'left', inner - 220, 22);
     // A course without nine names already says 전반 9홀 in the title.
     if (!nine.title.startsWith(nine.label)) o.text(`nine-${nine.key}-label`, nine.label, x0 + title.width + 14, top + 30, 24, 600, C.muted, 'left', 80);
-    if (nine.tone) o.text(`nine-${nine.key}-par`, nine.toPar, x0 + inner, top + 30, 26, 800, TONE_COLOR[nine.tone], 'right', 140);
+    if (nine.tone) o.text(`nine-${nine.key}-par`, nine.toPar, x0 + inner, top + 30, 26, 800, toneColor(nine.tone), 'right', 140);
     const y = top + rows.title;
     const mid = (from: number, h: number) => from + h / 2;
     const rowNo = y;
@@ -402,7 +403,7 @@ function scorecard(o: Ops, c: ShareCardContent, cardY: number): void {
       const sy = mid(rowScore, rows.score);
       const markSize = Math.min(colW - 12, rows.score - 14, one ? 66 : 60);
       if (hole.mark && hole.tone && hole.score !== null) {
-        const color = TONE_COLOR[hole.tone];
+        const color = toneColor(hole.tone);
         const shapes = markShapes(hole.mark, cx, sy, markSize, color);
         if (shapes.length) col.push({ kind: 'group', id: `hole-${hole.hole}-mark`, ops: shapes });
         const size = one ? 38 : 34;
@@ -430,7 +431,7 @@ function stats(o: Ops, c: ShareCardContent, top: number): void {
   const colW = (W - 2 * M) / c.stats.length;
   c.stats.forEach((s, k) => {
     const cx = M + k * colW + colW / 2;
-    if (k > 0) o.push({ kind: 'line', x1: M + k * colW, y1: top + 6, x2: M + k * colW, y2: top + 112, stroke: 'rgba(255,255,255,0.16)', lineWidth: 2 });
+    if (k > 0) o.push({ kind: 'line', x1: M + k * colW, y1: top + 6, x2: M + k * colW, y2: top + 112, stroke: alpha(C.white, 0.16), lineWidth: 2 });
     o.text(`stat-${s.key}-label`, s.label, cx, top + 30, 24, 600, C.tabInk, 'center', colW - 16);
     o.text(`stat-${s.key}-value`, s.value, cx, top + 78, 42, 800, C.white, 'center', colW - 20, 28);
     if (s.sub) o.text(`stat-${s.key}-sub`, s.sub, cx, top + 110, 22, 600, C.putting, 'center', colW - 16, 18);
@@ -450,7 +451,7 @@ function appIcon(x: number, y: number, size: number): GroupOp {
         kind: 'group',
         transform: [0.0648, 0, 0, 0.0648, -2.57, -0.27],
         ops: [
-          { kind: 'path', d: 'M421.6 193.3L390.7 183.8L500.5 -177.9L535.6 -167Z', fill: '#DCE5D8' },
+          { kind: 'path', d: 'M421.6 193.3L390.7 183.8L500.5 -177.9L535.6 -167Z', fill: C.mark },
           { kind: 'path', d: 'M171.8 240.9C124.2 225.8 87.5 246.3 88.6 294.9C89.7 327.3 100.5 353.2 126.4 362.9C195.5 377 303.5 378 357.5 369.4C376.7 366.4 385.2 348.3 389.9 327.3L422.8 182.3L396 174.1L366.6 269C362.2 283.4 337.3 296.2 323 291.6Z', fill: C.white },
           { kind: 'path', d: 'M141.5 303.5H303.5M137.2 338.1H327.3', stroke: C.turf, lineWidth: 24 },
         ],
@@ -465,7 +466,7 @@ function footer(o: Ops): void {
   const name = o.measure('Fairway Note', 26, 700);
   const x = (W - (icon + 14 + name)) / 2;
   o.push(appIcon(x, y - 29, icon));
-  o.text('wordmark', 'Fairway Note', x + icon + 14, y, 26, 700, 'rgba(255,255,255,0.78)', 'left', 300);
+  o.text('wordmark', 'Fairway Note', x + icon + 14, y, 26, 700, alpha(C.white, 0.78), 'left', 300);
 }
 
 export function shareCardLayout(round: Round, measure: Measure = estimateWidth): ShareCardLayout {
@@ -576,11 +577,34 @@ export function paintShareCard(ctx: CanvasRenderingContext2D, ops: readonly Draw
 }
 
 /**
+ * The palette tokens as canvas colours: the browser resolves each (mixes too) on a probe, and one pixel gives it back
+ * as `#rrggbb`, or `rgba()` for a translucent layer.
+ */
+export function readSharePalette(): SharePalette {
+  const probe = document.createElement('i');
+  probe.hidden = true;
+  document.body.append(probe);
+  const px = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const palette = {} as SharePalette;
+  for (const [key, token] of Object.entries(SHARE_TOKENS) as [keyof SharePalette, string][]) {
+    probe.style.color = `var(${token})`;
+    px.clearRect(0, 0, 1, 1);
+    px.fillStyle = getComputedStyle(probe).color;
+    px.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = px.getImageData(0, 0, 1, 1).data;
+    palette[key] = a === 255 ? `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}` : `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`;
+  }
+  probe.remove();
+  return palette;
+}
+
+/**
  * Draws the round's share card and encodes it as a 1080×1350 PNG. Needs only a canvas: no network, no images and
  * no fonts beyond the system's, so it works offline and under the app's CSP. The caller shares the file
  * (`navigator.share({ files })`) or downloads it.
  */
 export async function drawShareCard(round: Round): Promise<Blob> {
+  useSharePalette(readSharePalette());
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;

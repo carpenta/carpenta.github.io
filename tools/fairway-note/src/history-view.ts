@@ -48,7 +48,7 @@ let view: { list: HTMLOListElement; trends: HTMLElement; note: HTMLElement; empt
 function emptyState(): HTMLElement {
   const box = h('div', { id: 'history-empty', class: 'hist-empty' });
   // Static markup: a flag on a little green, drawn from numbers only.
-  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse cx="32" cy="40" rx="24" ry="6" fill="#8FCC71"/><ellipse cx="34" cy="39" rx="3" ry="1.4" fill="#17301A"/><path d="M34 39V8" stroke="#6E856C" stroke-width="2" stroke-linecap="round"/><path d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z" fill="#D2402F"/></svg>';
+  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse class="a-green-fill" cx="32" cy="40" rx="24" ry="6" stroke="none"/><ellipse class="a-cup" cx="34" cy="39" rx="3" ry="1.4"/><path class="a-pole-quiet" d="M34 39V8" stroke-width="2" stroke-linecap="round"/><path class="a-flag" d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z"/></svg>';
   box.append(h('p', { class: 'he-1' }, '아직 보관한 라운드가 없어요'), h('p', { class: 'he-2' }, '라운드를 마치고 "지난 라운드에 보관"을 누르면 여기에 쌓여요.'));
   return box;
 }

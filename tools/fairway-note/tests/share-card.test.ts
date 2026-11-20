@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { analyze, newRound, type Hole, type Round } from '../src/round';
-import { SHARE_CARD_SIZE, markShapes, shareCardContent, shareCardFileName, shareCardLayout, type DrawOp, type TextOp } from '../src/share-card';
+import { SHARE_CARD_SIZE, markShapes, shareCardContent, shareCardFileName, shareCardLayout, useSharePalette, type DrawOp, type TextOp } from '../src/share-card';
+
+// The app reads its palette from style.css when it draws; these tests draw in a fixed set of colours.
+useSharePalette({
+  turf: '#2F7D3A', putting: '#8CCB6E', ink: '#17301A', deep: '#16301D', paper: '#F3F7EF', red: '#C0392B', sand: '#D9B45A',
+  white: '#FFFFFF', pill: '#DCEBD5', muted: '#4E6450', line: '#D3E2CC', quiet: '#6E856C', sandTint: '#F7EBC9',
+  sandLine: '#E6CF8F', sandBand: '#EFD9A0', tabInk: '#A9C4A3', mark: '#DCE5D8',
+});
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan });
 const tee = (h: Hole, tag: 'fairway' | 'left' | 'right' | 'far-right'): Hole => ({ ...h, tags: { driver: [tag] } });

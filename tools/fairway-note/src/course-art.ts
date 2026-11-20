@@ -144,17 +144,17 @@ export function holeThumb(par: Par, bend: Bend, island: boolean): string {
   const turn = k === 0 ? 0 : bend;
   const g = { cx: [26, 31, 33][k], cy: 14 + turn * 6, rx: [7.5, 5.5, 4.5][k], ry: [6, 4.5, 4][k] };
   const teeX = [5, 4, 3][k];
-  const out = ['<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true" focusable="false"><rect width="40" height="28" fill="#3E6B2E"/>'];
+  const out = ['<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true" focusable="false"><rect class="a-rough-fill" width="40" height="28"/>'];
   if (k > 0) {
     // Straight off the tee, turning toward the green in the last third.
-    out.push(`<path class="th-fairway" d="M${teeX + 3} 14Q${f(g.cx - 4)} 14 ${f(g.cx - g.rx * 0.6)} ${f(g.cy)}" fill="none" stroke="#5BAA4F" stroke-width="${k === 1 ? 7 : 6}" stroke-linecap="round"/>`);
+    out.push(`<path class="th-fairway" d="M${teeX + 3} 14Q${f(g.cx - 4)} 14 ${f(g.cx - g.rx * 0.6)} ${f(g.cy)}" fill="none" stroke-width="${k === 1 ? 7 : 6}" stroke-linecap="round"/>`);
   }
-  if (island) out.push(`<ellipse class="th-water" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx * 1.6)}" ry="${f(g.ry * 1.6)}" fill="#4F90B8"/>`);
-  out.push(`<ellipse class="th-green" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx)}" ry="${f(g.ry)}" fill="#8CCB6E" stroke="#4E963F" stroke-width="1"/>`);
-  out.push(`<rect x="${teeX - 2}" y="12" width="5" height="4" rx="1.5" fill="#A2D987"/>`);
+  if (island) out.push(`<ellipse class="th-water" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx * 1.6)}" ry="${f(g.ry * 1.6)}"/>`);
+  out.push(`<ellipse class="th-green" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx)}" ry="${f(g.ry)}" stroke-width="1"/>`);
+  out.push(`<rect class="a-tee-fill" x="${teeX - 2}" y="12" width="5" height="4" rx="1.5"/>`);
   // The flag: a white pole and a red pennant, kept inside the picture.
   const top = Math.max(2, g.cy - 9);
-  out.push(`<path d="M${f(g.cx)} ${f(g.cy)}V${f(top)}" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/><path d="M${f(g.cx + 0.5)} ${f(top)}l4 1.6-4 1.6z" fill="#D2402F"/>`);
+  out.push(`<path class="a-pole" d="M${f(g.cx)} ${f(g.cy)}V${f(top)}" stroke-width="1.2" stroke-linecap="round"/><path class="a-flag" d="M${f(g.cx + 0.5)} ${f(top)}l4 1.6-4 1.6z"/>`);
   out.push('</svg>');
   return out.join('');
 }
@@ -166,18 +166,18 @@ export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
   const out: string[] = [
     '<defs>',
     // Two-tone rough with a short grain, a vignette and a shade under the header.
-    '<radialGradient id="course-rough" cx="50%" cy="46%" r="78%"><stop offset="0" stop-color="#4B7C38"/><stop offset="0.62" stop-color="#3E6B2E"/><stop offset="1" stop-color="#30561F"/></radialGradient>',
-    '<pattern id="course-grain" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M2 4l1.1-2.2M9 10l1-2.3M13 4.5l.8-2M5.5 14l1-2.1M12 15l.8-1.8" stroke="#2A4F20" stroke-width="1.1" stroke-linecap="round" opacity=".55"/><path d="M4.5 8.5l.9-1.9M11 1.5l.7-1.4M15 11l.7-1.6M1 13l.8-1.7" stroke="#6A9C52" stroke-width="1" stroke-linecap="round" opacity=".4"/></pattern>',
+    '<radialGradient id="course-rough" cx="50%" cy="46%" r="78%"><stop class="a-rough-hi" offset="0"/><stop class="a-rough" offset="0.62"/><stop class="a-rough-lo" offset="1"/></radialGradient>',
+    '<pattern id="course-grain" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M2 4l1.1-2.2M9 10l1-2.3M13 4.5l.8-2M5.5 14l1-2.1M12 15l.8-1.8" class="a-grain-dark" stroke-width="1.1" stroke-linecap="round"/><path d="M4.5 8.5l.9-1.9M11 1.5l.7-1.4M15 11l.7-1.6M1 13l.8-1.7" class="a-grain-light" stroke-width="1" stroke-linecap="round"/></pattern>',
     // Mowing stripes across the line of play.
-    `<pattern id="course-mow" width="44" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(shape.angle)})"><rect width="22" height="44" fill="#67B45B"/></pattern>`,
-    '<radialGradient id="course-dome" cx="40%" cy="34%" r="72%"><stop offset="0" stop-color="#A6DA8C"/><stop offset="0.7" stop-color="#8FCC71"/><stop offset="1" stop-color="#7FC163"/></radialGradient>',
-    '<radialGradient id="course-vignette" cx="50%" cy="50%" r="75%"><stop offset="0.62" stop-color="#0B200D" stop-opacity="0"/><stop offset="1" stop-color="#0B200D" stop-opacity=".38"/></radialGradient>',
-    '<linearGradient id="course-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B200D" stop-opacity=".42"/><stop offset=".22" stop-color="#0B200D" stop-opacity="0"/></linearGradient>',
-    '<linearGradient id="course-teebox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A2D987"/><stop offset="1" stop-color="#84C468"/></linearGradient>',
+    `<pattern id="course-mow" width="44" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(shape.angle)})"><rect class="a-stripe-light" width="22" height="44"/><rect class="a-stripe-dark" x="22" width="22" height="44"/></pattern>`,
+    '<radialGradient id="course-dome" cx="40%" cy="34%" r="72%"><stop class="a-green-hi" offset="0"/><stop class="a-green" offset="0.7"/><stop class="a-green-lo" offset="1"/></radialGradient>',
+    '<radialGradient id="course-vignette" cx="50%" cy="50%" r="75%"><stop class="a-dark-0" offset="0.62"/><stop class="a-vignette" offset="1"/></radialGradient>',
+    '<linearGradient id="course-shade" x1="0" y1="0" x2="0" y2="1"><stop class="a-shade" offset="0"/><stop class="a-dark-0" offset=".22"/></linearGradient>',
+    '<linearGradient id="course-teebox" x1="0" y1="0" x2="0" y2="1"><stop class="a-tee-hi" offset="0"/><stop class="a-tee-lo" offset="1"/></linearGradient>',
     // Faint mowing bands on the green, across the line of play (rings read as contours).
-    `<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(shape.angle + 90)})"><rect width="7" height="14" fill="#FFFFFF"/></pattern>`,
+    `<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(shape.angle + 90)})"><rect class="a-green-stripe" width="7" height="14"/></pattern>`,
     // An island green's water fades in over 30px below the top of the open band, under the chips.
-    `<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>`,
+    `<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset="1" stop-color="white"/></linearGradient>`,
     `<mask id="course-wmask"><rect width="${W}" height="${H}" fill="url(#course-wfade)"/></mask>`,
     '</defs>',
     `<rect width="${W}" height="${H}" fill="url(#course-rough)"/><rect width="${W}" height="${H}" fill="url(#course-grain)"/>`,
@@ -185,46 +185,46 @@ export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
   if (fairway) {
     const d = smooth(fairway);
     // The rough's darker edge, the first cut, the fairway, then its stripes.
-    out.push(`<path d="${d}" fill="none" stroke="#386A2B" stroke-width="20" stroke-linejoin="round"/>`);
-    out.push(`<path d="${d}" fill="none" stroke="#549F47" stroke-width="10" stroke-linejoin="round"/>`);
-    out.push(`<path class="fairway" d="${d}" fill="#5BAA4F"/><path d="${d}" fill="url(#course-mow)"/>`);
+    out.push(`<path class="a-edge" d="${d}" fill="none" stroke-width="20" stroke-linejoin="round"/>`);
+    out.push(`<path class="a-cut" d="${d}" fill="none" stroke-width="10" stroke-linejoin="round"/>`);
+    out.push(`<path class="fairway" d="${d}"/><path d="${d}" fill="url(#course-mow)"/>`);
   }
   const ring = (s: number) => g.outline.map((r, j): [number, number] => {
     const a = (j / g.outline.length) * Math.PI * 2;
     return [g.cx + Math.cos(a) * g.rx * r * s, g.cy + Math.sin(a) * g.ry * r * s];
   });
   if (shape.water) {
-    out.push(`<g mask="url(#course-wmask)"><path class="water" d="${smooth(ring(1.78))}" fill="#4F90B8"/>`);
-    out.push(`<path d="${smooth(ring(1.66))}" fill="none" stroke="#86BCD9" stroke-width="2.5" opacity=".8"/>`);
-    out.push(`<path d="${smooth(ring(1.5))}" fill="none" stroke="#6FA9CB" stroke-width="1.5" stroke-dasharray="10 14" opacity=".7"/></g>`);
+    out.push(`<g mask="url(#course-wmask)"><path class="water" d="${smooth(ring(1.78))}"/>`);
+    out.push(`<path d="${smooth(ring(1.66))}" class="a-water-hi" fill="none" stroke-width="2.5" opacity=".8"/>`);
+    out.push(`<path d="${smooth(ring(1.5))}" class="a-water-mid" fill="none" stroke-width="1.5" stroke-dasharray="10 14" opacity=".7"/></g>`);
   }
   // The green: its fringe, a softly domed surface and faint mowing bands.
-  out.push(`<path d="${smooth(ring(1.17))}" fill="#6CB257" stroke="#4E963F" stroke-width="1.5"/>`);
+  out.push(`<path class="a-fringe" d="${smooth(ring(1.17))}" stroke-width="1.5"/>`);
   out.push(`<path class="green" d="${smooth(ring(1))}" fill="url(#course-dome)"/>`);
-  out.push(`<path d="${smooth(ring(1))}" fill="url(#course-gmow)" opacity=".07"/>`);
+  out.push(`<path d="${smooth(ring(1))}" fill="url(#course-gmow)"/>`);
   if (pin) {
     // The pole's shadow, the cup, the pole and a flag that waves.
     const fw = Math.max(13, pin.pole * 0.46);
     const fh = Math.max(10, pin.pole * 0.34);
     const top = pin.y - pin.pole;
     const x = pin.x;
-    out.push(`<path d="M${f(x)} ${f(pin.y)}l${f(pin.pole * 0.6)} ${f(pin.pole * 0.22)}" stroke="#2F6A28" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/>`);
-    out.push(`<ellipse cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9" fill="#17301A"/>`);
-    out.push(`<path d="M${f(x)} ${f(pin.y)}V${f(top)}" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>`);
-    out.push(`<path class="flag" d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.7)} ${f(top + fh * 0.2)} ${f(x + fw)} ${f(top + fh * 0.42)}C${f(x + fw * 0.66)} ${f(top + fh * 0.62)} ${f(x + fw * 0.34)} ${f(top + fh * 0.66)} ${f(x + 1)} ${f(top + fh * 0.84)}Z" fill="#D2402F"/>`);
-    out.push(`<path d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.55)} ${f(top + fh * 0.1)} ${f(x + fw * 0.62)} ${f(top + fh * 0.3)}L${f(x + 1)} ${f(top + fh * 0.5)}Z" fill="#A92E21" opacity=".55"/>`);
+    out.push(`<path d="M${f(x)} ${f(pin.y)}l${f(pin.pole * 0.6)} ${f(pin.pole * 0.22)}" class="a-shadow-line" stroke-width="3" stroke-linecap="round"/>`);
+    out.push(`<ellipse class="a-cup" cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9"/>`);
+    out.push(`<path class="a-pole" d="M${f(x)} ${f(pin.y)}V${f(top)}" stroke-width="2.2" stroke-linecap="round"/>`);
+    out.push(`<path class="flag" d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.7)} ${f(top + fh * 0.2)} ${f(x + fw)} ${f(top + fh * 0.42)}C${f(x + fw * 0.66)} ${f(top + fh * 0.62)} ${f(x + fw * 0.34)} ${f(top + fh * 0.66)} ${f(x + 1)} ${f(top + fh * 0.84)}Z"/>`);
+    out.push(`<path d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.55)} ${f(top + fh * 0.1)} ${f(x + fw * 0.62)} ${f(top + fh * 0.3)}L${f(x + 1)} ${f(top + fh * 0.5)}Z" class="a-flag-shade"/>`);
   }
   for (const m of shape.markers) {
     const w = m.d === 100 ? 46 : 48;
-    out.push(`<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" fill="#FFFFFF" stroke="#1E3B21" stroke-opacity=".35" stroke-width="1.5"/>`);
-    out.push(`<rect x="${f(m.x + 10)}" y="${f(m.y - 11)}" width="${w}" height="22" rx="11" fill="#0E2410" fill-opacity=".66"/>`);
+    out.push(`<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`);
+    out.push(`<rect x="${f(m.x + 10)}" y="${f(m.y - 11)}" width="${w}" height="22" rx="11" class="a-marker-label"/>`);
     out.push(`<text x="${f(m.x + 10 + w / 2)}" y="${f(m.y + 4.5)}" text-anchor="middle">${m.d} m</text></g>`);
   }
   // A bevelled tee box with two markers.
-  out.push(`<rect x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 9)}" width="${f(tee.width)}" height="24" rx="10" fill="#5E9E4C"/>`);
+  out.push(`<rect x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 9)}" width="${f(tee.width)}" height="24" rx="10" class="a-tee-edge"/>`);
   out.push(`<rect class="tee" x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 12)}" width="${f(tee.width)}" height="24" rx="10" fill="url(#course-teebox)"/>`);
   for (const dx of [-0.3, 0.3]) {
-    out.push(`<ellipse cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y + 1.5)}" rx="4.5" ry="1.8" fill="#2F6A28" opacity=".5"/><circle cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y - 3)}" r="4.2" fill="#FFFFFF"/>`);
+    out.push(`<ellipse cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y + 1.5)}" rx="4.5" ry="1.8" class="a-shadow"/><circle cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y - 3)}" r="4.2" class="a-pole-fill"/>`);
   }
   out.push(`<rect width="${W}" height="${H}" fill="url(#course-vignette)"/><rect width="${W}" height="${H}" fill="url(#course-shade)"/>`);
   return out.join('');

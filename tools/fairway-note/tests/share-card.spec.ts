@@ -84,6 +84,8 @@ const near = (pixel: number[], hex: string, tolerance = 24) => {
 };
 /** The deep turf background, lightened a little by the mowing stripes and the glow: dark, and green above all. */
 const turf = ([r, g, b, a]: number[]) => a === 255 && g < 100 && g > r && g > b;
+/** The page's palette (the app's style.css), the colours the card is drawn in. */
+const palette = (page: Page) => page.evaluate(() => (window as unknown as { shareCard: { readSharePalette(): Record<string, string> } }).shareCard.readSharePalette());
 
 let violations: string[] = [];
 let requests: string[] = [];
@@ -119,8 +121,9 @@ test('draws an 18-hole round as a 1080×1350 PNG under the app CSP', async ({ pa
   const png = Buffer.from(drawn.png, 'base64');
   expect(pngSize(png)).toEqual([1080, 1350]);
   expect(turf(drawn.pixels.corner), `corner ${drawn.pixels.corner}`).toBe(true);
-  expect(near(drawn.pixels.card, '#F3F7EF', 6), `card ${drawn.pixels.card}`).toBe(true);
-  expect(near(drawn.pixels.birdie, '#C0392B', 60), `birdie ${drawn.pixels.birdie}`).toBe(true);
+  const colours = await palette(page);
+  expect(near(drawn.pixels.card, colours.paper, 6), `card ${drawn.pixels.card}`).toBe(true);
+  expect(near(drawn.pixels.birdie, colours.red, 60), `birdie ${drawn.pixels.birdie}`).toBe(true);
   writeFileSync(testInfo.outputPath('share-card-18.png'), png);
 });
 
@@ -128,7 +131,7 @@ test('draws a 9-hole round at the same size', async ({ page }, testInfo) => {
   const drawn = await draw(page, nineRound());
   const png = Buffer.from(drawn.png, 'base64');
   expect(pngSize(png)).toEqual([1080, 1350]);
-  expect(near(drawn.pixels.birdie, '#C0392B', 60), `birdie ${drawn.pixels.birdie}`).toBe(true);
+  expect(near(drawn.pixels.birdie, (await palette(page)).red, 60), `birdie ${drawn.pixels.birdie}`).toBe(true);
   writeFileSync(testInfo.outputPath('share-card-9.png'), png);
 });
 

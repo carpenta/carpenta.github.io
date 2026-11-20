@@ -23,6 +23,15 @@ const tab = (page: Page, name: '기록' | '스코어카드' | '지난 라운드'
 const next = (page: Page) => page.locator('#go-next');
 const sideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
+/** A palette token (style.css) as the browser computes it, to compare with an element's computed colour (v19). */
+const token = (page: Page, name: string) => page.evaluate((n) => {
+  const probe = document.createElement('i');
+  probe.style.color = `var(${n})`;
+  document.body.append(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour;
+}, name);
 
 async function showCard(page: Page) {
   await tab(page, '스코어카드').click();
@@ -157,7 +166,7 @@ test('shows the hole score in the badge with its scorecard mark, red under par, 
   await expect(mark).toHaveAttribute('data-mark', 'birdie');
   await expect(shape.locator('circle')).toHaveCount(1);
   await expect(badge).toHaveClass(/celebrate/);
-  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(192, 57, 43)');
+  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, '--red'));
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   await expect(mark).toHaveAttribute('data-mark', 'eagle');
   await expect(shape.locator('circle')).toHaveCount(2);
@@ -272,7 +281,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v18');
+  await expect(page.locator('#app-version')).toHaveText('v19');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -308,12 +317,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v18');
+  await expect(page.locator('#menu-version')).toHaveText('v19');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v18');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v19');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -650,14 +659,15 @@ test('uses three weights on 기록: values bold, labels medium in muted ink, hel
   const style = (selector: string) => page.locator(selector).first().evaluate((el) => { const s = getComputedStyle(el); return [s.fontWeight, s.color]; });
   expect((await style('#count-driver'))[0]).toBe('800');
   expect((await style('#hole-n'))[0]).toBe('800');
-  expect(await style('.club-lbl .club-name')).toEqual(['600', 'rgb(78, 100, 80)']);
-  expect(await style('#stake-ob .pen-lbl')).toEqual(['600', 'rgb(78, 100, 80)']);
+  const muted = await token(page, '--muted');
+  expect(await style('.club-lbl .club-name')).toEqual(['600', muted]);
+  expect(await style('#stake-ob .pen-lbl')).toEqual(['600', muted]);
   expect((await style('#hole-par'))[0]).toBe('600');
   expect((await style('.mode'))[0]).toBe('600');
   expect((await style('.tab-label'))[0]).toBe('600');
   expect((await style('#tab-entry .tab-label'))[0]).toBe('600');
   await page.getByRole('button', { name: '상세', exact: true }).click();
-  expect(await style('.tee-t')).toEqual(['600', 'rgb(78, 100, 80)']);
+  expect(await style('.tee-t')).toEqual(['600', muted]);
   expect((await style('#tee-val'))[0]).toBe('400');
   await page.getByRole('button', { name: '페어웨이' }).click();
   expect((await style('#tee-val'))[0]).toBe('800');
@@ -1697,41 +1707,77 @@ test('keeps every control within 360px in both views and both modes, with the li
   expect(await sideScroll(page)).toBe(0);
 });
 
+/** A check of one text against what is under it: `min` 4.5, or 3 for big numbers; `unders` when it sits on the drawn course. */
+type Contrast = { sel: string; min: number; unders?: string[] };
+/**
+ * In the page: WCAG contrast of each text on what is really under it (v19). Colours are normalised by a one-pixel
+ * canvas (any CSS colour, palette mixes too) and translucent layers are painted from the outside in. With `unders`
+ * (colours or palette tokens) the text sits on the drawn course: the page's own ground is left out and the worst of
+ * those colours counts.
+ */
+function contrastIn(checks: Contrast[]) {
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const rgba = (css: string) => {
+    cv.clearRect(0, 0, 1, 1);
+    cv.fillStyle = 'rgba(0,0,0,0)';
+    cv.fillStyle = css;
+    cv.fillRect(0, 0, 1, 1);
+    const d = cv.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2], d[3] / 255];
+  };
+  const tokenColour = (name: string) => {
+    const probe = document.createElement('i');
+    probe.style.color = `var(${name})`;
+    document.body.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  };
+  const over = (top: number[], under: number[]) => [0, 1, 2].map((i) => top[i] * top[3] + under[i] * (1 - top[3])).concat(1);
+  const lum = (c: number[]) => {
+    const f = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  };
+  const ratio = (a: number[], b: number[]) => {
+    const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+    return (x + 0.05) / (y + 0.05);
+  };
+  return checks.map(({ sel, min, unders }) => {
+    const el = document.querySelector(sel);
+    if (!el) return { sel, min, size: 0, ratio: null as number | null };
+    const layers: number[][] = [];
+    for (let e: Element | null = el; e && !(unders && (e === document.body || e === document.documentElement)); e = e.parentElement) {
+      const c = rgba(getComputedStyle(e).backgroundColor);
+      if (c[3] > 0) layers.push(c);
+    }
+    const bases = unders ? unders.map((u) => rgba(u.startsWith('--') ? tokenColour(u) : u)) : [[255, 255, 255, 1]];
+    let worst = Infinity;
+    for (const base of bases) {
+      let bg = base;
+      for (const layer of layers.slice().reverse()) bg = over(layer, bg);
+      worst = Math.min(worst, ratio(over(rgba(getComputedStyle(el).color), bg), bg));
+    }
+    return { sel, min, size: parseFloat(getComputedStyle(el).fontSize), ratio: worst };
+  });
+}
+const contrastOf = (page: Page, checks: Contrast[]) => page.evaluate(contrastIn, checks);
+/** What a chip or label over the drawn course can sit on: the dark rough to the sunlit fairway (palette tokens). */
+const OVER_ART = ['--rough', '--art-rough-hi', '--fairway', '--putting', '--sun'];
+
 test('labels are large and dark enough to read in sunlight, and a disabled minus is not just faded', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await open(page);
   await tap(page, 'driver');
   await tap(page, 'putts');
-  const measure = (selectors: string[]) => page.evaluate((list) => {
-    const rgb = (s: string) => s.match(/[\d.]+/g)!.map(Number);
-    const lum = (s: string) => {
-      const [r, g, b] = rgb(s).slice(0, 3).map((v) => {
-        const c = v / 255;
-        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    };
-    const background = (el: Element | null): string => {
-      while (el) {
-        const bg = getComputedStyle(el).backgroundColor;
-        if (rgb(bg)[3] !== 0) return bg;
-        el = el.parentElement;
-      }
-      return 'rgb(255, 255, 255)';
-    };
-    return list.map((selector) => {
-      const el = document.querySelector(selector)!;
-      const style = getComputedStyle(el);
-      const [a, b] = [lum(style.color), lum(background(el))].sort((x, y) => y - x);
-      return { selector, size: parseFloat(style.fontSize), contrast: (a + 0.05) / (b + 0.05) };
-    });
-  }, selectors);
-  const checks = await measure(['.club-lbl', '#hole-par', '#prog-n', '#info-btn', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.ver', '.home-link']);
+  const checks = await contrastOf(page, [
+    ...['.club-lbl', '#hole-name', '.pen-lbl', '.mode', '.tab-label', '.home-link'].map((sel) => ({ sel, min: 4.5 })),
+    ...['#hole-par', '#prog-n', '#info-btn', '.ver'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })),
+  ]);
   await showCard(page);
-  checks.push(...await measure(['.sh-stats dt', '.ct .ct-l', '.ct .r-p > span', '.nt-h small', '.nt-go', '.metrics dt']));
-  for (const { selector, size, contrast } of checks) {
-    expect(size, selector).toBeGreaterThanOrEqual(13);
-    expect(contrast, selector).toBeGreaterThanOrEqual(4.5);
+  checks.push(...await contrastOf(page, ['.sh-stats dt', '.ct .ct-l', '.ct .r-p > span', '.nt-h small', '.nt-go', '.metrics dt'].map((sel) => ({ sel, min: 4.5 }))));
+  for (const { sel, size, ratio } of checks) {
+    expect(size, sel).toBeGreaterThanOrEqual(13);
+    expect(ratio, sel).toBeGreaterThanOrEqual(4.5);
   }
   await showEntry(page);
   const look = (selector: string) => page.locator(selector).evaluate((el) => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity }));
@@ -1741,6 +1787,61 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
   expect(on.color).not.toBe(off.color);
   expect(off.opacity).toBe('1');
 });
+
+for (const [width, height] of [[390, 844], [375, 553]]) {
+  test.describe(`in sunlight on a ${width}×${height} phone (v19 palette)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('every key text stands out from what is under it: 4.5:1, and 3:1 for the big numbers', async ({ page }) => {
+      const found: { where: string; sel: string; min: number; ratio: number | null }[] = [];
+      const check = async (where: string, checks: Contrast[]) => { for (const r of await contrastOf(page, checks)) found.push({ where, ...r }); };
+      const PICKER = ['--art-rough-hi', '--rough', '--art-rough-lo'];
+      await page.goto('/');
+      await expect(page.locator('#picker')).toBeVisible();
+      await settled(page);
+      await check('코스 선택', [
+        { sel: '#picker-title', min: 3, unders: PICKER }, { sel: '.picker-home', min: 4.5, unders: PICKER },
+        { sel: ".picker .chip[aria-pressed='false']", min: 4.5, unders: PICKER }, { sel: ".picker .chip[aria-pressed='true']", min: 4.5, unders: PICKER },
+        { sel: '.picker-list .course b', min: 4.5 }, { sel: '.picker-list .course span', min: 4.5 }, { sel: '#picker-label', min: 4.5 },
+        { sel: '.nine-label', min: 4.5 }, { sel: ".nine-pick button[aria-checked='false']", min: 4.5 }, { sel: ".nine-pick button[aria-checked='true']", min: 4.5 },
+        { sel: '#picker-start', min: 4.5 },
+      ]);
+      await page.getByRole('button', { name: '이 코스로 시작' }).tap();
+      await check('기록, 0타', [{ sel: '#count-driver', min: 3 }]);
+      // Four holes played (a birdie, a double and two pars) and hole 5 at par: the par badge, counts and chips over the course.
+      await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 3, putts: 2 }, 2: { driver: 1, approach: 2, putts: 2 }, 3: { driver: 1, putts: 1 }, 4: { driver: 1, approach: 2, putts: 1 } }, 4);
+      await atRest(page);
+      await check('기록 기본', [
+        { sel: '#count-driver', min: 3 }, { sel: '.club-lbl', min: 4.5 }, { sel: '.pen-lbl', min: 4.5 },
+        { sel: ".mode[aria-pressed='false']", min: 4.5 }, { sel: ".mode[aria-pressed='true']", min: 4.5 }, { sel: '#go-next', min: 4.5 },
+        { sel: '#tab-card .tab-label', min: 4.5 }, { sel: '#tab-entry .tab-label', min: 4.5 }, { sel: '.home-link', min: 4.5 },
+        { sel: '#hole-par', min: 4.5, unders: OVER_ART }, { sel: '#info-btn', min: 4.5, unders: OVER_ART }, { sel: '#prog-n', min: 4.5, unders: OVER_ART },
+        { sel: '#hole-n', min: 3, unders: OVER_ART }, { sel: '#hole-name', min: 4.5 }, { sel: '#hole-strokes', min: 3 },
+        ...(height >= 600 ? [{ sel: '.ver', min: 4.5, unders: OVER_ART }] : []),
+      ]);
+      await page.getByRole('button', { name: '상세', exact: true }).tap();
+      await page.getByRole('button', { name: '페어웨이' }).tap();
+      await atRest(page);
+      await check('기록 상세', [{ sel: '.tee-t', min: 4.5 }, { sel: '.tee-t .val', min: 4.5 }, { sel: '.tchip', min: 4.5 }, { sel: ".dir[aria-pressed='true']", min: 4.5 }, { sel: '.pen-lbl', min: 4.5 }]);
+      await page.getByRole('button', { name: '기본', exact: true }).tap();
+      await tab(page, '스코어카드').tap();
+      await settled(page);
+      await check('스코어카드', [
+        { sel: '.sh-stats dt', min: 4.5 }, { sel: '.ct .ct-l', min: 4.5 }, { sel: '.ct .r-p > span', min: 4.5 }, { sel: '.nt-h small', min: 4.5 },
+        { sel: '.nt-go', min: 4.5 }, { sel: ".m[data-tone='under'] b", min: 3 }, { sel: ".m[data-tone='par'] b", min: 3 }, { sel: '#sh-ring b', min: 3 },
+        { sel: '#scorecard .r-h > .cur', min: 4.5 },
+      ]);
+      await page.locator('#finish-round').tap();
+      await page.getByRole('button', { name: '그대로 마치기' }).tap();
+      await expect(page.locator('#sum-card')).toHaveAttribute('data-state', 'ready');
+      await check('요약', [{ sel: '.sum-actions .primary', min: 4.5 }, { sel: '.sum-ring b', min: 3 }, { sel: '.sum-stats dt', min: 4.5 }]);
+      for (const r of found) {
+        expect(r.ratio, `${r.where} ${r.sel}: not found`).not.toBeNull();
+        expect(r.ratio!, `${r.where} ${r.sel}`).toBeGreaterThanOrEqual(r.min);
+      }
+    });
+  });
+}
 
 test('keeps the screen on while recording when the browser allows it, and works without it', async ({ page }) => {
   await page.addInitScript(() => {
@@ -1766,11 +1867,18 @@ test('can be added to the home screen', async ({ page, request }) => {
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
   expect(href).toBe('./manifest.webmanifest');
   const manifest = await (await request.get(href!)).json();
+  // The browser bar and the installed app's splash take the page's own ground, the palette's rough (v19), so the
+  // first paint does not flash another colour; the manifest and the meta tag cannot read CSS, so they hold it as hex.
+  const ground = await page.evaluate(() => {
+    const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+    cv.fillStyle = getComputedStyle(document.body).backgroundColor;
+    cv.fillRect(0, 0, 1, 1);
+    return `#${[...cv.getImageData(0, 0, 1, 1).data.slice(0, 3)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+  });
   expect(manifest).toMatchObject({
     name: 'Fairway Note', short_name: 'Fairway Note', start_url: './', scope: './', display: 'standalone',
-    theme_color: '#2f7d3a', background_color: '#f3f7ef',
+    theme_color: ground, background_color: ground,
   });
-  // The browser bar takes the same Turf as the installed app's.
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', manifest.theme_color);
   const decoded = (src: string) => page.evaluate(async (url) => {
     const img = new Image();
@@ -2013,7 +2121,7 @@ test('the summary opens at once with a calm placeholder, then shows a small prev
   await expect(preview(page)).toHaveAttribute('data-state', 'drawing');
   await expect(previewImage(page)).toBeHidden();
   await expect(preview(page).locator('.sum-badge')).toBeHidden();
-  expect(await preview(page).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(22, 48, 29)');
+  expect(await preview(page).evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, '--deep'));
   await expect.poll(() => page.evaluate(() => typeof (window as unknown as { encode?: () => void }).encode)).toBe('function');
   await page.evaluate(() => (window as unknown as { encode: () => void }).encode());
   await expect(previewImage(page)).toBeVisible();
