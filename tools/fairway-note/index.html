@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="골프 라운드에서 홀마다 드라이버·어프로치·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
+    <meta name="description" content="골프 라운드에서 홀마다 드라이버·아이언·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#213f2c" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
@@ -54,6 +54,8 @@
             <span class="progress" id="progress" hidden><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
             <button class="chip info-chip" type="button" id="info-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="hole-pop" hidden>홀 안내<span class="info-n" id="info-n" hidden></span></button>
           </p>
+          <!-- The last tap can be taken back for a few seconds (v20): over the chip row's left, clear of every button -->
+          <div class="toast" id="toast" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">되돌리기</button></div>
         </header>
 
         <div class="banners">
@@ -71,8 +73,6 @@
 
         <div class="sheet-wrap" id="sheet-wrap">
           <span class="ver" id="app-version" aria-hidden="true"></span>
-          <!-- The last tap can be taken back for a few seconds; over the club names, clear of every button -->
-          <div class="toast" id="toast" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">되돌리기</button></div>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
             <div class="clubs" id="clubs"></div>
 

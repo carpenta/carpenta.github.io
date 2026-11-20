@@ -51,7 +51,7 @@ const PENS = ['ob', 'bunker', 'hazard'] as const;
 type Pen = (typeof PENS)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
 
-const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '어프로치', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커' };
+const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '아이언', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커' };
 /** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
 const labelOf = (key: Counter, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
 const PLUS = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
@@ -420,17 +420,20 @@ function buildClubs(): void {
   const box = $('clubs');
   for (const key of TAGGED) {
     const label = LABELS[key];
-    const name = h('p', { class: 'club-lbl', id: `lbl-${key}` }, h('span', { class: 'club-name' }, label));
+    // The club's name and icon (v20): the button that opens its shot details, with a chevron and, once the club has
+    // details on this hole, a dot (shot-panel.ts keeps the dot and the name).
+    const chip = h('span', { class: 'lbl-in' }, h('span', { class: 'club-name', id: `name-${key}` }, label), h('span', { class: 'lbl-chev', 'aria-hidden': 'true' }), h('i', { class: 'lbl-dot', 'aria-hidden': 'true' }));
     // Static icon markup from icons.ts, never user input.
-    name.insertAdjacentHTML('afterbegin', CLUB_ICONS[key]);
+    chip.insertAdjacentHTML('afterbegin', CLUB_ICONS[key]);
+    chip.querySelector('.lbl-chev')!.innerHTML = icon('chevDown', 12);
+    const name = h('button', { type: 'button', class: 'club-lbl', id: `lbl-${key}`, 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'aria-controls': 'shot-panel', 'aria-label': `${label} 샷 세부` }, chip);
+    // Each half of the capsule is its button (v20): the top adds one, the bottom takes one off, with a brief cue.
     const plus = h('button', { type: 'button', class: 'step plus', 'aria-label': `${label} 하나 더하기` });
-    plus.innerHTML = `<span>${PLUS}</span>`;
+    plus.innerHTML = `<span>${PLUS}</span><i class="cue" aria-hidden="true" hidden>+1</i>`;
     const minus = h('button', { type: 'button', class: 'step minus', 'aria-label': `${label} 하나 빼기` });
-    minus.innerHTML = `<span>${MINUS}</span>`;
-    // The count, with the club's icon beside it for screens where the names step aside.
-    // The digit is for the eye; screen readers read the club with it ("드라이버 2").
+    minus.innerHTML = `<span>${MINUS}</span><i class="cue" aria-hidden="true" hidden>−1</i>`;
+    // The count on the midline, between the halves. The digit is for the eye; screen readers read the club with it ("드라이버 2").
     const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}`, 'aria-hidden': 'true' }, '0'), h('span', { class: 'sr-only', id: `count-label-${key}` }, `${label} 0`));
-    num.insertAdjacentHTML('afterbegin', CLUB_ICONS[key].replace('<svg', '<svg class="pill-ico"'));
     // The long-press coach mark sits over the middle count (screen readers get it from #lp-hint).
     if (key === 'approach') {
       const coach = h('span', { class: 'coach', id: 'coach', 'aria-hidden': 'true', hidden: '' }, '숫자를 길게 누르면 바로 골라요');
@@ -438,18 +441,32 @@ function buildClubs(): void {
       num.append(coach);
     }
     box.append(h('div', { class: `club club-${key}`, 'data-key': key }, name,
-      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `lbl-${key}`, 'aria-describedby': 'lp-hint' }, plus, num, minus)));
+      h('div', { class: 'pill', role: 'group', 'aria-labelledby': `name-${key}`, 'aria-describedby': 'lp-hint' }, plus, num, minus)));
   }
   box.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
     if (!button || button.disabled) return;
-    count(button.closest<HTMLElement>('.club')!.dataset.key as Tagged, button.classList.contains('plus') ? 1 : -1);
+    if (count(button.closest<HTMLElement>('.club')!.dataset.key as Tagged, button.classList.contains('plus') ? 1 : -1)) showCue(button);
   });
   bindNumPick();
   $('entry').addEventListener('pointerdown', dismissCoach, true);
   document.addEventListener('keydown', () => {
     if (!$('entry').hidden) dismissCoach();
   });
+}
+
+const cueTimers = new WeakMap<HTMLElement, number>();
+
+/** "+1" or "−1" beside the half that was tapped, drifting outward for a moment (v20). CSSOM restarts it, allowed by the CSP. */
+function showCue(button: HTMLElement): void {
+  const cue = button.querySelector<HTMLElement>('.cue');
+  if (!cue) return;
+  cue.hidden = false;
+  cue.style.animation = 'none';
+  void cue.offsetWidth;
+  cue.style.animation = '';
+  window.clearTimeout(cueTimers.get(cue));
+  cueTimers.set(cue, window.setTimeout(() => { cue.hidden = true; }, 650));
 }
 
 /* ---------- long-press a count: set it straight to 0 … 5+ ---------- */
@@ -1050,7 +1067,7 @@ function renderCard(a: Analysis): void {
   setText($('lost-note'), waiting
     ? `${3 - t.holes}홀 더 기록하면 어디서 타수를 잃었는지 보여요.`
     : a.worstAreas.length
-      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, 어프로치 Par−3번, 퍼트 2번을 기준으로 셌어요.`
+      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, 아이언 Par−3번, 퍼트 2번을 기준으로 셌어요.`
       : '기준보다 잃은 타수가 없어요.');
   const scale = Math.max(most, 3);
   $('lost-bars').replaceChildren(...areas.map((k) => {

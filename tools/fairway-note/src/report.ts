@@ -9,7 +9,7 @@ export function insights(a: Analysis): string[] {
   const out: string[] = [];
   if (a.worstAreas.length) {
     const names = a.worstAreas.map((k) => AREA_LABELS[k]).join('·');
-    out.push(`기준(티샷 1, 어프로치 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${names}입니다 (+${a.lost[a.worstAreas[0]]}타).`);
+    out.push(`기준(티샷 1, 아이언 Par−3, 퍼트 2) 대비 가장 많이 잃은 곳은 ${names}입니다 (+${a.lost[a.worstAreas[0]]}타).`);
   } else {
     out.push('모든 영역이 기준 타수 안에 있습니다. 좋은 라운드입니다.');
   }
@@ -89,7 +89,7 @@ export function reportText(round: Round): string {
     ...(round.holes.length === 9 ? [] : [`전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`]),
     `퍼트 ${t.putts} · OB ${t.ob}${t.hazard ? ` · 해저드 ${t.hazard}` : ''} · 멀리건 ${t.mulligan}`,
     '',
-    '[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + 벌타(OB·해저드)',
+    '[홀별] 타수 = 드라이버 + 아이언 + 퍼트 + 벌타(OB·해저드)',
   );
   round.holes.forEach((h, i) => {
     if (!finished(round, i)) return;
@@ -126,7 +126,7 @@ const csvCell = (v: string | number) => {
  * the finished holes. "파 대비" is a plain number so it adds up. The caller adds the UTF-8 BOM so Excel reads Korean.
  */
 export function roundCsv(round: Round): string {
-  const rows: (string | number)[][] = [['홀', '파', '드라이버', '어프로치', '퍼트', 'OB', '해저드', '타수', '파 대비']];
+  const rows: (string | number)[][] = [['홀', '파', '드라이버', '아이언', '퍼트', 'OB', '해저드', '타수', '파 대비']];
   round.holes.forEach((h, i) => {
     if (!finished(round, i)) {
       rows.push([i + 1, h.par, '', '', '', '', '', '', '']);
@@ -161,7 +161,7 @@ export function analysisText(round: Round): string {
     `날짜: ${round.date}`,
     `기록한 홀: ${t.holes}/${round.holes.length}`,
     '',
-    '[홀별] 홀 | 파 | 드라이버 | 어프로치 | 퍼트 | OB | 해저드 | 타수 | 파 대비',
+    '[홀별] 홀 | 파 | 드라이버 | 아이언 | 퍼트 | OB | 해저드 | 타수 | 파 대비',
   ];
   round.holes.forEach((h, i) => {
     if (!finished(round, i)) {
@@ -176,8 +176,8 @@ export function analysisText(round: Round): string {
   lines.push(`그린 적중 ${a.girHoles}/${t.holes} · 1퍼트 ${a.onePutts}홀 · 3퍼트 이상 ${a.threePutts}홀`);
   lines.push(
     '',
-    '[잃은 타수] 기준: 티샷 1번, 어프로치 파-3번, 퍼트 2번',
-    `티샷 +${a.lost.driver} · 어프로치 +${a.lost.approach} · 퍼트 +${a.lost.putts} · 벌타 +${a.lost.penalty}`,
+    '[잃은 타수] 기준: 티샷 1번, 아이언 파-3번, 퍼트 2번',
+    `티샷 +${a.lost.driver} · 아이언 +${a.lost.approach} · 퍼트 +${a.lost.putts} · 벌타 +${a.lost.penalty}`,
   );
   return lines.join('\n');
 }

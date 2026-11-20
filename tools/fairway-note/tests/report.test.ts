@@ -52,7 +52,7 @@ describe('report', () => {
     expect(text).toContain('1번 Par4: 6타 (+2) 드1 어1 퍼2 OB 1 해저드 1');
     expect(text).toContain('2번 Par5: 7타 (+2) 드1 어2 퍼2 해저드 2 멀리건 1');
     expect(text.split('\n')[3]).toBe('퍼트 4 · OB 1 · 해저드 3 · 멀리건 1');
-    expect(text).toContain('[홀별] 타수 = 드라이버 + 어프로치 + 퍼트 + 벌타(OB·해저드)');
+    expect(text).toContain('[홀별] 타수 = 드라이버 + 아이언 + 퍼트 + 벌타(OB·해저드)');
     expect(text).toContain('- OB 1회·해저드 3회로 벌타 4타가 더해졌습니다.');
     expect(text).toContain('가장 많이 잃은 곳은 벌타입니다 (+4타)');
     const hazardOnly = newRound(new Date(2026, 10, 19));
@@ -102,7 +102,7 @@ describe('CSV and analysis text', () => {
   it('writes one CSV row per hole, blank counts for holes not finished, and a 합계 over the finished ones', () => {
     const r = sample();
     const rows = roundCsv(r).split('\r\n');
-    expect(rows[0]).toBe('홀,파,드라이버,어프로치,퍼트,OB,해저드,타수,파 대비');
+    expect(rows[0]).toBe('홀,파,드라이버,아이언,퍼트,OB,해저드,타수,파 대비');
     expect(rows[1]).toBe('1,4,1,1,2,0,0,4,0');
     expect(rows[2]).toBe('2,4,2,1,3,1,0,7,3');
     expect(rows[3]).toBe('3,3,1,0,1,0,0,2,-1');
@@ -127,7 +127,7 @@ describe('CSV and analysis text', () => {
     expect(text).toContain('타수 18 (+2) · 퍼트 8 · OB 1 · 해저드 0');
     expect(text).toContain('전반 13타 (3홀) · 후반 5타 (1홀)');
     // Hole 2 (two drives, three putts, an OB) is where every lost stroke is; the approaches were all regulation.
-    expect(text).toContain('티샷 +1 · 어프로치 +0 · 퍼트 +1 · 벌타 +1');
+    expect(text).toContain('티샷 +1 · 아이언 +0 · 퍼트 +1 · 벌타 +1');
     expect(text).not.toMatch(/https?:|www\./);
   });
 });

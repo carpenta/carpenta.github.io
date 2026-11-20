@@ -85,30 +85,15 @@ function setAttr(el: Element, name: string, value: string): void {
   if (el.getAttribute(name) !== value) el.setAttribute(name, value);
 }
 
-/** Wraps each club's count in a button that opens its panel, and binds the panel. Call once, after the pills exist. */
+/** Binds each club's name above its capsule to its panel, and the panel itself. Call once, after the capsules exist. */
 export function bindShotPanel(page: ShotPanelHost): void {
   host = page;
-  for (const key of TAGGED) {
-    const count = $(`count-${key}`);
-    const label = $(`count-label-${key}`);
-    const button = h('button', { type: 'button', class: 'shot-num', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'aria-controls': 'shot-panel' });
-    count.replaceWith(button);
-    // The page keeps writing the digit and its spoken label; the button's name says what a tap does.
-    button.append(count, label, h('i', { class: 'shot-dot', 'aria-hidden': 'true' }));
-    numbers.set(key, button);
-  }
-  // The number, or anywhere between + and − where the count sits, opens the panel. A long press there is the page's
-  // 0 … 5+ picker: its release lands on the picker, so no click reaches here.
+  // The club's name and icon open the panel (v20): the capsule below is all + and −, half each.
+  for (const key of TAGGED) numbers.set(key, $(`lbl-${key}`) as HTMLButtonElement);
   $('clubs').addEventListener('click', (event) => {
-    const target = event.target as HTMLElement;
-    const pill = target.closest<HTMLElement>('.pill');
-    if (!pill || target.closest('button.step') || document.querySelector('dialog[open]')) return;
-    if (!target.closest('.shot-num')) {
-      const plus = pill.querySelector('.step.plus')!.getBoundingClientRect();
-      const minus = pill.querySelector('.step.minus')!.getBoundingClientRect();
-      if (event.clientY <= plus.bottom || event.clientY >= minus.top) return;
-    }
-    open(pill.closest<HTMLElement>('.club')!.dataset.key as Tagged);
+    const name = (event.target as HTMLElement).closest<HTMLElement>('.club-lbl');
+    if (!name || document.querySelector('dialog[open]')) return;
+    open(name.closest<HTMLElement>('.club')!.dataset.key as Tagged);
   });
 
   const dialog = panel();
@@ -168,7 +153,7 @@ function place(): void {
   const right = wrap.right - parseFloat(card.borderRightWidth) - parseFloat(card.paddingRight);
   dialog.style.left = `${left}px`;
   dialog.style.width = `${right - left}px`;
-  const pill = numbers.get(openKey)!.closest('.pill')!.getBoundingClientRect();
+  const pill = numbers.get(openKey)!.closest('.club')!.querySelector('.pill')!.getBoundingClientRect();
   const floor = Math.min(window.innerHeight, $('views').getBoundingClientRect().top) - 8;
   const top = Math.min(pill.bottom + 8, floor - dialog.offsetHeight);
   dialog.style.top = `${Math.round(Math.max(8, top))}px`;
@@ -190,14 +175,14 @@ function pick(key: Tagged, tag: ShotTag): void {
   host.announce(said.join(', '));
 }
 
-/** Keeps each number's dot and name in step with the hole, and the open panel with it. Call after every render. */
+/** Keeps each club name's dot and spoken name in step with the hole, and the open panel with it. Call after every render. */
 export function renderShotPanel(): void {
   if (!host) return;
   const cur = host.hole();
   for (const [key, num] of numbers) {
     const tagged = (cur.tags?.[key] ?? []).filter((t) => t !== null).length;
     num.classList.toggle('tagged', tagged > 0);
-    setAttr(num, 'aria-label', `${host.label(key)} ${cur[key]}, 샷 세부${tagged ? ` ${tagged}개` : ''}`);
+    setAttr(num, 'aria-label', `${host.label(key)} 샷 세부${tagged ? ` ${tagged}개` : ''}`);
   }
   if (openKey) renderPanel();
 }

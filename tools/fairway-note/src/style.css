@@ -19,7 +19,7 @@
   --white: #fbfcf8;     /* card surfaces */
   /* ---------- Mixed ---------- */
   --muted: color-mix(in oklab, var(--ink) 74%, var(--white));      /* labels: 4.5:1 on white, tint and pill */
-  --quiet: color-mix(in oklab, var(--ink) 56%, var(--white));      /* zero counts, unplayed marks: big, 3:1 */
+  --quiet: color-mix(in oklab, var(--ink) 64%, var(--white));      /* zero counts, unplayed marks: big, 3:1 (on the glass card too) */
   --line: color-mix(in oklab, var(--fairway) 26%, var(--white));
   --line-strong: color-mix(in oklab, var(--ink) 34%, var(--white));
   --switch-line: color-mix(in oklab, var(--ink) 52%, var(--white));
@@ -49,7 +49,10 @@
   --cur: color-mix(in srgb, var(--fairway) 16%, transparent);      /* the scorecard's current column */
   --chosen: color-mix(in srgb, var(--fairway) 9%, transparent);    /* the chosen course row */
   --pad-hit: color-mix(in srgb, var(--fairway) 34%, transparent);  /* the tee pad's middle */
-  --scrim: color-mix(in srgb, var(--white) 93%, transparent);      /* chips, the switcher and the quiet badge over the course */
+  --scrim: color-mix(in srgb, var(--white) 93%, transparent);      /* chips and the quiet badge over the course */
+  --glass-card: color-mix(in srgb, var(--white) 88%, transparent); /* the hole switcher and the 기록 card: glass over the course (v20) */
+  --glass-blur: blur(12px) saturate(1.15);
+  --midline: color-mix(in srgb, var(--ink) 18%, transparent);      /* the line between a capsule's halves (v20) */
   --scrim-dark: color-mix(in srgb, var(--deep) 72%, transparent);  /* the version and the course's labels */
   --glass: color-mix(in srgb, var(--white) 16%, transparent);      /* a button on the dark picker */
   --veil: color-mix(in srgb, var(--white) 78%, transparent);
@@ -99,13 +102,15 @@
   --badge: 60px;                   /* the score badge in the top bar's right slot (v15) */
   /* Three weights on 기록 and the shared chrome (v15): values bold, labels medium, helper text regular. */
   --w-value: 800; --w-label: 600; --w-help: 400;
-  /* 기본 sizes (screens 600px and taller); the count keeps 8px clear of the round + and − */
-  --sheet-pt: 16px;
-  --step: 52px;
+  /* 기본 sizes (screens 600px and taller). Each capsule's halves carry a round glyph --glyph wide, --glyph-inset in
+     from the capsule's ends; the count on the midline keeps clear of both (v20). The club's name above is a 44px button. */
+  --sheet-pt: 8px;
+  --glyph: 36px;
+  --glyph-inset: 8px;
+  --lbl-h: 44px;
   --count: 56px;
-  --pill-pad: 8px;
   /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
-  --pill-base: 434px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
+  --pill-base: 442px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
   --pen: 48px;
   --mode-h: 44px;
   --next-h: 52px;
@@ -167,7 +172,7 @@ svg { display: block; }
 .switcher {
   grid-column: 2; grid-row: 1; justify-self: center; max-width: 100%; min-width: 0;
   display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
-  background: var(--scrim); box-shadow: var(--float);
+  background: var(--glass-card); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--float);
 }
 .switcher .round { flex: none; box-shadow: none; background: var(--tint); }
 .switcher .round:active { background: var(--press); }
@@ -229,14 +234,14 @@ svg { display: block; }
 .sheet.ghost { position: fixed; z-index: 2; margin: 0; pointer-events: none; }
 .sheet {
   flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  background: var(--white); border-radius: 32px; box-shadow: 0 12px 32px var(--sh-3);
+  background: var(--glass-card); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-radius: 32px; box-shadow: 0 12px 32px var(--sh-3);
   padding: var(--sheet-pt) var(--card-pad) var(--sheet-pb, 16px); scrollbar-width: none; will-change: transform;
 }
 .sheet::-webkit-scrollbar { display: none; }
 /* A white fade at the bottom says there is more below; drawn over the sheet, so it adds no scroll. */
 .sheet-wrap::after {
   content: ''; position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 36px; border-radius: 0 0 32px 32px;
-  background: linear-gradient(transparent, var(--white) 85%); pointer-events: none; opacity: 0;
+  background: linear-gradient(transparent, var(--glass-card) 85%); pointer-events: none; opacity: 0;
 }
 .sheet-wrap.more::after { opacity: 1; }
 
@@ -277,42 +282,62 @@ svg { display: block; }
 /* The scorecard's smaller marks keep their CSS rings. */
 .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
-/* Row A: three tall pill steppers. The count sits in its own row between the round buttons. */
+/* Row A: three capsules (v20). Each splits exactly in half: the top half adds a stroke, the bottom half takes one off.
+   The count sits on the midline between them and is no button of its own; the club's name above opens its details. */
 .clubs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; }
-.club { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 8px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
-.club-lbl svg, .pill-ico { color: var(--turf); }
-.club-lbl svg { width: 20px; height: 20px; }
-/* The count, with a small club icon beside it where the club names step aside. */
-.num-row { display: flex; align-items: center; gap: 4px; }
-.pill-ico { display: none; flex: none; width: 16px; height: 16px; }
+.club { display: flex; flex-direction: column; align-items: center; min-width: 0; container-type: inline-size; }
+/* The club's name and icon: a 44px button that opens its shot details (v20), shown as a small chip with a chevron; a dot
+   on it once the club has details on this hole. */
+.club-lbl { position: relative; display: grid; place-items: center; width: 100%; max-width: 104px; height: var(--lbl-h); font-size: 14px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
+.lbl-in { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px 0 7px; border-radius: 999px; background: var(--tint); transition: background-color .12s ease-out; }
+.club-lbl:active .lbl-in, .club-lbl[aria-expanded='true'] .lbl-in { background: var(--press); }
+.club-lbl svg { flex: none; width: 18px; height: 18px; color: var(--turf); }
+.club-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lbl-chev { flex: none; display: grid; color: var(--turf); }
+.lbl-chev svg { width: 12px; height: 12px; }
+.lbl-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--turf); box-shadow: 0 0 0 2px var(--white); opacity: 0; transition: opacity .16s ease-out; }
+.club-lbl.tagged .lbl-dot { opacity: 1; }
+/* A column narrower than the capsule keeps the name whole: the icon steps aside and the name is 13px; the chevron stays. */
+@container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: 13px; } }
 .pill {
-  width: 100%; max-width: 104px; height: var(--pill-h);
-  border-radius: 999px; background: var(--pill);
-  display: grid; grid-template-rows: var(--step) minmax(0, 1fr) var(--step); justify-items: center; align-items: center; padding: var(--pill-pad) 0;
+  position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
+  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: 999px; background: var(--pill);
 }
-.step { width: 100%; height: var(--step); display: grid; place-items: center; border-radius: calc(var(--step) / 2); }
+/* A half: a button from the capsule's end to its midline, its round glyph at the outer end; pressed, the whole half tints. */
+.step { position: relative; display: grid; justify-items: center; width: 100%; min-height: 0; transition: background-color .12s ease-out; }
+.step.plus { align-items: start; padding-top: var(--glyph-inset); }
+.step.minus { align-items: end; padding-bottom: var(--glyph-inset); }
+.step:focus-visible { outline: 3px solid var(--sand); outline-offset: -3px; }
 .step span {
-  width: var(--step); height: var(--step); border-radius: 50%; background: var(--white); color: var(--ink);
-  display: grid; place-items: center; box-shadow: var(--lift);
+  width: var(--glyph); height: var(--glyph); border-radius: 50%; background: var(--white); color: var(--ink);
+  display: grid; place-items: center; box-shadow: var(--lift); transition: transform .12s ease-out;
 }
-.step:active:not(:disabled) span { background: var(--press); box-shadow: 0 1px 2px var(--sh-2); }
+.step span svg { width: 56%; height: 56%; }
+.step:active:not(:disabled) { background: var(--press); }
+.step:active:not(:disabled) span { box-shadow: 0 1px 2px var(--sh-2); transform: scale(.94); }
 .step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
-/* Trimmed to its digits' cap height, the count is sized for 10px above and below it between + and −: 2px more than
+/* +1 or −1 beside the glyph for a moment after a tap, drifting outward (main.ts shows and hides it). */
+.cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: 13px; font-weight: 800; font-style: normal; line-height: 1; pointer-events: none; }
+.plus .cue { top: var(--glyph-inset); color: var(--turf); animation: cue-up .6s ease-out both; }
+.minus .cue { bottom: var(--glyph-inset); color: var(--muted); animation: cue-down .6s ease-out both; }
+@keyframes cue-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
+@keyframes cue-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
+/* The midline, with the count on it: a hairline either side of the digits, so the number reads as the value. */
+.num-row { position: absolute; left: 12px; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 1px; background: var(--midline); }
+.pill-ico { display: none; }
+/* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
    the 8px it needs, so fonts that draw taller digits than the Mac's (Linux, Android) still keep it clear. 1.38 turns
-   a cap height into a font size (v18). */
-.count { font-size: clamp(22px, calc((var(--pill-h) - 2 * var(--pill-pad) - 2 * var(--step) - 20px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
+   a cap height into a font size (v18, v20). */
+.count { font-size: clamp(20px, calc((var(--pill-h) - 2 * (var(--glyph-inset) + var(--glyph)) - 20px) * 1.38), var(--count)); font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
 .count.zero { color: var(--quiet); }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
 
-/* 상세: the pills shrink, then one tee line, one row of five directions and the penalty line. */
-/* No padding inside the pills in 상세: the band between + and −, where a tap opens the club's panel, stays 44px or more (v18). */
-#entry[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 0px; --pill-fixed: 140px; --pen: 48px; }
-#entry[data-mode='detail'] .sheet { padding-top: 14px; padding-bottom: 6px; }
+/* 상세: the capsules shrink, then one tee line, one row of five directions and the penalty line. */
+#entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --count: 24px; --pill-fixed: 140px; --pen: 48px; }
+#entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
 @media (min-height: 660px) { #entry[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
-#entry[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
-#entry[data-mode='detail'] .step span { width: 44px; height: 44px; }
 .detail { margin-top: 8px; }
 .tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
 /* "티샷" and its result side by side, or the result under it when the chips leave too little room (360px). */
@@ -374,17 +399,21 @@ svg { display: block; }
 .next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 17px; font-weight: var(--w-label); box-shadow: var(--float); }
 .next:active { background: var(--action-press); }
 
-/* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. It sits over the club names at the
-   sheet's top, where nothing can be pressed, so a tap meant for a button never lands on it. */
+/* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. Since the club names became buttons (v20)
+   it takes over the chip row (its grid row in the top bar) for those seconds: the chips step aside under it, so however
+   long the message, a tap meant for a button never lands on it. */
 .toast {
-  position: absolute; z-index: 4; top: -20px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 2px; height: 48px; padding: 0 0 0 18px; border-radius: 999px;
+  position: absolute; z-index: 4; grid-row: 2; grid-column: 1 / -1; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: 999px;
   background: var(--deep); color: var(--on-dark); box-shadow: 0 8px 22px var(--sh-4);
   font-size: 15px; font-weight: 600; white-space: nowrap;
 }
-.toast button { height: 48px; padding: 0 16px; border-radius: 999px; color: var(--sun); font-weight: var(--w-label); }
+#toast-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* While the bar shows, the chips step aside under it (whatever shows or hides it). */
+.top:has(> .toast:not([hidden])) .info { visibility: hidden; }
+.toast button { flex: none; height: 44px; padding: 0 16px; border-radius: 999px; color: var(--sun); font-weight: var(--w-label); }
 .toast button:active { background: var(--press-on-dark); }
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(calc(-50% + 8px)); } to { opacity: 1; transform: translateY(-50%); } }
 .toast.show { animation: toast-in .16s ease-out; }
 
 /* ---------- bottom tab bar ---------- */
@@ -665,18 +694,17 @@ html.past-open { overflow: hidden; }
 /* Short screens (iPhone SE Safari, 375×553). */
 @media (max-height: 599px) {
   :root {
-    --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 0px;
-    --pill-base: 408px; --pill-min: 140px; --pill-max: 176px;
+    --sheet-pt: 4px; --glyph: 32px; --glyph-inset: 6px; --count: 40px;
+    --pill-base: 420px; --pill-min: 120px; --pill-max: 176px;
     --pen: 48px; --next-h: 48px; --next-m: 8px;
   }
-  .club-lbl { height: 18px; margin-bottom: 4px; }
   .pens { margin-top: 8px; }
   .modes { margin-top: 14px; }
   .sheet { --sheet-pb: 8px; }
   .ver { display: none; }
-  /* 상세 on a short screen: the club names and the chip row step aside so the 벌타 row and the toggle fit. */
-  /* 140px pills keep a 44px tap band between + and −; the tee line, the gaps and the toggle's margin give the room back. */
-  #entry[data-mode='detail'] { --pill-fixed: 140px; --count: 22px; --pill-pad: 0px; }
+  /* 상세 on a short screen: the chip row steps aside so the 벌타 row and the toggle fit. The club names stay, the way to
+     the shot details (v20): the capsules give them the room, each half still 48px or more. */
+  #entry[data-mode='detail'] { --pill-fixed: 100px; --count: 22px; --glyph: 28px; --glyph-inset: 5px; }
   #entry[data-mode='detail'] .detail { margin-top: 4px; }
   #entry[data-mode='detail'] .tee-line { height: 44px; }
   #entry[data-mode='detail'] .pad { margin-top: 6px; }
@@ -686,9 +714,7 @@ html.past-open { overflow: hidden; }
   #entry[data-mode='detail'] .hole-sub { display: block; }
   #entry[data-mode='detail'] .hole-n { font-size: 26px; }
   #entry[data-mode='detail'] .hole-u { font-size: 15px; }
-  #entry[data-mode='detail'] .club-lbl { display: none; }
-  #entry[data-mode='detail'] .pill-ico { display: block; }
-  #entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
+  #entry[data-mode='detail'] .sheet { padding-top: 2px; padding-bottom: 6px; }
   #entry[data-mode='detail'] .pens { margin-top: 8px; }
   /* One width for the three, each centred on its column (v15). */
   #entry[data-mode='detail'] .pen { width: 100%; height: 48px; flex-direction: row; justify-content: center; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint); }
@@ -705,14 +731,14 @@ html.past-open { overflow: hidden; }
   :root { --count: 48px; }
 }
 /* 600–699px tall (360×640, 375×667): the sheet stays low enough to leave a band for the drawn hole and the version.
-   기본's pills stop a little shorter; 상세 trades the club names for small icons beside the counts and closes its gaps. */
+   기본's pills stop a little shorter; 상세 keeps the club names (v20) on shorter capsules and closes its gaps. */
 @media (min-height: 600px) and (max-height: 699px) {
-  /* 186: the version keeps 4px or more from the chip row and the card on 360×640 (v18). */
-  :root { --pill-max: 186px; }
-  /* 상세 has no band left for the version beside 44px tap bands in the pills: it steps aside (it stays in 앱 정보). */
+  /* 178: the version keeps 4px or more from the chip row and the card on 360×640 (v18; 186 before the 44px names, v20). */
+  :root { --pill-max: 178px; }
+  /* 상세 has no band left for the version: it steps aside (it stays in 앱 정보). */
   #entry[data-mode='detail'] .ver { display: none; }
-  #entry[data-mode='detail'] .club-lbl { display: none; }
-  #entry[data-mode='detail'] .pill-ico { display: block; }
+  #entry[data-mode='detail'] { --pill-fixed: 110px; }
+  #entry[data-mode='detail'] .sheet { padding-top: 2px; }
   #entry[data-mode='detail'] .detail { margin-top: 4px; }
   #entry[data-mode='detail'] .tee-line { height: 44px; }
   #entry[data-mode='detail'] .pad { margin-top: 6px; }
@@ -1071,7 +1097,7 @@ button.scell:active { background: var(--tint); }
 .mpanel .ab-foot { margin-top: 12px; }
 
 /* ---------- 큰 글씨: about 1.15 times ---------- */
-body.big { --count: 64px; --pill-base: 444px; }
+body.big { --count: 64px; --pill-base: 452px; }
 body.big .hole-n { font-size: 40px; }
 body.big .hole-u { font-size: 20px; }
 body.big #hole-title.two .hole-n { font-size: 32px; }
@@ -1080,7 +1106,7 @@ body.big .chip { height: 32px; padding: 0 10px; font-size: 15px; }
 body.big .chip.icon { width: 32px; padding: 0; }
 body.big .notes { max-height: 28px; }
 body.big .notes li { height: 28px; font-size: 15px; }
-body.big .club-lbl { height: 22px; font-size: 17px; }
+body.big .club-lbl { font-size: 16px; }
 body.big .pen-lbl, body.big .undo { font-size: 15px; line-height: 18px; }
 body.big .mode { font-size: 17px; }
 body.big .next { font-size: 20px; }
@@ -1094,9 +1120,8 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 @media (max-height: 599px) {
   /* Short screens: bigger letters, the same heights. The pills keep their full height, so the counts stay as large as
      with 큰 글씨 off; the toggle gives the 2px the taller 벌타 labels take (v18). */
-  body.big { --count: 44px; --pill-base: 408px; }
+  body.big { --count: 44px; --pill-base: 420px; }
   body.big .chip { height: 28px; }
-  body.big .club-lbl { height: 18px; }
   body.big .modes { margin-top: 12px; }
 }
 
@@ -1163,8 +1188,7 @@ body.big .info-chip { font-size: 15px; }
 .steps b { display: block; font-size: 13px; color: var(--muted); }
 .nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
-/* ---------- the long-press coach mark: once, on hole 1 of the first round ---------- */
-.num-row { position: relative; }
+/* ---------- the long-press coach mark: once, on hole 1 of the first round (centred on the midline's count row) ---------- */
 .coach {
   position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
   display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: 999px;
@@ -1179,19 +1203,12 @@ body.big .info-chip { font-size: 15px; }
   .hole-chev, .pill.pressing .count, .pen.pressing .pen-icon, .sw::after { transition: none; }
 }
 
-/* ---------- 클럽 상세 (v18): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts) ----------
-   The count sits in a button now, and a quiet dot beside it says the club has details on this hole. The panel is one of
+/* ---------- 클럽 상세 (v18): a tap on a club's name (v20) opens its detail chips for this hole (src/shot-panel.ts) ----------
+   The name above the capsule is the button, and a quiet dot on it says the club has details on this hole. The panel is one of
    the small popovers (홀 안내, 숫자 고르기): white on a dim backdrop, rising 6px. shot-panel.ts sets its left and width to
    the card's inner edges and its top under the club's pill, clear of the tab bar. Radii are concentric: 24 outside =
    12 inside + 12 padding. 12px between the head, the shots and the chips, 8px within them. Targets are 44px to the
    eye and 48px to the finger. Only a choice is filled: fairway for a chip, turf for the shot, sand for an OB. */
-.shot-num { position: relative; display: grid; place-items: center; border-radius: 6px; }
-/* At the digit's top right: under it, a dot reads as punctuation ("1." or "!") and crowds the − in 상세. */
-.shot-dot {
-  position: absolute; left: 100%; top: 0; width: 7px; height: 7px; margin: -4px 0 0 2px; border-radius: 50%;
-  background: var(--turf); box-shadow: 0 0 0 1.5px var(--white); opacity: 0; pointer-events: none; transition: opacity .16s ease-out;
-}
-.shot-num.tagged .shot-dot { opacity: 1; }
 .shot-panel {
   position: fixed; inset: auto; margin: 0; width: calc(min(100vw, 480px) - 2 * var(--m) - 32px); max-width: none; max-height: calc(100dvh - 16px);
   overflow: hidden auto; overscroll-behavior: contain; padding: 12px; border: 0; border-radius: var(--card-r, 24px);
@@ -1248,5 +1265,6 @@ body.big .sp-chip { font-size: 17px; }
 body.big .sp-shots button { font-size: 20px; }
 @media (prefers-reduced-motion: reduce) {
   .shot-panel[open], .shot-panel[open]::backdrop { animation: none; }
-  .shot-dot, .sp-chip, .sp-shots button { transition: none; }
+  .lbl-dot, .lbl-in, .step, .step span, .sp-chip, .sp-shots button { transition: none; }
+  .cue { animation: none; }
 }
