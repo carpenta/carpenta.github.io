@@ -45,6 +45,8 @@ import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
 import { bindSummaryShare, closeSummaryShare, openSummaryShare, saveSummaryImage, shareSummary } from './share-round';
 import { bindShotPanel, renderShotPanel } from './shot-panel';
+import { bindVoice, type VoicePage } from './voice-view';
+import type { Command } from './voice-commands';
 
 /** The penalty row: OB and 해저드 add a stroke each; 벙커 (상세) is noted only. */
 const PENS = ['ob', 'bunker', 'hazard'] as const;
@@ -664,12 +666,13 @@ function restore(): void {
   const before = undoable;
   if (!before) return;
   hideToast();
+  // The hole as it was, then back to it: a spoken line can record a hole and move on (v21). A hole left blank is unchanged.
+  added.set(before.index, before.added);
+  setHoleAt(before.index, () => before.hole);
   if (before.back) {
     go(before.index);
     return;
   }
-  added.set(before.index, before.added);
-  setHoleAt(before.index, () => before.hole);
   announce('되돌렸어요');
 }
 
@@ -1740,6 +1743,89 @@ function saveMessage(): { text: string; problem: boolean } {
   return { text: `${dateLabel(round.date)} 라운드. 이 기기에만 자동으로 저장돼요.`, problem: false };
 }
 
+/* ---------- 말로 입력 (v21): a dictated or typed line, applied through the taps' own functions ---------- */
+
+type Said = Extract<Command, { kind: 'set' | 'add' }>;
+const isSaid = (c: Command): c is Said => c.kind === 'set' || c.kind === 'add';
+
+/**
+ * One spoken count, through the function its tap uses: + and − (count), a penalty button (addPenalty), the long press
+ * (setCount) for a value, and the menu's − and + for 멀리건. The long press reads 5 as "5 or more", so an exact 5 under
+ * a higher count steps down to 4 first and adds one.
+ */
+function sayCount(c: Said): void {
+  const { key } = c;
+  const cur = hole()[key];
+  const target = Math.min(MAX_COUNT, Math.max(0, c.kind === 'add' ? cur + c.n : c.atLeast ? Math.max(c.n, cur) : c.n));
+  if (target === cur) return;
+  if (key === 'mulligan') count(key, target - cur);
+  else if (c.kind === 'add' && isPen(key) && target > cur) for (let k = cur; k < target; k += 1) addPenalty(key);
+  else if (c.kind === 'add' && !isPen(key)) count(key, target - cur);
+  else if (target === 5 && cur > 5) {
+    setCount(key, 4);
+    if (isPen(key)) addPenalty(key);
+    else count(key, 1);
+  } else setCount(key, target);
+}
+
+/** "드라이버 1", "OB +1": each club or penalty said, as its count now reads, or by how much it was only added to. */
+function saidParts(said: Said[], before: Hole, after: Hole): string[] {
+  return [...new Set(said.map((c) => c.key))].map((key) => {
+    const label = labelOf(key, after.par);
+    const d = after[key] - before[key];
+    return said.some((c) => c.key === key && c.kind === 'set') || d === 0 ? `${label} ${after[key]}` : `${label} ${d > 0 ? '+' : '−'}${Math.abs(d)}`;
+  });
+}
+
+/**
+ * Applies a line read by src/voice-commands.ts: its counts on this hole, then the hole move it may end with, each the
+ * way its button does it. One toast says what was set ("드라이버 1 · 아이언 2 · 퍼터 2"), and its 되돌리기 takes back
+ * the whole line, the move too. Says why when there is nothing to do, before changing anything.
+ */
+function applyLine(commands: Command[], close: () => void): string | null {
+  const last = commands[commands.length - 1];
+  if (last.kind === 'undo') {
+    if (!undoable) return '되돌릴 것이 없어요.';
+    close();
+    restore();
+    return null;
+  }
+  const from = round.current;
+  const said = commands.filter(isSaid);
+  if (last.kind === 'prev' && from === 0) return '지금이 1번 홀이에요.';
+  if (!said.length && last.kind === 'hole' && last.n - 1 === from) return `지금 ${from + 1}번 홀이에요.`;
+  close();
+  const before = hole();
+  const order = [...(added.get(from) ?? [])];
+  for (const c of said) sayCount(c);
+  const after = round.holes[from];
+  // The move, as its button does it: 다음 홀 (라운드 마치기 on the last hole), the ‹ arrow, or a jump from the hole list.
+  if (last.kind === 'next') goNext();
+  else if (last.kind === 'prev') changeHole(-1);
+  else if (last.kind === 'hole' && last.n - 1 !== from) go(last.n - 1);
+  if (!said.length || (last.kind === 'next' && from === lastHole())) return null;
+  const parts = saidParts(said, before, after);
+  const moved = round.current !== from;
+  // No-break spaces inside each "어프로치 3" and before each ·, so a toast on two lines breaks only after a ·.
+  const whole = (s: string) => s.replaceAll(' ', '\u00a0');
+  showToast(`${moved ? `${whole(`${from + 1}번 홀`)} ` : ''}${parts.map(whole).join('\u00a0· ')}`, { index: from, hole: before, added: order, ...(moved ? { back: true } : {}) });
+  $('toast').classList.add('vc');
+  announce(`${from + 1}번 홀 ${parts.join(', ')}, ${strokes(after)}타${moved ? `. ${round.current + 1}번 홀, Par ${hole().par}` : ''}`);
+  return null;
+}
+
+const voicePage: VoicePage = {
+  holes: () => round.holes.length,
+  names: () => ({ driver: LABELS.driver, approach: LABELS.approach, putts: LABELS.putts }),
+  apply: applyLine,
+  // While the sheet is open the last change's 되돌리기 waits, so "되돌리기" said there still finds it.
+  opened: () => window.clearTimeout(toastTimer),
+  dismissed: () => {
+    if (!$('toast').hidden) toastTimer = window.setTimeout(hideToast, 4000);
+  },
+  announce,
+};
+
 function render(changed?: string): void {
   const a = analyze(round);
   renderEntry(a, changed);
@@ -1769,6 +1855,8 @@ function bind(): void {
   buildPens();
   bindDetail();
   bindMenu();
+  // 말로 입력 (v21): the opt-in one-line entry (src/voice-view.ts); applyLine applies it as taps would.
+  bindVoice(voicePage);
   setText($('app-version'), VERSION_LABEL);
   // 스코어카드 legend: how each result looks on a par 4.
   $('legend').replaceChildren(h('li', { class: 'lg-cap' }, '파 4 기준'), ...LEGEND.map(([m, tone, n, label, shape]) => h('li', {},

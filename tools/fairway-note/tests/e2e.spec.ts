@@ -281,7 +281,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v20');
+  await expect(page.locator('#app-version')).toHaveText('v21');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -317,12 +317,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v20');
+  await expect(page.locator('#menu-version')).toHaveText('v21');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v20');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v21');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -447,7 +447,7 @@ test.describe('with hole notes in the course data', () => {
     await expect(page.locator('#hi-facts')).toHaveText('Par 4, 381 m, HDCP 3');
     await expect(page.locator('#hole-notes li')).toHaveText(['내리막', '블라인드 티샷', '좌우 OB']);
     const guide = page.getByRole('link', { name: '공식 홀 안내, 새 창' });
-    // Measured at rest: while the popover rises, WebKit's transformed box can read a hair under its 48px.
+    // Measured at rest: while the popover rises, WebKit reads the moving 48px link as 47.99998 (v21).
     await atRest(page);
     expect((await guide.boundingBox())!.height).toBeGreaterThanOrEqual(48);
     await expect(guide).toHaveAttribute('href', /^https:\/\/[^/]+\//);
@@ -3567,6 +3567,316 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await page.locator('.club-putts .plus').tap();
       await expect(count(page, 'putts')).toHaveText('3');
       await expect(panel(page)).toBeHidden();
+    });
+  });
+}
+
+/* ---------- 말로 입력 (v21): one line for the keyboard's dictation, off until turned on in the menu ---------- */
+
+/** Turns 말로 입력 on with its switch in the menu. */
+async function voiceOn(page: Page) {
+  await menu(page);
+  await page.locator('#mi-voice').click();
+  await expect(page.locator('#mi-voice')).toHaveAttribute('aria-checked', 'true');
+  await closeMenu(page);
+}
+
+/** Opens the sheet from 기록, writes the line as the keyboard's dictation would, and presses its 완료 (Enter). */
+async function say(page: Page, line: string) {
+  await page.locator('#voice-open').click();
+  await expect(page.locator('#voice')).toBeVisible();
+  await expect(page.locator('#vc-line')).toBeFocused();
+  await page.locator('#vc-line').fill(line);
+  await page.locator('#vc-line').press('Enter');
+}
+
+const prefsOf = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>, PREFS_KEY);
+
+test('말로 입력 is off by default: no button on 기록, its switch off, nothing about it saved', async ({ page }) => {
+  await open(page);
+  await expect(page.locator('#voice-open')).toBeHidden();
+  await expect(page.locator('#go-next')).toBeVisible();
+  await menu(page);
+  await expect(page.getByRole('switch', { name: /말로 입력/ })).toHaveAttribute('aria-checked', 'false');
+  await closeMenu(page);
+  expect((await prefsOf(page)).voice).toBeUndefined();
+  await expect(page.locator('#voice')).toBeHidden();
+});
+
+test('turning 말로 입력 on shows its button beside 다음 홀, after a reload too; turning it off hides it and forgets it', async ({ page }) => {
+  await open(page);
+  await voiceOn(page);
+  await expect(page.getByRole('button', { name: '말로 입력' })).toBeVisible();
+  await expect(page.locator('#announce')).toHaveText('말로 입력을 켰어요. 기록 화면의 다음 홀 옆에 있어요');
+  expect((await prefsOf(page)).voice).toBe(true);
+  await page.reload();
+  await expect(page.locator('#voice-open')).toBeVisible();
+  await menu(page);
+  await page.locator('#mi-voice').click();
+  await expect(page.locator('#mi-voice')).toHaveAttribute('aria-checked', 'false');
+  await closeMenu(page);
+  await expect(page.locator('#voice-open')).toBeHidden();
+  expect((await prefsOf(page)).voice).toBeUndefined();
+});
+
+test('a spoken line sets the counts as taps do, its toast says what was set, and 되돌리기 takes the whole line back', async ({ page }) => {
+  await open(page);
+  await voiceOn(page);
+  await say(page, '드라이버 하나 아이언 둘 퍼터 두 번');
+  await expect(page.locator('#voice')).toBeHidden();
+  await expect(count(page, 'driver')).toHaveText('1');
+  await expect(count(page, 'approach')).toHaveText('2');
+  await expect(count(page, 'putts')).toHaveText('2');
+  await expect(page.locator('#hole-strokes')).toHaveText('5');
+  await expect(page.locator('#hole-name')).toHaveText('보기');
+  await expect(page.locator('#toast-msg')).toHaveText(`${LABEL.driver} 1 · ${LABEL.approach} 2 · ${LABEL.putts} 2`);
+  await expect(page.locator('#announce')).toHaveText(`1번 홀 ${LABEL.driver} 1, ${LABEL.approach} 2, ${LABEL.putts} 2, 5타`);
+  await expect(page.locator('#voice-open')).toBeFocused();
+  expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, approach: 2, putts: 2 });
+  await page.locator('#toast-undo').click();
+  await expect(count(page, 'driver')).toHaveText('0');
+  await expect(count(page, 'approach')).toHaveText('0');
+  await expect(count(page, 'putts')).toHaveText('0');
+  expect((await stored(page)).holes[0]).toMatchObject({ driver: 0, approach: 0, putts: 0 });
+  // Said again, the scorecard reads it as it reads taps.
+  await say(page, '드라이버 하나 아이언 둘 퍼터 둘');
+  await showCard(page);
+  await expect(page.locator('#sum-strokes')).toHaveText('5');
+  await expect(page.locator('#sum-putts')).toHaveText('2');
+});
+
+test('a line that ends with 다음 홀 records the hole and moves on, and one 되돌리기 brings back both', async ({ page }) => {
+  await open(page);
+  await voiceOn(page);
+  await say(page, '드라이버 하나 아이언 하나 퍼터 둘 다음 홀');
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+  await expect(page.locator('#toast-msg')).toHaveText(`1번 홀 ${LABEL.driver} 1 · ${LABEL.approach} 1 · ${LABEL.putts} 2`);
+  await expect(count(page, 'putts')).toHaveText('0');
+  expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, approach: 1, putts: 2 });
+  await page.locator('#toast-undo').click();
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  await expect(count(page, 'putts')).toHaveText('0');
+  const back = await stored(page);
+  expect(back.current).toBe(0);
+  expect(back.holes[0]).toMatchObject({ driver: 0, approach: 0, putts: 0 });
+});
+
+test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alone adds one, and 7번 홀 jumps there', async ({ page }) => {
+  await open(page);
+  await voiceOn(page);
+  await say(page, '드라이버');
+  await expect(count(page, 'driver')).toHaveText('1');
+  await expect(page.locator('#toast-msg')).toHaveText(`${LABEL.driver} +1`);
+  await say(page, 'OB 해저드');
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
+  await expect(page.locator('#toast-msg')).toHaveText('OB +1 · 해저드 +1');
+  // They were added in the order said, as by two taps: the penalty row's 빼기 takes off the 해저드, then the OB.
+  await page.locator('#pen-undo').click();
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
+  await say(page, '해저드');
+  await say(page, '벙커에 빠졌어요');
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await expect(page.locator('#stake-bunker .pen-count')).toHaveText('1');
+  // A bunker is noted only: one drive and two penalty strokes.
+  await expect(page.locator('#hole-strokes')).toHaveText('3');
+  await say(page, '7번 홀');
+  await expect(page.locator('#voice')).toBeHidden();
+  await expect(page.locator('#hole-title')).toHaveText('7번 홀');
+});
+
+test('a line it cannot read says why, changes nothing, and stays to be said again', async ({ page }) => {
+  await open(page);
+  await voiceOn(page);
+  await tap(page, 'putts');
+  const before = await stored(page);
+  await say(page, '버디');
+  const error = page.locator('#vc-error');
+  await expect(error).toHaveText('‘버디’는 알아듣지 못했어요. 바꾼 것은 없어요.');
+  await expect(error).toHaveAttribute('role', 'alert');
+  await expect(page.locator('#voice')).toBeVisible();
+  await expect(page.locator('#vc-line')).toHaveValue('버디');
+  await expect(page.locator('#vc-line')).toHaveAttribute('aria-invalid', 'true');
+  expect(await stored(page)).toEqual(before);
+  // A new line clears the message; one that says something did not happen changes nothing either.
+  await page.locator('#vc-line').fill('OB 안 났어');
+  await expect(error).toBeHidden();
+  await page.locator('#vc-line').press('Enter');
+  await expect(error).toHaveText('‘안’처럼 아니라는 말이 있어 바꾸지 않았어요.');
+  expect(await stored(page)).toEqual(before);
+  // 닫기 drops the line: the sheet opens empty next time. Escape closes it too.
+  await page.locator('#vc-close').click();
+  await expect(page.locator('#voice')).toBeHidden();
+  await page.locator('#voice-open').click();
+  await expect(page.locator('#vc-line')).toHaveValue('');
+  await expect(error).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#voice')).toBeHidden();
+  await expect(count(page, 'putts')).toHaveText('1');
+});
+
+test('되돌리기 said in the sheet takes back the change its toast offers, which waits while the sheet is open', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  await voiceOn(page);
+  const toast = page.locator('#toast');
+  await tap(page, 'driver');
+  await expect(toast).toBeVisible();
+  // Open for longer than the toast's four seconds: its 되돌리기 is still there to be said.
+  await page.locator('#voice-open').click();
+  await expect(page.locator('#vc-line')).toBeFocused();
+  await page.clock.fastForward(6000);
+  await page.locator('#vc-line').fill('되돌리기');
+  await page.locator('#vc-line').press('Enter');
+  await expect(page.locator('#voice')).toBeHidden();
+  await expect(count(page, 'driver')).toHaveText('0');
+  await expect(toast).toBeHidden();
+  await say(page, '되돌리기');
+  await expect(page.locator('#vc-error')).toHaveText('되돌릴 것이 없어요.');
+  await page.locator('#vc-close').click();
+  // Closed with nothing applied, the toast's four seconds start again.
+  await tap(page, 'putts');
+  await page.locator('#voice-open').click();
+  await page.clock.fastForward(6000);
+  await page.locator('#vc-close').click();
+  await expect(toast).toBeVisible();
+  await page.clock.fastForward(4100);
+  await expect(toast).toBeHidden();
+});
+
+test('말로 입력 sends nothing, asks for no microphone or speech service, and keeps no line it read', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if ((url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') || request.method() !== 'GET' || request.postData()) requests.push(request.url());
+  });
+  // Any use of the microphone, the browser's speech recognition or a permission prompt is counted here.
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.__voiceCalls = 0;
+    const counted = () => { w.__voiceCalls = (w.__voiceCalls as number) + 1; };
+    class Listening { constructor() { counted(); } start() {} stop() {} abort() {} addEventListener() {} }
+    w.SpeechRecognition = Listening;
+    w.webkitSpeechRecognition = Listening;
+    if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { counted(); throw new Error('no microphone here'); };
+    if (navigator.permissions) {
+      const query = navigator.permissions.query.bind(navigator.permissions);
+      navigator.permissions.query = (d) => { counted(); return query(d); };
+    }
+  });
+  await open(page);
+  await voiceOn(page);
+  await say(page, '드라이버 하나 아이언 둘 퍼터 둘');
+  await expect(count(page, 'putts')).toHaveText('2');
+  await say(page, '버디 했어요');
+  await expect(page.locator('#vc-error')).toBeVisible();
+  await page.keyboard.press('Escape');
+  // A plain text field the keyboard can dictate into, not a search field, and not one the browser remembers.
+  const field = page.locator('#vc-line');
+  await expect(field).toHaveAttribute('type', 'text');
+  await expect(field).toHaveAttribute('enterkeyhint', 'done');
+  await expect(field).toHaveAttribute('autocomplete', 'off');
+  expect(await page.evaluate(() => (window as unknown as { __voiceCalls: number }).__voiceCalls)).toBe(0);
+  expect(requests).toEqual([]);
+  expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
+    .toEqual({ keys: [PREFS_KEY, STORAGE_KEY].sort(), sessionStorage: 0, cookies: '' });
+  expect(await page.evaluate(async () => (await indexedDB.databases()).length)).toBe(0);
+  // Only the counts the line set are kept, never its words; the prefs key holds the switch.
+  const kept = await page.evaluate(() => Object.values(localStorage).join('\n'));
+  for (const word of ['하나', '버디', '아이언']) expect(kept).not.toContain(word);
+  expect(await prefsOf(page)).toMatchObject({ voice: true });
+});
+
+for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+  test.describe(`말로 입력 lined up on a ${width}×${height} phone`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('its button on 다음 홀’s row at the card’s inset, its sheet on the card’s edges above the keyboard, its toast over no button', async ({ page }) => {
+      await open(page);
+      await voiceOn(page);
+      const menuBtn = await spanOf(page, '#entry .top .menu');
+      const badge = await spanOf(page, '#badge');
+      for (const mode of ['기본', '상세'] as const) {
+        if (mode === '상세') await page.getByRole('button', { name: '상세', exact: true }).click();
+        await settled(page);
+        const card = await spanOf(page, '#sheet');
+        const mic = await spanOf(page, '#voice-open');
+        const go = await spanOf(page, '#go-next');
+        // As tall as 다음 홀 and round, under the menu button on the card's left edge, on 다음 홀's centre line, 8px before it.
+        within1px(card.x, 16, `${mode}: the 16px inset`);
+        within1px(mic.height, go.height, `${mode}: button height`);
+        within1px(mic.width, mic.height, `${mode}: button round`);
+        within1px(mic.x, card.x, `${mode}: button on the card's left edge`);
+        within1px(mic.x, menuBtn.x, `${mode}: button under the menu button`);
+        within1px(mic.y + mic.height / 2, go.y + go.height / 2, `${mode}: button on 다음 홀's centre line`);
+        within1px(go.x - endOf(mic), 8, `${mode}: gap before 다음 홀`);
+        within1px(endOf(go), endOf(card), `${mode}: 다음 홀 keeps the card's right edge`);
+        expect(mic.y, `${mode}: button below the card`).toBeGreaterThanOrEqual(card.y + card.height);
+      }
+      expect(await sideScroll(page)).toBe(0);
+
+      // The sheet: from the top bar's first row, on the card's edges; inside, everything on the card's 16px padding.
+      await page.locator('#voice-open').click();
+      await expect(page.locator('#voice')).toBeVisible();
+      await settled(page);
+      const card = await spanOf(page, '#sheet');
+      const sheet = await spanOf(page, '#voice');
+      within1px(sheet.x, card.x, 'sheet left edge');
+      within1px(endOf(sheet), endOf(card), 'sheet right edge');
+      // From the top bar's highest edge, the badge's, so nothing of the bar peeks out above the sheet.
+      within1px(sheet.y, badge.y, 'sheet top on the badge top');
+      expect(sheet.y, 'sheet top no higher than the bar').toBeGreaterThanOrEqual(menuBtn.y - 8);
+      const field = await spanOf(page, '.vc-field');
+      within1px(field.x - sheet.x, 16, 'field, left padding');
+      within1px(endOf(sheet) - endOf(field), 16, 'field, right padding');
+      within1px(field.height, 52, 'field height');
+      within1px((await spanOf(page, '#vc-title')).x, field.x, 'title on the field edge');
+      const close = await spanOf(page, '#vc-close');
+      within1px(endOf(close), endOf(field), 'close on the field edge');
+      within1px(close.y - sheet.y, 16, 'close on the top padding');
+      // 입력 sits 4px inside the field all round, so the two curves share a centre.
+      const enter = await spanOf(page, '#vc-go');
+      within1px(enter.height, 44, '입력 height');
+      within1px(endOf(field) - endOf(enter), 4, '입력, right inset');
+      within1px(enter.y - field.y, 4, '입력, top inset');
+      for (const id of ['#vc-help', '#vc-example', '#vc-privacy']) within1px((await spanOf(page, id)).x, field.x, `${id} on the field edge`);
+      within1px(endOf(sheet) - endOf(await spanOf(page, '#vc-privacy')), 16, 'privacy note, right padding');
+      // A keyboard takes the lower part of the screen: the field and the message under it stay in the top half.
+      await page.locator('#vc-line').fill('버디');
+      await page.locator('#vc-line').press('Enter');
+      const error = await spanOf(page, '#vc-error');
+      within1px(error.x, field.x, 'message on the field edge');
+      expect(error.y + error.height, 'message above a keyboard').toBeLessThanOrEqual(height / 2);
+      expect(await sideScroll(page)).toBe(0);
+      await page.locator('#vc-close').click();
+      await expect(page.locator('#voice')).toBeHidden();
+
+      // A long line's toast: at most two lines inside a tap's toast height, within the card, clear of every control on it.
+      await page.getByRole('button', { name: '기본', exact: true }).click();
+      await tap(page, 'putts');
+      await settled(page);
+      const tapToast = await spanOf(page, '#toast');
+      await say(page, '드라이버 둘 아이언 셋 퍼터 둘 OB 하나 해저드 하나 다음 홀');
+      await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+      await expect(page.locator('#toast-msg')).toHaveText(`1번 홀 ${LABEL.driver} 2 · ${LABEL.approach} 3 · ${LABEL.putts} 2 · OB 1 · 해저드 1`);
+      await settled(page);
+      const toast = await spanOf(page, '#toast');
+      const sheetNow = await spanOf(page, '#sheet');
+      within1px(toast.height, tapToast.height, 'toast as tall as a tap’s');
+      within1px(toast.y, tapToast.y, 'toast where a tap’s shows');
+      expect(toast.x, 'toast within the card, left').toBeGreaterThanOrEqual(sheetNow.x - 0.5);
+      expect(endOf(toast), 'toast within the card, right').toBeLessThanOrEqual(endOf(sheetNow) + 0.5);
+      const text = await page.locator('#toast-msg').evaluate((el) => ({ lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), clipped: el.scrollHeight > el.clientHeight + 1 }));
+      expect(text.lines, 'toast lines').toBeLessThanOrEqual(2);
+      expect(text.clipped, 'toast text clipped').toBe(false);
+      for (const control of await page.locator('#sheet button').all()) {
+        const b = await control.boundingBox();
+        if (!b) continue;
+        const apart = b.x + b.width <= toast.x || endOf(toast) <= b.x || b.y + b.height <= toast.y || toast.y + toast.height <= b.y;
+        expect(apart, await control.getAttribute('aria-label') ?? (await control.textContent()) ?? '').toBe(true);
+      }
+      expect(await sideScroll(page)).toBe(0);
     });
   });
 }
