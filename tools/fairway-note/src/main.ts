@@ -363,8 +363,9 @@ function fitSwitcher(): void {
   const full = sub.dataset.full ?? '';
   setText(sub, full);
   if (getComputedStyle(sub).display === 'none' || !sub.dataset.par) return;
+  // The switcher is bounded by its column (v18): when the line would be cut, the length steps aside instead.
   const right = document.querySelector('#entry .switcher')!.getBoundingClientRect().right;
-  if (right > $('badge').getBoundingClientRect().left - 6) setText(sub, sub.dataset.par);
+  if (sub.scrollWidth > sub.clientWidth + 1 || right > $('badge').getBoundingClientRect().left - 6) setText(sub, sub.dataset.par);
 }
 
 /** Keeps the header to one row beside the badge: HDCP steps aside first, then the length (both stay in 홀 안내). */

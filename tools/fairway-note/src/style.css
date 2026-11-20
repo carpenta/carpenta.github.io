@@ -92,18 +92,21 @@ svg { display: block; }
 }
 .round:active { background: var(--tint); }
 .menu { grid-column: 1; grid-row: 1; }
+/* Bounded by its column, so whatever the font (Linux and Android draw Hangul and digits wider) it stays centred and
+   never reaches the badge: the arrows keep their size, the hole number stays whole, and only the words beside it and
+   the Par line under it shorten (v18). */
 .switcher {
-  grid-column: 2; grid-row: 1; justify-self: center;
+  grid-column: 2; grid-row: 1; justify-self: center; max-width: 100%; min-width: 0;
   display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
   background: rgb(255 255 255 / .96); box-shadow: var(--float);
 }
-.switcher .round { box-shadow: none; background: var(--tint); }
+.switcher .round { flex: none; box-shadow: none; background: var(--tint); }
 .switcher .round:active { background: var(--pill); }
 .switcher .round:disabled { background: transparent; color: var(--off-ink); }
-.hole-h { display: flex; margin: 0; font: inherit; }
+.hole-h { display: flex; min-width: 0; margin: 0; font: inherit; }
 /* The hole number is a button: it opens the hole strip. */
 .hole-title {
-  position: relative; height: 48px; padding: 0 6px 0 8px; border-radius: 24px;
+  position: relative; min-width: 0; height: 48px; padding: 0 6px 0 8px; border-radius: 24px;
   display: flex; align-items: center; gap: 2px; font-weight: var(--w-label); white-space: nowrap; text-align: left; color: var(--ink);
 }
 .hole-title:active, .hole-title[aria-expanded='true'] { background: var(--tint); }
@@ -116,12 +119,12 @@ svg { display: block; }
 .ticks i[data-t='done'] { background: var(--fairway); }
 .ticks i[data-t='miss'] { background: #c9962e; }
 .ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--turf); }
-.hole-txt { display: flex; flex-direction: column; align-items: flex-start; }
-.hole-main { display: flex; align-items: baseline; gap: 2px; margin: 0; font: inherit; }
-.hole-n { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
-.hole-u { font-size: 17px; font-weight: var(--w-label); }
+.hole-txt { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.hole-main { display: flex; align-items: baseline; gap: 2px; min-width: 0; max-width: 100%; margin: 0; font: inherit; }
+.hole-n { flex: none; font-size: 34px; line-height: 1; letter-spacing: -.02em; }
+.hole-u { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 17px; font-weight: var(--w-label); }
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
-.hole-sub { display: none; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 15px; }
+.hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
 /* The version, quietly, just above the card's right end on 기록 (and in the menu's 앱 정보): the user reads it in screenshots. */
 .ver { position: absolute; z-index: 1; right: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: 999px; background: rgb(12 32 14 / .62); color: #e8f3e2; font-size: 13px; line-height: 20px; font-weight: var(--w-label); pointer-events: none; }
 #hole-title.two .hole-n { font-size: 28px; }

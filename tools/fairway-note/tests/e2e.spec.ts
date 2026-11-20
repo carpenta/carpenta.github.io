@@ -1562,6 +1562,43 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
   });
 }
 
+// Linux and Android draw Hangul and digits with wider fonts (Noto Sans CJK) than the Mac (Apple SD Gothic Neo). Wider
+// letters stand in for them here, so the same no-overlap and fit rules are proven on every machine.
+for (const [width, height] of [[360, 640], [375, 553]]) {
+  test.describe(`with wider type, as on Linux and Android, on a ${width}×${height} phone`, () => {
+    // Only to add the widening style: the page's own CSP blocks injected styles.
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+    test('the hole switcher stays centred and clear of the badge, and 기록 still fits', async ({ page }) => {
+      await open(page);
+      await page.addStyleTag({ content: '* { letter-spacing: .1em !important; }' });
+      for (const hole of [0, 9]) {
+        if (hole === 9) await pickHole(page, 9);
+        for (const mode of ['기본', '상세'] as const) {
+          await page.getByRole('button', { name: mode, exact: true }).click();
+          await atRest(page);
+          const where = `hole ${hole + 1} ${mode}`;
+          const sw = await rect(page, '#entry .switcher');
+          const badge = await rect(page, '#badge');
+          expectAligned(midX(sw), width / 2, `${where}: switcher centre`);
+          expect(sw.x + sw.width, `${where}: switcher clear of the badge`).toBeLessThanOrEqual(badge.x - 4);
+          // The hole number stays whole; only the words beside it may shorten.
+          const n = await rect(page, '#hole-n');
+          expect(n.x, where).toBeGreaterThanOrEqual(sw.x);
+          expect(n.x + n.width, where).toBeLessThanOrEqual(sw.x + sw.width);
+          const info = page.locator('#hole-info');
+          if (await info.isVisible()) {
+            const row = await rect(page, '#hole-info');
+            expect(row.x + row.width, `${where}: chip row inside the inset`).toBeLessThanOrEqual(width - 16 + 0.5);
+          }
+          expect(await sideScroll(page), where).toBe(0);
+          expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight), where).toBeLessThanOrEqual(1);
+        }
+      }
+    });
+  });
+}
+
 test('keeps every control within 360px in both views and both modes, with the link back to the site', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await open(page);
