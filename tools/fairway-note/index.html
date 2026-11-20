@@ -41,12 +41,19 @@
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
             </button>
           </div>
-          <!-- One row (v10): Par, length and HDCP as text with the progress chips, all in one pill, then 홀 안내 -->
+          <!-- The hole's score in the top bar's right slot (v15): a quiet "Par 4" ring before the first tap. -->
+          <div class="badge" id="badge" data-tone="none" role="img" aria-label="이 홀 아직 기록 전">
+            <span class="bmark" id="bmark" data-mark="none" aria-hidden="true"><svg class="bm" id="bm" viewBox="0 0 40 40"></svg><b id="hole-strokes">4</b></span>
+            <span class="badge-name" id="hole-name" aria-hidden="true">Par</span>
+          </div>
+          <!-- One row with a fixed layout (v15): a small picture of the hole on a short screen, Par, length and HDCP in
+               one pill at the left; the round so far ("4홀까지 +2") and 홀 안내 pinned to the right. -->
           <p class="info" id="hole-info">
-            <span class="meta" id="meta"><span id="hole-par">Par 4</span><span class="mt-len" id="hole-distance" hidden></span><span class="mt-hd" id="hole-hdcp" hidden></span><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
+            <span class="thumb" id="hole-thumb" aria-hidden="true"></span>
+            <span class="meta" id="meta"><span id="hole-par">Par 4</span><span class="mt-len" id="hole-distance" hidden></span><span class="mt-hd" id="hole-hdcp" hidden></span></span>
+            <span class="progress" id="progress" hidden><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
             <button class="chip info-chip" type="button" id="info-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="hole-pop" hidden>홀 안내<span class="info-n" id="info-n" hidden></span></button>
           </p>
-          <span class="ver" id="app-version" aria-hidden="true"></span>
         </header>
 
         <div class="banners">
@@ -63,10 +70,7 @@
         <div class="spacer"></div>
 
         <div class="sheet-wrap" id="sheet-wrap">
-          <div class="badge" id="badge" data-tone="none" role="img" aria-label="이 홀 아직 기록 전">
-            <span class="bmark" id="bmark" data-mark="none" aria-hidden="true"><svg class="bm" id="bm" viewBox="0 0 40 40"></svg><b id="hole-strokes">–</b></span>
-            <span class="badge-name" id="hole-name" aria-hidden="true">기록 전</span>
-          </div>
+          <span class="ver" id="app-version" aria-hidden="true"></span>
           <!-- The last tap can be taken back for a few seconds; over the club names, clear of every button -->
           <div class="toast" id="toast" hidden><span id="toast-msg"></span><button type="button" id="toast-undo">되돌리기</button></div>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">

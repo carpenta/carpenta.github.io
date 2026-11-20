@@ -27,8 +27,9 @@
   --card-r: 24px;                  /* the scorecard's cards and boxes */
   --bar-row: 56px;                 /* the top bar's first row: the hole switcher's height, kept on every tab */
   --tabbar: 56px;
-  --badge: 76px;
-  --overlap: 12px;
+  --badge: 60px;                   /* the score badge in the top bar's right slot (v15) */
+  /* Three weights on 기록 and the shared chrome (v15): values bold, labels medium, helper text regular. */
+  --w-value: 800; --w-label: 600; --w-help: 400;
   /* 기본 sizes (screens 600px and taller); the count keeps 8px clear of the round + and − */
   --sheet-pt: 16px;
   --step: 52px;
@@ -37,7 +38,7 @@
   /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
   --pill-base: 434px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
   --pen: 48px;
-  --mode-h: 40px;
+  --mode-h: 44px;
   --next-h: 52px;
   --next-m: 8px;
   color-scheme: light;
@@ -72,10 +73,10 @@ svg { display: block; }
 .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 
 /* ---------- top bar: light controls floating on the course ---------- */
-/* Menu, hole switcher and an empty column as wide as the menu: the switcher sits in the screen's centre. */
+/* Menu, hole switcher and the score badge, the side columns equal: the switcher sits in the screen's centre. */
 .top {
   flex: none; position: relative; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
-  display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; grid-template-rows: var(--bar-row); grid-auto-rows: auto;
+  display: grid; grid-template-columns: var(--badge) minmax(0, 1fr) var(--badge); grid-template-rows: var(--bar-row); grid-auto-rows: auto;
   column-gap: 8px; row-gap: 14px; align-items: center;
 }
 /* Horizontal swipes change the hole; vertical ones still scroll the sheet, and pinch zoom still works.
@@ -103,7 +104,7 @@ svg { display: block; }
 /* The hole number is a button: it opens the hole strip. */
 .hole-title {
   position: relative; height: 48px; padding: 0 6px 0 8px; border-radius: 24px;
-  display: flex; align-items: center; gap: 2px; font-weight: 700; white-space: nowrap; text-align: left; color: var(--ink);
+  display: flex; align-items: center; gap: 2px; font-weight: var(--w-label); white-space: nowrap; text-align: left; color: var(--ink);
 }
 .hole-title:active, .hole-title[aria-expanded='true'] { background: var(--tint); }
 .hole-chev { flex: none; margin-left: 4px; color: var(--turf); transition: transform .16s; }
@@ -118,21 +119,21 @@ svg { display: block; }
 .hole-txt { display: flex; flex-direction: column; align-items: flex-start; }
 .hole-main { display: flex; align-items: baseline; gap: 2px; margin: 0; font: inherit; }
 .hole-n { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
-.hole-u { font-size: 17px; font-weight: 700; }
+.hole-u { font-size: 17px; font-weight: var(--w-label); }
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
 .hole-sub { display: none; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 15px; }
-/* The version, quietly, at the top right of 기록 (and in the menu's 앱 정보). */
-.ver { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + (var(--bar-row) - 19px) / 2); right: var(--m); font-size: 13px; line-height: 19px; font-weight: 600; color: rgb(255 255 255 / .78); }
+/* The version, quietly, just above the card's right end on 기록 (and in the menu's 앱 정보): the user reads it in screenshots. */
+.ver { position: absolute; z-index: 1; right: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: 999px; background: rgb(12 32 14 / .62); color: #e8f3e2; font-size: 13px; line-height: 20px; font-weight: var(--w-label); pointer-events: none; }
 #hole-title.two .hole-n { font-size: 28px; }
 #hole-title.two .hole-u { font-size: 15px; }
-.info { grid-column: 1 / -1; grid-row: 2; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - var(--badge) - 16px); }
+.info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
 .chip .lbl { font-weight: 600; color: var(--muted); }
 .chip {
   display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
   background: rgb(255 255 255 / .94); box-shadow: var(--float);
-  font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; text-decoration: none;
+  font-size: 13px; font-weight: var(--w-label); color: var(--ink); white-space: nowrap; text-decoration: none;
 }
-.chip.score { font-weight: 800; }
+.chip.score { font-weight: var(--w-value); }
 .chip.under { color: var(--red); }
 .chip.icon { position: relative; width: 28px; padding: 0; justify-content: center; color: var(--turf); }
 .chip.icon::after { content: ''; position: absolute; inset: -10px; }   /* a 48px touch area */
@@ -167,26 +168,25 @@ svg { display: block; }
 }
 .sheet-wrap.more::after { opacity: 1; }
 
-/* The score badge: the hole's computed score, rising from the sheet's top right into the open corner. Its white
-   ring is a border, so its box is what you see: the ring's outer edge sits on the card's right edge (v14). */
+/* The score badge (v15): in the top bar's right slot, 60px on the inset and the bar's centre line, never over the card.
+   Before the first tap a quiet light ring shows the hole's par (the goal); then the score and its scorecard mark. */
 .badge {
-  position: absolute; z-index: 3; right: 0; bottom: calc(100% - var(--overlap) - 4px);
-  width: calc(var(--badge) + 8px); height: calc(var(--badge) + 8px); border: 4px solid var(--white); border-radius: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  background: var(--deep); color: #fff; box-shadow: 0 8px 18px rgb(8 28 10 / .35);
+  grid-column: 3; grid-row: 1; justify-self: end; align-self: center; position: relative; z-index: 3;
+  width: var(--badge); height: var(--badge); border: 3px solid var(--white); border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: var(--deep); color: #fff; box-shadow: var(--float);
 }
 .badge[data-tone='under'] { background: var(--red); }
 .badge[data-tone='par'] { background: var(--turf); }
-.badge-name { font-size: 13px; font-weight: 700; line-height: 1; white-space: nowrap; }
-/* Nothing recorded yet: the badge stays quiet. */
-.badge[data-tone='none'] .badge-name { color: #cfe3c9; font-weight: 600; }
-.badge[data-tone='none'] .bmark b { font-weight: 600; color: #9fba98; }
+.badge-name { font-size: 13px; font-weight: var(--w-label); line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
+.badge[data-tone='none'] { background: var(--white); border: 2px solid var(--line); color: var(--ink); }
+.badge[data-tone='none'] .badge-name { order: -1; color: var(--muted); }
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
-.bmark { width: 44px; height: 40px; }
-.bmark b { position: relative; font-size: 30px; font-weight: 800; line-height: 1; text-box: trim-both cap alphabetic; }
-.bmark.two b { font-size: 22px; }
-.bm { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; overflow: visible; }
+.bmark { width: 34px; height: 30px; }
+.bmark b { position: relative; font-size: 24px; font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
+.bmark.two b { font-size: 19px; }
+.bm { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; overflow: visible; }
 .bm * { fill: none; stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
 /* Triple bogey or worse: the square is filled and the number turns dark on it. */
 .bm .fill { fill: currentColor; }
@@ -201,14 +201,14 @@ svg { display: block; }
 .badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
 .badge.celebrate .bm * { stroke-dasharray: 1.02; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
 .badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
-.badge.celebrate::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; animation: ring .7s ease-out both; }
+.badge.celebrate::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; animation: ring .7s ease-out both; }
 /* The scorecard's smaller marks keep their CSS rings. */
 .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
 /* Row A: three tall pill steppers. The count sits in its own row between the round buttons. */
 .clubs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; }
 .club { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 8px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+.club-lbl { display: flex; align-items: center; gap: 4px; height: 20px; margin-bottom: 8px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
 .club-lbl svg, .pill-ico { color: var(--turf); }
 .club-lbl svg { width: 20px; height: 20px; }
 /* The count, with a small club icon beside it where the club names step aside. */
@@ -240,14 +240,14 @@ svg { display: block; }
 .detail { margin-top: 8px; }
 .tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
 /* "티샷" and its result side by side, or the result under it when the chips leave too little room (360px). */
-.tee-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; min-width: 0; font-size: 17px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
-.tee-t .val { font-size: 15px; font-weight: 700; color: var(--turf); }
-.tee-t .val.none { color: var(--muted); font-weight: 600; }
+.tee-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; min-width: 0; font-size: 17px; font-weight: var(--w-label); color: var(--muted); line-height: 1.15; white-space: nowrap; }
+.tee-t .val { font-size: 15px; font-weight: var(--w-value); color: var(--turf); }
+.tee-t .val.none { color: var(--muted); font-weight: var(--w-help); }
 .tee-chips { display: flex; gap: 8px; flex: none; }
 .tchip {
   position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center; gap: 3px;
-  background: var(--tint); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap;
+  background: var(--tint); font-size: 13px; font-weight: var(--w-label); color: var(--ink); white-space: nowrap;
 }
 .tchip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
 .tchip[aria-pressed='true'] { background: var(--fairway); }
@@ -258,7 +258,7 @@ svg { display: block; }
 .dir:active { background: var(--tint); }
 .dir.far { background: var(--tint); box-shadow: none; }
 .dir[aria-pressed='true'] { background: var(--fairway); box-shadow: inset 0 0 0 2px var(--turf); }
-.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: 700; background: #c9e5bf; }
+.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: var(--w-label); background: #c9e5bf; }
 
 /* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke. 벙커 (상세) is noted only.
    The row sits on the steppers' columns (v14): OB under 드라이버, 해저드 under 퍼터, and in the middle "빼기" (기본) or
@@ -275,7 +275,7 @@ svg { display: block; }
 .pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
 .pen:active:not(:disabled) .pen-icon { background: var(--pill); }
 .pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
-.pen-lbl { font-size: 13px; font-weight: 700; line-height: 16px; text-align: center; white-space: nowrap; }
+.pen-lbl { font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 16px; text-align: center; white-space: nowrap; }
 .pen-count {
   position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
   background: var(--sand); color: var(--ink); font-size: 13px; font-weight: 800; line-height: 24px; text-align: center; box-shadow: 0 0 0 2px var(--white);
@@ -283,18 +283,18 @@ svg { display: block; }
 .pen-count.zero { display: none; }
 .undo {
   width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: 13px; font-weight: 700; line-height: 16px; color: var(--turf); white-space: nowrap;
+  font-size: 13px; font-weight: var(--w-label); line-height: 16px; color: var(--turf); white-space: nowrap;
 }
 .undo .u-ico { width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
 .undo:active .u-ico { background: var(--tint); }
 
 /* 기본 / 상세 */
 .modes { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: 999px; background: var(--tint); color: var(--muted); font-size: 15px; font-weight: 700; }
+.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: 999px; background: var(--tint); color: var(--muted); font-size: 15px; font-weight: var(--w-label); }
 .mode::after { content: ''; position: absolute; inset: calc((var(--mode-h) - 48px) / 2) 0; }   /* a 48px touch area */
 .mode[aria-pressed='true'] { background: var(--fairway); color: var(--ink); }
 
-.next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--turf); color: #fff; font-size: 17px; font-weight: 700; box-shadow: var(--float); }
+.next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--turf); color: #fff; font-size: 17px; font-weight: var(--w-label); box-shadow: var(--float); }
 .next:active { background: #276b31; }
 
 /* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. It sits over the club names at the
@@ -305,7 +305,7 @@ svg { display: block; }
   background: var(--deep); color: #fff; box-shadow: 0 8px 22px rgb(8 28 10 / .4);
   font-size: 15px; font-weight: 600; white-space: nowrap;
 }
-.toast button { height: 48px; padding: 0 16px; border-radius: 999px; color: #9ed583; font-weight: 700; }
+.toast button { height: 48px; padding: 0 16px; border-radius: 999px; color: #9ed583; font-weight: var(--w-label); }
 .toast button:active { background: rgb(255 255 255 / .1); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .toast.show { animation: toast-in .16s ease-out; }
@@ -325,7 +325,7 @@ svg { display: block; }
 .tab[aria-selected='true'] .ti { background: rgb(91 170 79 / .2); }
 .tab svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .tab-label { font-size: 13px; white-space: nowrap; }
-.tab[aria-selected='true'] { color: var(--fairway); font-weight: 700; }
+.tab[aria-selected='true'] { color: var(--fairway); }
 /* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
    The top right belongs to the score badge. */
 .home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: 600; text-decoration: none; }
@@ -346,7 +346,7 @@ svg { display: block; }
 .sc-title { text-align: center; min-width: 0; }
 .edit {
   height: 48px; min-width: 76px; padding: 0 14px; border-radius: 999px; background: var(--white); box-shadow: var(--float);
-  font-size: 15px; font-weight: 700; color: var(--turf); white-space: nowrap;
+  font-size: 15px; font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
 }
 .edit.on { background: var(--turf); color: #fff; }
 .edit-hint { margin: 12px 2px 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: 600; }
@@ -523,7 +523,7 @@ html.past-open { overflow: hidden; }
 /* The menu: one list, each item opening its own panel. */
 .menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: 0 -8px 32px rgb(8 28 10 / .25); }
 .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0 8px; }
-.menu-head h2 { font-size: 22px; font-weight: 700; }
+.menu-head h2 { font-size: 22px; font-weight: var(--w-label); }
 .menu-head span { font-size: 13px; color: var(--muted); }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li + li { border-top: 1px solid var(--line); }
@@ -532,7 +532,7 @@ html.past-open { overflow: hidden; }
 .mi .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; color: var(--turf); }
 .mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-t { min-width: 0; }
-.mi b { display: block; font-size: 17px; font-weight: 700; }
+.mi b { display: block; font-size: 17px; font-weight: var(--w-label); }
 .mi small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi .chev { justify-self: end; color: var(--off-ink); transition: transform .16s; }
 .mi[aria-expanded='true'] .chev { transform: rotate(90deg); }
@@ -551,7 +551,7 @@ html.past-open { overflow: hidden; }
 .step-sm.plus { background: var(--turf); color: #fff; }
 .step-sm:disabled { background: var(--off); color: var(--off-ink); box-shadow: none; }
 .step-count { text-align: center; font-size: 22px; font-weight: 800; }
-.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: 700; }
+.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: var(--w-label); }
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
@@ -561,25 +561,20 @@ html.past-open { overflow: hidden; }
 }
 .update-prompt:disabled { opacity: .7; }
 
-@media (max-width: 369px) { :root { --badge: 72px; } }
 /* Short screens (iPhone SE Safari, 375×553). */
 @media (max-height: 599px) {
   :root {
     --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 5px;
-    --pill-base: 400px; --pill-min: 140px; --pill-max: 176px;
-    --pen: 48px; --mode-h: 36px; --next-h: 48px; --next-m: 8px;
-    /* The badge rises past the hole switcher's row here: smaller, it keeps clear of the centred switcher. */
-    --badge: 60px;
+    --pill-base: 408px; --pill-min: 140px; --pill-max: 176px;
+    --pen: 48px; --next-h: 48px; --next-m: 8px;
   }
-  .bmark b { font-size: 24px; }
-  .bm { width: 32px; height: 32px; }
   .club-lbl { height: 18px; margin-bottom: 4px; }
   .pens { margin-top: 8px; }
   .modes { margin-top: 14px; }
   .sheet { --sheet-pb: 8px; }
   .ver { display: none; }
   /* 상세 on a short screen: the club names and the chip row step aside so the 벌타 row and the toggle fit. */
-  #entry[data-mode='detail'] { --pill-fixed: 128px; --count: 22px; --pill-pad: 0px; --overlap: 4px; }
+  #entry[data-mode='detail'] { --pill-fixed: 128px; --count: 22px; --pill-pad: 0px; }
   #entry[data-mode='detail'] .info, #entry[data-mode='detail'] .toast { display: none; }
   #entry[data-mode='detail'] .top { row-gap: 0; padding-top: max(4px, env(safe-area-inset-top)); }
   #entry[data-mode='detail'] .hole-sub { display: block; }
@@ -589,7 +584,8 @@ html.past-open { overflow: hidden; }
   #entry[data-mode='detail'] .pill-ico { display: block; }
   #entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
   #entry[data-mode='detail'] .pens { margin-top: 8px; }
-  #entry[data-mode='detail'] .pen { width: auto; max-width: 100%; height: 48px; flex-direction: row; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint); }
+  /* One width for the three, each centred on its column (v15). */
+  #entry[data-mode='detail'] .pen { width: 100%; height: 48px; flex-direction: row; justify-content: center; gap: 2px; padding: 0 10px 0 4px; border-radius: 999px; background: var(--tint); }
   #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
   #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon { width: 30px; height: 40px; background: transparent; box-shadow: none; }
   #entry[data-mode='detail'] .pen-icon svg { transform: scale(.82); }
@@ -602,9 +598,8 @@ html.past-open { overflow: hidden; }
 @media (min-height: 600px) and (max-height: 650px) {
   :root { --count: 48px; }
 }
-/* 600–699px tall (360×640, 375×667): the sheet stays low enough for the score badge to rise below the centred hole
-   switcher, not into it. 기본's pills stop a little shorter; 상세 trades the club names for small icons beside the
-   counts and closes its gaps a little. */
+/* 600–699px tall (360×640, 375×667): the sheet stays low enough to leave a band for the drawn hole and the version.
+   기본's pills stop a little shorter; 상세 trades the club names for small icons beside the counts and closes its gaps. */
 @media (min-height: 600px) and (max-height: 699px) {
   :root { --pill-max: 192px; }
   #entry[data-mode='detail'] .club-lbl { display: none; }
@@ -744,7 +739,7 @@ html.past-open { overflow: hidden; }
 }
 
 /* ---------- type (v13): 800 only for numbers, 600–700 for labels, tabular digits wherever numbers line up ---------- */
-.hole-n { font-weight: 800; }
+.hole-n { font-weight: var(--w-value); }
 .ct .r-h > .ct-s { font-weight: 700; }
 .tbl, .col, .strip-row, .sum-marks, .np-row, .sum-stats dd, .lost-bars .v, .past-score, .tot b, .now .big, .chip, .prog { font-variant-numeric: tabular-nums; }
 
@@ -799,7 +794,7 @@ html.past-open { overflow: hidden; }
 body.big .ct .r > span { font-size: 15px; }
 
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */
-#course .marker text { font-size: 13px; font-weight: 700; fill: #fff; }
+#course .marker text { font-size: 13px; font-weight: var(--w-label); fill: #fff; }
 
 /* ---------- 홀 목록: every hole at a glance, opened from the hole number ---------- */
 .strip {
@@ -809,7 +804,7 @@ body.big .ct .r > span { font-size: 15px; }
 }
 .strip::backdrop { background: rgb(8 24 10 / .32); }
 .strip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; padding: 0 16px; }
-.strip-head h2 { font-size: 17px; font-weight: 700; }
+.strip-head h2 { font-size: 17px; font-weight: var(--w-label); }
 .strip-note { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .strip-note.warn { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--sand-tint); color: #6b4e0e; font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--sand); }
 .strip-row { position: relative; display: flex; gap: 8px; overflow-x: auto; margin: 0; padding: 10px 16px 6px; list-style: none; scrollbar-width: none; overscroll-behavior-x: contain; }
@@ -849,7 +844,7 @@ button.scell:active { background: var(--tint); }
   padding: 10px var(--card-pad); border: 0; border-radius: var(--card-r); background: var(--white); color: var(--ink); box-shadow: 0 12px 32px rgb(8 28 10 / .35);
 }
 .numpick::backdrop { background: rgb(8 24 10 / .32); }
-.np-h { padding: 2px 0 8px; font-size: 15px; font-weight: 700; }
+.np-h { padding: 2px 0 8px; font-size: 15px; font-weight: var(--w-label); }
 .np-row { display: flex; justify-content: space-between; gap: 4px; }
 .np-row button { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); font-size: 22px; font-weight: 800; color: var(--ink); }
 .np-row button:active { background: var(--pill); }
@@ -862,7 +857,7 @@ button.scell:active { background: var(--tint); }
 .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(23 48 26 / .35); transition: transform .16s; }
 .mi[aria-checked='true'] .sw { background: var(--turf); box-shadow: none; }
 .mi[aria-checked='true'] .sw::after { transform: translateX(18px); }
-.mpanel .ab-h { font-size: 15px; font-weight: 700; }
+.mpanel .ab-h { font-size: 15px; font-weight: var(--w-label); }
 .mpanel .ab-h ~ .ab-h { margin-top: 14px; }
 .promise { margin: 6px 0 0; padding: 0 0 0 20px; display: grid; gap: 4px; }
 .promise li::marker { color: var(--turf); }
@@ -891,7 +886,7 @@ body.big .m b { font-size: 22px; }
 body.big .mi b, body.big .tot h3 { font-size: 20px; }
 @media (max-height: 599px) {
   /* Short screens: bigger letters, the same heights */
-  body.big { --count: 44px; --pill-base: 404px; }
+  body.big { --count: 44px; --pill-base: 412px; }
   body.big .chip { height: 28px; }
   body.big .club-lbl { height: 18px; }
 }
@@ -900,13 +895,22 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .info { align-items: center; flex-wrap: nowrap; }
 .meta {
   display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: 999px;
-  background: rgb(255 255 255 / .94); box-shadow: var(--float); font-size: 13px; font-weight: 700; white-space: nowrap; color: var(--ink);
+  background: rgb(255 255 255 / .94); box-shadow: var(--float); font-size: 13px; font-weight: var(--w-label); white-space: nowrap; color: var(--ink);
 }
-.meta.has-prog { padding-right: 4px; }
 .mt-len, .mt-hd { color: var(--muted); font-weight: 600; }
-.prog { height: 20px; padding: 0 7px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-weight: 800; }
-.prog + .prog { margin-left: -4px; }
+.progress {
+  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px;
+  background: rgb(255 255 255 / .94); box-shadow: var(--float); font-size: 13px; white-space: nowrap;
+}
+.progress[hidden] + .info-chip { margin-left: auto; }
+/* Plain text in one pill like the meta pill (no chips inside a chip): how far, then the score against par. */
+.prog { display: inline-flex; align-items: center; font-weight: var(--w-label); color: var(--muted); }
+.prog.score { font-weight: var(--w-value); color: var(--ink); }
 .prog.under { color: var(--red); }
+/* A small picture of the hole leads the row where a short screen leaves no band for the drawn hole (v15). */
+.thumb { display: none; flex: none; width: 40px; height: 28px; border-radius: 8px; overflow: hidden; box-shadow: var(--float); outline: 1px solid rgb(255 255 255 / .35); outline-offset: -1px; }
+.thumb svg { display: block; }
+@media (max-height: 599px) { .thumb { display: block; } }
 .meta.tight .mt-hd, .meta.tighter .mt-len { display: none; }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */
@@ -918,12 +922,12 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 }
 .hinfo::backdrop { background: rgb(8 24 10 / .2); }
 .hinfo:focus { outline: none; }
-.hi-h { font-size: 17px; font-weight: 700; }
+.hi-h { font-size: 17px; font-weight: var(--w-label); }
 .hi-facts { margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
-.hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: 700; }
+.hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: var(--w-label); }
 .hi-none { margin-top: 8px; font-size: 13px; color: var(--muted); }
-.hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 15px; font-weight: 700; color: var(--turf); text-decoration: none; }
+.hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 15px; font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
 body.big .meta { height: 32px; font-size: 15px; }
 body.big .prog { height: 24px; }
 body.big .info-chip { font-size: 15px; }
@@ -955,7 +959,7 @@ body.big .info-chip { font-size: 15px; }
 .coach {
   position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
   display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: 999px;
-  background: rgb(22 48 29 / .94); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 6px 16px rgb(8 28 10 / .3);
+  background: rgb(22 48 29 / .94); color: #fff; font-size: 15px; font-weight: var(--w-label); box-shadow: 0 6px 16px rgb(8 28 10 / .3);
 }
 .coach[hidden] { display: none; }
 /* The counts are all 0 under it; hidden so they do not peek out. */

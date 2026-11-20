@@ -134,6 +134,31 @@ function smooth(pts: [number, number][]): string {
   return `${d}Z`;
 }
 
+/**
+ * A 40×28 picture of the hole for the header of a short screen, where the drawn band has no room (v15). Facing the
+ * green, tee at the left and green at the right: a par 3 is a carry to a green, a par 4 or 5 a fairway, a dogleg turns
+ * up (left) or down (right), and an island green has water round it. Decorative and built from numbers only.
+ */
+export function holeThumb(par: Par, bend: Bend, island: boolean): string {
+  const k = par === 3 ? 0 : par === 4 ? 1 : 2;
+  const turn = k === 0 ? 0 : bend;
+  const g = { cx: [26, 31, 33][k], cy: 14 + turn * 6, rx: [7.5, 5.5, 4.5][k], ry: [6, 4.5, 4][k] };
+  const teeX = [5, 4, 3][k];
+  const out = ['<svg viewBox="0 0 40 28" width="40" height="28" aria-hidden="true" focusable="false"><rect width="40" height="28" fill="#3E6B2E"/>'];
+  if (k > 0) {
+    // Straight off the tee, turning toward the green in the last third.
+    out.push(`<path class="th-fairway" d="M${teeX + 3} 14Q${f(g.cx - 4)} 14 ${f(g.cx - g.rx * 0.6)} ${f(g.cy)}" fill="none" stroke="#5BAA4F" stroke-width="${k === 1 ? 7 : 6}" stroke-linecap="round"/>`);
+  }
+  if (island) out.push(`<ellipse class="th-water" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx * 1.6)}" ry="${f(g.ry * 1.6)}" fill="#4F90B8"/>`);
+  out.push(`<ellipse class="th-green" cx="${f(g.cx)}" cy="${f(g.cy)}" rx="${f(g.rx)}" ry="${f(g.ry)}" fill="#8CCB6E" stroke="#4E963F" stroke-width="1"/>`);
+  out.push(`<rect x="${teeX - 2}" y="12" width="5" height="4" rx="1.5" fill="#A2D987"/>`);
+  // The flag: a white pole and a red pennant, kept inside the picture.
+  const top = Math.max(2, g.cy - 9);
+  out.push(`<path d="M${f(g.cx)} ${f(g.cy)}V${f(top)}" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/><path d="M${f(g.cx + 0.5)} ${f(top)}l4 1.6-4 1.6z" fill="#D2402F"/>`);
+  out.push('</svg>');
+  return out.join('');
+}
+
 /** The SVG content for the course behind the screen. Decorative and built from numbers only. */
 export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
   const { width: W, height: H } = frame;

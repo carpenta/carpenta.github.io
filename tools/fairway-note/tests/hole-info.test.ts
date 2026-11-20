@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { COURSES, distanceLabel, holeInfo, publishedPar, type Course } from '../src/courses';
-import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from '../src/course-art';
+import { courseShape, courseSvg, holeThumb, layoutBend, layoutIsland, type CourseFrame } from '../src/course-art';
 import type { RoundCourse } from '../src/round';
 
 /** A course with notes on some holes of its first nine and none on its second. Synthetic: not bundled. */
@@ -188,6 +188,24 @@ describe('drawn course behind the screen', () => {
       expect(s.tee.y).toBe(577);
       // Without the button's place, the tee stays near the bottom as before.
       expect(courseShape(par, 0, frame, 0).tee.y).toBeGreaterThan(frame.height - 80);
+    }
+  });
+
+  it('draws a small picture of the hole for a short screen: tee to green left to right, a dogleg turning up or down, water round an island', () => {
+    const p3 = holeThumb(3, 0, false);
+    const p4 = holeThumb(4, 0, false);
+    expect(p3).toContain('class="th-green"');
+    expect(p3).not.toContain('class="th-fairway"');
+    expect(p4).toContain('class="th-fairway"');
+    const greenY = (svg: string) => Number(/class="th-green" cx="[\d.]+" cy="([\d.]+)"/.exec(svg)![1]);
+    // Facing the green (to the right), a left dogleg turns up the picture and a right one down.
+    expect(greenY(holeThumb(4, -1, false))).toBeLessThan(greenY(p4));
+    expect(greenY(holeThumb(4, 1, false))).toBeGreaterThan(greenY(p4));
+    expect(holeThumb(3, 0, true)).toContain('class="th-water"');
+    expect(p3).not.toContain('class="th-water"');
+    for (const svg of [p3, p4, holeThumb(5, 1, false)]) {
+      expect(svg).toMatch(/^<svg viewBox="0 0 40 28"/);
+      expect(svg).not.toMatch(/style=|<script|\son\w+=|href/);
     }
   });
 

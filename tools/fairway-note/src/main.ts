@@ -31,7 +31,7 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { courseShape, courseSvg, layoutBend, layoutIsland, type CourseFrame } from './course-art';
+import { courseShape, courseSvg, holeThumb, layoutBend, layoutIsland, type CourseFrame } from './course-art';
 import { registerOffline } from './offline';
 import { analysisText, csvName, dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
@@ -264,10 +264,19 @@ function changeHole(dir: 1 | -1, swiped = false): void {
   window.setTimeout(scrollHint, 260);
 }
 
-/** "다음 홀", or the round summary after the last hole. */
+/** "다음 홀", or the round summary after the last hole. Leaving a hole with nothing on it says so, with 되돌리기 (v15). */
 function goNext(): void {
-  if (round.current === lastHole()) requestFinish($('go-next'));
-  else changeHole(1);
+  if (round.current === lastHole()) {
+    requestFinish($('go-next'));
+    return;
+  }
+  const from = round.current;
+  const blank = !played(hole());
+  changeHole(1);
+  if (!blank) return;
+  const text = `${from + 1}번 홀은 비워 두고 넘어갑니다`;
+  showToast(text, { index: from, hole: round.holes[from], added: [...(added.get(from) ?? [])], back: true });
+  announce(`${text}. ${round.current + 1}번 홀, Par ${hole().par}`);
 }
 
 /** A sideways swipe on 기록 changes the hole; a mostly vertical one is left to scroll the sheet. */
@@ -359,7 +368,7 @@ function drawCourse(): void {
     // The open band starts under the one-row header.
     frame.bandTop = $('hole-info').getBoundingClientRect().bottom + 6;
     frame.bandBottom = $('sheet').getBoundingClientRect().top;
-    frame.right = $('badge').getBoundingClientRect().left - 6;
+    frame.right = $('sheet').getBoundingClientRect().right - 6;
     // The tee box (27px with its bevel) centred behind 다음 홀.
     const go = $('go-next').getBoundingClientRect();
     frame.teeY = go.top + go.height / 2 - 1.5;
@@ -599,8 +608,8 @@ function buildPens(): void {
 
 /* ---------- undo: the last + or − or penalty can be taken back for four seconds ---------- */
 
-/** The hole as it was before the last change, and its penalty order. Not saved. */
-let undoable: { index: number; hole: Hole; added: Pen[] } | null = null;
+/** The hole as it was before the last change, and its penalty order; `back` when 되돌리기 returns to a hole left blank. Not saved. */
+let undoable: { index: number; hole: Hole; added: Pen[]; back?: boolean } | null = null;
 let toastTimer = 0;
 
 function showToast(text: string, before: NonNullable<typeof undoable>): void {
@@ -623,6 +632,10 @@ function restore(): void {
   const before = undoable;
   if (!before) return;
   hideToast();
+  if (before.back) {
+    go(before.index);
+    return;
+  }
   added.set(before.index, before.added);
   setHoleAt(before.index, () => before.hole);
   announce('되돌렸어요');
@@ -715,14 +728,12 @@ function renderEntry(a: Analysis, changed?: string): void {
   setText($('hole-n'), String(i + 1));
   $('hole-title').classList.toggle('two', i >= 9);
   setText($('hole-par'), `Par ${cur.par}`);
-  // Progress, once a hole is finished: the holes recorded ("7홀"), then the score against par ("+3").
+  // Progress, once a hole is finished: how far the round has come ("7홀까지", not to be read as hole 7), then the score
+  // against par ("+3"), pinned right beside 홀 안내 so nothing moves when the length or HDCP comes and goes.
   const progN = $('prog-n');
   const progP = $('prog-p');
-  progN.hidden = progP.hidden = a.totals.holes === 0;
-  if (progN.dataset.v !== String(a.totals.holes)) {
-    progN.dataset.v = String(a.totals.holes);
-    progN.replaceChildren(h('span', { class: 'sr-only' }, '기록한 홀 '), `${a.totals.holes}홀`);
-  }
+  progN.hidden = progP.hidden = $('progress').hidden = a.totals.holes === 0;
+  setText(progN, `${a.totals.holes}홀까지`);
   if (progP.dataset.v !== String(a.toPar)) {
     progP.dataset.v = String(a.toPar);
     progP.replaceChildren(h('span', { class: 'sr-only' }, '파 대비 '), toParText(a.toPar));
@@ -743,10 +754,17 @@ function renderEntry(a: Analysis, changed?: string): void {
   // The tick bar is drawn for the eye; its news is in the button's name.
   setAttr(holeBtn, 'aria-label', `${i + 1}번 홀, Par ${cur.par}. 홀 목록, ${a.totals.holes}홀 기록${missed.length ? `, 기록 안 한 홀 ${missed.length}개` : ''}`);
   const info = holeInfo(roundCourse(round), i);
+  // A short screen has no band for the drawn hole: a small picture of it leads the row instead (CSS shows it there).
+  const thumb = $('hole-thumb');
+  const thumbKey = `${cur.par}:${layoutBend(info?.layout)}:${layoutIsland(info?.layout)}`;
+  if (thumb.dataset.key !== thumbKey) {
+    thumb.dataset.key = thumbKey;
+    // Static markup from course-art.ts, built from numbers only.
+    thumb.innerHTML = holeThumb(cur.par, layoutBend(info?.layout), layoutIsland(info?.layout));
+  }
   // One row: Par, length and HDCP (only with the course's official handicap) as text in one pill.
   setChip('hole-distance', distanceLabel(info));
   setChip('hole-hdcp', info?.si ? `HDCP ${info.si}` : null);
-  $('meta').classList.toggle('has-prog', a.totals.holes > 0);
   // Under the hole number when 상세 on a short screen hides the row.
   const sub = $('hole-sub');
   sub.dataset.par = `Par ${cur.par}`;
@@ -798,8 +816,9 @@ function renderEntry(a: Analysis, changed?: string): void {
   const done = finished(round, i);
   const d = s - cur.par;
   const mark: Mark = done ? markOf(d) : 'none';
-  const name = done ? scoreWord(s, cur.par) : played(cur) ? '진행 중' : '기록 전';
-  setText($('hole-strokes'), played(cur) ? String(s) : '–');
+  // Before the first tap a quiet ring shows the hole's par: the goal, not an empty score.
+  const name = done ? scoreWord(s, cur.par) : played(cur) ? '진행 중' : 'Par';
+  setText($('hole-strokes'), String(played(cur) ? s : cur.par));
   const bmark = $('bmark');
   setAttr(bmark, 'data-mark', mark);
   bmark.classList.toggle('two', s >= 10);
@@ -807,7 +826,7 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(badge, 'data-tone', done ? toneOf(d) : played(cur) ? 'progress' : 'none');
   // The badge is a 96px circle: 트리플 보기 and 쿼드러플 보기 read 트리플 and 쿼드러플 there (the label keeps the full name).
   setText($('hole-name'), name.replace(/^(트리플|쿼드러플) 보기$/, '$1'));
-  setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타 ${name}` : '이 홀 아직 기록 전');
+  setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타 ${name}` : `이 홀 아직 기록 전, Par ${cur.par}`);
   const markKey = `${i}:${mark}`;
   // Static markup from SHAPES; written only when the mark changes, so a drawing mark is not restarted.
   if (markKey !== lastMark) $('bm').innerHTML = SHAPES[mark];
