@@ -740,6 +740,23 @@ test('a long press on a penalty sets its count straight away in either mode, and
   expect((await stored(page)).holes[0].hazard).toBe(1);
 });
 
+test('a long press is not a swipe: moving the mouse across 기록 afterwards does not slide the sheet or swallow 되돌리기', async ({ page }) => {
+  await open(page);
+  const start = (await page.locator('#count-driver').boundingBox())!;
+  await longPress(page, 'driver');
+  await page.getByRole('button', { name: '3번', exact: true }).click();
+  await expect(count(page, 'driver')).toHaveText('3');
+  // The long press's release landed on the picker, outside 기록. A mouse then moving sideways from where the press
+  // began, with no button held (as on the way to 되돌리기 when wider type puts it further right), is not a swipe: it
+  // neither slides the sheet nor eats the next click.
+  await page.mouse.move(start.x + start.width / 2 + 120, start.y + start.height / 2);
+  await page.mouse.move(start.x + start.width / 2 + 160, start.y + start.height / 2);
+  expect(await page.locator('#sheet').evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(count(page, 'driver')).toHaveText('0');
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+});
+
 test('큰 글씨 in the menu makes the numbers larger, stays after a reload, and still fits small phones', async ({ page }) => {
   await open(page);
   const size = () => page.locator('#count-driver').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));

@@ -293,6 +293,11 @@ function bindSwipe(): void {
   });
   entry.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
+    // A mouse with no button held is not dragging: its press ended somewhere 기록 did not see (v18).
+    if (e.pointerType === 'mouse' && e.buttons === 0) {
+      drag = null;
+      return;
+    }
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
     if (!drag.on) {
@@ -323,6 +328,13 @@ function bindSwipe(): void {
   };
   entry.addEventListener('pointerup', (e) => end(e, false));
   entry.addEventListener('pointercancel', (e) => end(e, true));
+  // A press can end outside 기록: a long press's release lands on the 0 … 5+ picker it opened. Left behind, that press
+  // read the next sideways move as a swipe, slid the sheet and swallowed the next click, 되돌리기 included (v18).
+  const forget = (e: PointerEvent) => {
+    if (drag && e.pointerId === drag.id && !entry.contains(e.target as Node)) drag = null;
+  };
+  document.addEventListener('pointerup', forget, true);
+  document.addEventListener('pointercancel', forget, true);
   // A swipe that starts on a button must not also press it.
   document.addEventListener('click', (e) => {
     if (!swallow) return;
