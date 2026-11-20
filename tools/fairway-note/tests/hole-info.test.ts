@@ -243,7 +243,9 @@ describe('drawn course behind the screen', () => {
 
   it('draws the rough with grain, a vignette and a header shade, the fairway with its edge and first cut, and a bevelled tee', () => {
     const svg = courseSvg(courseShape(4, 0, frame, 0), frame);
-    for (const id of ['course-rough', 'course-grain', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
+    for (const id of ['course-rough', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
+    // The grain is the page's noise tile (v22, src/grain.ts), which the drawing points at.
+    expect(svg).toContain('fill="url(#course-grain)"');
     expect(svg).toMatch(/class="a-edge"[^>]* stroke-width="20"/);
     expect(svg).toMatch(/class="a-cut"[^>]* stroke-width="10"/);
     expect(svg.match(/<circle [^>]*r="4.2" class="a-pole-fill"/g)).toHaveLength(2);

@@ -19,6 +19,8 @@
   <body>
     <!-- Our own drawing of the current hole fills the screen behind everything. -->
     <svg class="course-art" id="course" aria-hidden="true" focusable="false"></svg>
+    <!-- The drawn course's grain (v22): two tiles of seeded noise, made once on a canvas (src/grain.ts), no SVG filter. -->
+    <svg class="grain-defs" aria-hidden="true" focusable="false"><defs><pattern id="course-grain" width="64" height="64" patternUnits="userSpaceOnUse"><image id="grain-turf" width="64" height="64" preserveAspectRatio="none"/></pattern><pattern id="course-sandgrain" width="48" height="48" patternUnits="userSpaceOnUse"><image id="grain-sand" width="48" height="48" preserveAspectRatio="none"/></pattern></defs></svg>
 
     <div class="app">
       <section class="view entry" id="entry" role="tabpanel" aria-labelledby="tab-entry">
@@ -375,6 +377,7 @@
       <p class="hi-facts" id="hi-facts"></p>
       <ul class="hi-notes" id="hole-notes" aria-label="홀 특징"></ul>
       <p class="hi-none" id="hi-none" hidden>적어 둔 특징이 없는 홀이에요.</p>
+      <p class="hi-art" id="hi-art" hidden>그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.</p>
       <a class="hi-link" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>공식 홀 안내 보기<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </dialog>
 

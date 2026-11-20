@@ -31,7 +31,8 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { courseShape, courseSvg, holeThumb, layoutBend, layoutIsland, type CourseFrame } from './course-art';
+import { courseShape, courseSvg, holeHazards, holeThumb, layoutBend, layoutIsland, type CourseFrame } from './course-art';
+import { paintGrain } from './grain';
 import { registerOffline } from './offline';
 import { analysisText, csvName, dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
@@ -396,12 +397,12 @@ function drawCourse(): void {
   // The official length in metres, for the 100 m / 150 m markers a tall band shows.
   const first = info?.distances?.[0];
   const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
-  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length].join(',');
+  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length, info?.layout ?? ''].join(',');
   if (svg.dataset.key === key) return;
   svg.dataset.key = key;
   svg.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
-  // Static markup from course-art.ts, built from numbers only.
-  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length), frame);
+  // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
+  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length, holeHazards(hole().par, info?.layout)), frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */
@@ -817,6 +818,13 @@ function renderEntry(a: Analysis, changed?: string): void {
   }
   notes.hidden = phrases.length === 0;
   $('hi-none').hidden = phrases.length > 0;
+  // Where the drawing's bunkers and water come from, when it has any (v22). Read again only when the hole changes.
+  const art = $('hi-art');
+  const artKey = `${cur.par}|${info?.layout ?? ''}`;
+  if (art.dataset.key !== artKey) {
+    art.dataset.key = artKey;
+    art.hidden = !layoutIsland(info?.layout) && holeHazards(cur.par, info?.layout).length === 0;
+  }
   setText($('hi-title'), `${i + 1}번 홀 안내`);
   setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(', '));
   const guide = $<HTMLAnchorElement>('hole-guide');
@@ -1918,6 +1926,8 @@ function bind(): void {
   });
   window.addEventListener('resize', () => {
     fitNotes();
+    // A zoom can change the screen's scale: the grain tiles follow it (nothing to do otherwise).
+    paintGrain();
     drawCourse();
     scrollHint();
   });
@@ -1946,6 +1956,9 @@ function bind(): void {
 applyBig(loadDisplay().big);
 bind();
 render();
+// The drawn course's grain (v22), made once just after the first frame so it never holds up the first screen: faint as
+// it is, it simply appears a frame later.
+requestAnimationFrame(() => setTimeout(() => paintGrain()));
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
 if (loaded === null || untouched) {
   openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });

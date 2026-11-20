@@ -74,24 +74,38 @@
   --sh-4: color-mix(in srgb, var(--ink) 40%, transparent);
   --lift: 0 1px 2px var(--sh-1), 0 4px 10px var(--sh-1);
   --float: 0 2px 6px var(--sh-2);
-  /* The drawn course (src/course-art.ts). */
+  /* The drawn course (src/course-art.ts). Lit from the top left (v22): highlights up and left, shades down and right. */
   --art-rough-hi: color-mix(in oklab, var(--rough) 80%, var(--fairway));
   --art-rough-lo: color-mix(in oklab, var(--rough) 72%, var(--deep));
   --art-edge: color-mix(in oklab, var(--rough) 84%, var(--deep));  /* the rough's darker edge along the fairway */
+  --art-edge-soft: color-mix(in srgb, var(--deep) 16%, transparent); /* a soft shade outside it, where the taller rough starts (v22) */
   --art-cut: color-mix(in oklab, var(--fairway) 72%, var(--rough)); /* the first cut */
+  --art-fairway-lit: color-mix(in oklab, var(--fairway) 84%, var(--sun));  /* the fairway toward the light (v22) */
+  --art-fairway-shade: color-mix(in oklab, var(--fairway) 86%, var(--deep)); /* and away from it */
   --art-stripe-light: color-mix(in srgb, var(--sun) 26%, transparent);
   --art-stripe-dark: color-mix(in srgb, var(--deep) 12%, transparent);
-  --art-grain-dark: color-mix(in srgb, var(--deep) 50%, transparent);
-  --art-grain-light: color-mix(in srgb, var(--sun) 30%, transparent);
+  --art-stripe2-light: color-mix(in srgb, var(--sun) 6%, transparent);  /* a fainter mowing pass along the hole (v22) */
+  --art-stripe2-dark: color-mix(in srgb, var(--deep) 5%, transparent);
+  --art-grain-dark: color-mix(in srgb, var(--deep) 30%, transparent);   /* the grain's specks (v22: noise, not dashes): felt, not seen */
+  --art-grain-light: color-mix(in srgb, var(--sun) 20%, transparent);
   --art-green-hi: color-mix(in oklab, var(--putting) 72%, var(--sun));
   --art-green-lo: color-mix(in oklab, var(--putting) 80%, var(--fringe));
   --art-green-stripe: color-mix(in srgb, var(--white) 8%, transparent);
+  --art-green-shadow: color-mix(in srgb, var(--deep) 46%, transparent); /* the soft shade under the raised green (v22) */
+  --art-collar: color-mix(in oklab, var(--fringe) 45%, var(--putting)); /* the collar between the fringe and the surface (v22) */
   --art-fringe-edge: color-mix(in oklab, var(--fringe) 72%, var(--deep));
   --art-tee-hi: color-mix(in oklab, var(--putting) 62%, var(--sun));
   --art-tee-lo: color-mix(in oklab, var(--putting) 82%, var(--fairway));
   --art-tee-edge: color-mix(in oklab, var(--fairway) 78%, var(--deep));
-  --art-water-hi: color-mix(in oklab, var(--water) 55%, var(--white));
-  --art-water-mid: color-mix(in oklab, var(--water) 78%, var(--white));
+  --art-sand-hi: color-mix(in oklab, var(--sand) 76%, var(--white));  /* a bunker's sand toward the light (v22) */
+  --art-sand-lo: color-mix(in oklab, var(--sand) 86%, var(--deep));
+  --art-sand-lip: color-mix(in oklab, var(--sand) 52%, var(--deep));  /* its shaded face under the lip */
+  --art-sandgrain-dark: color-mix(in srgb, var(--deep) 30%, transparent);
+  --art-sandgrain-light: color-mix(in srgb, var(--white) 45%, transparent);
+  --art-water-deep: color-mix(in oklab, var(--water) 68%, var(--deep)); /* water in the middle (v22) */
+  --art-water-shallow: color-mix(in oklab, var(--water) 70%, var(--fairway)); /* and at the bank */
+  --art-water-glint: color-mix(in srgb, var(--white) 62%, transparent);
+  --art-bank: color-mix(in oklab, var(--fringe) 55%, var(--deep));
   --art-shadow: color-mix(in srgb, var(--deep) 45%, transparent);
   --art-flag-shade: color-mix(in oklab, var(--red) 72%, var(--ink));
   --art-vignette: .38;  /* how dark the edges and the top get */
@@ -142,6 +156,8 @@ svg { display: block; }
 
 /* Our own drawn hole fills the screen behind everything. */
 .course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+/* Its grain tiles (v22, src/grain.ts): kept rendered but sizeless, so WebKit still paints patterns that point at them. */
+.grain-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 .app {
   position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;
@@ -992,7 +1008,7 @@ body.big .ct .r > span { font-size: 15px; }
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */
 #course .marker text { font-size: 13px; font-weight: var(--w-label); fill: var(--on-dark); }
 /* The drawn course, the small hole picture and the empty history's flag (v19): every fill and stop from the palette,
-   with the stripes, grain and shadows as translucent layers. */
+   with the stripes, grain and shadows as translucent layers. The grain tiles read their tints from the tokens (v22). */
 .a-rough-hi { stop-color: var(--art-rough-hi); }
 .a-rough { stop-color: var(--rough); }
 .a-rough-lo { stop-color: var(--art-rough-lo); }
@@ -1000,27 +1016,41 @@ body.big .ct .r > span { font-size: 15px; }
 .a-dark-0 { stop-color: var(--deep); stop-opacity: 0; }
 .a-vignette { stop-color: var(--deep); stop-opacity: var(--art-vignette); }
 .a-shade { stop-color: var(--deep); stop-opacity: var(--art-shade); }
-.a-grain-dark { stroke: var(--art-grain-dark); }
-.a-grain-light { stroke: var(--art-grain-light); }
+.a-edge-soft { stroke: var(--art-edge-soft); }
 .a-edge { stroke: var(--art-edge); }
 .a-cut { stroke: var(--art-cut); }
-#course .fairway { fill: var(--fairway); }
 .th-fairway { stroke: var(--fairway); }
-.a-stripe-light { fill: var(--art-stripe-light); }
-.a-stripe-dark { fill: var(--art-stripe-dark); }
+/* The fairway's fill, lit from the top left (v22). */
+.a-fw-lit { stop-color: var(--art-fairway-lit); }
+.a-fw { stop-color: var(--fairway); }
+.a-fw-shade { stop-color: var(--art-fairway-shade); }
+.a-mow-light { stop-color: var(--art-stripe-light); }
+.a-mow-dark { stop-color: var(--art-stripe-dark); }
+.a-mow2-light { stop-color: var(--art-stripe2-light); }
+.a-mow2-dark { stop-color: var(--art-stripe2-dark); }
 .a-green-hi { stop-color: var(--art-green-hi); }
 .a-green { stop-color: var(--putting); }
 .a-green-lo { stop-color: var(--art-green-lo); }
 .a-green-fill, .th-green { fill: var(--putting); stroke: var(--art-fringe-edge); }
 .a-green-stripe { fill: var(--art-green-stripe); }
+.a-gshadow { stop-color: var(--art-green-shadow); }
 .a-fringe { fill: var(--fringe); stroke: var(--art-fringe-edge); }
+.a-collar { fill: var(--art-collar); }
 .a-tee-hi { stop-color: var(--art-tee-hi); }
 .a-tee-lo { stop-color: var(--art-tee-lo); }
 .a-tee-fill { fill: var(--art-tee-hi); }
 .a-tee-edge { fill: var(--art-tee-edge); }
-#course .water, .th-water { fill: var(--water); }
-.a-water-hi { stroke: var(--art-water-hi); }
-.a-water-mid { stroke: var(--art-water-mid); }
+/* Bunkers and water from the hole note (v22). */
+.a-sand-lip { fill: var(--art-sand-lip); }
+.a-sand-lo { stop-color: var(--art-sand-lo); }
+.a-sand-mid { stop-color: var(--sand); }
+.a-sand-hi { stop-color: var(--art-sand-hi); }
+#course .water { stroke: var(--art-bank); }
+.a-water-deep { stop-color: var(--art-water-deep); }
+.a-water { stop-color: var(--water); }
+.a-water-shallow { stop-color: var(--art-water-shallow); }
+.a-water-glint { stroke: var(--art-water-glint); }
+.th-water { fill: var(--water); }
 .a-shadow { fill: var(--art-shadow); }
 .a-shadow-line { stroke: var(--art-shadow); }
 .a-cup { fill: var(--ink); }
@@ -1167,7 +1197,7 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .hi-facts { margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: var(--w-label); }
-.hi-none { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.hi-none, .hi-art { margin-top: 8px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
 .hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 15px; font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
 body.big .meta { height: 32px; font-size: 15px; }
 body.big .prog { height: 24px; }

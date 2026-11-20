@@ -281,7 +281,7 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v21');
+  await expect(page.locator('#app-version')).toHaveText('v22');
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -317,12 +317,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v21');
+  await expect(page.locator('#menu-version')).toHaveText('v22');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v21');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v22');
   await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
@@ -413,7 +413,7 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   // Everis publishes this par 3's length.
   await expect(page.locator('#hole-distance')).toHaveText('151 m');
   await expect(course.locator('.water')).toHaveCount(0);
-  // 새별 7 is an island green by the course's own guide: the only hole drawn with water.
+  // 새별 7 is an island green by the course's own guide: the only 새별 hole drawn with water.
   await showCard(page);
   await pickHole(page, 6);
   await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
@@ -426,6 +426,97 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
     expect(tee.y, `hole ${index + 1}`).toBeGreaterThanOrEqual(go.y);
     expect(tee.y + tee.height + 3, `hole ${index + 1}`).toBeLessThanOrEqual(go.y + go.height);
   }
+});
+
+/** Points of each drawn bunker or pond outline that fall on the green with its fringe, or on the flag (v22): none should. */
+function offGreen(): string[] {
+  const svg = document.querySelector<SVGSVGElement>('#course')!;
+  const fringe = svg.querySelector<SVGPathElement>('.a-fringe')!;
+  const box = svg.querySelector<SVGGraphicsElement>('.flag')?.getBBox();
+  const pt = svg.createSVGPoint();
+  const found: string[] = [];
+  for (const edge of svg.querySelectorAll<SVGPathElement>('.bunker .a-sand-lip, .pond .water')) {
+    const what = edge.closest('g')!.getAttribute('class');
+    const len = edge.getTotalLength();
+    for (let i = 0; i < 64; i++) {
+      const p = edge.getPointAtLength((len * i) / 64);
+      pt.x = p.x;
+      pt.y = p.y;
+      if (fringe.isPointInFill(pt)) found.push(`${what} on the green at ${Math.round(p.x)},${Math.round(p.y)}`);
+      if (box && p.x > box.x && p.x < box.x + box.width && p.y > box.y && p.y < box.y + box.height) found.push(`${what} on the flag`);
+    }
+  }
+  return found;
+}
+
+for (const [width, height] of [[390, 844], [375, 667]]) {
+  test(`draws only the bunkers and water a hole note names, off the green and its flag, and says so in 홀 안내 at ${width}×${height} (v22)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page);
+    const course = page.locator('#course');
+    // 새별 1 ("내리막, 블라인드 티샷, 좌우 OB") names neither: nothing drawn, and 홀 안내 says nothing about the drawing.
+    await expect(course.locator('.bunker')).toHaveCount(0);
+    await expect(course.locator('.water')).toHaveCount(0);
+    await page.locator('#info-btn').click();
+    await expect(page.locator('#hole-pop')).toBeVisible();
+    await expect(page.locator('#hi-art')).toBeHidden();
+    await page.keyboard.press('Escape');
+    // 새별 4 ("그린 둘러싼 벙커·해저드, 비치 벙커"): three bunkers round the par 3 green. The plain 해저드 can be dry and the
+    // 비치 벙커 has no place, so neither is drawn.
+    await pickHole(page, 3);
+    await expect(course.locator('.bunker')).toHaveCount(3);
+    await expect(course.locator('.water')).toHaveCount(0);
+    expect(await page.evaluate(offGreen)).toEqual([]);
+    await page.locator('#info-btn').click();
+    await expect(page.locator('#hi-art')).toBeVisible();
+    await expect(page.locator('#hi-art')).toHaveText('그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.');
+    expect(await sideScroll(page)).toBe(0);
+  });
+}
+
+test('grains the drawn course from noise tiles made once on a canvas, with no SVG filter (v22)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const tile = (id: string) => page.evaluate((id) => document.getElementById(id)!.getAttribute('href'), id);
+  // Made just after the first frame.
+  await expect.poll(() => tile('grain-turf')).toMatch(/^data:image\/png;base64,/);
+  const turf = await tile('grain-turf');
+  expect(await tile('grain-sand')).toMatch(/^data:image\/png;base64,/);
+  // Pixel for pixel on this screen: the tile's CSS size (its pattern's) times the device scale.
+  const [width, css, scale] = await page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = src!;
+    await img.decode();
+    return [img.naturalWidth, Number(document.getElementById('course-grain')!.getAttribute('width')), Math.min(3, Math.max(1, Math.round(devicePixelRatio)))];
+  }, turf);
+  expect(width).toBe(css * scale);
+  // WebKit runs SVG filters on the CPU: the drawing has none.
+  expect(await page.evaluate(() => document.querySelectorAll('#course filter').length)).toBe(0);
+  await expect(page.locator('#course rect[fill="url(#course-grain)"]')).toHaveCount(1);
+  // Made once: the next hole draws with the same tile.
+  await next(page).click();
+  expect(await tile('grain-turf')).toBe(turf);
+});
+
+test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('searchbox', { name: '골프장 검색' }).fill('한양');
+  await page.locator('#picker-list button', { hasText: '한양컨트리클럽' }).click();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  // Hole 10 is 신코스 IN 1: "그린 앞 연못, 그린 좌측 깊은 벙커".
+  await pickHole(page, 9);
+  await expect(page.locator('#hole-notes li')).toHaveText(['그린 앞 연못', '그린 좌측 깊은 벙커']);
+  const course = page.locator('#course');
+  await expect(course.locator('.pond')).toHaveCount(1);
+  await expect(course.locator('.bunker')).toHaveCount(1);
+  expect(await page.evaluate(offGreen)).toEqual([]);
+  const green = (await course.locator('.green').boundingBox())!;
+  const pond = (await course.locator('.pond').boundingBox())!;
+  const bunker = (await course.locator('.bunker').boundingBox())!;
+  // In front (toward the tee, below) and on the left (as the player faces the green).
+  expect(pond.y + pond.height / 2).toBeGreaterThan(green.y + green.height);
+  expect(bunker.x + bunker.width / 2).toBeLessThan(green.x);
 });
 
 test.describe('with hole notes in the course data', () => {
@@ -1801,8 +1892,11 @@ function contrastIn(checks: Contrast[]) {
   });
 }
 const contrastOf = (page: Page, checks: Contrast[]) => page.evaluate(contrastIn, checks);
-/** What a chip, a label or the glass card (v20) can sit on over the drawn course: its darkest edge to the sunlit fairway (palette tokens). */
-const OVER_ART = ['--deep', '--art-rough-lo', '--rough', '--art-rough-hi', '--fairway', '--putting', '--sun'];
+/**
+ * What a chip, a label or the glass card (v20) can sit on over the drawn course: its darkest edge to the sunlit fairway, and
+ * the sand and water a hole note names, up to sunlit sand (v22). Palette tokens.
+ */
+const OVER_ART = ['--deep', '--art-rough-lo', '--rough', '--art-rough-hi', '--fairway', '--putting', '--sun', '--water', '--sand', '--art-sand-hi'];
 
 test('labels are large and dark enough to read in sunlight, and a disabled minus is not just faded', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
