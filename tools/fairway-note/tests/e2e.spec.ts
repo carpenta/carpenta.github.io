@@ -3675,15 +3675,19 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await page.locator('#vc-close').click();
       await expect(page.locator('#voice')).toBeHidden();
 
-      // A long line's toast: at most two lines inside the toast's 48px, within the card, clear of every control on it.
+      // A long line's toast: at most two lines inside a tap's toast height, within the card, clear of every control on it.
       await page.getByRole('button', { name: '기본', exact: true }).click();
+      await tap(page, 'putts');
+      await settled(page);
+      const tapToast = await spanOf(page, '#toast');
       await say(page, '드라이버 둘 아이언 셋 퍼터 둘 OB 하나 해저드 하나 다음 홀');
       await expect(page.locator('#hole-title')).toHaveText('2번 홀');
       await expect(page.locator('#toast-msg')).toHaveText(`1번 홀 ${LABEL.driver} 2 · ${LABEL.approach} 3 · ${LABEL.putts} 2 · OB 1 · 해저드 1`);
       await settled(page);
       const toast = await spanOf(page, '#toast');
       const sheetNow = await spanOf(page, '#sheet');
-      within1px(toast.height, 48, 'toast height');
+      within1px(toast.height, tapToast.height, 'toast as tall as a tap’s');
+      within1px(toast.y, tapToast.y, 'toast where a tap’s shows');
       expect(toast.x, 'toast within the card, left').toBeGreaterThanOrEqual(sheetNow.x - 0.5);
       expect(endOf(toast), 'toast within the card, right').toBeLessThanOrEqual(endOf(sheetNow) + 0.5);
       const text = await page.locator('#toast-msg').evaluate((el) => ({ lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), clipped: el.scrollHeight > el.clientHeight + 1 }));

@@ -1302,13 +1302,13 @@ body.big .sp-shots button { font-size: 20px; }
 body.big .vc-head h2 { font-size: 20px; line-height: 24px; }
 body.big .vc-help, body.big .vc-ex, body.big .vc-error { font-size: 17px; line-height: 22px; }
 body.big .vc-privacy { font-size: 15px; line-height: 20px; }
-/* A spoken line's toast says everything it set. Past one line it wraps to two inside the same 48px, so it still covers
-   no button; centred by its margins, not a 50% shift, so its width is the card's, not half of it. */
-.toast.vc { left: 0; right: 0; width: fit-content; max-width: 100%; margin-inline: auto; transform: none; }
-.toast.vc.show { animation-name: vc-toast-in; }
-@keyframes vc-toast-in { from { opacity: 0; transform: translateY(8px); } }
+/* A spoken line's toast says everything it set. Past one line it wraps to two inside the toast's own height, so it still
+   covers no button. Over the card's top (absolute in .sheet-wrap, shifted back by half its width) it takes its line's
+   width up to the card's, not the half that the 50% offset would leave a wrapping box; nothing else of the toast's
+   place or motion changes, wherever it sits. */
+.sheet-wrap > .toast.vc { width: max-content; max-width: 100%; }
 .toast.vc #toast-msg {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   white-space: normal; line-height: 19px; text-wrap: balance;
 }
 body.big .toast.vc #toast-msg { line-height: 20px; }
