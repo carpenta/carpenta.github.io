@@ -11,9 +11,13 @@ import { MAX_COUNT } from './round';
  * - Dictation spaces words its own way, writes digits or words, and adds particles and endings: all are accepted.
  * - Traps (the voice research note): 이번 홀 is this hole but 이 번 홀 is hole 2; 오비 is OB, not 오 (5) and 비; 네 is a
  *   number only after a club; 포 is never four; "안 났어" and other negations change nothing.
+ * - The middle count (v28): 그린까지 sets it, and so does 아이언 in a line without 세컨 or 어프로치. 세컨 and 어프로치 set its
+ *   parts; beside them 아이언 is the club they were hit with ("세컨 아이언으로 하나"). The count and its parts are
+ *   said one at a time: a line with both changes nothing.
  */
 
-export type VoiceKey = 'driver' | 'approach' | 'putts' | 'ob' | 'hazard' | 'bunker' | 'mulligan';
+/** `approach` is the middle count (그린까지); `second` and `short` its two parts, 세컨 and 어프로치 (v28). */
+export type VoiceKey = 'driver' | 'approach' | 'second' | 'short' | 'putts' | 'ob' | 'hazard' | 'bunker' | 'mulligan';
 
 export type Command =
   | { kind: 'set'; key: VoiceKey; n: number; atLeast?: true }
@@ -30,16 +34,21 @@ export type Failure =
   | { reason: 'negated'; word: string }
   | { reason: 'range'; what: 'count' | 'hole'; max: number }
   | { reason: 'order' }
-  | { reason: 'undo-alone' };
+  | { reason: 'undo-alone' }
+  | { reason: 'mixed' };
 
 export type Parsed = { ok: true; commands: Command[] } | ({ ok: false } & Failure);
 
 /* ---------- vocabulary: a space in a word is an optional space in the line; other letters must touch ---------- */
 
+/** The club the middle count's shots are hit with: the count itself in a line without its parts, else just a word. */
+const IRON = ['아이언'];
 const CLUBS: readonly (readonly [VoiceKey, readonly string[]])[] = [
   ['driver', ['드라이버', '드라이브', '티 샷']],
-  // 아이언 since v20; 어프로치 was its name before, and the second-shot words mean the same counter.
-  ['approach', ['아이언', '어프로치 샷', '어프로치', '세컨 샷', '세컨드 샷', '칩 샷']],
+  // 그린까지 since v28 (아이언 in v20–v26, see IRON); the second-shot and short-game words are its parts now.
+  ['approach', ['그린까지', ...IRON]],
+  ['second', ['세컨드 샷', '세컨 샷', '세컨드', '세컨']],
+  ['short', ['어프로치 샷', '어프로치', '칩 샷']],
   ['putts', ['퍼터', '퍼트', '퍼팅', '펏']],
   ['ob', ['ob', '오비']],
   ['hazard', ['워터 해저드', '해저드', '페널티 구역', '패널티 구역']],
@@ -115,7 +124,11 @@ interface Reader {
   /** The furthest place a whole word or clause ended: what follows it is what was not understood. */
   far: number;
   memo: Map<number, Item[][]>;
+  /** The line names 세컨 or 어프로치 (v28): 아이언 is then only the club they were hit with. */
+  split: boolean;
 }
+
+const SPLIT_WORDS = /세컨|어프로치|칩 ?샷/;
 
 type Item = { cmd: Command; bare?: true } | { here: true };
 
@@ -174,8 +187,11 @@ const setCmd = (key: VoiceKey, n: number, atLeast = false): Command => (atLeast 
 /** What may follow a club: a number (with 번, 이상, 더 or 빼), or 더, 빼 or 없음 alone, or +2 / -1. */
 function amounts(r: Reader, at: number, key: VoiceKey): [number, Command][] {
   const out: [number, Command][] = [];
-  for (const [end, n] of numbers(r, at, ANY)) {
+  for (const [end, n, word] of numbers(r, at, ANY)) {
+    // Beside 세컨 or 어프로치, "7번 아이언" (or 칠 번, or 7) names a club, never a count: "세컨 7번 아이언으로" is not seven 세컨 (v28).
+    const clubNumber = r.split && (/^\d+$/.test(word) || WORD_NUMBERS.sino.some(([w]) => w === word));
     for (const e of [end, ...ends(r, end, UNITS)]) {
+      if (clubNumber && (e === end || r.s.slice(end, e).trim() === '번') && ends(r, e, IRON).length) continue;
       out.push([e, setCmd(key, n)]);
       for (const e2 of ends(r, e, AT_LEAST)) out.push([e2, setCmd(key, n, true)]);
       for (const e2 of ends(r, e, MORE)) out.push([e2, { kind: 'add', key, n }]);
@@ -194,9 +210,16 @@ function amounts(r: Reader, at: number, key: VoiceKey): [number, Command][] {
 /** A club and what was said about it, or golf talk with the number first (투 퍼트, 3퍼트). */
 function clauses(r: Reader, at: number): [number, Command][] {
   const out: [number, Command][] = [];
-  for (const [key, words] of CLUBS) {
+  for (const [key, list] of CLUBS) {
+    // Beside 세컨 or 어프로치, 아이언 is not the middle count (v28).
+    const words = key === 'approach' && r.split ? list.filter((w) => !IRON.includes(w)) : list;
     for (const end of ends(r, at, words)) {
-      for (const e of [end, ...ends(r, end, PARTICLES, true)]) {
+      const after = [end, ...ends(r, end, PARTICLES, true)];
+      // 세컨 or 어프로치, then the club it was hit with: "세컨 아이언으로 하나", "세컨은 아이언 둘".
+      if (key === 'second' || key === 'short') {
+        for (const e of after.slice()) for (const e2 of ends(r, e, IRON)) after.push(e2, ...ends(r, e2, PARTICLES, true));
+      }
+      for (const e of after) {
         out.push([e, { kind: 'add', key, n: 1 }]);
         out.push(...amounts(r, e, key));
       }
@@ -252,7 +275,8 @@ function rest(r: Reader, at: number): Item[][] {
   const found = new Map<string, Item[]>();
   if (skip(r.s, at) === r.s.length) found.set('', []);
   else {
-    for (const e of [...ends(r, at, FREE_GLUE), ...ends(r, at, TOUCHING_GLUE, true)]) {
+    // Beside 세컨 or 어프로치 (v28), 아이언 on its own is a word that only says which club.
+    for (const e of [...ends(r, at, FREE_GLUE), ...ends(r, at, TOUCHING_GLUE, true), ...(r.split ? ends(r, at, IRON) : [])]) {
       for (const tail of rest(r, e)) found.set(JSON.stringify(tail), tail);
     }
     for (const [e, item] of items(r, at)) {
@@ -279,6 +303,9 @@ function judge(list: Item[], holes: number): Parsed {
   if (cmds.some((c) => c.kind === 'undo')) return cmds.length === 1 ? { ok: true, commands: cmds } : { ok: false, reason: 'undo-alone' };
   const movesAt = cmds.flatMap((c, k) => (isMove(c) ? [k] : []));
   if (movesAt.length > 1 || (movesAt.length === 1 && movesAt[0] !== cmds.length - 1)) return { ok: false, reason: 'order' };
+  // 그린까지 and its parts in one line would say the same strokes twice (v28).
+  const keys = new Set(cmds.flatMap((c) => (c.kind === 'set' || c.kind === 'add' ? [c.key] : [])));
+  if (keys.has('approach') && (keys.has('second') || keys.has('short'))) return { ok: false, reason: 'mixed' };
   for (const c of cmds) {
     if ((c.kind === 'set' || c.kind === 'add') && Math.abs(c.n) > MAX_COUNT) return { ok: false, reason: 'range', what: 'count', max: MAX_COUNT };
     if (c.kind === 'hole' && (c.n < 1 || c.n > holes)) return { ok: false, reason: 'range', what: 'hole', max: holes };
@@ -287,7 +314,7 @@ function judge(list: Item[], holes: number): Parsed {
 }
 
 /** When no reading passes, the most telling reason a reading failed. */
-const WORST: Failure['reason'][] = ['range', 'undo-alone', 'order', 'empty'];
+const WORST: Failure['reason'][] = ['range', 'mixed', 'undo-alone', 'order', 'empty'];
 
 /** Reads one line for a round of `holes` holes. */
 export function parseLine(text: string, holes: number): Parsed {
@@ -295,7 +322,7 @@ export function parseLine(text: string, holes: number): Parsed {
   if (!s) return { ok: false, reason: 'empty' };
   const no = NEGATION.exec(s);
   if (no) return { ok: false, reason: 'negated', word: no[1] ?? no[2] ?? no[3] };
-  const r: Reader = { s, far: 0, memo: new Map() };
+  const r: Reader = { s, far: 0, memo: new Map(), split: SPLIT_WORDS.test(s) };
   const readings = rest(r, 0).map((list) => judge(list, holes));
   const passed = new Map<string, Command[]>();
   for (const x of readings) if (x.ok) passed.set(JSON.stringify(x.commands), x.commands);
@@ -343,5 +370,7 @@ export function failureText(f: Failure): string {
       return `홀 이동은 한 번만, 맨 끝에 말해 주세요. ${NOTHING}`;
     case 'undo-alone':
       return `되돌리기는 따로 말해 주세요. ${NOTHING}`;
+    case 'mixed':
+      return `그린까지와 세컨·어프로치는 따로 말해 주세요. ${NOTHING}`;
   }
 }

@@ -77,7 +77,13 @@ function parseHole(v: unknown): { hole: Hole; lossy: boolean } | null {
     if (!isCount(v)) return null;
     hole[key] = v;
   }
-  const lossy = readTags(hole, o);
+  let lossy = readTags(hole, o);
+  // The split of the middle count (v28). Like a tag it never changes the score, so one it cannot read is left out and
+  // the hole kept (its original is kept aside, as for tags); rounds saved before v28 have none.
+  if (o.short !== undefined) {
+    if (isCount(o.short) && (o.short as number) <= hole.approach) hole.short = o.short as number;
+    else lossy = true;
+  }
   return { hole, lossy };
 }
 
@@ -254,10 +260,15 @@ export interface Display {
   home: boolean;
   /** 말로 입력 (v21): the one-line entry on 기록, off until turned on in the menu. */
   voice: boolean;
+  /** 상세's one-time tip on what 세컨 and 어프로치 are (v28) was put away. */
+  split: boolean;
 }
 
 /** Only the settings that are on are written, so an untouched prefs value stays as it was. */
-const flags = (d: Display) => ({ ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}), ...(d.home ? { home: true } : {}), ...(d.voice ? { voice: true } : {}) });
+const flags = (d: Display) => ({
+  ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}), ...(d.home ? { home: true } : {}), ...(d.voice ? { voice: true } : {}),
+  ...(d.split ? { split: true } : {}),
+});
 
 function prefsObject(kv: KV | null): Record<string, unknown> {
   try {
@@ -270,14 +281,14 @@ function prefsObject(kv: KV | null): Record<string, unknown> {
 
 export function loadDisplay(kv: KV | null = store()): Display {
   const o = prefsObject(kv);
-  return { big: o.big === true, coach: o.coach === true, home: o.home === true, voice: o.voice === true };
+  return { big: o.big === true, coach: o.coach === true, home: o.home === true, voice: o.voice === true, split: o.split === true };
 }
 
 /** Changes some display settings, keeping the others and the remembered course. */
 export function saveDisplay(change: Partial<Display>, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    const { big: _big, coach: _coach, home: _home, voice: _voice, ...rest } = prefsObject(kv);
+    const { big: _big, coach: _coach, home: _home, voice: _voice, split: _split, ...rest } = prefsObject(kv);
     kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...flags({ ...loadDisplay(kv), ...change }) }));
     return true;
   } catch {

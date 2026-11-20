@@ -55,7 +55,8 @@ export type Tagged = (typeof TAGGED)[number];
 export const SHOT_TAGS = {
   // far-left, far-right, long and short came with the tee-shot pad of the 상세 card.
   driver: ['fairway', 'left', 'right', 'far-left', 'far-right', 'long', 'short', 'ob-left', 'ob-right', 'whiff', 'mishit'],
-  approach: ['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff'],
+  // close (붙음), in (칩인) and mishit came with 상세's 어프로치 (v28): the short shots of the same list.
+  approach: ['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff', 'close', 'in', 'mishit'],
   putts: ['in', 'short', 'long', 'left', 'right'],
 } as const satisfies Record<Tagged, readonly string[]>;
 export type ShotTag<K extends Tagged = Tagged> = (typeof SHOT_TAGS)[K][number];
@@ -65,9 +66,21 @@ export const TAG_LABELS: { [K in Tagged]: Record<ShotTag<K>, string> } = {
     fairway: '페어웨이', left: '좌', right: '우', 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음',
     'ob-left': '좌 OB', 'ob-right': '우 OB', whiff: '헛스윙', mishit: '뒤땅/토핑',
   },
-  approach: { green: '온그린', short: '짧음', long: '김', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙' },
+  approach: {
+    green: '온그린', short: '짧음', long: '김', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙',
+    close: '붙음', in: '칩인', mishit: '뒤땅/토핑',
+  },
   putts: { in: '들어감', short: '짧음', long: '김', left: '좌', right: '우' },
 };
+
+/**
+ * 상세's two parts of the middle count (v28). 세컨: the full shots toward the green after the tee shot, layups too.
+ * 어프로치: the short shots around the green (chips, pitches, bunker shots). 기본 counts both as 그린까지.
+ */
+export const PARTS = ['second', 'short'] as const;
+export type Part = (typeof PARTS)[number];
+export const PART_LABELS: Record<Part, string> = { second: '세컨', short: '어프로치' };
+export const isPart = (key: string): key is Part => (PARTS as readonly string[]).includes(key);
 
 const OB_TAGS: readonly string[] = ['ob-left', 'ob-right'];
 
@@ -89,6 +102,11 @@ export interface Hole {
   tags?: ShotTags;
   /** How many of the OB penalties were added by choosing an OB tag, so clearing the tag can take them back. */
   obByTag?: number;
+  /**
+   * The 어프로치 part of `approach` (v28), once the hole's split is known: entered or touched in 상세 (or said). 세컨 is
+   * the rest. Missing on a hole entered in 기본 and in rounds saved before v28: the split is not known. 0 … approach.
+   */
+  short?: number;
 }
 
 export interface Round {
@@ -187,7 +205,71 @@ export function setTeeTag(hole: Hole, tag: ShotTag<'driver'> | null): Hole {
   return setTag(hole.driver ? hole : bump(hole, 'driver', 1), 'driver', 0, tag);
 }
 
+/* ---------- 세컨 and 어프로치 (v28): the middle count split in two on a hole ---------- */
+
+/** Whether the hole's split is known (see Hole.short). */
+export const isSplit = (h: Pick<Hole, 'short'>): boolean => h.short !== undefined;
+/** 어프로치: none on a hole whose split is not known. */
+export const shortOf = (h: Hole): number => h.short ?? 0;
+/** 세컨: the middle count less its 어프로치, so all of it on a hole whose split is not known. */
+export const secondOf = (h: Hole): number => h.approach - shortOf(h);
+export const partOf = (h: Hole, part: Part): number => (part === 'second' ? secondOf(h) : shortOf(h));
+
+/**
+ * The middle count's shots are one tag list, 세컨 first, then 어프로치. One shot more at `at` (untagged; the details
+ * after it move along with their shots), or the shot at `at` taken out with its detail.
+ */
+function withShot(h: Hole, at: number): Hole {
+  const list = h.tags?.approach ?? [];
+  const next = at < list.length ? [...list.slice(0, at), null, ...list.slice(at)] : list.slice();
+  return withTags({ ...h, approach: h.approach + 1 }, 'approach', next);
+}
+
+function withoutShot(h: Hole, at: number): Hole {
+  const list = h.tags?.approach ?? [];
+  return withTags({ ...h, approach: h.approach - 1 }, 'approach', [...list.slice(0, at), ...list.slice(at + 1)]);
+}
+
+/**
+ * One 세컨 or 어프로치 more or less (`delta` times). 세컨 changes the middle count only; 어프로치 changes both it and
+ * itself. A change records the hole's split, all of it 세컨 until then; with nothing changed the hole stays as it was.
+ */
+export function bumpPart(hole: Hole, part: Part, delta: number): Hole {
+  let h: Hole = isSplit(hole) ? hole : { ...hole, short: 0 };
+  let changed = false;
+  for (let d = delta; d !== 0; d -= Math.sign(d)) {
+    if (d > 0 ? h.approach >= MAX_COUNT : partOf(h, part) === 0) break;
+    if (part === 'second') h = d > 0 ? withShot(h, secondOf(h)) : withoutShot(h, secondOf(h) - 1);
+    else h = d > 0 ? { ...withShot(h, h.approach), short: shortOf(h) + 1 } : { ...withoutShot(h, h.approach - 1), short: shortOf(h) - 1 };
+    changed = true;
+  }
+  return changed ? h : hole;
+}
+
+/**
+ * Sets 세컨 or 어프로치 to `n` (the long press, a spoken number), within 15 on the middle count. On a hole whose split
+ * is not known it records it even when `n` is already the count: 어프로치 0 says all of it was 세컨.
+ */
+export function setPart(hole: Hole, part: Part, n: number): Hole {
+  const h: Hole = isSplit(hole) ? hole : { ...hole, short: 0 };
+  const other = part === 'second' ? shortOf(h) : secondOf(h);
+  const target = Math.max(0, Math.min(Math.round(n), MAX_COUNT - other));
+  // `h` itself when the count is already right: the hole as it was, or with its split now recorded.
+  return bumpPart(h, part, target - partOf(h, part));
+}
+
 export function bump(hole: Hole, key: Counter, delta: number): Hole {
+  // 기본's 그린까지 on a split hole (v28): a shot more or less is a 세컨, and once 세컨 is 0 a shot less is an 어프로치,
+  // so the middle count never drops below its 어프로치.
+  if (key === 'approach' && isSplit(hole)) {
+    let h = hole;
+    for (let d = delta; d !== 0; d -= Math.sign(d)) {
+      const next = d > 0 || secondOf(h) > 0 ? bumpPart(h, 'second', Math.sign(d)) : bumpPart(h, 'short', -1);
+      if (next === h) break;
+      h = next;
+    }
+    return h;
+  }
   const next = Math.min(MAX_COUNT, Math.max(0, hole[key] + delta));
   if (next === hole[key]) return hole;
   let out: Hole = { ...hole, [key]: next };
@@ -296,7 +378,33 @@ export function scoreName(toPar: number): ScoreName {
 }
 
 export type Area = 'driver' | 'approach' | 'putts' | 'penalty';
-export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '아이언', putts: '퍼트', penalty: '벌타' };
+/** The middle count is 그린까지 (v28; 아이언 in v20–v26, 어프로치 before): every shot after the tee shot until the green. */
+export const AREA_LABELS: Record<Area, string> = { driver: '티샷', approach: '그린까지', putts: '퍼트', penalty: '벌타' };
+
+/** Green in regulation by the split (v28): putted, no 어프로치, on in 티샷 + 세컨 (penalties too) ≤ Par−2. */
+export function splitGir(h: Hole): boolean {
+  return isSplit(h) && h.putts > 0 && shortOf(h) === 0 && h.driver + h.approach + h.ob + h.hazard <= h.par - 2;
+}
+
+/** An up and down (v28): one 어프로치, then one putt, or none when it went in. */
+export function upAndDown(h: Hole): boolean {
+  return isSplit(h) && shortOf(h) === 1 && h.putts <= 1;
+}
+
+/** What the split holes add to the analysis (v28). The combined numbers stay as they are. */
+export interface SplitStats {
+  /** Finished holes whose split is known. */
+  holes: number;
+  /** 세컨 and 어프로치 shots on them. */
+  second: number;
+  short: number;
+  /** Strokes over their own pattern, never offset by a better hole: 세컨 against Par−3, 어프로치 against none. */
+  lost: Record<Part, number>;
+  /** Greens in regulation by the split (splitGir). */
+  gir: number;
+  /** Holes with an 어프로치 (chances), and the up and downs among them. */
+  upDown: { made: number; chances: number };
+}
 
 export interface Analysis {
   totals: Totals;
@@ -317,25 +425,50 @@ export interface Analysis {
   worst: { hole: number; toPar: number } | null;
   /** Tag counts on finished holes; null when no finished hole has a tag. */
   details: Details | null;
+  /** The split holes' own numbers (v28). */
+  split: SplitStats;
 }
 
-export type Details = { [K in Tagged]: Partial<Record<ShotTag<K>, number>> };
+/**
+ * Tag counts by club. The middle count's: on a split hole under 세컨 or 어프로치 by which shot carries the tag, and
+ * under 그린까지 (`approach`) on a hole whose split is not known (v28).
+ */
+export type Details = { [K in Tagged]: Partial<Record<ShotTag<K>, number>> } & { [P in Part]: Partial<Record<ShotTag<'approach'>, number>> };
 
 function details(round: Round): Details | null {
-  const out: Details = { driver: {}, approach: {}, putts: {} };
+  const out: Details = { driver: {}, approach: {}, second: {}, short: {}, putts: {} };
   let any = false;
   for (const [i, h] of round.holes.entries()) {
     if (!finished(round, i)) continue;
     for (const key of TAGGED) {
-      const counts = out[key] as Record<string, number>;
-      for (const tag of h.tags?.[key] ?? []) {
+      for (const [k, tag] of (h.tags?.[key] ?? []).entries()) {
         if (tag === null) continue;
+        const bucket = key === 'approach' && isSplit(h) ? (k < secondOf(h) ? 'second' : 'short') : key;
+        const counts = out[bucket] as Record<string, number>;
         counts[tag] = (counts[tag] ?? 0) + 1;
         any = true;
       }
     }
   }
   return any ? out : null;
+}
+
+function splitStats(round: Round): SplitStats {
+  const s: SplitStats = { holes: 0, second: 0, short: 0, lost: { second: 0, short: 0 }, gir: 0, upDown: { made: 0, chances: 0 } };
+  for (const [i, h] of round.holes.entries()) {
+    if (!finished(round, i) || !isSplit(h)) continue;
+    s.holes += 1;
+    s.second += secondOf(h);
+    s.short += shortOf(h);
+    s.lost.second += Math.max(0, secondOf(h) - (h.par - 3));
+    s.lost.short += shortOf(h);
+    if (splitGir(h)) s.gir += 1;
+    if (shortOf(h) > 0) {
+      s.upDown.chances += 1;
+      if (upAndDown(h)) s.upDown.made += 1;
+    }
+  }
+  return s;
 }
 
 export function analyze(round: Round): Analysis {
@@ -391,6 +524,7 @@ export function analyze(round: Round): Analysis {
     best: spread ? best : null,
     worst: spread ? worst : null,
     details: details(round),
+    split: splitStats(round),
   };
 }
 

@@ -83,7 +83,8 @@ describe('shot tags', () => {
 
   it('offers the agreed chips per counter, with the 상세 pad directions for drives', () => {
     expect(SHOT_TAGS.driver).toEqual(['fairway', 'left', 'right', 'far-left', 'far-right', 'long', 'short', 'ob-left', 'ob-right', 'whiff', 'mishit']);
-    expect(SHOT_TAGS.approach).toEqual(['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff']);
+    // 붙음, 칩인 and 뒤땅/토핑 came with 상세's 어프로치 panel (v28); the list is still the one middle count's.
+    expect(SHOT_TAGS.approach).toEqual(['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff', 'close', 'in', 'mishit']);
     expect(SHOT_TAGS.putts).toEqual(['in', 'short', 'long', 'left', 'right']);
     expect(TAG_LABELS.driver).toMatchObject({ 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음' });
   });
@@ -168,9 +169,12 @@ describe('stored tags', () => {
 describe('detail analysis', () => {
   it('counts tags on finished holes only', () => {
     const a = analyze(tagged());
+    // 세컨 and 어프로치 count only split holes (v28); none of these is split.
     expect(a.details).toEqual({
       driver: { fairway: 1, left: 1, right: 1, 'ob-left': 1 },
       approach: {},
+      second: {},
+      short: {},
       putts: { short: 2 },
     });
   });
@@ -195,8 +199,8 @@ describe('detail analysis', () => {
     const text = reportText(tagged());
     expect(text).toContain('[샷 세부]');
     expect(text).toContain('- 티샷 방향: 좌 2 (OB 1) · 우 1 (OB 0)');
-    expect(text).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2 · 드 좌 · 퍼 짧음');
-    expect(text).toContain('2번 Par4: 6타 (+2) 드2 어1 퍼2 OB 1 · 드 좌 OB, 페어웨이');
+    expect(text).toContain('1번 Par4: 4타 (E) 드1 그1 퍼2 · 드 좌 · 퍼 짧음');
+    expect(text).toContain('2번 Par4: 6타 (+2) 드2 그1 퍼2 OB 1 · 드 좌 OB, 페어웨이');
   });
 
   it('counts far left and far right with left and right in the tee direction', () => {
@@ -208,7 +212,7 @@ describe('detail analysis', () => {
     const lines = detailLines(analyze(r));
     expect(lines).toContain('티샷: 좌 1 · 많이 좌 1 · 많이 우 1');
     expect(lines).toContain('티샷 방향: 좌 2 (OB 0) · 우 1 (OB 0)');
-    expect(reportText(r)).toContain('1번 Par4: 4타 (E) 드1 어1 퍼2 · 드 많이 좌');
+    expect(reportText(r)).toContain('1번 Par4: 4타 (E) 드1 그1 퍼2 · 드 많이 좌');
   });
 
   it('counts whiffs and misses in the report', () => {
@@ -218,18 +222,21 @@ describe('detail analysis', () => {
     r.current = 1;
     const lines = detailLines(analyze(r));
     expect(lines).toContain('티샷: 헛스윙 1');
-    expect(lines).toContain('아이언: 벙커 1 · 헛스윙 1');
+    expect(lines).toContain('그린까지: 벙커 1 · 헛스윙 1');
     expect(lines).toContain('헛스윙 2번이 타수에 들어갔습니다.');
   });
 
-  it('shows a round saved before the rename under 아이언: the stored key and its tags stay `approach` (v20)', () => {
+  it('shows a round saved before the renames under 그린까지: the stored key and its tags stay `approach` (v20, v28)', () => {
     const holes = Array.from({ length: 18 }, () => ({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, mulligan: 0 }));
     holes[0] = { ...holes[0], driver: 1, approach: 2, putts: 1, tags: { approach: ['hazard', 'short'] } } as typeof holes[0];
     const round = parseRound(JSON.stringify({ version: 1, date: '2026-11-19', current: 1, holes }))!;
     expect(round.holes[0]).toMatchObject({ approach: 2, tags: { approach: ['hazard', 'short'] } });
     const text = [...detailLines(analyze(round)), reportText(round), analysisText(round), roundCsv(round)].join('\n');
-    expect(text).toContain('아이언: 짧음 1 · 해저드 1');
-    expect(text).toContain('드라이버,아이언,퍼트');
-    expect(text).not.toContain('어프로치');
+    expect(text).toContain('그린까지: 짧음 1 · 해저드 1');
+    expect(text).toContain('드라이버,그린까지,퍼트');
+    expect(text).not.toContain('아이언');
+    // 세컨 and 어프로치 are the split's own columns (v28), left empty on a hole entered without it.
+    expect(roundCsv(round).split('\r\n')[1]).toBe('1,4,1,2,1,0,0,4,0,,');
+    expect(text).not.toMatch(/어프로치[:+]|어프로치는/);
   });
 });

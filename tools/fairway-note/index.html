@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="골프 라운드에서 홀마다 드라이버·아이언·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
+    <meta name="description" content="골프 라운드에서 홀마다 드라이버·그린까지·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#213f2c" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
@@ -79,7 +79,17 @@
                drawing only. A link to OSM's copyright page; the CSP is unchanged, as following a link is navigation. -->
           <a class="osm-credit" id="osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창" hidden>© OpenStreetMap</a>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
-            <div class="clubs" id="clubs"></div>
+            <!-- The capsules (main.ts builds them after the tip). 상세's one-time tip (v28) on what 세컨 and 어프로치 are sits over
+                 their middle, first in reading order; a tap on it, or a stroke on either, puts it away for good. -->
+            <div class="clubs" id="clubs">
+              <div class="split-tip" id="split-tip" role="note" aria-label="세컨과 어프로치" hidden>
+                <dl class="st-defs">
+                  <div><dt>세컨</dt><dd>그린을 향한 샷, 레이업 포함</dd></div>
+                  <div><dt>어프로치</dt><dd>그린 주변 짧은 샷, 벙커샷 포함</dd></div>
+                </dl>
+                <button type="button" class="st-close" id="split-tip-close" aria-label="세컨과 어프로치 설명 닫기"><svg data-icon="x" width="20" height="20"></svg></button>
+              </div>
+            </div>
 
             <!-- 상세: the tee shot's result, written as the first drive's tag -->
             <div class="detail" id="detail" hidden>
@@ -162,6 +172,8 @@
             <h3 id="lost-title">타수를 잃은 곳</h3>
             <p id="lost-note" class="muted">홀을 기록하면 보여요.</p>
             <ul class="lost-bars" id="lost-bars"></ul>
+            <!-- With holes split in 상세 (v28), under the chart: which holes 세컨's and 어프로치's rows under 그린까지 count -->
+            <p id="lost-split" class="muted lost-split" hidden></p>
           </section>
 
           <section class="box" aria-labelledby="analysis-title">
@@ -429,7 +441,7 @@
     <dialog id="shot-panel" class="shot-panel" aria-labelledby="sp-club sp-shot" tabindex="-1">
       <div class="sp-head">
         <span class="sp-ico" id="sp-ico" aria-hidden="true"></span>
-        <h2 class="sp-title"><span class="sp-club" id="sp-club"></span><span class="sp-shot" id="sp-shot"></span></h2>
+        <h2 class="sp-title"><span class="sp-club" id="sp-club"></span><span class="sp-shot" id="sp-shot"></span><span class="sp-help" id="sp-help" hidden></span></h2>
         <button type="button" class="sp-close" id="sp-close" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button>
       </div>
       <div class="sp-shots" id="sp-shots" role="group" aria-label="샷" hidden></div>

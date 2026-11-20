@@ -4,11 +4,16 @@ import {
   AREA_LABELS,
   MAX_COUNT,
   PARS,
+  PART_LABELS,
   SCORE_LABELS,
-  TAGGED,
   TAG_LABELS,
   analyze,
   bump,
+  bumpPart,
+  isPart,
+  isSplit,
+  partOf,
+  setPart,
   courseLabel,
   roundLabel,
   finished,
@@ -26,6 +31,7 @@ import {
   type Counter,
   type Hole,
   type Par,
+  type Part,
   type Round,
   type ScoreName,
   type ShotTag,
@@ -47,7 +53,7 @@ import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from '
 import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
 import { renderBackup } from './backup-view';
 import { createRoundShare, dressRoundButtons } from './share-round';
-import { bindShotPanel, renderShotPanel } from './shot-panel';
+import { VIEWS as CLUBS, bindShotPanel, renderShotPanel, type View as ClubKey } from './shot-panel';
 import { bindVoice, type VoicePage } from './voice-view';
 import type { Command } from './voice-commands';
 
@@ -56,9 +62,21 @@ const PENS = ['ob', 'bunker', 'hazard'] as const;
 type Pen = (typeof PENS)[number];
 type Mark = 'eagle' | 'birdie' | 'par' | 'bogey' | 'double' | 'triple' | 'none';
 
-const LABELS: Record<Counter, string> = { driver: '드라이버', approach: '아이언', putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커' };
+/**
+ * The middle count is 그린까지 in 기본 (v28: every shot after the tee shot until on the green; 아이언 in v20–v26), and
+ * 상세 shows it as its two parts, 세컨 and 어프로치. The stored key stays `approach`.
+ */
+const LABELS: Record<Counter | Part, string> = {
+  driver: '드라이버', approach: AREA_LABELS.approach, second: PART_LABELS.second, short: PART_LABELS.short, putts: '퍼터', ob: 'OB', hazard: '해저드', mulligan: '멀리건', bunker: '벙커',
+};
 /** The first column is the tee shot: 드라이버, or 티샷 on a par 3, where the tee shot is rarely a driver. */
-const labelOf = (key: Counter, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
+const labelOf = (key: Counter | Part, par: Par) => (key === 'driver' && par === 3 ? '티샷' : LABELS[key]);
+/** A capsule: 기본's three clubs (드라이버, 그린까지, 퍼터) and 상세's four (드라이버, 세컨, 어프로치, 퍼터), in card order. */
+type Club = ClubKey;
+/** A capsule's count, or a penalty's: 세컨 and 어프로치 are parts of the middle count (v28). */
+const valueOf = (h: Hole, key: Counter | Part): number => (isPart(key) ? partOf(h, key) : h[key]);
+/** The two capsules 상세 has and 기본 does not, and the one 기본 has instead. */
+const MODE_OF: Partial<Record<Club, 'basic' | 'detail'>> = { approach: 'basic', second: 'detail', short: 'detail' };
 // The capsules' + and − (Tabler since v25), a little bolder than the family's line so the halves read at a glance.
 const PLUS = icon('plus', 24, '', 2.4);
 const MINUS = icon('minus', 24, '', 2.4);
@@ -541,7 +559,9 @@ function setChip(id: string, text: string | null): void {
 
 function buildClubs(): void {
   const box = $('clubs');
-  for (const key of TAGGED) {
+  // Five capsules in card order (v28): 그린까지 shows in 기본, 세컨 and 어프로치 in 상세 (CSS by `data-only`), so Tab and
+  // the eye go left to right in either mode.
+  for (const key of CLUBS) {
     const label = LABELS[key];
     // The club's name and icon (v20): the button that opens its shot details, with a chevron and, once the club has
     // details on this hole, a dot (shot-panel.ts keeps the dot and the name).
@@ -563,14 +583,21 @@ function buildClubs(): void {
       coach.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="3" fill="currentColor"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/></svg>');
       num.append(coach);
     }
-    box.append(h('div', { class: `club club-${key}`, 'data-key': key }, name,
+    // A hole entered in 기본 has no split yet (v28): 어프로치 says so quietly where its 0 would be, until it is split.
+    if (key === 'short') num.append(h('span', { class: 'from-basic', 'aria-hidden': 'true' }, '기본에서', h('br'), '기록'));
+    const only = MODE_OF[key];
+    box.append(h('div', { class: `club club-${key}`, 'data-key': key, ...(only ? { 'data-only': only } : {}) }, name,
       h('div', { class: 'pill', role: 'group', 'aria-labelledby': `name-${key}`, 'aria-describedby': 'lp-hint' }, plus, num, minus)));
   }
   box.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button.step');
     if (!button || button.disabled) return;
-    if (count(button.closest<HTMLElement>('.club')!.dataset.key as Tagged, button.classList.contains('plus') ? 1 : -1)) showCue(button);
+    const key = button.closest<HTMLElement>('.club')!.dataset.key as Club;
+    // A stroke on 세컨 or 어프로치 says the tip was seen (v28).
+    if (isPart(key)) dismissTip(false);
+    if (count(key, button.classList.contains('plus') ? 1 : -1)) showCue(button);
   });
+  bindTip();
   bindNumPick();
   $('entry').addEventListener('pointerdown', dismissCoach, true);
   document.addEventListener('keydown', () => {
@@ -605,8 +632,38 @@ function dismissCoach(): void {
   $('clubs').classList.remove('coached');
 }
 
-/** A club's count or a penalty: both open the same 0 … 5+ picker on a long press. */
-type Pickable = Tagged | Pen;
+/* ---------- 상세's one-time tip: what 세컨 and 어프로치 are (v28) ---------- */
+
+let tipSeen = loadDisplay().split;
+
+/**
+ * Puts the tip away for good (remembered in the prefs key): a tap on it, its ×, or a stroke on 세컨 or 어프로치. When it
+ * held focus (its ×), focus goes on to 세컨's name, the first thing it explained.
+ */
+function dismissTip(focus: boolean): void {
+  if (tipSeen) return;
+  tipSeen = true;
+  saveDisplay({ split: true });
+  const tip = $('split-tip');
+  const held = tip.contains(document.activeElement);
+  tip.hidden = true;
+  if (focus || held) $('lbl-second').focus({ preventScroll: true });
+}
+
+function bindTip(): void {
+  const tip = $('split-tip');
+  // The tip sits over the capsules' middle: a tap anywhere on it puts it away and presses nothing under it.
+  tip.addEventListener('click', (event) => {
+    event.stopPropagation();
+    dismissTip((event.target as HTMLElement).closest('#split-tip-close') !== null);
+    announce('세컨과 어프로치 설명을 닫았어요');
+  });
+  // Nor does it start a long press or a swipe under it.
+  tip.addEventListener('pointerdown', (event) => event.stopPropagation());
+}
+
+/** A club's count (세컨 and 어프로치 too) or a penalty: both open the same 0 … 5+ picker on a long press. */
+type Pickable = Club | Pen;
 const isPen = (key: Pickable): key is Pen => (PENS as readonly string[]).includes(key);
 /** What the picker asks for a penalty; a club asks how many times it was played. */
 const PEN_QUESTION: Record<Pen, string> = { ob: 'OB 몇 번 났나요?', hazard: '해저드에 몇 번 들어갔나요?', bunker: '벙커에 몇 번 들어갔나요?' };
@@ -641,21 +698,27 @@ function reorder(order: Pen[], key: Pen, delta: number): Pen[] {
   return next;
 }
 
-/** Sets a club's or a penalty's count; 5+ keeps a count already above five. Can be taken back from the toast like a tap. */
+/**
+ * Sets a club's or a penalty's count; 5+ keeps a count already above five. Can be taken back from the toast like a tap.
+ * 세컨 and 어프로치 (v28) set their part; on a hole from 기본 even the count it has records the split.
+ */
 function setCount(key: Pickable, n: number): void {
   const index = round.current;
   const before = hole();
-  const target = n === 5 ? Math.max(5, before[key]) : n;
-  if (target === before[key]) return;
+  const now = valueOf(before, key);
+  const target = n === 5 ? Math.max(5, now) : n;
+  if (target === now && !(isPart(key) && !isSplit(before))) return;
   const order = added.get(index) ?? [];
-  if (isPen(key)) added.set(index, reorder(order, key, target - before[key]));
-  if (!setHole((x) => bump(x, key, target - x[key]), key)) {
+  if (isPen(key)) added.set(index, reorder(order, key, target - now));
+  const patch = isPart(key) ? (x: Hole) => setPart(x, key, target) : (x: Hole) => bump(x, key, target - x[key]);
+  if (!setHole(patch, key)) {
     added.set(index, order);
     return;
   }
+  if (isPart(key)) dismissTip(false);
   navigator.vibrate?.(8);
   const label = labelOf(key, hole().par);
-  announce(`${index + 1}번 홀 ${label} ${hole()[key]}, ${strokes(hole())}타`);
+  announce(`${index + 1}번 홀 ${label} ${valueOf(hole(), key)}, ${strokes(hole())}타`);
   showToast(`${label} ${target}${toParticle(target)}`, { index, hole: before, added: [...order] });
 }
 
@@ -663,9 +726,10 @@ function openNumPick(key: Pickable, pill: HTMLElement): void {
   pickKey = key;
   hideToast();
   const cur = hole();
+  const now = valueOf(cur, key);
   setText($('np-title'), isPen(key) ? PEN_QUESTION[key] : `${labelOf(key, cur.par)} 몇 번 쳤나요?`);
   $('np-row').replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('button', {
-    type: 'button', 'data-np': String(n), 'aria-pressed': String(n === 5 ? cur[key] >= 5 : cur[key] === n), 'aria-label': n === 5 ? '5번 이상' : `${n}번`,
+    type: 'button', 'data-np': String(n), 'aria-pressed': String(n === 5 ? now >= 5 : now === n), 'aria-label': n === 5 ? '5번 이상' : `${n}번`,
   }, n === 5 ? '5+' : String(n))));
   const dialog = $<HTMLDialogElement>('numpick');
   dialog.showModal();
@@ -715,7 +779,7 @@ function bindNumPick(): void {
   const clubs = $('clubs');
   clubs.addEventListener('pointerdown', (e) => {
     const pill = (e.target as HTMLElement).closest<HTMLElement>('.pill');
-    if (pill) startPress(e, pill, pill.closest<HTMLElement>('.club')!.dataset.key as Tagged);
+    if (pill) startPress(e, pill, pill.closest<HTMLElement>('.club')!.dataset.key as Club);
   });
   const pens = $('pens');
   pens.addEventListener('pointerdown', (e) => {
@@ -801,13 +865,14 @@ function restore(): void {
  * One stroke more or less on a club, a penalty or a mulligan; the hole's score follows. A club or penalty change can
  * be taken back from the toast; `order` is the penalty order to bring back with it.
  */
-function count(key: Counter, delta: number, order: Pen[] = added.get(round.current) ?? []): boolean {
+function count(key: Counter | Part, delta: number, order: Pen[] = added.get(round.current) ?? []): boolean {
   const index = round.current;
   const before = hole();
-  if (!setHole((x) => bump(x, key, delta), key)) return false;
+  // 세컨 and 어프로치 (v28): 세컨 moves the middle count only, 어프로치 both; the first records the hole's split.
+  if (!setHole((x) => (isPart(key) ? bumpPart(x, key, delta) : bump(x, key, delta)), key)) return false;
   navigator.vibrate?.(8);
   const label = labelOf(key, hole().par);
-  announce(`${round.current + 1}번 홀 ${label} ${hole()[key]}, ${strokes(hole())}타`);
+  announce(`${round.current + 1}번 홀 ${label} ${valueOf(hole(), key)}, ${strokes(hole())}타`);
   if (key !== 'mulligan') showToast(`${label} ${delta > 0 ? '+1' : '−1'}`, { index, hole: before, added: [...order] });
   return true;
 }
@@ -962,22 +1027,29 @@ function renderEntry(a: Analysis, changed?: string): void {
   $<HTMLButtonElement>('prev-hole').disabled = i === 0;
   $<HTMLButtonElement>('next-hole').disabled = i === lastHole();
 
-  for (const key of TAGGED) {
-    const n = cur[key];
+  // A hole entered in 기본 shows in 상세 as all 세컨 (v28), said quietly until 세컨 or 어프로치 is first changed.
+  const fromBasic = !isSplit(cur) && cur.approach > 0;
+  for (const key of CLUBS) {
+    const n = valueOf(cur, key);
     const el = $(`count-${key}`);
     const before = el.textContent;
     setText(el, String(n));
     el.classList.toggle('zero', n === 0);
     if (changed === key && before !== el.textContent) replay(el, 'bump');
     const club = document.querySelector(`.club-${key}`)!;
-    club.querySelector<HTMLButtonElement>('.plus')!.disabled = n >= MAX_COUNT;
+    // 세컨 and 어프로치 share the middle count's 15.
+    club.querySelector<HTMLButtonElement>('.plus')!.disabled = (isPart(key) ? cur.approach : n) >= MAX_COUNT;
     club.querySelector<HTMLButtonElement>('.minus')!.disabled = n === 0;
     const label = labelOf(key, cur.par);
-    setText($(`count-label-${key}`), `${label} ${n}`);
+    const unsplit = isPart(key) && fromBasic;
+    club.classList.toggle('unsplit', unsplit);
+    setText($(`count-label-${key}`), `${label} ${n}${unsplit ? ', 기본에서 기록' : ''}`);
     setText(club.querySelector('.club-name')!, label);
     setAttr(club.querySelector('.plus')!, 'aria-label', `${label} 하나 더하기`);
     setAttr(club.querySelector('.minus')!, 'aria-label', `${label} 하나 빼기`);
   }
+  // The one-time tip on what 세컨 and 어프로치 are (v28), in 상세 until it is put away.
+  $('split-tip').hidden = mode !== 'detail' || tipSeen;
 
   // The badge: the hole's computed score with its scorecard mark.
   const s = strokes(cur);
@@ -1169,21 +1241,30 @@ function renderCard(a: Analysis): void {
   total.classList.toggle('under', t.holes > 0 && a.toPar < 0);
 
   const areas = Object.keys(AREA_LABELS) as Area[];
-  const most = Math.max(...areas.map((k) => a.lost[k]));
+  const s = a.split;
+  const most = Math.max(...areas.map((k) => a.lost[k]), s.lost.second, s.lost.short);
   // 타수를 잃은 곳 waits for three finished holes: one or two say little.
   const waiting = t.holes < 3;
   $('lost-bars').hidden = waiting;
   setText($('lost-note'), waiting
     ? `${3 - t.holes}홀 더 기록하면 어디서 타수를 잃었는지 보여요.`
     : a.worstAreas.length
-      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, 아이언 Par−3번, 퍼트 2번을 기준으로 셌어요.`
+      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, ${AREA_LABELS.approach} Par−3번, 퍼트 2번을 기준으로 셌어요.`
       : '기준보다 잃은 타수가 없어요.');
+  // Under 그린까지, its two parts over the holes split in 상세 (v28): 세컨 against Par−3, 어프로치 against none.
+  const splitNote = $('lost-split');
+  splitNote.hidden = waiting || !s.holes;
+  setText(splitNote, s.holes ? `세컨과 어프로치는 상세로 나눈 ${s.holes}홀만, 세컨 Par−3번과 어프로치 0번을 기준으로 셌어요.` : '');
   const scale = Math.max(most, 3);
-  $('lost-bars').replaceChildren(...areas.map((k) => {
+  const row = (label: string, value: number, cls: string) => {
     const fill = h('i');
-    fill.style.width = `${(a.lost[k] / scale) * 100}%`;
-    return h('li', { class: a.worstAreas.includes(k) ? 'worst' : '' }, h('span', {}, AREA_LABELS[k]), h('span', { class: 'bar' }, fill), h('span', { class: 'v' }, `+${a.lost[k]}`));
-  }));
+    fill.style.width = `${(value / scale) * 100}%`;
+    return h('li', { class: cls }, h('span', {}, label), h('span', { class: 'bar' }, fill), h('span', { class: 'v' }, `+${value}`));
+  };
+  $('lost-bars').replaceChildren(...areas.flatMap((k) => [
+    row(AREA_LABELS[k], a.lost[k], a.worstAreas.includes(k) ? 'worst' : ''),
+    ...(k === 'approach' && s.holes ? [row(PART_LABELS.second, s.lost.second, 'part'), row(PART_LABELS.short, s.lost.short, 'part')] : []),
+  ]));
 }
 
 const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
@@ -1227,6 +1308,14 @@ function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)
     a.best && a.worst
       ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}), 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
       : '',
+    // The holes split in 상세 (v28): how many, greens hit with no 어프로치, and up and downs (one 어프로치, then one putt or none).
+    ...(a.split.holes
+      ? [h('h4', {}, '세컨·어프로치'), h('dl', { class: 'metrics three split' },
+          tile('나눈 홀', `${a.split.holes}/${t.holes}`),
+          tile('그린 적중', `${a.split.gir}/${a.split.holes}`, `${pct(a.split.gir, a.split.holes)}%`),
+          tile('업앤다운', a.split.upDown.chances ? `${a.split.upDown.made}/${a.split.upDown.chances}` : '–', a.split.upDown.chances ? `${pct(a.split.upDown.made, a.split.upDown.chances)}%` : '')),
+        h('p', { class: 'muted split-note' }, '그린 적중은 어프로치 없이 Par−2타 안에 올린 홀, 업앤다운은 어프로치 한 번에 1퍼트 이하로 마친 홀이에요.')]
+      : []),
     h('h4', {}, '정리'),
     h('ul', { class: 'insights' }, ...insights(a).map((s) => h('li', {}, s))),
     ...(a.details
@@ -1442,6 +1531,8 @@ function renderSummary(): void {
     drives.length ? tile('페어웨이 안착', `${hit}/${drives.length}`, `${pct(hit, drives.length)}%`) : '',
     tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
     tile('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
+    // 업앤다운 (v28), once an 어프로치 was recorded in 상세, as the share image has it.
+    a.split.upDown.chances ? tile('업앤다운', `${a.split.upDown.made}/${a.split.upDown.chances}`, `${pct(a.split.upDown.made, a.split.upDown.chances)}%`) : '',
   );
   $('sum-hint').hidden = drives.length > 0 || !t.holes;
   // Where the round lost most: the label, then the value, no colon between (v23); otherwise one sentence.
@@ -1903,8 +1994,13 @@ const isSaid = (c: Command): c is Said => c.kind === 'set' || c.kind === 'add';
  */
 function sayCount(c: Said): void {
   const { key } = c;
-  const cur = hole()[key];
+  const cur = valueOf(hole(), key);
   const target = Math.min(MAX_COUNT, Math.max(0, c.kind === 'add' ? cur + c.n : c.atLeast ? Math.max(c.n, cur) : c.n));
+  // 세컨 and 어프로치 (v28) set their part as the long press does; said on a hole from 기본 they record its split.
+  if (isPart(key)) {
+    if (target !== cur || !isSplit(hole())) setHole((x) => setPart(x, key, target), key);
+    return;
+  }
   if (target === cur) return;
   if (key === 'mulligan') count(key, target - cur);
   else if (c.kind === 'add' && isPen(key) && target > cur) for (let k = cur; k < target; k += 1) addPenalty(key);
@@ -1920,8 +2016,8 @@ function sayCount(c: Said): void {
 function saidParts(said: Said[], before: Hole, after: Hole): string[] {
   return [...new Set(said.map((c) => c.key))].map((key) => {
     const label = labelOf(key, after.par);
-    const d = after[key] - before[key];
-    return said.some((c) => c.key === key && c.kind === 'set') || d === 0 ? `${label} ${after[key]}` : `${label} ${d > 0 ? '+' : '−'}${Math.abs(d)}`;
+    const d = valueOf(after, key) - valueOf(before, key);
+    return said.some((c) => c.key === key && c.kind === 'set') || d === 0 ? `${label} ${valueOf(after, key)}` : `${label} ${d > 0 ? '+' : '−'}${Math.abs(d)}`;
   });
 }
 
@@ -1964,7 +2060,7 @@ function applyLine(commands: Command[], close: () => void): string | null {
 
 const voicePage: VoicePage = {
   holes: () => round.holes.length,
-  names: () => ({ driver: LABELS.driver, approach: LABELS.approach, putts: LABELS.putts }),
+  names: () => ({ driver: LABELS.driver, middle: mode === 'detail' ? `${LABELS.second} 하나 ${LABELS.short} 하나` : `${LABELS.approach} 둘`, putts: LABELS.putts }),
   apply: applyLine,
   // While the sheet is open the last change's 되돌리기 waits, so "되돌리기" said there still finds it.
   opened: () => window.clearTimeout(toastTimer),
