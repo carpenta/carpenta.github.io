@@ -447,6 +447,8 @@ test.describe('with hole notes in the course data', () => {
     await expect(page.locator('#hi-facts')).toHaveText('Par 4, 381 m, HDCP 3');
     await expect(page.locator('#hole-notes li')).toHaveText(['내리막', '블라인드 티샷', '좌우 OB']);
     const guide = page.getByRole('link', { name: '공식 홀 안내, 새 창' });
+    // Measured at rest: while the popover rises, WebKit reads the moving 48px link as 47.99998 (v21).
+    await atRest(page);
     expect((await guide.boundingBox())!.height).toBeGreaterThanOrEqual(48);
     await expect(guide).toHaveAttribute('href', /^https:\/\/[^/]+\//);
     await expect(guide).toHaveAttribute('target', '_blank');
