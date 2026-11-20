@@ -1,6 +1,6 @@
 // Registers the offline service worker (dist/sw.js, built by vite.config.ts) and offers a new version
 // once it is waiting. The new worker takes over only when the player taps the prompt.
-const PROMPT = '새 버전이 있습니다 · 다시 열기';
+const PROMPT = '새 버전이 있어요. 다시 열기';
 
 export function registerOffline(): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;

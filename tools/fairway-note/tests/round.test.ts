@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, strokes, totals, type Hole, type Round } from '../src/round';
+import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, scoreWord, strokes, totals, type Hole, type Round } from '../src/round';
 
-const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0): Hole => ({ par, driver, approach, putts, ob, mulligan });
+const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan, bunker: 0 });
 
 /** A round with these holes filled in, currently on the last hole (so earlier holes are finished). */
 function roundOf(list: Hole[], current = HOLE_LAST): Round {
@@ -43,14 +43,26 @@ describe('course', () => {
 });
 
 describe('hole', () => {
-  it('counts every shot plus one penalty stroke per OB, never mulligans', () => {
+  it('counts every shot plus one penalty stroke per OB and per hazard, never mulligans', () => {
     expect(strokes(hole(4, 2, 1, 2, 1, 2))).toBe(6);
+    expect(strokes(hole(4, 1, 2, 2, 1, 0, 1))).toBe(7);
+    expect(emptyHole()).toEqual({ par: 4, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0, bunker: 0 });
   });
 
   it('is played once a stroke or penalty is entered, not for a mulligan alone', () => {
     expect(played(emptyHole())).toBe(false);
     expect(played({ ...emptyHole(), mulligan: 1 })).toBe(false);
     expect(played({ ...emptyHole(), ob: 1 })).toBe(true);
+    expect(played({ ...emptyHole(), hazard: 1 })).toBe(true);
+  });
+
+  it('bumps hazard like any counter', () => {
+    const h = bump(emptyHole(), 'hazard', 1);
+    expect(h.hazard).toBe(1);
+    expect(strokes(h)).toBe(1);
+    expect(bump(h, 'hazard', -1)).toEqual(emptyHole());
+    const full = { ...h, hazard: 15 };
+    expect(bump(full, 'hazard', 1)).toBe(full);
   });
 
   it('bumps within 0..15 and keeps the same object when nothing changes', () => {
@@ -70,11 +82,22 @@ describe('hole', () => {
     expect(gir(hole(4, 1, 1, 0))).toBe(false);
     expect(gir(hole(5, 1, 1, 2, 1))).toBe(true);
     expect(gir(hole(4, 1, 1, 2, 1))).toBe(false);
+    // A hazard drop is a penalty stroke on the way to the green, like an OB.
+    expect(gir(hole(5, 1, 1, 2, 0, 0, 1))).toBe(true);
+    expect(gir(hole(4, 1, 1, 2, 0, 0, 1))).toBe(false);
   });
 
   it('names scores against par', () => {
     expect([-3, -2, -1, 0, 1, 2, 3, 6].map(scoreName)).toEqual(['eagle', 'eagle', 'birdie', 'par', 'bogey', 'double', 'triple', 'triple']);
     expect([0, 3, -2].map(formatToPar)).toEqual(['E', '+3', '-2']);
+  });
+
+  it('words a hole score as golfers say it, for the score badge', () => {
+    expect(scoreWord(1, 3)).toBe('홀인원');
+    expect(scoreWord(1, 4)).toBe('홀인원');
+    expect(scoreWord(2, 5)).toBe('알바트로스');
+    expect([2, 3, 4, 5, 6, 7, 8].map((s) => scoreWord(s, 4))).toEqual(['이글', '버디', '파', '보기', '더블 보기', '트리플 보기', '쿼드러플 보기']);
+    expect(scoreWord(9, 4)).toBe('+5');
   });
 });
 
@@ -89,8 +112,16 @@ describe('round', () => {
   });
 
   it('totals only finished holes, but counts every mulligan', () => {
-    const t = totals(roundOf([hole(4, 1, 1, 2), hole(5, 1, 2, 3, 1), { ...emptyHole(), mulligan: 1 }, emptyHole()]));
-    expect(t).toEqual({ holes: 2, par: 9, strokes: 11, putts: 5, driver: 2, approach: 3, ob: 1, mulligan: 1 });
+    const t = totals(roundOf([hole(4, 1, 1, 2), hole(5, 1, 2, 3, 1, 0, 1), { ...emptyHole(), mulligan: 1 }, emptyHole()]));
+    expect(t).toEqual({ holes: 2, par: 9, strokes: 12, putts: 5, driver: 2, approach: 3, ob: 1, hazard: 1, mulligan: 1 });
+  });
+
+  it('counts hazard drops under penalties', () => {
+    const a = analyze(roundOf([hole(4, 1, 1, 2, 0, 0, 2), hole(5, 1, 1, 2, 1)]));
+    expect(a.totals).toMatchObject({ strokes: 11, ob: 1, hazard: 2 });
+    expect(a.lost).toEqual({ driver: 0, approach: 0, putts: 0, penalty: 3 });
+    expect(a.worstAreas).toEqual(['penalty']);
+    expect(a.girHoles).toBe(1);
   });
 
   it('analyzes a round', () => {
@@ -155,6 +186,17 @@ describe('round', () => {
     r.current = 1;
     expect(finished(r, 0)).toBe(true);
     expect(analyze(r).toPar).toBe(-1);
+  });
+
+  it('counts the hole being played once the round is finished with 라운드 마치기, chip-in or not', () => {
+    const r = roundOf([hole(4, 1, 1, 2), hole(4, 1, 2, 0)], 1);
+    expect(finished(r, 1)).toBe(false);
+    r.closed = true;
+    expect(finished(r, 1)).toBe(true);
+    expect(analyze(r).totals).toMatchObject({ holes: 2, strokes: 7 });
+    // A hole with nothing on it is still not played.
+    r.holes[1] = hole(4, 0, 0, 0);
+    expect(finished(r, 1)).toBe(false);
   });
 
   it('does not let a better hole hide losses on another', () => {

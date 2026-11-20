@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newRound } from '../src/round';
-import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadPrefs, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
+import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadDisplay, loadPrefs, saveDisplay, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
 
 function memory() {
   const map = new Map<string, string>();
@@ -23,9 +23,10 @@ describe('storage', () => {
     const kv = memory();
     const r = newRound(new Date(2026, 10, 19));
     r.current = 4;
-    r.holes[4] = { par: 3, driver: 1, approach: 0, putts: 2, ob: 0, mulligan: 1 };
+    r.holes[4] = { par: 3, driver: 1, approach: 0, putts: 2, ob: 0, hazard: 1, mulligan: 1, bunker: 0 };
     expect(saveRound(r, kv)).toBe(true);
     expect(loadRound(kv)).toEqual(r);
+    expect(JSON.parse(kv.getItem(STORAGE_KEY)!).holes[4].hazard).toBe(1);
     clearRound(kv);
     expect(kv.map.has(STORAGE_KEY)).toBe(false);
     expect(loadRound(kv)).toBeNull();
@@ -46,10 +47,25 @@ describe('storage', () => {
       { ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, putts: -1 } : h)) },
       { ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, ob: 1.5 } : h)) },
       { ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, driver: 16 } : h)) },
+      // A hazard count is part of the score, so a broken one makes the round unreadable rather than being dropped.
+      ...[-1, 1.5, 16, '1', null].map((hazard) => ({ ...good, holes: good.holes.map((h, i) => (i === 3 ? { ...h, hazard } : h)) })),
     ];
     for (const v of variants) {
       expect(parseRound(typeof v === 'string' || v === null ? (v as string | null) : JSON.stringify(v))).toBeNull();
     }
+  });
+
+  it('reads rounds saved before the hazard counter as no hazard, with nothing to keep aside', () => {
+    const kv = memory();
+    const r = newRound(new Date(2026, 10, 19));
+    r.holes[0] = { ...r.holes[0], driver: 1, approach: 1, putts: 2, ob: 1 };
+    const old = JSON.stringify({ ...r, holes: r.holes.map(({ hazard: _, ...rest }) => rest) });
+    expect(old).not.toContain('hazard');
+    kv.setItem(STORAGE_KEY, old);
+    const read = loadRound(kv)!;
+    expect(read.holes.every((h) => h.hazard === 0)).toBe(true);
+    expect(read).toEqual(r);
+    expect(preserveUnreadable(kv)).toBe('none');
   });
 
   it('keeps the round course and reads rounds saved without one', () => {
@@ -96,6 +112,51 @@ describe('storage', () => {
     expect(savePrefs({ course: 'everis', front: 'a', back: 'b' }, null)).toBe(false);
   });
 
+  it('keeps 큰 글씨 beside the course choice in the same key, each saved without losing the other', () => {
+    const kv = memory();
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false });
+    expect(saveDisplay({ big: true }, kv)).toBe(true);
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false });
+    expect(loadPrefs(kv)).toBeNull();
+    savePrefs({ course: 'everis', front: 'pine', back: 'lake' }, kv);
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: false, home: false });
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'pine', back: 'lake' });
+    // The coach mark, once seen, is kept the same way: changing one setting keeps the other.
+    saveDisplay({ coach: true }, kv);
+    saveDisplay({ home: true }, kv);
+    expect(loadDisplay(kv)).toEqual({ big: true, coach: true, home: true });
+    saveDisplay({ big: false }, kv);
+    expect(JSON.parse(kv.getItem(PREFS_KEY)!)).toEqual({ course: 'everis', front: 'pine', back: 'lake', coach: true, home: true });
+    savePrefs({ course: 'everis', front: 'lake', back: 'pine' }, kv);
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: true, home: true });
+    kv.setItem(PREFS_KEY, '[1]');
+    expect(loadDisplay(kv)).toEqual({ big: false, coach: false, home: false });
+    expect(saveDisplay({ big: true }, null)).toBe(false);
+  });
+
+  it('reads a 9-hole round and keeps 18 or 9 holes only', () => {
+    const nine = { ...newRound(new Date(2026, 10, 20), { course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' }, pars: [4, 4, 5, 3, 4, 4, 3, 5, 4] }), current: 8 };
+    const read = parseRound(JSON.stringify(nine));
+    expect(read?.holes).toHaveLength(9);
+    expect(read?.current).toBe(8);
+    expect(read?.course).toEqual({ id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '' });
+    // A current hole past the ninth falls back to the first.
+    expect(parseRound(JSON.stringify({ ...nine, current: 12 }))?.current).toBe(0);
+    for (const n of [0, 8, 10, 17, 19]) expect(parseRound(JSON.stringify({ ...nine, holes: Array.from({ length: n }, () => nine.holes[0]) })), String(n)).toBeNull();
+    // Nine holes with a back nine named, or with no course at all (the old default is two nines), are broken.
+    expect(parseRound(JSON.stringify({ ...nine, course: { ...nine.course, back: '레이크' } }))).toBeNull();
+    const { course: _course, ...noCourse } = nine;
+    expect(parseRound(JSON.stringify(noCourse))).toBeNull();
+  });
+
+  it('remembers a 9-hole choice in the prefs key', () => {
+    const kv = memory();
+    savePrefs({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 }, kv);
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'lake', back: 'saebyul', holes: 9 });
+    kv.setItem(PREFS_KEY, JSON.stringify({ course: 'everis', front: 'lake', back: 'saebyul', holes: 12 }));
+    expect(loadPrefs(kv)).toEqual({ course: 'everis', front: 'lake', back: 'saebyul' });
+  });
+
   it('falls back to the first hole for a bad current hole', () => {
     expect(parseRound(JSON.stringify({ ...newRound(), current: 99 }))?.current).toBe(0);
   });
@@ -115,6 +176,13 @@ describe('storage', () => {
     expect(old).not.toBeNull();
     expect(old?.lastEdited).toBeUndefined();
     expect(parseRound(JSON.stringify({ ...r, lastEdited: 'soon' }))?.lastEdited).toBeUndefined();
+  });
+
+  it('keeps a round finished with 라운드 마치기 finished, and reads anything else as not finished', () => {
+    const r = newRound(new Date(2026, 10, 19));
+    expect(parseRound(JSON.stringify({ ...r, closed: true }))?.closed).toBe(true);
+    expect(parseRound(JSON.stringify(r))?.closed).toBeUndefined();
+    expect(parseRound(JSON.stringify({ ...r, closed: 'yes' }))?.closed).toBeUndefined();
   });
 
   it('copies an unreadable value aside before saving over it', () => {
