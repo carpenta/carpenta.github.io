@@ -1035,7 +1035,7 @@ body.big .info-chip { font-size: 15px; }
   .hole-chev, .pill.pressing .count, .pen.pressing .pen-icon, .sw::after { transition: none; }
 }
 
-/* ---------- 클럽 상세 (v17): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts) ----------
+/* ---------- 클럽 상세 (v18): a tap on a club's number opens its detail chips for this hole (src/shot-panel.ts) ----------
    The count sits in a button now, and a quiet dot beside it says the club has details on this hole. The panel is one of
    the small popovers (홀 안내, 숫자 고르기): white on a dim backdrop, rising 6px. shot-panel.ts sets its left and width to
    the card's inner edges and its top under the club's pill, clear of the tab bar. Radii are concentric: 24 outside =
@@ -1063,8 +1063,8 @@ body.big .info-chip { font-size: 15px; }
 .sp-ico { color: var(--turf); }
 .sp-title { display: grid; min-width: 0; }
 .sp-club, .sp-shot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sp-club { font-size: 17px; font-weight: 700; line-height: 22px; }
-.sp-shot { font-size: 13px; font-weight: 600; line-height: 18px; color: var(--muted); }
+.sp-club { font-size: 17px; font-weight: var(--w-label); line-height: 22px; }
+.sp-shot { font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
 .sp-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
 .sp-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sp-close:active { background: var(--pill); }

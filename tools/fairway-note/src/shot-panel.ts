@@ -1,9 +1,9 @@
-// 클럽 상세 (v17): a short tap on a club's number opens a small panel with that club's detail chips for the shots on
+// 클럽 상세 (v18): a short tap on a club's number opens a small panel with that club's detail chips for the shots on
 // this hole. The page hands over the hole and a way to change it (bindShotPanel) and calls renderShotPanel after
 // each render. + and −, the long press on the number and everything else on 기록 stay as they are.
 
 import { TAGGED, TAG_LABELS, bump, setTag, strokes, tagAt, type Hole, type Par, type ShotTag, type Tagged } from './round';
-import { CLUB_ICONS } from './icons';
+import { CLUB_ICONS, icon } from './icons';
 import { $, h, setText } from './dom';
 
 /**
@@ -27,18 +27,18 @@ export const LEGACY_TAGS: { [K in Tagged]?: ShotTag<K>[] } = { approach: ['bunke
 /** What one of a club's shots is called: every drive is a tee shot (a re-tee after OB too), putts are putts. */
 const SHOT_NOUN: Record<Tagged, string> = { driver: '티샷', approach: '샷', putts: '퍼트' };
 
-const chevron = (d: string, width = 2.6) => `<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 /**
  * Where the ball went, drawn as on the 상세 tee line and pad: up for 김, down for 짧음, and arrows pointing out to
- * the side for 좌 and 우 (two for 많이). An arrow to the left comes before its word, one to the right after it.
+ * the side for 좌 and 우 (two for 많이). An arrow to the left comes before its word, one to the right after it. The
+ * app's one icon family (v18), at 12px.
  */
 const GLYPHS: Record<string, [string, 'before' | 'after']> = {
-  long: [chevron('M6 15l6-6 6 6'), 'before'],
-  short: [chevron('M6 9l6 6 6-6'), 'before'],
-  left: [chevron('M14.5 6 8.5 12l6 6', 2.4), 'before'],
-  right: [chevron('M9.5 6l6 6-6 6', 2.4), 'after'],
-  'far-left': [chevron('M12 6 6 12l6 6M18 6l-6 6 6 6', 2.2), 'before'],
-  'far-right': [chevron('M6 6l6 6-6 6M12 6l6 6-6 6', 2.2), 'after'],
+  long: [icon('chevUp', 12), 'before'],
+  short: [icon('chevDown', 12), 'before'],
+  left: [icon('chevLeft', 12), 'before'],
+  right: [icon('chevRight', 12), 'after'],
+  'far-left': [icon('chevLeft2', 12), 'before'],
+  'far-right': [icon('chevRight2', 12), 'after'],
 };
 
 /** The shot a panel opens on: the last one played, or the first when none is counted yet. */
