@@ -232,7 +232,8 @@ svg { display: block; }
 .count.bump { animation: bump .12s ease-out; }
 
 /* 상세: the pills shrink, then one tee line, one row of five directions and the penalty line. */
-#entry[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 4px; --pill-fixed: 138px; --pen: 48px; }
+/* No padding inside the pills in 상세: the band between + and −, where a tap opens the club's panel, stays 44px or more (v18). */
+#entry[data-mode='detail'] { --step: 48px; --count: 24px; --pill-pad: 0px; --pill-fixed: 140px; --pen: 48px; }
 #entry[data-mode='detail'] .sheet { padding-top: 14px; padding-bottom: 6px; }
 @media (min-height: 660px) { #entry[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
 #entry[data-mode='detail'] .club-lbl { margin-bottom: 4px; }
@@ -586,7 +587,7 @@ html.past-open { overflow: hidden; }
 /* Short screens (iPhone SE Safari, 375×553). */
 @media (max-height: 599px) {
   :root {
-    --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 5px;
+    --sheet-pt: 14px; --step: 48px; --count: 40px; --pill-pad: 0px;
     --pill-base: 408px; --pill-min: 140px; --pill-max: 176px;
     --pen: 48px; --next-h: 48px; --next-m: 8px;
   }
@@ -596,7 +597,12 @@ html.past-open { overflow: hidden; }
   .sheet { --sheet-pb: 8px; }
   .ver { display: none; }
   /* 상세 on a short screen: the club names and the chip row step aside so the 벌타 row and the toggle fit. */
-  #entry[data-mode='detail'] { --pill-fixed: 128px; --count: 22px; --pill-pad: 0px; }
+  /* 140px pills keep a 44px tap band between + and −; the tee line, the gaps and the toggle's margin give the room back. */
+  #entry[data-mode='detail'] { --pill-fixed: 140px; --count: 22px; --pill-pad: 0px; }
+  #entry[data-mode='detail'] .detail { margin-top: 4px; }
+  #entry[data-mode='detail'] .tee-line { height: 44px; }
+  #entry[data-mode='detail'] .pad { margin-top: 6px; }
+  #entry[data-mode='detail'] .modes { margin-top: 10px; }
   #entry[data-mode='detail'] .info, #entry[data-mode='detail'] .toast { display: none; }
   #entry[data-mode='detail'] .top { row-gap: 0; padding-top: max(4px, env(safe-area-inset-top)); }
   #entry[data-mode='detail'] .hole-sub { display: block; }
@@ -623,7 +629,10 @@ html.past-open { overflow: hidden; }
 /* 600–699px tall (360×640, 375×667): the sheet stays low enough to leave a band for the drawn hole and the version.
    기본's pills stop a little shorter; 상세 trades the club names for small icons beside the counts and closes its gaps. */
 @media (min-height: 600px) and (max-height: 699px) {
-  :root { --pill-max: 192px; }
+  /* 186: the version keeps 4px or more from the chip row and the card on 360×640 (v18). */
+  :root { --pill-max: 186px; }
+  /* 상세 has no band left for the version beside 44px tap bands in the pills: it steps aside (it stays in 앱 정보). */
+  #entry[data-mode='detail'] .ver { display: none; }
   #entry[data-mode='detail'] .club-lbl { display: none; }
   #entry[data-mode='detail'] .pill-ico { display: block; }
   #entry[data-mode='detail'] .detail { margin-top: 4px; }

@@ -1418,6 +1418,16 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
         expect(Math.abs(b.x + b.width / 2 - (cols[j].x + cols[j].width / 2)), `pill ${j} centre`).toBeLessThanOrEqual(1);
       });
       for (const m of ['basic', 'detail']) expect((await page.locator(`button[data-mode="${m}"]`).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      // A tap between + and − opens the club's panel: that band is at least 44px in both modes.
+      for (const mode of ['상세', '기본'] as const) {
+        if (mode === '기본') await page.getByRole('button', { name: '기본', exact: true }).click();
+        await atRest(page);
+        for (const key of ['driver', 'approach', 'putts']) {
+          const plus = (await page.locator(`.club-${key} .plus`).boundingBox())!;
+          const minus = (await page.locator(`.club-${key} .minus`).boundingBox())!;
+          expect(minus.y - (plus.y + plus.height), `${mode} ${key} tap band`).toBeGreaterThanOrEqual(44);
+        }
+      }
     });
 
     test('scrolls the scorecard inside its view, clear of the tab bar', async ({ page }) => {
@@ -1462,11 +1472,17 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         expectAligned(badge.x + badge.width, sheet.x + sheet.width, `${mode}: badge right edge on the inset`);
         expectAligned(midY(badge), midY(menuBtn), `${mode}: badge on the top bar's centre line`);
         expect(badge.y + badge.height, `${mode}: badge clear of the card`).toBeLessThan(sheet.y);
-        // The version stays on 기록, quietly: just above the card's right end, below the badge.
-        const ver = await rect(page, '#app-version');
-        expectAligned(ver.x + ver.width, sheet.x + sheet.width, `${mode}: version right edge`);
-        expect(ver.y + ver.height, `${mode}: version above the card`).toBeLessThanOrEqual(sheet.y - 2);
-        expect(ver.y, `${mode}: version below the badge`).toBeGreaterThanOrEqual(badge.y + badge.height);
+        // The version stays on 기록, quietly: just above the card's right end, clear of the badge and the chip row.
+        // 상세 below 700px tall has no room for it beside a 44px tap band in the pills, so it steps aside there.
+        if (mode === '상세' && height < 700) await expect(page.locator('#app-version')).toBeHidden();
+        else {
+          const ver = await rect(page, '#app-version');
+          expectAligned(ver.x + ver.width, sheet.x + sheet.width, `${mode}: version right edge`);
+          expect(ver.y + ver.height, `${mode}: version above the card`).toBeLessThanOrEqual(sheet.y - 2);
+          expect(ver.y, `${mode}: version below the badge`).toBeGreaterThanOrEqual(badge.y + badge.height);
+          const chips = await rect(page, '#hole-info');
+          expect(ver.y, `${mode}: version clear of the chip row`).toBeGreaterThanOrEqual(chips.y + chips.height + 4);
+        }
         expect((await rect(page, 'button[data-mode="basic"]')).height, `${mode}: toggle height`).toBeGreaterThanOrEqual(44);
         if (mode === '상세') {
           // The direction pad runs from the card's content edge to the other, like the tee line.
@@ -2812,7 +2828,7 @@ for (const [width, height] of [[375, 553], [360, 640]]) {
   });
 }
 
-/* ---------- 클럽 상세 패널 (v17): a tap on a club's number opens that club's shot details for this hole ---------- */
+/* ---------- 클럽 상세 패널 (v18): a tap on a club's number opens that club's shot details for this hole ---------- */
 
 const panel = (page: Page) => page.locator('#shot-panel');
 const numberOf = (page: Page, key: string) => page.locator(`.club-${key} .shot-num`);
@@ -3054,7 +3070,7 @@ test('큰 글씨 keeps every chip of the panel whole and inside it at 360px', as
     await numberOf(page, key).click();
     await expect(panel(page)).toBeVisible();
     // Each label's text box stays inside its button (the buttons' touch areas reach past them, so scroll sizes say nothing).
-    const cut = await panel(page).locator('#sp-shots button, #sp-chips button, .sp-title span').evaluateAll((list) => list.filter((b) => {
+    const cut = await panel(page).locator('#sp-shots button, #sp-chips button:not([hidden]), .sp-title span').evaluateAll((list) => list.filter((b) => {
       const range = document.createRange();
       range.selectNodeContents(b);
       const text = range.getBoundingClientRect();
