@@ -1,0 +1,239 @@
+{
+  "course": "everis",
+  "boundary": "w593260890",
+  "order": "Each nine's holes follow one another on the ground (each green 52-102 m from the next hole's tees), each nine starts and ends 95-160 m from the clubhouse, and in that order the pars match the official 새별, 레이크 and 파인 cards hole by hole. Lengths: the line of play from the back tee to the middle of the two greens, against the official length.",
+  "holes": [
+    {
+      "nine": "saebyul",
+      "hole": 1,
+      "par": 4,
+      "tees": [292039236, 292039237, 292039238, 292039240, 292039241],
+      "greens": [292039242, 292039243],
+      "fairways": [292039244],
+      "evidence": "Par 4, 381 m; OSM line of play 371 m (-2.5%). Its tees are 160 m from the clubhouse, where 새별 starts; one fairway west-north-west to a pair of greens 93 m from hole 2's tees. Tees, fairway and greens were mapped in one OSM session (ways 292039236-292039244). The note (내리막, 블라인드 티샷, 좌우 OB) names nothing OSM shows."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 2,
+      "par": 4,
+      "tees": [292701637, 292701638, 292701639, 292701640, 292701641],
+      "greens": [292699918, 292699919],
+      "fairways": [292699920],
+      "evidence": "Par 4, 376 m; line 376 m (+0.1%). From tees between two ponds, north-north-west up one fairway; ponds lie left of the landing area (note: IP 좌측 숨은 해저드). Green 54 m from hole 3's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 3,
+      "par": 5,
+      "tees": [292168828, 292168829, 292168830, 292168831, 292168832, 292168833],
+      "greens": [292168834, 292168835],
+      "fairways": [290509594],
+      "evidence": "Par 5, 529 m; line 523 m (-1.1%). The course's longest and widest fairway, 11,061 m2 (note: 넓은 페어웨이), north-north-west to greens 90 m from hole 4's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 4,
+      "par": 3,
+      "tees": [292166710, 292166711, 292166712, 292166713, 292166714],
+      "greens": [292166715, 292166716],
+      "evidence": "Par 3, 151 m; line 152 m (+0.9%). Over a pond to two greens, a bunker at the water's edge (note: 그린 둘러싼 벙커·해저드, 비치 벙커). Green 53 m from hole 5's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 5,
+      "par": 4,
+      "tees": [292708105, 292708106, 292708108, 292708109, 292708110, 292708111],
+      "greens": [292708112, 292708113],
+      "fairways": [292708114],
+      "evidence": "Par 4, 341 m; line 334 m (-2.2%). OSM tags the two shapes at the fairway's end golf=tee (ways 292708112, 292708113), but each is 512-540 m2 like this course's greens (421-638 m2; its tees are 59-122 m2), sits at the end of the hole ringed by bunkers, and was mapped where the other holes' greens were (just before the fairway): drawn here as the greens. Green 89 m from hole 6's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 6,
+      "par": 4,
+      "tees": [292709867, 292709868, 292709869, 292709870, 292709871],
+      "greens": [292709275, 292709276],
+      "fairways": [292709277],
+      "evidence": "Par 4, 350 m; line 344 m (-1.7%). Ponds on both sides near the green (note: 좌우 해저드). Green 79 m from hole 7's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 7,
+      "par": 3,
+      "tees": [290792225, 290792226, 290792227, 290792228, 290792229, 290792230],
+      "greens": [290792232, 290792233],
+      "fairways": [290792231, 290792234],
+      "evidence": "Par 3, 159 m; line 157 m (-1.4%). The two greens stand on an island, the inner ring of pond relation 3864307 (note: 아일랜드 홀). Green 83 m from hole 8's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 8,
+      "par": 5,
+      "tees": [291751657, 291751658, 291751659, 291751660, 291751662],
+      "greens": [291751279, 291751280],
+      "fairways": [291751281],
+      "evidence": "Par 5, 446 m; line 415 m (-6.9%), the widest gap of the 25 holes: no tee in OSM sits farther back. East along one fairway to greens 53 m from hole 9's tees."
+    },
+    {
+      "nine": "saebyul",
+      "hole": 9,
+      "par": 4,
+      "tees": [292143707, 292143708, 292143709, 292143710, 292143711, 292143712],
+      "greens": [292143713, 292143714],
+      "fairways": [292143715],
+      "evidence": "Par 4, 309 m; line 316 m (+2.2%). East along one fairway to greens 131 m from the clubhouse, where 새별 ends."
+    },
+    {
+      "nine": "lake",
+      "hole": 1,
+      "par": 4,
+      "tees": [292145315, 292145316, 292145317, 292145318, 292145319, 292145324],
+      "greens": [292145320, 292145321],
+      "fairways": [292145323],
+      "evidence": "Par 4, 428 m; line 413 m (-3.5%). Its tees are 132 m from the clubhouse, where 레이크 starts, beside a pond; the fairway runs north-west and the greens lie to its right (note: 우 도그렉). Green 57 m from hole 2's tees."
+    },
+    {
+      "nine": "lake",
+      "hole": 2,
+      "par": 3,
+      "tees": [292154151, 292154152, 292154153, 292154154, 292154155],
+      "greens": [292154156, 292154157],
+      "evidence": "Par 3, 158 m; line 155 m (-2.2%). Tees south of a pond, two narrow greens north of it: the tee shot carries the water (note: 해저드 넘기는 티샷). Tees and greens were mapped in one session (ways 292154151-292154157). Green 52 m from hole 3's tees."
+    },
+    {
+      "nine": "lake",
+      "hole": 3,
+      "par": 4,
+      "tees": [292172176, 292172178, 292172179, 292172180, 292172181],
+      "greens": [292172182, 292172183],
+      "fairways": [292172184],
+      "evidence": "Par 4, 411 m; line 408 m (-0.8%). West along one fairway; tees, fairway and greens in one session (ways 292172176-292172184). Its green is 48 m from the tees mapped with fairway 292173194 (hole 4)."
+    },
+    {
+      "nine": "lake",
+      "hole": 4,
+      "par": 4,
+      "unmatched": "Left on the schematic. Its tees (ways 292173188-292173192, beside the lake: 티 옆 호수) and fairway (292173194) were mapped in one session with no green: the session's other area is under construction (292173193, landuse=construction), and the only greens past the fairway's end (292154156, 292154157) are hole 2's."
+    },
+    {
+      "nine": "lake",
+      "hole": 5,
+      "par": 5,
+      "unmatched": "Left on the schematic. The likely tees (ways 292160572-292160576) and fairway (292160582) end at two pairs of greens (292160578-292160581); to the nearer pair the hole measures 374 m against the official 456 m (-18%), and which pair is the hole's is not clear."
+    },
+    {
+      "nine": "lake",
+      "hole": 6,
+      "par": 5,
+      "tees": [292162774, 292162775, 292162777, 292162778, 292162779, 292162780],
+      "greens": [292689829, 292689830],
+      "fairways": [292689831],
+      "evidence": "Par 5, 488 m; line 503 m (+3.2%) along a fairway that bends twice (note: S자 도그렉). Green 94 m from hole 7's island tees."
+    },
+    {
+      "nine": "lake",
+      "hole": 7,
+      "par": 3,
+      "tees": [292171401, 292171402, 292171403, 292171404],
+      "greens": [292695495, 292695496],
+      "evidence": "Par 3, 175 m; line 170 m (-2.8%). The tees stand on two islands, inner rings of lake relation 3881118 (note: 티 둘레 호수), with bunkers between the lake and the greens (그린 앞 벙커). Green 56 m from hole 8's tees."
+    },
+    {
+      "nine": "lake",
+      "hole": 8,
+      "par": 4,
+      "tees": [292696063, 292696064, 292696065, 292696066, 292696067],
+      "greens": [292696068, 292696069],
+      "fairways": [292696626],
+      "evidence": "Par 4, 378 m; line 375 m (-0.8%). South along one fairway; a pond wraps the greens' left (east) side (note: 좌측 해저드). Green 93 m from hole 9's tees."
+    },
+    {
+      "nine": "lake",
+      "hole": 9,
+      "par": 4,
+      "tees": [292162769, 292162770, 292162771, 292162772, 292162773, 292162776],
+      "greens": [292142024, 292142025],
+      "fairways": [292162781],
+      "evidence": "Par 4, 377 m; line 369 m (-2.0%). East-south-east to greens 120 m from the clubhouse, where 레이크 ends."
+    },
+    {
+      "nine": "pine",
+      "hole": 1,
+      "par": 4,
+      "tees": [290627778, 290627779, 290627780, 290627781, 290627782],
+      "greens": [290627785, 290627786],
+      "fairways": [290627783, 290627784],
+      "evidence": "Par 4, 356 m; line 352 m (-1.1%). Its tees are 100 m from the clubhouse, where 파인 starts; north on two fairways with a long pond on the left (note: 좌측 연못). Green 67 m from hole 2's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 2,
+      "par": 4,
+      "tees": [290628870, 290628871, 290628872, 290628873, 290628874, 290628875],
+      "greens": [290629029, 290629030],
+      "fairways": [290628876],
+      "evidence": "Par 4, 297 m; line 295 m (-0.8%). South along a narrow fairway (note: 좁은 페어웨이). Green 61 m from hole 3's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 3,
+      "par": 4,
+      "tees": [290630053, 290630054, 290630055, 290630056, 290630057, 290630062],
+      "greens": [290630058, 290630060],
+      "fairways": [290630059],
+      "evidence": "Par 4, 314 m; line 302 m (-3.7%). North along one fairway. Green 101 m from hole 4's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 4,
+      "par": 5,
+      "tees": [290638737, 290638738, 290638739, 290638740, 290638741, 290638742, 290638743, 290638744],
+      "greens": [290638746, 290638748],
+      "fairways": [290638747, 290638745],
+      "evidence": "Par 5, 529 m; line 516 m (-2.4%). West-north-west on two fairways with a bunker between them (note: 페어웨이 가로지르는 벙커). Green 67 m from hole 5's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 5,
+      "par": 3,
+      "tees": [290632070, 290632071, 290632072, 290632073],
+      "greens": [290631901, 290631902],
+      "evidence": "Par 3, 126 m; line 127 m (+0.7%). Past a pond to the greens (note: 해저드). Green 102 m from hole 6's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 6,
+      "par": 4,
+      "tees": [290631684, 290631685, 290631687, 290631688, 290631689, 290631690],
+      "greens": [290631691, 290631692],
+      "fairways": [290631693],
+      "evidence": "Par 4, 374 m; line 355 m (-5.0%). South along one fairway with a long pond on its left (east) (note: 좌측 계류). Green 66 m from hole 7's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 7,
+      "par": 4,
+      "tees": [292148400, 292148401, 292148402, 292148403, 292148404, 292148407, 292148408],
+      "greens": [292148405, 292148406],
+      "fairways": [290641745],
+      "evidence": "Par 4, 333 m; line 323 m (-3.0%). North-north-west to greens with a pond round their back and left. Green 70 m from hole 8's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 8,
+      "par": 3,
+      "tees": [292147847, 292147848, 292147849, 292147850],
+      "greens": [292147851, 292147852],
+      "evidence": "Par 3, 161 m; line 159 m (-1.1%). Over a pond to the greens (note: 해저드 넘기는 티샷). Green 64 m from hole 9's tees."
+    },
+    {
+      "nine": "pine",
+      "hole": 9,
+      "par": 5,
+      "tees": [292145619, 292145620, 292145621, 292145622, 292145623, 292145625],
+      "greens": [292145626, 292145627],
+      "fairways": [292145895],
+      "evidence": "Par 5, 531 m; line 520 m (-2.1%). A wide fairway with bunkers on both sides (note: 넓은 페어웨이, 좌우 벙커) to greens 95 m from the clubhouse, where 파인 ends."
+    }
+  ]
+}
