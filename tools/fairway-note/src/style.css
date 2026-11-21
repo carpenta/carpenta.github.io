@@ -209,17 +209,13 @@ svg { display: block; }
 }
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
 .hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
-/* The © OpenStreetMap link (v27), shown while the hole is drawn from OpenStreetMap: since v33 quiet gray text, not a pill,
-   6px above the card on its content edge (where the first capsule starts). The hole keeps out of its corner, so only the
-   rough is behind it. Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds
-   room (--credit-reach, 2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On the dark
-   drawing the focus ring is light. */
-.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: var(--card-pad); bottom: calc(100% + 6px); height: 20px; color: var(--on-dark-quiet); font-size: var(--t-s); line-height: 20px; font-weight: var(--w-help); white-space: nowrap; text-decoration: none; }
-.osm-credit::after { content: ''; position: absolute; inset: calc(-1 * var(--credit-reach)) -4px -6px; }
+/* The © OpenStreetMap credit (v27), shown while the hole is drawn from OpenStreetMap: since v33 quiet gray text, not a
+   pill, 6px above the card on its content edge (where the first capsule starts). The hole keeps out of its corner, so only
+   the rough is behind it. Since v37 plain text, not a link (a tap near the card opening another site was confusing):
+   nothing to tap (a tap on it does nothing); 홀 안내 and 앱 정보 keep the link. */
+.osm-credit { position: absolute; z-index: 1; left: var(--card-pad); bottom: calc(100% + 6px); height: 20px; color: var(--on-dark-quiet); font-size: var(--t-s); line-height: 20px; font-weight: var(--w-help); white-space: nowrap; text-decoration: none; }
 /* At the card's right content edge instead where water would lie behind it at the left (v33; main.ts sets .end). */
 .osm-credit.end { left: auto; right: var(--card-pad); }
-.osm-credit:active { color: var(--on-dark); }
-.osm-credit:focus-visible { outline-color: var(--on-dark); }
 #hole-title.two .hole-n { font-size: calc(var(--t-2xl) * .82); }
 #hole-title.two .hole-u { font-size: var(--t-s); }
 .info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
@@ -530,10 +526,11 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 .tab[aria-selected='true'] { color: var(--tab-on); }
 .bar-menu { grid-column: 4; }
 .bar-menu:active .ti { background: var(--deep-press); }
-/* 홈 (v32): the link back to the site at the top left of every view, on the top bar's line, in its open left slot
+/* 홈 (v32; v37 a button that opens 기록, no longer the site, which moved to 앱 정보) at the top left of every view, on the top bar's line, in its open left slot
    (AGENTS.md: visible at every width). Quiet, as on the site's other tool: soft white and no fill, over 기록's course and
    the paper views' deep header alike. Out of the bar, where it sat among the views and a tap there left the round. */
 .home-link {
+  appearance: none; border: 0; background: none; font-family: inherit; cursor: pointer;
   position: absolute; z-index: 3; top: max(8px, env(safe-area-inset-top)); left: var(--m); height: var(--bar-row); min-width: 48px;
   display: inline-flex; align-items: center; gap: 4px; padding-right: 8px;
   color: var(--on-dark-soft); font-size: var(--t-s); font-weight: var(--w-label); text-decoration: none; white-space: nowrap;
@@ -929,6 +926,7 @@ button.mi:active { background: var(--fill-2); }
 .picker-head > .head-btn { grid-column: 3; grid-row: 1; justify-self: end; background: transparent; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
 /* The views' 홈 (.home-link), here in the row: quiet, no fill, a 48px target. */
 .picker-home {
+  appearance: none; border: 0; background: none; font-family: inherit; cursor: pointer;
   grid-column: 1; grid-row: 1; justify-self: start; height: var(--bar-row); min-width: 48px;
   display: inline-flex; align-items: center; gap: 4px; padding-right: 8px;
   color: var(--on-dark-soft); font-size: var(--t-s); font-weight: var(--w-label); text-decoration: none; white-space: nowrap;
@@ -1357,6 +1355,8 @@ button.scell:active { background: var(--fill); }
 .promise { margin: 6px 0 0; padding: 0 0 0 20px; display: grid; gap: 4px; }
 .promise li::marker { color: var(--turf); }
 .mpanel .ab-foot { margin-top: 12px; }
+/* v37: the way back to the site, in 앱 정보 now that 홈 stays in the app. */
+.mpanel .ab-site { margin-top: 8px; }
 
 /* ---------- 큰 글씨: about 1.15 times ---------- */
 body.big { --t-count: 64px; --pill-base: 452px; --mark: 28px; }
@@ -1431,7 +1431,7 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 .hi-notes li { height: 28px; padding: 0 10px; border-radius: var(--r-full); display: inline-flex; align-items: center; background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); }
 .hi-none, .hi-art, .hi-osm { margin-top: 8px; font-size: var(--t-s); color: var(--muted); text-wrap: pretty; }
 /* The OpenStreetMap credit in 홀 안내 and 앱 정보 (v27): a link inside the sentence, underlined so it reads as one. */
-.hi-osm a, .ab-foot a { color: var(--turf); font-weight: var(--w-label); text-decoration: underline; text-underline-offset: 2px; }
+.hi-osm a, .ab-foot a, .ab-site a { color: var(--turf); font-weight: var(--w-label); text-decoration: underline; text-underline-offset: 2px; }
 .hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
 body.big .meta { height: 32px; font-size: var(--t-m); }
 body.big .prog { height: 24px; }

@@ -63,6 +63,8 @@ export function openPicker(options: PickerOptions): void {
   area = null;
   $<HTMLInputElement>('picker-search').value = '';
   $('picker-cancel').hidden = mode === 'first';
+  // 홈 (v37) goes back to 기록 as 취소 does, so it shows only where there is a round to go back to.
+  $('picker-home').hidden = mode === 'first';
   $('picker-cancel').textContent = options.cancelLabel ?? '취소';
   $('picker-title').textContent = options.title ?? '어디서 치세요?';
   // The first visit says what the app is not: no sign-up, records only on this phone.
@@ -146,6 +148,10 @@ function bind(): void {
     onStart(chosen);
   });
   $('picker-cancel').addEventListener('click', () => {
+    dialog().close();
+    onCancel?.();
+  });
+  $('picker-home').addEventListener('click', () => {
     dialog().close();
     onCancel?.();
   });

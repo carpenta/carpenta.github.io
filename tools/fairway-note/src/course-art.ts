@@ -1610,7 +1610,8 @@ export function osmSvg(traced: OsmShape, frame: CourseFrame): string {
   const w = shape.inset;
   if (w) {
     // The tile is the group's first path (styled as `.inset > :first-child`); the flagged green is the first `in-green`.
-    out.push('<g class="inset">', `<path d="${poly([roundedBox(w.box, WINDOW_R)])}" stroke-width="1.5"/>`);
+    // The 1.5px edge drawn 0.75px in, so the line too stays inside the window's box.
+    out.push('<g class="inset">', `<path d="${poly([roundedBox(grow(w.box, -0.75), WINDOW_R - 0.75)])}" stroke-width="1.5"/>`);
     w.fairways.forEach((fw) => out.push(`<path class="in-fairway" d="${poly([chaikin(fw, 1)])}"/>`));
     w.water.forEach((rings) => out.push(`<path class="in-water" d="${poly(rings)}" fill-rule="evenodd"/>`));
     w.bunkers.forEach((b) => out.push(`<path class="a-sand" d="${poly([chaikin(b, 1)])}"/>`));

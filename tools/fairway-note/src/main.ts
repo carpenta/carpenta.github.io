@@ -229,6 +229,8 @@ function show(next: View, focusTab = false): void {
 
 function bindViews(): void {
   for (const v of VIEWS) $(TAB_ID[v]).addEventListener('click', () => show(v));
+  // 홈 (v37): the app's own first screen, 기록, as its tab opens it; no longer the site, which moved to 앱 정보.
+  $('home-link').addEventListener('click', () => show('entry'));
   $('views').addEventListener('keydown', (event) => {
     const e = event as KeyboardEvent;
     const at = VIEWS.indexOf(view);
@@ -536,8 +538,6 @@ function drawCourse(): void {
         return;
       }
       osm = osmHoleAt(course, round.current);
-      // The link's touch area reaches up into what the band leaves, up to 14px, and stops 2px short of the chip row.
-      credit.style.setProperty('--credit-reach', `${Math.min(14, open.y1 - open.y0 - 28)}px`);
     }
   }
   // The credit beside the drawing whenever it is OpenStreetMap's: shown first, so the hole keeps clear of it (v27).
