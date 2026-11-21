@@ -337,12 +337,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v31');
+  await expect(page.locator('#menu-version')).toHaveText('v32');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v31');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v32');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -446,13 +446,16 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   await pickHole(page, 16);
   await expect(page.locator('#hole-notes li')).toContainText(['아일랜드 홀']);
   await expect(course.locator('.water')).toHaveCount(1);
-  // The tee box sits behind 다음 홀, none of it in the gap above the tab bar.
+  // The tee box sits in the band between the chips and the sheet, in sight (v32: v14 put it behind 다음 홀, where the
+  // card hid it).
   for (const index of [0, 1, 3]) {
     await pickHole(page, index);
     const tee = (await course.locator('.tee').boundingBox())!;
-    const go = (await next(page).boundingBox())!;
-    expect(tee.y, `hole ${index + 1}`).toBeGreaterThanOrEqual(go.y);
-    expect(tee.y + tee.height + 3, `hole ${index + 1}`).toBeLessThanOrEqual(go.y + go.height);
+    const chips = await rect(page, '#hole-info');
+    const sheet = await rect(page, '#sheet');
+    expect(tee.y, `hole ${index + 1}`).toBeGreaterThanOrEqual(chips.y + chips.height);
+    expect(tee.y + tee.height, `hole ${index + 1}`).toBeLessThanOrEqual(sheet.y);
+    expect(tee.x, `hole ${index + 1}`).toBeGreaterThanOrEqual(sheet.x);
   }
 });
 
@@ -673,15 +676,17 @@ test('draws a pond in front of a par 3 green and a bunker on its left, as the ho
   const green = (await course.locator('.green').boundingBox())!;
   const pond = (await course.locator('.pond').boundingBox())!;
   const bunker = (await course.locator('.bunker').boundingBox())!;
-  // In front (toward the tee, below) and on the left (as the player faces the green).
-  expect(pond.y + pond.height / 2).toBeGreaterThan(green.y + green.height);
-  expect(bunker.x + bunker.width / 2).toBeLessThan(green.x);
+  // In front (toward the tee) and on the left as the player faces the green. Since v32 the hole lies across the band,
+  // tee at the left and the player's left up, as the header's small picture shows it.
+  expect(pond.x + pond.width / 2).toBeLessThan(green.x);
+  expect(bunker.y + bunker.height / 2).toBeLessThan(green.y);
 });
 
 // ---------- Everis drawn from OpenStreetMap (v27) ----------
 
 const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright';
-/** What main.ts writes on the drawing for an OpenStreetMap hole: the back tee, the greens' middle, px per metre, the line. */
+/** What main.ts writes on the drawing for an OpenStreetMap hole (v32: and the schematic's in the band): the back tee, the
+ * greens' middle, px per metre, the line. */
 const osmAxis = (page: Page) => page.locator('#course').evaluate((el) => ({
   tee: el.dataset.tee!.split(',').map(Number),
   green: el.dataset.green!.split(',').map(Number),
@@ -707,7 +712,11 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(course.locator('.tee2')).toHaveCount(4);
   await expect(course.locator('.bunker')).toHaveCount(7);
   await expect(course.locator('.flag')).toHaveCount(1);
-  // The credit beside the drawing: a link to OpenStreetMap's copyright page, in a new tab, legible on whatever is under it.
+  // The back tee (the line's start, with its markers) in the putting green's colour, the other tees quieter in the
+  // fairway's (v32 critique: a row of bright tees read as a ball's flight).
+  expect(await course.locator('.tee').evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--putting'));
+  expect(await course.locator('.tee2').first().evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--fairway'));
+  // The credit beside the drawing: a link to OpenStreetMap's copyright page, in a new tab, legible on what is drawn behind it.
   const credit = page.locator('#osm-credit');
   await expect(credit).toBeVisible();
   await expect(credit).toHaveText('© OpenStreetMap');
@@ -715,9 +724,12 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(credit).toHaveAttribute('target', '_blank');
   await expect(credit).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(credit).toHaveAccessibleName(/^© OpenStreetMap/);
-  const [legible] = await contrastOf(page, [{ sel: '#osm-credit', min: 4.5, unders: OVER_ART }]);
-  expect(legible.size).toBeGreaterThanOrEqual(13);
-  expect(legible.ratio!).toBeGreaterThanOrEqual(4.5);
+  // Quiet gray text since v32, not a badge: no fill, edge, rounding or shadow; 13px at the help weight.
+  expect(await credit.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { background: s.backgroundColor, border: s.borderTopWidth, radius: s.borderTopLeftRadius, shadow: s.boxShadow, padding: s.paddingLeft, size: s.fontSize, weight: s.fontWeight, colour: s.color };
+  })).toEqual({ background: 'rgba(0, 0, 0, 0)', border: '0px', radius: '0px', shadow: 'none', padding: '0px', size: '13px', weight: '400', colour: await token(page, '--on-dark-quiet') });
+  await expectCreditLegible(page, '새별 1');
   // Its touch area is at least 24px each way (WCAG 2.2 target size), without reaching into the card.
   const area = await credit.evaluate((el) => {
     const r = el.getBoundingClientRect();
@@ -741,13 +753,13 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(course).toHaveAttribute('data-art', 'osm');
   expect(await course.locator('.green').getAttribute('d')).not.toBe(green);
   await expect(credit).toBeVisible();
-  // At its real scale a long hole's approach reaches into the band: 새별 3 (par 5) shows its 100 m pill, which fits its
-  // label as the schematic's do.
+  // The whole of a long hole in the band (v32): 새별 3 (par 5) shows its 100 m and 150 m pills, which fit their labels
+  // as the schematic's do.
   await page.getByRole('button', { name: '다음 홀로 이동' }).click();
   await expect(page.locator('#hole-n')).toHaveText('3');
   await page.evaluate(() => document.fonts.ready);
   const fit = await markerFits(page);
-  expect(fit.map((f) => f.label)).toEqual(['100 m']);
+  expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
   for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
   // Bundled: no request left the page, and nothing new was stored.
   expect(requests).toEqual([]);
@@ -801,19 +813,27 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
     await expect(course).toHaveAttribute('data-art', 'osm');
     const sheet = await rect(page, '#sheet');
     const credit = await rect(page, '#osm-credit');
-    const go = await rect(page, '#go-next');
-    // The credit on the card's left edge, 6px above it (alone on that line since v29 took the version off 기록).
-    expectAligned(credit.x, sheet.x, 'credit left = card left');
+    // The credit 6px above the card (alone on that line since v29 took the version off 기록). As text (v32) its left edge
+    // is the card's content edge, where the first capsule starts (the pill stood on the card's outer edge, its text 8px in).
+    expectAligned(credit.x, (await rect(page, '.club-driver .pill')).x, 'credit left = the first capsule\'s left');
     expectAligned(credit.y + credit.height, sheet.y - 6, 'credit bottom 6px above the card');
     expect(credit.y).toBeGreaterThanOrEqual((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 4);
-    // The axis: the back tee behind 다음 홀's middle, the greens' middle straight above it.
+    // The axis (v32): across the band between the chips and the card, the back tee at the left and the greens' middle
+    // level with it at the right.
     const axis = await osmAxis(page);
-    expectAligned(axis.tee[0], width / 2, 'back tee on the screen middle');
-    expectAligned(axis.tee[1], go.y + go.height / 2 - 1.5, 'back tee behind 다음 홀');
-    expectAligned(axis.green[0], width / 2, 'greens straight above the tee');
+    const chips = await rect(page, '#hole-info');
+    expect(axis.tee[0]).toBeLessThan(axis.green[0]);
+    expectAligned(axis.green[1], axis.tee[1], 'greens level with the back tee');
+    for (const [x, y] of [axis.tee, axis.green]) {
+      expect(x).toBeGreaterThanOrEqual(sheet.x);
+      expect(x).toBeLessThanOrEqual(sheet.x + sheet.width);
+      expect(y).toBeGreaterThan(chips.y + chips.height);
+      expect(y).toBeLessThan(sheet.y);
+    }
     expectAligned(axis.line[0][0], axis.tee[0], 'line starts at the tee (x)');
     expectAligned(axis.line[0][1], axis.tee[1], 'line starts at the tee (y)');
-    expectAligned(axis.line[axis.line.length - 1][1], axis.green[1], 'line ends at the greens');
+    expectAligned(axis.line[axis.line.length - 1][0], axis.green[0], 'line ends at the greens (x)');
+    expectAligned(axis.line[axis.line.length - 1][1], axis.green[1], 'line ends at the greens (y)');
     // The drawn back tee holds that point, and the cup stands on the flagged green.
     const inside = await course.evaluate((el, at) => {
       const svg = el as unknown as SVGSVGElement;
@@ -833,15 +853,25 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
     }).length, credit);
     expect(await clearOfCredit()).toBe(0);
     expect(await sideScroll(page)).toBe(0);
-    // A tall band reaches a long hole's approach: 새별 3 (par 5) shows its 100 m marker, its distance along the line of play
-    // from the greens' middle at the drawing's scale.
+    // In 상세 too (four capsules on one grid from the same content edge), on the tall screen where the credit still shows.
+    if (height >= 800) {
+      await page.getByRole('button', { name: '상세', exact: true }).click();
+      if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+      await atRest(page);
+      await expect(page.locator('#osm-credit')).toBeVisible();
+      expectAligned((await rect(page, '#osm-credit')).x, (await rect(page, '.club-driver .pill')).x, '상세: credit left = the first capsule\'s left');
+      await page.getByRole('button', { name: '기본', exact: true }).click();
+      await atRest(page);
+    }
+    // A tall band shows the whole of a long hole (v32): 새별 3 (par 5) shows its 100 m and 150 m markers, each its distance
+    // along the line of play from the greens' middle at the drawing's scale.
     if (height < 800) return;
     await page.getByRole('button', { name: '다음 홀로 이동' }).click();
     await page.getByRole('button', { name: '다음 홀로 이동' }).click();
     await expect(page.locator('#hole-n')).toHaveText('3');
     const long = await osmAxis(page);
     const markers = await course.locator('.marker circle').evaluateAll((list) => list.map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), d: Number(c.closest('g')!.querySelector('text')!.textContent!.replace(' m', '')) })));
-    expect(markers.map((m) => m.d)).toEqual([100]);
+    expect(markers.map((m) => m.d)).toEqual([100, 150]);
     for (const m of markers) {
       let along = 0;
       let found = NaN;
@@ -897,17 +927,17 @@ test.describe('with hole notes in the course data', () => {
     await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 5');
   });
 
-  test('bends a dogleg on the schematic: a right-hand dogleg’s green sits right of a straight hole’s', async ({ page }) => {
-    // 에코랜드 와일드 5 ("우 도그렉, …") bends right, so its drawn green sits right of a straight hole's.
+  test('bends a dogleg on the schematic: a right-hand dogleg’s green sits to the player’s right of the tee', async ({ page }) => {
+    // 에코랜드 와일드 5 ("우 도그렉, …") bends right. Across the band (v32) the player's right is down, as the header's
+    // small picture shows it, so its green sits below the tee's level.
     await openCourse(page, '에코랜드', '에코랜드 골프클럽');
     await pickHole(page, 4);
     await expect(page.locator('#hole-notes li').first()).toHaveText('우 도그렉');
     await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
-    const straight = await page.evaluate(() => innerWidth * 0.47);
     await expect.poll(async () => {
-      const box = (await page.locator('#course .green').boundingBox())!;
-      return box.x + box.width / 2;
-    }).toBeGreaterThan(straight);
+      const axis = await osmAxis(page);
+      return axis.green[1] - axis.tee[1];
+    }).toBeGreaterThan(8);
   });
 });
 
@@ -918,10 +948,217 @@ test('shows Everis 레이크 1’s right-hand dogleg from OpenStreetMap: the lin
   const course = page.locator('#course');
   await expect(course).toHaveAttribute('data-art', 'osm');
   const line = await course.evaluate((el) => el.dataset.line!.split(' ').map((p) => p.split(',').map(Number)));
-  const axis = line[0][0];
-  // A right-hand dogleg: straight out to the elbow, which lies left of the straight tee–green line, then right to the green.
-  expect(Math.min(...line.map(([x]) => x))).toBeLessThan(axis - 8);
-  expect(line[line.length - 1][0]).toBeCloseTo(axis, 0);
+  const level = line[0][1];
+  // A right-hand dogleg: straight out to the elbow, which lies left of the straight tee–green line, then right to the
+  // green. Across the band (v32) the player's left is up and the tee and the greens' middle are level.
+  expect(Math.min(...line.map(([, y]) => y))).toBeLessThan(level - 8);
+  expect(line[line.length - 1][1]).toBeCloseTo(level, 0);
+});
+
+// ---------- The hole in the band 기록 shows (v32) ----------
+
+type Band = { x0: number; y0: number; x1: number; y1: number };
+/** The band as the page lays it out: from the bottom of the chips under the hole switcher to the sheet's top edge, across the sheet. */
+const visibleBand = (page: Page) => page.evaluate((): Band => {
+  const chips = document.getElementById('hole-info')!.getBoundingClientRect();
+  const sheet = document.getElementById('sheet')!.getBoundingClientRect();
+  return { x0: sheet.left, y0: chips.bottom, x1: sheet.right, y1: sheet.top };
+});
+
+/**
+ * Points inside each drawn part the selectors name (a grid over its box, kept where the shape fills), each with whether
+ * it lies in the band and whether the drawing is what the eye meets there: nothing painted over it (a chip, the card,
+ * the credit: anything with a fill, a picture or an icon), only the screen's clear containers.
+ */
+const seenParts = (page: Page, band: Band, selectors: string[], probes: [number, number][] = []) => page.evaluate(([b, list, spots]) => {
+  const svg = document.getElementById('course') as unknown as SVGSVGElement;
+  const out: { part: string; at: string; inBand: boolean; onTop: boolean }[] = [];
+  const unpainted = (s: CSSStyleDeclaration) => /^(transparent|rgba\(.*,\s*0\))$/.test(s.backgroundColor) && s.backgroundImage === 'none';
+  // Over the point: a clear container, or a control hit only through a clear pseudo-element reaching past its box (the
+  // chips' 48px touch areas reach into the band; nothing there is drawn, and the drawing takes no taps).
+  const texted = (el: Element) => [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== '');
+  const clear = (el: Element, x: number, y: number) => {
+    const r = el.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return unpainted(getComputedStyle(el)) && !texted(el) && !(el instanceof SVGElement) && !(el instanceof HTMLImageElement);
+    return ['::before', '::after'].every((p) => unpainted(getComputedStyle(el, p)));
+  };
+  const seen = (x: number, y: number) => {
+    const stack = document.elementsFromPoint(x, y);
+    const at = stack.findIndex((el) => el.closest('#course') !== null);
+    return at >= 0 && stack.slice(0, at).every((el) => clear(el, x, y));
+  };
+  for (const sel of list) {
+    document.querySelectorAll<SVGGeometryElement>(`#course ${sel}`).forEach((el, n) => {
+      const box = el.getBBox();
+      const pts: [number, number][] = [];
+      for (let i = 1; i < 8; i++) {
+        for (let j = 1; j < 8; j++) {
+          const p = svg.createSVGPoint();
+          p.x = box.x + (box.width * i) / 8;
+          p.y = box.y + (box.height * j) / 8;
+          if (el.isPointInFill(p)) pts.push([p.x, p.y]);
+        }
+      }
+      if (!pts.length) pts.push([box.x + box.width / 2, box.y + box.height / 2]);
+      for (const [x, y] of pts) {
+        out.push({
+          part: `${sel} ${n + 1}`,
+          at: `${Math.round(x)},${Math.round(y)}`,
+          inBand: x >= b.x0 - 0.5 && x <= b.x1 + 0.5 && y >= b.y0 - 0.5 && y <= b.y1 + 0.5,
+          onTop: seen(x, y),
+        });
+      }
+    });
+  }
+  return { parts: out, probes: spots.map(([x, y]) => seen(x, y)) };
+}, [band, selectors, probes] as const);
+
+/**
+ * Each part the selectors name in sight: in the band and on top there, with the count of each as given. `covered` are
+ * points where something painted lies over the drawing (the Par chip, the credit): the check must see them as covered.
+ */
+async function expectInSight(page: Page, where: string, counts: Record<string, number>, covered: [number, number][] = []) {
+  await settled(page);
+  const band = await visibleBand(page);
+  for (const [sel, n] of Object.entries(counts)) await expect(page.locator(`#course ${sel}`), `${where}: ${sel}`).toHaveCount(n);
+  const { parts: seen, probes } = await seenParts(page, band, Object.keys(counts), covered);
+  expect(seen.length, `${where}: points checked`).toBeGreaterThan(Object.keys(counts).length);
+  expect(seen.filter((p) => !p.inBand || !p.onTop).map((p) => `${p.part} at ${p.at}: ${p.inBand ? 'covered' : 'outside the band'}`), where).toEqual([]);
+  expect(probes, `${where}: what lies over the drawing is seen as covering it`).toEqual(covered.map(() => false));
+  // main.ts measured the same band when it drew the hole.
+  const drawn = (await page.locator('#course').getAttribute('data-band'))!.split(',').map(Number);
+  [band.x0, band.y0, band.x1, band.y1].forEach((v, i) => expectAligned(drawn[i], v, `${where}: band edge ${i}`));
+}
+
+for (const [width, height] of [[390, 844], [375, 667], [360, 640]]) {
+  test(`fits each hole into the band between the chips and the sheet: its tee, green, flag and named hazards in sight at ${width}×${height} (v32)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    // Everis from OpenStreetMap: 새별 1 (v31 drew a bunker behind its greens under the Par chip) and 7 (an island green).
+    await open(page);
+    await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+    await settled(page);
+    const middle = (r: { x: number; y: number; width: number; height: number }): [number, number] => [r.x + r.width / 2, r.y + r.height / 2];
+    await expectInSight(page, '새별 1', { '.tee': 1, '.tee2': 4, '.green': 1, '.green2': 1, '.flag': 1, '.bunker path': 7 },
+      [middle(await rect(page, '#osm-credit')), middle(await rect(page, '#hole-par'))]);
+    await expectCreditLegible(page, '새별 1');
+    // Nothing of the drawing shows between the chips: it starts under them.
+    const chips = await rect(page, '#hole-info');
+    const info = await rect(page, '#info-btn');
+    expect(await drawnAt(page, info.x - 12, chips.y + chips.height / 2), 'between the chips').toBe(false);
+    await pickHole(page, 6);
+    await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+    await expectInSight(page, '새별 7', { '.tee': 1, '.green': 1, '.flag': 1 });
+    await expectCreditLegible(page, '새별 7');
+    // 그린필드's schematic: 4's tee shot carries a pond (v31 drew it behind the card), 6 is a par 3 with waste bunkers round
+    // its green, 7 a par 5 with a pond in front of its green.
+    await page.evaluate(() => localStorage.clear());
+    await openCourse(page, '그린필드', '그린필드 CC');
+    for (const [index, counts] of [
+      [3, { '.tee': 1, '.green': 1, '.flag': 1, '.pond .water': 1 }],
+      [5, { '.tee': 1, '.green': 1, '.flag': 1, '.bunker path': 3 }],
+      [6, { '.tee': 1, '.green': 1, '.flag': 1, '.pond .water': 1 }],
+    ] as const) {
+      await pickHole(page, index);
+      await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
+      await expectInSight(page, `그린필드 ${index + 1}`, counts);
+    }
+    expect(await sideScroll(page)).toBe(0);
+  });
+}
+
+/** The sheet at rest after a hole change: its slide (a transition begun on the next frame) over and the copy that left gone. */
+const sheetAtRest = (page: Page) => page.waitForFunction(() => getComputedStyle(document.getElementById('sheet')!).transform === 'none'
+  && document.querySelector('.sheet.ghost') === null && document.getAnimations().every((a) => a.playState !== 'running'));
+
+/** The credit's end and alignment (v32): its left edge on the first capsule's, or at the right end its right edge on the last's. */
+async function expectCreditAligned(page: Page, where: string) {
+  await sheetAtRest(page);
+  const credit = await rect(page, '#osm-credit');
+  if (await page.locator('#osm-credit').evaluate((el) => el.classList.contains('end'))) {
+    const last = await rect(page, '.club-putts .pill');
+    expectAligned(credit.x + credit.width, last.x + last.width, `${where}: credit right = the last capsule's right`);
+  } else {
+    expectAligned(credit.x, (await rect(page, '.club-driver .pill')).x, `${where}: credit left = the first capsule's left`);
+  }
+}
+
+test('stands the © OpenStreetMap credit at the card’s right end where water would lie behind it at the left: 레이크 1 at 375×667 (v32)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 });
+  await open(page);
+  // 레이크 1 (hole 10): its lake reaches the band's bottom left whatever room the hole is moved to.
+  await pickHole(page, 9);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+  await expect(page.locator('#osm-credit')).toHaveClass(/\bend\b/);
+  await settled(page);
+  await expectCreditAligned(page, '레이크 1');
+  await expectCreditLegible(page, '레이크 1');
+  const middle = (r: { x: number; y: number; width: number; height: number }): [number, number] => [r.x + r.width / 2, r.y + r.height / 2];
+  await expectInSight(page, '레이크 1', { '.tee': 1, '.green': 1, '.flag': 1 }, [middle(await rect(page, '#osm-credit'))]);
+  // The next hole has no water there: the credit is back at the left.
+  await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+  await expect(page.locator('#hole-n')).toHaveText('11');
+  await expect(page.locator('#osm-credit')).not.toHaveClass(/\bend\b/);
+  await settled(page);
+  await expectCreditAligned(page, '레이크 2');
+  await expectCreditLegible(page, '레이크 2');
+});
+
+for (const [width, height] of [[390, 844], [375, 667], [360, 640]]) {
+  test(`keeps the © OpenStreetMap credit legible on every hole drawn from OpenStreetMap at ${width}×${height} (v32)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page);
+    // The round's 18 holes: 새별 and 레이크, 레이크 4 and 5 on the schematic (no credit).
+    for (let n = 1; n <= 18; n++) {
+      if (n > 1) {
+        await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+        await expect(page.locator('#hole-n')).toHaveText(String(n));
+      }
+      if ((await page.locator('#course').getAttribute('data-art')) !== 'osm') continue;
+      await settled(page);
+      await expectCreditAligned(page, `hole ${n}`);
+      await expectCreditLegible(page, `hole ${n}`);
+    }
+  });
+}
+
+test('lays the hole across the band at one scale, tee at the left, and measures 100 m and 150 m to the green’s middle, as 홀 안내 says (v32)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'schematic');
+  await settled(page);
+  const axis = await osmAxis(page);
+  const band = await visibleBand(page);
+  // The tee at the left of the band, the green's middle at its right; 와일드 1 is "약한 좌 도그렉", so it bends up, to the
+  // player's left (as the header's small picture does).
+  expect(axis.tee[0]).toBeLessThan(band.x0 + (band.x1 - band.x0) / 4);
+  expect(axis.green[0]).toBeGreaterThan(band.x0 + ((band.x1 - band.x0) * 3) / 4);
+  expect(axis.green[1]).toBeLessThan(axis.tee[1] - 8);
+  // The green near its real size: about 32 m along the line at the drawing's scale.
+  const green = (await course.locator('.green').boundingBox())!;
+  expect(Math.abs(green.width - 32 * axis.scale)).toBeLessThanOrEqual(32 * axis.scale * 0.1);
+  // Both markers, each its distance from the green's middle along the line of play.
+  const markers = await course.locator('.marker circle').evaluateAll((list) => list.map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), d: Number(c.closest('g')!.querySelector('text')!.textContent!.replace(' m', '')) })));
+  expect(markers.map((m) => m.d)).toEqual([100, 150]);
+  for (const m of markers) {
+    let along = 0;
+    let found = NaN;
+    for (let i = axis.line.length - 1; i > 0; i--) {
+      const [a, b] = [axis.line[i], axis.line[i - 1]];
+      const seg = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const t = ((m.x - a[0]) * (b[0] - a[0]) + (m.y - a[1]) * (b[1] - a[1])) / (seg * seg);
+      if (t >= -0.01 && t <= 1.01 && Math.abs((m.x - a[0]) * (b[1] - a[1]) - (m.y - a[1]) * (b[0] - a[0])) / seg < 0.6) {
+        found = along + t * seg;
+        break;
+      }
+      along += seg;
+    }
+    expectAligned(found, m.d * axis.scale, `${m.d} m from the green's middle along the line`);
+  }
+  await page.locator('#info-btn').click();
+  await expect(page.locator('#hi-marks')).toBeVisible();
+  await expect(page.locator('#hi-marks')).toHaveText('그림의 100 m·150 m 표시는 그린 중앙까지의 거리예요.');
+  await page.keyboard.press('Escape');
 });
 
 test('keeps the round after reload and starts a new one on request', async ({ page }) => {
@@ -2308,6 +2545,32 @@ function contrastIn(checks: Contrast[]) {
   });
 }
 const contrastOf = (page: Page, checks: Contrast[]) => page.evaluate(contrastIn, checks);
+/**
+ * The paints drawn behind an element (v32): at points over its box, the first shape of the drawing under it, by its fill
+ * (its stroke where it has none). A shore's dark line counts as the water it edges, the worse of the two.
+ */
+const drawnUnder = (page: Page, sel: string) => page.evaluate((s) => {
+  const r = document.querySelector(s)!.getBoundingClientRect();
+  const paints = new Set<string>();
+  for (let i = 0; i <= 12; i++) {
+    for (let j = 0; j <= 4; j++) {
+      const shape = document.elementsFromPoint(r.left + 0.5 + ((r.width - 1) * i) / 12, r.top + 0.5 + ((r.height - 1) * j) / 4)
+        .find((el) => el.closest('#course') !== null && el.id !== 'course');
+      if (!shape) continue;
+      const st = getComputedStyle(shape);
+      paints.add(st.fill !== 'none' ? st.fill : st.stroke);
+    }
+  }
+  return [...paints];
+}, sel);
+/** The © OpenStreetMap credit (v32: gray text on the drawing) at least 4.5:1 and 13px against everything drawn behind it. */
+async function expectCreditLegible(page: Page, where: string) {
+  const unders = await drawnUnder(page, '#osm-credit');
+  expect(unders.length, `${where}: something drawn behind the credit`).toBeGreaterThan(0);
+  const [legible] = await contrastOf(page, [{ sel: '#osm-credit', min: 4.5, unders }]);
+  expect(legible.size, `${where}: credit size`).toBeGreaterThanOrEqual(13);
+  expect(legible.ratio!, `${where}: credit on ${unders.join(' | ')}`).toBeGreaterThanOrEqual(4.5);
+}
 /**
  * What a chip, a label or the glass card (v20) can sit on over the drawn course: its darkest edge to the sunlit fairway, and
  * the sand and water a hole note names, up to sunlit sand (v22). Palette tokens.
@@ -5961,7 +6224,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v31');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v32');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
