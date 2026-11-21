@@ -1832,3 +1832,10 @@ body .hole-nav #hole-title .hole-n { font-size: 32px; }
   box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
 }
 .numpick .np-row button { color: var(--on-glass); font-variant-numeric: tabular-nums; }
+/* Modals stand clearly off the screen behind them (v39, the user's call): the three backdrops much darker, a touch of blur. */
+:root {
+  --backdrop-light: rgb(4 12 8 / .55);
+  --backdrop: rgb(4 12 8 / .62);
+  --backdrop-strong: rgb(4 12 8 / .72);
+}
+dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
