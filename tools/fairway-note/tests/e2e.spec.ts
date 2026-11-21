@@ -7769,6 +7769,12 @@ test('each glyph is see-through ink, one colour on both halves: 3:1 or more over
     await page.mouse.move(4, 4, { steps: 4 });
     await page.mouse.up();
     await atRest(page);
+    // A slower browser (WebKit) can hold past half a second while reading: then the long press's number picker is up,
+    // over the next half. Put it away, choosing nothing.
+    if (await page.locator('#numpick').isVisible()) {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#numpick')).toBeHidden();
+    }
   }
   // At 0 the − is disabled: its glyph fainter and its half lighter, so it reads weaker than a live one.
   await expect(page.locator('.club-approach .minus')).toBeDisabled();
