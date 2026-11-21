@@ -23,7 +23,7 @@
     <div class="app">
       <!-- 홈 (v32): the way back to the site at the top left of every view, on the top bar's line (AGENTS.md: visible at
            every width). Out of the bar, where it sat among the views and a tap there left the round. -->
-      <a class="home-link" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></a>
+      <button class="home-link" id="home-link" type="button" aria-label="홈, 기록으로"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></button>
       <section class="view entry" id="entry" role="tabpanel" aria-labelledby="tab-entry">
         <!-- The hole switcher in the centre and the score badge in the right slot; the left slot stays open since 메뉴 moved
              into the bar (v32). -->
@@ -74,9 +74,9 @@
         <div class="spacer"></div>
 
         <div class="sheet-wrap" id="sheet-wrap">
-          <!-- The credit for a hole drawn from OpenStreetMap (v27): a pill at the card's left end, shown with that
-               drawing only. A link to OSM's copyright page; the CSP is unchanged, as following a link is navigation. -->
-          <a class="osm-credit" id="osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창" hidden>© OpenStreetMap</a>
+          <!-- The credit for a hole drawn from OpenStreetMap (v27), shown with that drawing only. Plain text since v37, not a
+               link: a tap near the card opening another site was confusing. 홀 안내 and 앱 정보 keep the link. -->
+          <span class="osm-credit" id="osm-credit" hidden>© OpenStreetMap</span>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
             <!-- The capsules (main.ts builds them after the tip). 상세's one-time tip (v28) on what 세컨 and 어프로치 are sits over
                  their middle, first in reading order; a tap on it, or a stroke on either, puts it away for good. -->
@@ -384,6 +384,8 @@
               <p class="muted">숫자를 길게 누르면 0부터 5 이상까지 바로 골라요. 홀 번호를 누르면 18홀이 한눈에 보여요.</p>
               <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
               <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 에버리스 골프리조트는 OpenStreetMap 지도 데이터(<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, ODbL, 새 창">© OpenStreetMap 기여자, ODbL</a>)로 실제 홀 모양을 그려요. 실제 배치는 공식 홀 안내를 보세요.</p>
+              <!-- The way back to the site (AGENTS.md), here since v37: 홈 stays in the app. -->
+              <p class="muted ab-site"><a href="../../">carpenta.github.io</a>로 돌아가기</p>
             </div>
           </li>
         </ul>
@@ -484,8 +486,9 @@
         <p class="pk-brand"><img src="./favicon.svg" alt="" width="20" height="20" /><span>Fairway Note</span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
-        <!-- The picker covers the views' 홈, so it carries its own way back to the site (AGENTS.md), in the same place -->
-        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></a>
+        <!-- The picker covers the views' 홈, so it carries its own in the same place. v37: back to 기록 as 취소 is (not to the
+             site); hidden on the first visit, when there is no round to go back to. -->
+        <button class="picker-home" id="picker-home" type="button" aria-label="홈, 기록으로"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></button>
         <button id="picker-cancel" class="head-btn" type="button">취소</button>
       </div>
       <label class="pk-search">

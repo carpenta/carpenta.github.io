@@ -337,16 +337,18 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v36');
+  await expect(page.locator('#menu-version')).toHaveText('v37');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v36');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v37');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
-  await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
-  await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
+  await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
+  await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
+  // And the way back to the site, here since v37 (홈 stays in the app).
+  await expect(page.locator('#mp-about .ab-site a')).toHaveAttribute('href', '../../');
   await page.locator('#menu .mi', { hasText: '결과 보내기' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
   await expect(page.locator('#mp-send')).toBeVisible();
@@ -740,29 +742,24 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   // fairway's (v33 critique: a row of bright tees read as a ball's flight).
   expect(await course.locator('.tee').evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--putting'));
   expect(await course.locator('.tee2').first().evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--fairway'));
-  // The credit beside the drawing: a link to OpenStreetMap's copyright page, in a new tab, legible on what is drawn behind it.
+  // The credit beside the drawing, legible on what is drawn behind it. Since v37 plain text, not a link (the user: a link
+  // there was confusing, a tap near the card opening another site); the link stays in 홀 안내 and 앱 정보.
   const credit = page.locator('#osm-credit');
   await expect(credit).toBeVisible();
   await expect(credit).toHaveText('© OpenStreetMap');
-  await expect(credit).toHaveAttribute('href', OSM_COPYRIGHT);
-  await expect(credit).toHaveAttribute('target', '_blank');
-  await expect(credit).toHaveAttribute('rel', 'noopener noreferrer');
-  await expect(credit).toHaveAccessibleName(/^© OpenStreetMap/);
+  expect(await credit.evaluate((el) => ({ tag: el.tagName, link: el.closest('a') !== null, tab: el.tabIndex }))).toEqual({ tag: 'SPAN', link: false, tab: -1 });
   // Quiet gray text since v33, not a badge: no fill, edge, rounding or shadow; 13px at the help weight.
   expect(await credit.evaluate((el) => {
     const s = getComputedStyle(el);
     return { background: s.backgroundColor, border: s.borderTopWidth, radius: s.borderTopLeftRadius, shadow: s.boxShadow, padding: s.paddingLeft, size: s.fontSize, weight: s.fontWeight, colour: s.color };
   })).toEqual({ background: 'rgba(0, 0, 0, 0)', border: '0px', radius: '0px', shadow: 'none', padding: '0px', size: '13px', weight: '400', colour: await token(page, '--on-dark-quiet') });
   await expectCreditLegible(page, '새별 1');
-  // Its touch area is at least 24px each way (WCAG 2.2 target size), without reaching into the card.
-  const area = await credit.evaluate((el) => {
-    const r = el.getBoundingClientRect();
-    const after = getComputedStyle(el, '::after');
-    const grow = (v: string) => Math.max(0, -parseFloat(v) || 0);
-    return { w: r.width + grow(after.left) + grow(after.right), h: r.height + grow(after.top) + grow(after.bottom), bottom: r.bottom + grow(after.bottom) };
-  });
-  expect(Math.min(area.w, area.h)).toBeGreaterThanOrEqual(24);
-  expect(area.bottom).toBeLessThanOrEqual((await page.locator('#sheet').boundingBox())!.y + 0.5);
+  // Nothing to tap (v37): a tap on it does not go anywhere or open a window.
+  expect((await credit.boundingBox())!.y + (await credit.boundingBox())!.height).toBeLessThanOrEqual((await page.locator('#sheet').boundingBox())!.y + 0.5);
+  const at = (await credit.boundingBox())!;
+  await page.mouse.click(at.x + at.width / 2, at.y + at.height / 2);
+  expect(page.url()).not.toContain('openstreetmap');
+  expect(page.context().pages()).toHaveLength(1);
   // 홀 안내 says where the shape comes from, with the same link; v22's line about approximate hazards is the schematic's.
   await page.locator('#info-btn').click();
   await expect(page.locator('#hi-osm')).toBeVisible();
@@ -2531,13 +2528,14 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       }
     });
 
-    test('with other fonts, the first course picker keeps the link home and 이 코스로 시작 on screen, the list between them', async ({ page }) => {
+    test('with other fonts, the first course picker keeps its title and 이 코스로 시작 on screen, the list between them', async ({ page }) => {
       await page.goto('/');
       await page.addStyleTag({ content: OTHER_TYPE });
       await expect(page.locator('#picker')).toBeVisible();
       await settled(page);
-      const home = await rect(page, '#picker a[href="../../"]');
-      expect(home.y, 'link home').toBeGreaterThanOrEqual(0);
+      // v37: 홈 opens 기록, so the first visit (no round yet) shows none; the title heads the list.
+      const home = await rect(page, '#picker-title');
+      expect(home.y, 'title').toBeGreaterThanOrEqual(0);
       // The list still shows a row and a half, under the header and above the button.
       const list = await rect(page, '#picker-list');
       expect(list.y).toBeGreaterThanOrEqual(home.y + home.height);
@@ -2570,13 +2568,23 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
   });
 }
 
-test('keeps every control within 360px in both views and both modes, with the link back to the site', async ({ page }) => {
+test('keeps every control within 360px in both views and both modes, with 홈 into the app and the way back to the site in 앱 정보 (v37)', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await open(page);
   await expect(page).toHaveTitle('Fairway Note');
-  const home = page.locator('a.home-link');
+  // 홈 stays in the app (v37: it went to the site): a button, and no link out on the views.
+  const home = page.locator('button.home-link');
   await expect(home).toBeVisible();
-  await expect(home).toHaveAttribute('href', '../../');
+  await expect(page.locator('.app a[href="../../"]')).toHaveCount(0);
+  // The way back to the site (AGENTS.md) is a quiet link in 메뉴 › 앱 정보, whole at 360px.
+  await menu(page, '앱 정보');
+  const site = page.locator('#mp-about a[href="../../"]');
+  await expect(site).toBeVisible();
+  await expect(site).toHaveText('carpenta.github.io');
+  const sb = (await site.boundingBox())!;
+  expect(sb.x + sb.width).toBeLessThanOrEqual(360);
+  await page.locator('#menu-close').click();
+  await expect(page.locator('#menu')).toBeHidden();
   await tap(page, 'driver');
   await tap(page, 'ob');
   expect(await sideScroll(page)).toBe(0);
@@ -3631,16 +3639,23 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
   test.describe(`the first course picker on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('links back to the site, the only way out of the full-screen picker, at the top left where every view has it (v35)', async ({ page }) => {
+    test('carries 홈 back to 기록 at the top left where every view has it, and none on the first visit (v35, v37)', async ({ page }) => {
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
-      // The modal picker covers the tab bar and its 홈, so it carries its own link back (AGENTS.md: at every width).
-      const home = page.locator('#picker a[href="../../"]');
-      await expect(home).toHaveCount(1);
+      // v37: 홈 opens 기록 instead of the site. On the first visit there is no round to go back to: no 홈, as no 취소.
+      const home = page.locator('#picker-home');
+      await expect(home).toBeHidden();
+      await expect(page.locator('#picker-cancel')).toBeHidden();
+      await expect(page.locator('#picker a[href="../../"]')).toHaveCount(0);
+      // From 새 라운드 mid-round, the picker covers the bar and its 홈, so it carries its own.
+      await page.getByRole('button', { name: '이 코스로 시작' }).tap();
+      await page.getByRole('button', { name: '메뉴' }).first().tap();
+      await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
+      await page.locator('#new-round').tap();
+      await expect(page.locator('#picker')).toBeVisible();
       await expect(home).toBeVisible();
-      // Named in full for screen readers.
       await expect(home).toHaveText('홈');
-      await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
+      await expect(home).toHaveAccessibleName(/기록/);
       await settled(page);
       const box = (await home.boundingBox())!;
       expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(48);
@@ -3656,14 +3671,7 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       expect(await home.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
       const size = await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(13);
-      // From the menu's 새 라운드 the picker adds 취소 back to the app at the right end of the same line; 홈 stays.
-      await page.getByRole('button', { name: '이 코스로 시작' }).tap();
-      await page.getByRole('button', { name: '메뉴' }).first().tap();
-      await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
-      await page.locator('#new-round').tap();
-      await expect(page.locator('#picker')).toBeVisible();
-      await expect(home).toBeVisible();
-      await settled(page);
+      // 취소 back to the app at the right end of the same line.
       const cancel = await rect(page, '#picker-cancel');
       within1px(cancel.x + cancel.width, width - 16, '취소 on the right inset');
       within1px(midY(cancel), midY(box), '취소 on 홈’s line');
@@ -6331,19 +6339,14 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await page.goto('/');
   await expect(page.locator('#picker')).toBeVisible();
   await expect(page.locator('#picker .pk-brand')).not.toContainText(/v\d+/);
-  const home = page.locator('#picker a[href="../../"]');
-  await expect(home).toHaveText('홈');
-  await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
-  expect(await home.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('none');
-  // Measured at rest: while the picker opens, its scale leaves the chip a hair under 44px.
-  await settled(page);
-  const box = (await home.boundingBox())!;
-  expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+  // No link out of the product on the picker (v37: 홈 stays in the app; the first visit has none).
+  await expect(page.locator('#picker a[href="../../"]')).toHaveCount(0);
+  await expect(page.locator('#picker-home')).toBeHidden();
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v36');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v37');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -6791,7 +6794,8 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       const line = midY(await rect(page, '#entry .switcher'));
       const home = page.locator('.home-link');
       await expect(home).toHaveCount(1);
-      await expect(home).toHaveAttribute('href', '../../');
+      // v37: a button into the app, not a link to the site.
+      expect(await home.evaluate((el) => el.tagName)).toBe('BUTTON');
       for (const [name, title] of [['기록', '#entry .switcher'], ['스코어카드', '#card-view .sc-title'], ['지난 라운드', '#hist-view .sc-title']] as const) {
         await tab(page, name).tap();
         await settled(page);
@@ -7604,11 +7608,10 @@ for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]] a
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
       await settled(page);
-      // 홈 in the box of the views' own 홈 under the picker: the top left, on the top bar's line, a 48px target, no fill.
+      // v37: on the first visit 홈 hides with 취소 (it opens 기록, and there is no round yet); its slot is the views' 홈's box.
+      await expect(page.locator('#picker .picker-home')).toBeHidden();
       const views = await rect(page, '.app > .home-link');
-      const home = await rect(page, '#picker .picker-home');
-      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(home[k], views[k], `홈 ${k} as on every view`);
-      expect(await page.locator('#picker .picker-home').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+      const home = views;
       const line = midY(views);
       const title = await rect(page, '#picker-title');
       const text = await textBox(page, '#picker-title');
@@ -7644,6 +7647,10 @@ for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]] a
       await expect(page.locator('#picker-cancel')).toBeVisible();
       await expect(page.locator('#picker .picker-home')).toBeVisible();
       await settled(page);
+      // 홈 in the box of the views' own 홈 under the picker: the top left, on the top bar's line, a 48px target, no fill.
+      const shown = await rect(page, '#picker .picker-home');
+      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(shown[k], views[k], `홈 ${k} as on every view`);
+      expect(await page.locator('#picker .picker-home').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
       const cancel = await rect(page, '#picker-cancel');
       expectAligned(cancel.x + cancel.width, width - 16, '취소 on the right inset');
       expectAligned(midY(cancel), line, '취소 on the line');
@@ -7740,4 +7747,32 @@ test('shows the green up close in a window where the band has room, clear of the
   await settled(page);
   await expect(course).toHaveAttribute('data-art', 'osm');
   await expect(course.locator('.inset')).toHaveCount(0);
+});
+
+test('홈 opens 기록 from every view and from the picker mid-round, and never leaves the app (v37)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const home = page.locator('.app > .home-link');
+  await expect(home).toHaveAccessibleName(/기록/);
+  for (const name of ['스코어카드', '지난 라운드'] as const) {
+    await tab(page, name).click();
+    await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+    await home.click();
+    await expect(tab(page, '기록'), `from ${name}`).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#entry')).toBeVisible();
+  }
+  // On 기록 it stays put.
+  await home.click();
+  await expect(page.locator('#entry')).toBeVisible();
+  // The picker opened mid-round: 홈 closes it back to 기록, the round as it was.
+  await tap(page, 'driver');
+  await menu(page, '코스 바꾸기');
+  await page.getByRole('button', { name: '다른 코스 고르기' }).click();
+  await expect(page.locator('#picker')).toBeVisible();
+  await page.locator('#picker-home').click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#entry')).toBeVisible();
+  await expect(count(page, 'driver')).toHaveText('1');
+  expect(page.url()).not.toContain('carpenta.github.io/#');
+  expect(new URL(page.url()).pathname).toBe('/');
 });
