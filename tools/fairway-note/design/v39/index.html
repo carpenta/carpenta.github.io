@@ -206,11 +206,11 @@ function paint() {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(D, 0, 0, D, 0, 0);
 
-  // Turn the hole so the tee is at the bottom and the green at the top, and fit it between the chips and the switcher.
+  // Turn the hole so the tee is at the left and the green at the right (wider than tall on a phone: a larger scale), and fit it between the chips and the switcher.
   const line = pairs(hole.line);
   const [tx, ty] = line[0];
   const alpha = Math.atan2(ty, -tx);           // the tee→green direction on screen (north up)
-  const phi = -Math.PI / 2 - alpha;
+  const phi = -alpha;
   const rot = ([x, y]) => { const sx = x, sy = -y; return [sx * Math.cos(phi) - sy * Math.sin(phi), sx * Math.sin(phi) + sy * Math.cos(phi)]; };
   // Water is each pond's outer ring, then its islands.
   const ponds = hole.water.map((rings) => rings.map(pairs));
@@ -219,7 +219,7 @@ function paint() {
   const xs = core.map((p) => p[0]), ys = core.map((p) => p[1]);
   const box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
   const top = 176, bottom = 338;
-  const s = Math.min((W - 150) / (box.x1 - box.x0), (bottom - top) / (box.y1 - box.y0));
+  const s = Math.min((W - 44) / (box.x1 - box.x0), (bottom - top) / (box.y1 - box.y0));
   const ox = W / 2 - ((box.x0 + box.x1) / 2) * s, oy = (top + bottom) / 2 - ((box.y0 + box.y1) / 2) * s;
   const P = (p) => { const [x, y] = rot(p); return [x * s + ox, y * s + oy]; };
   const path = (pts) => { const p = new Path2D(); pts.map(P).forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); return p; };
