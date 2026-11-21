@@ -76,7 +76,11 @@ export function bindVoice(page: VoicePage): void {
     line.value = '';
     say(null);
     if (!used) page.dismissed();
-    if (!open.hidden) open.focus({ preventScroll: true });
+    // v39: closing gives focus back to what opened it, the 음성 tab, which then showed a focus ring though the card had
+    // gone back to its capsules (the user's report): let it go instead.
+    const back = document.activeElement;
+    if (back instanceof HTMLElement && back.id === 'mode-voice') back.blur();
+    else if (!open.hidden && open.offsetParent !== null) open.focus({ preventScroll: true });
   };
   const shut = () => {
     dialog.close();
