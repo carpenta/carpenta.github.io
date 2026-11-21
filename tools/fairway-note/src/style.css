@@ -1927,7 +1927,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 .badge.hio .badge-name { bottom: calc(50% - 6px); font-size: 15px; }
 .badge #hole-strokes { bottom: calc(50% + 1.5px); }
 .badge .badge-name { bottom: calc(50% - 15.5px); }
-.badge:not([data-tone='none'], [data-tone='progress'], .hio) .badge-name { bottom: calc(50% - 17.5px); }   /* the 13px Par/±n (was 11px) 2px lower, so number and word stay centred */
+.badge:not([data-tone='none'], [data-tone='progress'], .hio) .badge-name { bottom: calc(50% - 18px); }   /* the 13px Par/±n (was 11px) 2.5px lower, so number and word stay centred */
 /* The badge's number is white whatever its mark (the triple's old deep ink vanished on the glass); lime at par, a soft red
    under it, as before. */
 #badge #hole-strokes { color: var(--on-glass); }
