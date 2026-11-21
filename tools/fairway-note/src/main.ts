@@ -354,7 +354,7 @@ function changeHole(dir: 1 | -1, swiped = false): void {
 /** "다음 홀", or the round summary after the last hole. Leaving a hole with nothing on it says so, with 되돌리기 (v15). */
 function goNext(): void {
   if (round.current === lastHole()) {
-    requestFinish($('go-next'));
+    requestFinish($('next-hole'));
     return;
   }
   const from = round.current;
@@ -483,7 +483,8 @@ function artBand(): ArtBand {
   const sheet = $('sheet').getBoundingClientRect();
   // v38: from under the switcher and the score badge, so the hole also lies behind the chip row, whose pills are
   // see-through: they no longer hide the drawing. A banner (which takes over the chip row) still ends it at its bottom.
-  const bar = Math.max(document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, $('badge').getBoundingClientRect().bottom);
+  // v39: under the top bar (the course's name and the score badge); the switcher moved down to the band's foot.
+  const bar = Math.max(document.querySelector('#entry .round-head')!.getBoundingClientRect().bottom, $('badge').getBoundingClientRect().bottom);
   const top = Math.max(bar, banners.height > 0 ? banners.bottom : 0);
   // The hole itself keeps clear of the pills (v38): the drawing shows through them, but the tee, the green and the flag
   // are never under one.
@@ -491,7 +492,9 @@ function artBand(): ArtBand {
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0 && r.height > 0 && r.bottom > top)
     .map((r) => ({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }));
-  const band: ArtBand = { x0: sheet.left, y0: top, x1: sheet.right, y1: sheet.top, keep };
+  // v39: down to the low hole switcher (it sits over the hole's foot, between the hole and the card).
+  const foot = Math.min(sheet.top, document.querySelector('#entry .hole-nav')!.getBoundingClientRect().top);
+  const band: ArtBand = { x0: sheet.left, y0: top, x1: sheet.right, y1: foot, keep };
   const link = $('osm-credit');
   const text = link.getBoundingClientRect();
   if (!link.hidden && text.width > 0) {
@@ -552,13 +555,12 @@ function drawCourse(): void {
     const head = $('hole-info').getBoundingClientRect();
     const sheet = $('sheet').getBoundingClientRect();
     frame.bandTop = head.bottom + 6;
-    frame.bandBottom = sheet.top;
+    frame.bandBottom = Math.min(sheet.top, document.querySelector('#entry .hole-nav')!.getBoundingClientRect().top);
     frame.right = sheet.right - 6;
     // The drawing ends at the sheet's top edge (v31): the card covers the rest, and what showed round it was noise.
-    svg.style.setProperty('--art-bottom', `${Math.round(sheet.top)}px`);
-    // v31's tee box (27px with its bevel) centred behind 다음 홀.
-    const go = $('go-next').getBoundingClientRect();
-    frame.teeY = go.top + go.height / 2 - 1.5;
+    svg.style.setProperty('--art-bottom', `${Math.round(frame.bandBottom)}px`);
+    // v31's tee box (27px with its bevel) near the card's foot (v39: 다음 홀, where it stood, is gone).
+    frame.teeY = sheet.bottom - 28;
     const open = artBand();
     // Whether to fit is still measured under the chip row (v33): the band over it (v38) only gives the hole more room.
     fit =open.y1 - Math.max(open.y0, head.height > 0 ? head.bottom : 0) >= FIT_BAND;
@@ -1111,6 +1113,16 @@ function renderEntry(a: Analysis, changed?: string): void {
   // One row: Par, length and HDCP (only with the course's official handicap) as text in one pill.
   setChip('hole-distance', distanceLabel(info));
   setChip('hole-hdcp', info?.si ? `HDCP ${info.si}` : null);
+  // v39: Par and the handicap beside the hole number in the low switcher; the course in the bar; the length chip lists
+  // every tee where the course gives more than one.
+  setText($('nav-par'), String(cur.par));
+  setText($('nav-hcp'), info?.si ? String(info.si) : '–');
+  const playing = roundCourse(round);
+  setText($('round-name'), [playing.name, round.current < 9 ? playing.front : playing.back].filter(Boolean).join(' · '));
+  const tees = info?.distances ?? [];
+  const dist = $<HTMLButtonElement>('dist-btn');
+  dist.disabled = tees.length < 2;
+  setAttr(dist, 'aria-label', tees.length < 2 ? (distanceLabel(info) ?? '거리') : `${distanceLabel(info)}, 티별 거리 보기`);
   // Under the hole number when 상세 on a short screen hides the row.
   const sub = $('hole-sub');
   sub.dataset.par = `Par ${cur.par}`;
@@ -1149,7 +1161,9 @@ function renderEntry(a: Analysis, changed?: string): void {
   setAttr(infoBtn, 'aria-label', `홀 안내${phrases.length ? `, 특징 ${phrases.length}개` : ''}`);
   fitNotes();
   $<HTMLButtonElement>('prev-hole').disabled = i === 0;
-  $<HTMLButtonElement>('next-hole').disabled = i === lastHole();
+  // v39: on the last hole › finishes the round.
+  setAttr($('next-hole'), 'aria-label', i === lastHole() ? '라운드 마치기' : '다음 홀로 이동');
+  $('next-hole').classList.toggle('finish', i === lastHole());
 
   // A hole entered in 기본 shows in 상세 as all 세컨 (v28), said quietly until 세컨 or 어프로치 is first changed.
   const fromBasic = !isSplit(cur) && cur.approach > 0;
@@ -1821,6 +1835,7 @@ function bindSummary(): void {
   bindCheck();
   bindStrip();
   bindHoleInfo();
+  bindTees();
 }
 
 /** A tap on the dim backdrop, outside the dialog's box, closes it. */
@@ -2005,6 +2020,50 @@ function bindHoleInfo(): void {
     hideToast();
     dialog.showModal();
     // Under the header row, from the left margin. CSSOM, allowed by the CSP.
+    dialog.style.top = `${Math.round($('hole-info').getBoundingClientRect().bottom + 8)}px`;
+    setAttr(button, 'aria-expanded', 'true');
+    dialog.focus();
+  });
+  dialog.addEventListener('close', () => {
+    setAttr(button, 'aria-expanded', 'false');
+    button.focus();
+  });
+}
+
+/** A tee's marker colour by its name ("화이트 좌그린" is white); grey where the name says no colour. */
+function teeColour(name: string | undefined): string {
+  const colours: [RegExp, string][] = [
+    [/^(화이트|레귤러)/, '#f4f5f0'], [/^(블랙|백|챔피언)/, '#16181a'], [/^블루/, '#3d7fd9'], [/^(레드|레이디|프런트)/, '#d9483a'],
+    [/^(옐로|시니어)/, '#e5c443'], [/^골드/, '#c9a227'], [/^핑크/, '#f08fb0'], [/^오렌지/, '#ec8a35'],
+  ];
+  return colours.find(([re]) => name && re.test(name))?.[1] ?? '#9aa79c';
+}
+
+/** v39: the length chip lists every tee the course gives for the hole, under the chip row. */
+function bindTees(): void {
+  const dialog = $<HTMLDialogElement>('tees-pop');
+  const button = $<HTMLButtonElement>('dist-btn');
+  closeOnBackdrop(dialog);
+  button.addEventListener('click', () => {
+    const tees = holeInfo(roundCourse(round), round.current)?.distances ?? [];
+    if (tees.length < 2) return;
+    hideToast();
+    const list = $('tee-list');
+    list.replaceChildren(...tees.map((t) => {
+      const li = document.createElement('li');
+      const dot = document.createElement('span');
+      dot.className = 'tee-dot';
+      dot.style.background = teeColour(t.tee);
+      const name = document.createElement('span');
+      name.className = 'tee-name';
+      name.textContent = t.tee ?? '티';
+      const len = document.createElement('b');
+      len.textContent = `${t.length} ${t.unit}`;
+      li.append(dot, name, len);
+      return li;
+    }));
+    dialog.showModal();
+    // Under the chip row, from the left margin, as 홀 안내 opens. CSSOM, allowed by the CSP.
     dialog.style.top = `${Math.round($('hole-info').getBoundingClientRect().bottom + 8)}px`;
     setAttr(button, 'aria-expanded', 'true');
     dialog.focus();
@@ -2277,8 +2336,11 @@ function bind(): void {
   bindSummary();
   bindSwipe();
   $('prev-hole').addEventListener('click', () => changeHole(-1));
-  $('next-hole').addEventListener('click', () => changeHole(1));
+  // v39: › is 다음 홀 now: it moves on (saying so when the hole is left blank) and finishes the round on the last hole.
+  $('next-hole').addEventListener('click', goNext);
   $('go-next').addEventListener('click', goNext);
+  // 음성: the sheet's third tab opens 말로 입력's sheet (its own button stays for the menu's setting).
+  $('mode-voice').addEventListener('click', () => $('voice-open').click());
   // A hole's column on the scorecard opens that hole in 기록 in one tap (v23); in 파 수정 it steps the par instead.
   $('scorecard').addEventListener('click', (event) => {
     const column = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-hole]');

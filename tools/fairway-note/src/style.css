@@ -1651,3 +1651,117 @@ details.how > summary, details.shot-details > summary { display: inline-flex; al
 :is(details.how, details.shot-details) > summary::after { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--turf); border-bottom: 2px solid var(--turf); transform: translateY(-2px) rotate(45deg); transition: transform .16s ease-out; }
 :is(details.how, details.shot-details)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); color: var(--ink); }
+
+/* ======================================================================================================================
+   v39: glow and glass (the user's chosen mock-up, design/v39/). One glass everywhere, no outlines on any box: tone, blur
+   and shadow alone; a lime edge and glow mark what is chosen. Over the hole the glass is 50% and lightly blurred so the
+   painted ground shows through; on the page it is deeper. The hole switcher sits low, between the hole and the card.
+   ==================================================================================================================== */
+:root {
+  --lime: #c4e04f;
+  --lime-glow: color-mix(in srgb, #c4e04f 55%, transparent);
+  --on-glass: #f4f7f0;
+  --on-glass-soft: color-mix(in srgb, #f4f7f0 66%, transparent);
+  --map-glass: rgb(10 24 16 / .5);
+  --map-blur: blur(4px) saturate(1.2);
+  --deep-glass: linear-gradient(180deg, rgb(14 30 21 / .62), rgb(10 22 15 / .74));
+  --deep-blur: blur(18px) saturate(1.4);
+  --glass-drop: 0 6px 16px rgb(0 0 0 / .28);
+  --chosen-edge: 0 0 0 1.5px var(--lime);
+  --island: 62px;
+}
+.app { padding-bottom: calc(var(--island) + 26px + env(safe-area-inset-bottom)); }
+.map-glass { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); }
+
+/* The top bar: 홈 as its icon alone, the course and the round so far in the middle, the score on the right. */
+.home-link { color: var(--on-glass); filter: drop-shadow(0 1px 3px rgb(0 0 0 / .6)); }
+.home-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.home-link svg { width: 26px; height: 26px; }
+.round-head { grid-column: 2; grid-row: 1; justify-self: center; min-width: 0; max-width: 100%; display: grid; justify-items: center; gap: 3px; text-align: center; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
+.round-name { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--on-glass); font-size: var(--t-m); font-weight: var(--w-label); }
+.round-head .progress { margin: 0; height: auto; padding: 0; background: none; box-shadow: none; gap: 4px; }
+.round-head .prog { color: var(--on-glass-soft); }
+.round-head .prog.score { color: var(--on-glass); }
+.round-head .prog.under { color: #ff8f84; }
+.badge { width: 56px; height: 56px; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); outline: 0; box-shadow: var(--glass-drop); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+.badge[data-tone] { background: var(--map-glass); }
+.badge .bm { display: none; }
+.badge-name { color: var(--on-glass-soft); }
+.badge[data-tone='under'] #hole-strokes { color: #ff9a8f; }
+.badge[data-tone='par'] #hole-strokes { color: var(--lime); }
+
+/* The chip row: the length (a tap lists every tee) and 홀 안내, map glass. */
+#hole-info .meta, #hole-info .info-chip { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+#hole-info .meta { padding: 0; }
+.dist { height: 100%; padding: 0 12px; border-radius: var(--r-full); color: inherit; font: inherit; }
+.dist:disabled { cursor: default; color: inherit; }
+.dist .mt-len { color: var(--on-glass); }
+#hole-info .info-n { background: var(--lime); color: var(--ink); }
+.tee-list { margin: 10px 0 6px; padding: 0; list-style: none; display: grid; gap: 2px; }
+.tee-list li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; min-height: 40px; font-size: var(--t-m); font-weight: var(--w-label); }
+.tee-dot { width: 14px; height: 14px; border-radius: var(--r-full); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25); }
+.osm-credit { color: color-mix(in srgb, #fff 62%, transparent); text-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+
+/* The hole switcher, low: ‹ · [Par · (ring: the hole number) · HCP] · ›. Numbers on one line, labels on another. */
+.hole-nav { flex: none; margin: 6px var(--m) 14px; }
+.hole-nav .switcher { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: 10px; padding: 0; background: none; box-shadow: none; max-width: none; }
+.hole-nav .round, .hole-nav .round:disabled { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); color: var(--on-glass); box-shadow: var(--glass-drop); }
+.hole-nav .round:disabled { color: color-mix(in srgb, #fff 35%, transparent); }
+.hole-nav .round:active:not(:disabled) { background: rgb(10 24 16 / .7); }
+.hole-nav .round.finish { background: var(--lime); color: var(--ink); box-shadow: 0 0 16px 1px var(--lime-glow), var(--glass-drop); }
+.nav-pill { position: relative; height: 60px; border-radius: var(--r-full); display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+.nav-stat { position: relative; height: 60px; }
+.nav-stat b, .nav-stat span, .hole-n, .hole-u { text-box: trim-both cap alphabetic; line-height: 1; }
+.nav-stat b, .nav-stat span { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; }
+.nav-stat b { bottom: calc(50% - 2px); font-size: var(--t-l); font-weight: var(--w-value); }
+.nav-stat span { bottom: calc(50% - 19px); font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-glass-soft); }
+.hole-nav .hole-h { justify-self: center; width: 80px; height: 80px; margin: -10px 0; }
+.hole-nav .hole-title {
+  position: relative; width: 80px; height: 80px; padding: 0; border-radius: var(--r-full); display: block;
+  background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass);
+  box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow), var(--glass-drop);
+}
+.hole-nav .hole-title:active, .hole-nav .hole-title[aria-expanded='true'] { background: radial-gradient(circle at 50% 35%, #2c5238 0%, #1c3626 75%); }
+.hole-nav .hole-txt, .hole-nav .hole-main { position: static; display: block; }
+.hole-nav .hole-n { position: absolute; left: 50%; translate: -50% 0; bottom: calc(50% - 2px); font-size: 32px; font-weight: var(--w-value); letter-spacing: -.02em; color: var(--on-glass); }
+.hole-nav .hole-u { position: absolute; left: 50%; translate: -50% 0; bottom: calc(50% - 19px); font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-glass-soft); white-space: nowrap; }
+.hole-nav :is(.hole-sub, .ticks, .hole-chev) { display: none; }
+
+/* The card: deep glass, no outline, a faint lime halo; white type. Its parts take the same tokens, retinted. */
+.sheet {
+  background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur);
+  box-shadow: 0 0 26px rgb(196 224 79 / .12), var(--glass-drop); color: var(--on-glass);
+  --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
+  --fill: rgb(255 255 255 / .07); --fill-2: rgb(255 255 255 / .13); --fill-press: rgb(255 255 255 / .2);
+  --on-capsule: rgb(255 255 255 / .62); --on-capsule-soft: rgb(255 255 255 / .35); --off-ink: rgb(255 255 255 / .35);
+}
+.sheet-wrap::after { display: none; }
+/* The tabs at the card's top: 기본 · 상세 · 음성, the chosen one white with a glowing lime underline. */
+.sheet .modes { display: grid; grid-template-columns: repeat(3, 1fr); width: auto; margin: -4px calc(-1 * var(--card-pad)) 6px; background: none; border-radius: 0; }
+.sheet .mode { min-width: 0; height: 44px; padding: 0; border-radius: 0; background: none; color: var(--on-glass-soft); font-size: var(--t-m); }
+.sheet .mode[aria-pressed='true'] { background: none; color: var(--on-glass); }
+.sheet .mode[aria-pressed='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* The clubs as icons (the user's call): the app's driver, iron and putter, the names kept for the screen reader. */
+.club-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.club-lbl svg { width: 24px; height: 24px; color: var(--on-glass); }
+.lbl-in { padding: 0 10px 0 12px; gap: 4px; }
+.count { color: var(--on-glass); }
+/* OB, 벙커 and 해저드 in 상세 only (the user's call); what 기본 already counted still counts. */
+#entry[data-mode='basic'] .pens { display: none; }
+/* 말로 입력 opens from the 음성 tab; its own button and 다음 홀 are gone from 기록. */
+#entry .vc-open, #entry .next { display: none; }
+
+/* The bar: a floating island, the same deep glass, off the edges; the chosen tab white with a glowing lime dot. */
+.tabbar { left: 16px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); padding: 0 6px; border-radius: var(--r-full); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
+.tab, .bar-menu { height: var(--island); color: var(--on-glass-soft); }
+.tab .ti, .bar-menu .ti { width: auto; height: 24px; background: none; }
+.tab[aria-selected='true'] .ti { background: none; }
+.tab svg, .bar-menu svg { width: 22px; height: 22px; stroke-width: 1.5; }
+.tab-label { font-size: 11px; }
+.tab[aria-selected='true'] { position: relative; color: var(--on-glass); }
+.tab[aria-selected='true']::after { content: ''; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 2px var(--lime-glow); }
+.hole-nav .switcher { width: 100%; }
+/* The icon stays in narrow columns too: it is the club's name now (v39). */
+@container (max-width: 103px) { .sheet .lbl-in > svg { display: block; } }
+/* The OpenStreetMap credit at the band's foot, over the low switcher (6px above it), not under it (v39). */
+.osm-credit { bottom: calc(100% + 14px + 60px + 6px + 6px); }

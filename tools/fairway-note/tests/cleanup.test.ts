@@ -58,20 +58,19 @@ describe('rates (v29)', () => {
   });
 });
 
-describe('the score badge (v29)', () => {
-  it('names 이글 to 더블 in words and the rest as the score against par, as a scorecard reads it', () => {
-    expect([badgeWord(1, 3), badgeWord(1, 5), badgeWord(2, 5), badgeWord(3, 5), badgeWord(3, 4), badgeWord(4, 4), badgeWord(5, 4)]).toEqual(['홀인원', '홀인원', '−3', '이글', '버디', '파', '보기']);
-    expect([badgeWord(6, 4), badgeWord(7, 4), badgeWord(8, 4), badgeWord(9, 4), badgeWord(10, 3)]).toEqual(['더블', '+3', '+4', '+5', '+7']);
+describe('the score badge (v29; English terms since v39)', () => {
+  it('names Eagle to Double in golf\'s own English words and the rest as the score against par, as a scorecard reads it', () => {
+    expect([badgeWord(1, 3), badgeWord(1, 5), badgeWord(2, 5), badgeWord(3, 5), badgeWord(3, 4), badgeWord(4, 4), badgeWord(5, 4)]).toEqual(['Ace', 'Ace', '−3', 'Eagle', 'Birdie', 'Par', 'Bogey']);
+    expect([badgeWord(6, 4), badgeWord(7, 4), badgeWord(8, 4), badgeWord(9, 4), badgeWord(10, 3)]).toEqual(['Double', '+3', '+4', '+5', '+7']);
   });
 
-  it('never says more than two syllables under the number, so the word fits the 60px ring with 큰 글씨 too', () => {
+  it('never says more than six letters under the number, so the word fits the ring with 큰 글씨 too', () => {
     for (const par of [3, 4, 5]) {
       for (let strokes = 1; strokes <= 15; strokes += 1) {
         const word = badgeWord(strokes, par);
-        // 홀인원 is the one word shown alone, in place of the number (main.ts).
+        // Ace is the one word shown alone, in place of the number (main.ts).
         if (strokes === 1) continue;
-        const syllables = word.match(/[가-힣]/g)?.length ?? 0;
-        expect(syllables === 0 ? /^[+−]\d{1,2}$/.test(word) : syllables <= 2, `${strokes} on a par ${par}: ${word}`).toBe(true);
+        expect(/^[+−]\d{1,2}$/.test(word) || /^[A-Z][a-z]{1,5}$/.test(word), `${strokes} on a par ${par}: ${word}`).toBe(true);
       }
     }
   });

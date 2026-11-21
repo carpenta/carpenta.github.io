@@ -30,20 +30,10 @@
         <!-- The hole switcher in the centre and the score badge in the right slot; the left slot stays open since 메뉴 moved
              into the bar (v32). -->
         <header class="top">
-          <div class="switcher">
-            <button class="round" type="button" id="prev-hole" aria-label="이전 홀">
-              <svg data-icon="chevron-left" width="22" height="22"></svg>
-            </button>
-            <!-- The hole number opens the hole strip: every hole at a glance, skipped holes marked -->
-            <h1 class="hole-h">
-              <button class="hole-title" type="button" id="hole-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="strip">
-                <span class="hole-txt"><span class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></span><span class="hole-sub" id="hole-sub" aria-hidden="true"></span><span class="ticks" id="ticks" aria-hidden="true"></span></span>
-                <svg data-icon="chevron-down" class="hole-chev" width="12" height="12"></svg>
-              </button>
-            </h1>
-            <button class="round" type="button" id="next-hole" aria-label="다음 홀로 이동">
-              <svg data-icon="chevron-right" width="22" height="22"></svg>
-            </button>
+          <!-- v39: the course and the round so far in the bar's middle; the hole switcher moved down to the thumb. -->
+          <div class="round-head">
+            <p class="round-name" id="round-name"></p>
+            <span class="progress" id="progress" hidden><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
           </div>
           <!-- The hole's score in the top bar's right slot (v15): a quiet "Par 4" ring before the first tap. -->
           <div class="badge" id="badge" data-tone="none" role="img" aria-label="이 홀 아직 기록 전">
@@ -54,8 +44,9 @@
                one pill at the left; the round so far ("4홀까지 +2") and 홀 안내 pinned to the right. -->
           <p class="info" id="hole-info">
             <span class="thumb" id="hole-thumb" aria-hidden="true"></span>
-            <span class="meta" id="meta"><span id="hole-par">Par 4</span><span class="mt-len" id="hole-distance" hidden></span><span class="mt-hd" id="hole-hdcp" hidden></span></span>
-            <span class="progress" id="progress" hidden><span class="prog" id="prog-n" hidden></span><span class="prog score" id="prog-p" hidden></span></span>
+            <!-- v39: the length (the first tee the course lists); a tap lists every tee where the course gives more than
+                 one. Par and HDCP are said by the switcher below and stay here for the screen reader and the checks. -->
+            <span class="meta" id="meta"><span id="hole-par" class="sr-only">Par 4</span><button class="dist" type="button" id="dist-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="tees-pop" disabled><span class="mt-len" id="hole-distance" hidden></span></button><span class="mt-hd sr-only" id="hole-hdcp" hidden></span></span>
             <button class="chip info-chip" type="button" id="info-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="hole-pop" hidden>홀 안내<span class="info-n" id="info-n" hidden></span></button>
           </p>
           <!-- The last tap can be taken back for a few seconds (v20): over the chip row's left, clear of every button -->
@@ -75,11 +66,41 @@
 
         <div class="spacer"></div>
 
+        <!-- v39: the hole switcher low, between the hole and the card, where the thumb is: ‹ · Par · the hole number in
+             its ring · HCP · ›. On the last hole › finishes the round (다음 홀 is gone). -->
+        <nav class="hole-nav" aria-label="홀 이동">
+          <div class="switcher">
+            <button class="round" type="button" id="prev-hole" aria-label="이전 홀">
+              <svg data-icon="chevron-left" width="22" height="22"></svg>
+            </button>
+            <div class="nav-pill">
+              <span class="nav-stat" aria-hidden="true"><b id="nav-par">4</b><span>Par</span></span>
+              <!-- The hole number opens the hole strip: every hole at a glance, skipped holes marked -->
+              <h1 class="hole-h">
+                <button class="hole-title" type="button" id="hole-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="strip">
+                  <span class="hole-txt"><span class="hole-main" id="hole-title"><span class="hole-n" id="hole-n">1</span><span class="hole-u">번 홀</span></span><span class="hole-sub" id="hole-sub" aria-hidden="true"></span><span class="ticks" id="ticks" aria-hidden="true"></span></span>
+                  <svg data-icon="chevron-down" class="hole-chev" width="12" height="12"></svg>
+                </button>
+              </h1>
+              <span class="nav-stat" aria-hidden="true"><b id="nav-hcp">–</b><span>HCP</span></span>
+            </div>
+            <button class="round" type="button" id="next-hole" aria-label="다음 홀로 이동">
+              <svg data-icon="chevron-right" width="22" height="22"></svg>
+            </button>
+          </div>
+        </nav>
+
         <div class="sheet-wrap" id="sheet-wrap">
           <!-- The credit for a hole drawn from OpenStreetMap (v27), shown with that drawing only. Plain text since v37, not a
                link: a tap near the card opening another site was confusing. 홀 안내 and 앱 정보 keep the link. -->
           <span class="osm-credit" id="osm-credit" hidden>© OpenStreetMap</span>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
+            <!-- v39: the sheet's tabs at its top: 기본, 상세 and 음성 (말로 입력, which opens its sheet). -->
+            <div class="modes" role="group" aria-label="입력 방식">
+              <button class="mode" type="button" data-mode="basic" aria-pressed="true">기본</button>
+              <button class="mode" type="button" data-mode="detail" aria-pressed="false">상세</button>
+              <button class="mode" type="button" id="mode-voice" aria-haspopup="dialog">음성</button>
+            </div>
             <!-- The capsules (main.ts builds them after the tip). 상세's one-time tip (v28) on what 세컨 and 어프로치 are sits over
                  their middle, first in reading order; a tap on it, or a stroke on either, puts it away for good. -->
             <div class="clubs" id="clubs">
@@ -111,19 +132,15 @@
               </div>
             </div>
 
-            <!-- OB and 해저드, in both modes: each tap adds a penalty stroke -->
+            <!-- OB, 벙커 and 해저드: each tap adds a penalty stroke (벙커: a count). v39: 상세 only. -->
             <div class="pens" id="pens" role="group" aria-label="벌타"></div>
-
-            <div class="modes" role="group" aria-label="입력 방식">
-              <button class="mode" type="button" data-mode="basic" aria-pressed="true">기본</button>
-              <button class="mode" type="button" data-mode="detail" aria-pressed="false">상세</button>
-            </div>
           </section>
         </div>
 
         <!-- 말로 입력 (v21): opt-in, shown once turned on in the menu; on 다음 홀's row, at the card's left inset -->
         <button class="vc-open" type="button" id="voice-open" aria-label="말로 입력" aria-haspopup="dialog" hidden><svg data-icon="microphone" width="24" height="24"></svg></button>
-        <button class="next" type="button" id="go-next">다음 홀</button>
+        <!-- v39: 다음 홀 is gone (the switcher's › moves on, and finishes on the last hole); kept hidden for its label checks. -->
+        <button class="next" type="button" id="go-next" hidden>다음 홀</button>
       </section>
 
       <section class="view sc" id="card-view" role="tabpanel" aria-labelledby="tab-card" hidden>
@@ -431,6 +448,11 @@
     </dialog>
 
     <!-- 홀 안내: the hole's facts, its layout notes and the official guide -->
+    <!-- v39: every tee the course lists for the hole, from the length chip: a dot of the tee's colour, its name, its length. -->
+    <dialog id="tees-pop" class="hinfo tees-pop" aria-labelledby="tees-title" tabindex="-1">
+      <p class="hi-h" id="tees-title">티별 거리</p>
+      <ul class="tee-list" id="tee-list"></ul>
+    </dialog>
     <dialog id="hole-pop" class="hinfo" aria-labelledby="hi-title" tabindex="-1">
       <h2 class="hi-h" id="hi-title">홀 안내</h2>
       <p class="hi-facts" id="hi-facts"></p>
