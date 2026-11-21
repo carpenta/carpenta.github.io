@@ -63,14 +63,14 @@ export type ShotTag<K extends Tagged = Tagged> = (typeof SHOT_TAGS)[K][number];
 
 export const TAG_LABELS: { [K in Tagged]: Record<ShotTag<K>, string> } = {
   driver: {
-    fairway: '페어웨이', left: '좌', right: '우', 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음',
+    fairway: '페어웨이', left: '좌', right: '우', 'far-left': '많이 좌', 'far-right': '많이 우', long: '길게', short: '짧게',
     'ob-left': '좌 OB', 'ob-right': '우 OB', whiff: '헛스윙', mishit: '뒤땅/토핑',
   },
   approach: {
-    green: '온그린', short: '짧음', long: '김', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙',
+    green: '온그린', short: '짧게', long: '길게', left: '좌', right: '우', bunker: '벙커', hazard: '해저드', whiff: '헛스윙',
     close: '붙음', in: '칩인', mishit: '뒤땅/토핑',
   },
-  putts: { in: '들어감', short: '짧음', long: '김', left: '좌', right: '우' },
+  putts: { in: '들어감', short: '짧게', long: '길게', left: '좌', right: '우' },
 };
 
 /**

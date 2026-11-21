@@ -191,6 +191,8 @@ export interface Trends {
   recent: Average | null;
   /** Strokes of the latest SERIES full rounds, oldest first. */
   series: number[];
+  /** Their days (YYYY-MM-DD), in the same order: the line's first and last dates (v32). */
+  dates: string[];
 }
 
 function average(list: Analysis[]): Average | null {
@@ -208,13 +210,16 @@ function average(list: Analysis[]): Average | null {
 }
 
 export function trends(entries: Entry[]): Trends {
-  const full = newestFirst(entries).map((e) => analyze(e.round)).filter((a) => a.totals.holes === HOLE_COUNT);
+  const fullEntries = newestFirst(entries).map((e) => ({ day: e.round.date, a: analyze(e.round) })).filter(({ a }) => a.totals.holes === HOLE_COUNT);
+  const full = fullEntries.map(({ a }) => a);
+  const latest = fullEntries.slice(0, SERIES).reverse();
   return {
     rounds: entries.length,
     full: full.length,
     all: average(full),
     recent: full.length > RECENT ? average(full.slice(0, RECENT)) : null,
-    series: full.slice(0, SERIES).map((a) => a.totals.strokes).reverse(),
+    series: latest.map(({ a }) => a.totals.strokes),
+    dates: latest.map(({ day }) => day),
   };
 }
 

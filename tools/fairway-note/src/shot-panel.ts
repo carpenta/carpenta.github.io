@@ -26,7 +26,7 @@ export function viewRange(hole: Hole, view: View): [number, number] {
 /**
  * Each panel's chips row by row, on a six-column grid: three across (span 2) or two across (span 3). Left things sit
  * on the left, right things on the right, and the target in the middle, so a chip is found where the ball went.
- * 김 comes before 짧음, as on the 상세 tee line. 세컨 has the middle count's chips as 그린까지 does; 어프로치 (v28) has
+ * 길게 comes before 짧게, as on the 상세 tee line. 세컨 has the middle count's chips as 그린까지 does; 어프로치 (v28) has
  * the short game's: 붙음 is its target, then 칩인 and the chunked or thinned chip.
  */
 export const PANEL_ROWS: { driver: ShotTag<'driver'>[][]; approach: ShotTag<'approach'>[][]; second: ShotTag<'approach'>[][]; short: ShotTag<'approach'>[][]; putts: ShotTag<'putts'>[][] } = {
@@ -51,7 +51,7 @@ const SHOT_NOUN: Record<View, string> = { driver: '티샷', approach: '샷', sec
 export const PART_HELP: Record<Part, string> = { second: '그린을 향한 샷, 레이업 포함', short: '그린 주변 짧은 샷, 벙커샷 포함' };
 
 /**
- * Where the ball went, drawn as on the 상세 tee line and pad: up for 김, down for 짧음, and arrows pointing out to
+ * Where the ball went, drawn as on the 상세 tee line and pad: up for 길게, down for 짧게, and arrows pointing out to
  * the side for 좌 and 우 (two for 많이). An arrow to the left comes before its word, one to the right after it. The
  * app's one icon family (v18), at 12px.
  */
@@ -181,7 +181,8 @@ function open(view: View): void {
 /**
  * Side to side, the card's inner edges, so the panel spans the steppers exactly (the wrapper is measured: the sheet
  * itself may be sliding between holes). Up and down, under the club's pill so its number stays in view, or higher,
- * over the pill, so it ends 8px above the tab bar and never cuts through the tab names. CSSOM, allowed by the CSP.
+ * over the pill, so it ends 8px above 다음 홀 (v32; the tab bar before, which on 375×553 left the panel over the top
+ * half of 다음 홀, its words cut). CSSOM, allowed by the CSP.
  */
 function place(): void {
   if (!openKey) return;
@@ -193,7 +194,8 @@ function place(): void {
   dialog.style.left = `${left}px`;
   dialog.style.width = `${right - left}px`;
   const pill = numbers.get(openKey)!.closest('.club')!.querySelector('.pill')!.getBoundingClientRect();
-  const floor = Math.min(window.innerHeight, $('views').getBoundingClientRect().top) - 8;
+  const next = $('go-next').getBoundingClientRect();
+  const floor = (next.height > 0 ? next.top : Math.min(window.innerHeight, $('views').getBoundingClientRect().top)) - 8;
   const top = Math.min(pill.bottom + 8, floor - dialog.offsetHeight);
   dialog.style.top = `${Math.round(Math.max(8, top))}px`;
 }

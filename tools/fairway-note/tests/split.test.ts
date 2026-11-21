@@ -251,7 +251,7 @@ describe('analysis with split holes', () => {
     expect(d.second).toEqual({ green: 1 });
     expect(d.short).toEqual({ close: 1, in: 1 });
     expect(d.approach).toEqual({ short: 1 });
-    expect(detailLines(analyze(tagged))).toEqual(['그린까지: 짧음 1', '세컨: 온그린 1', '어프로치: 붙음 1 · 칩인 1']);
+    expect(detailLines(analyze(tagged))).toEqual(['그린까지: 짧게 1', '세컨: 온그린 1', '어프로치: 붙음 1 · 칩인 1']);
   });
 
   it('names the combined count 그린까지, and the parts 세컨 and 어프로치', () => {

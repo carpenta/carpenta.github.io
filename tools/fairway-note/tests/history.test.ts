@@ -244,13 +244,15 @@ describe('trends', () => {
     expect(t.all!.gir).toBeCloseTo((42 / 108) * 100, 6);
     expect(t.recent).toMatchObject({ rounds: RECENT, strokes: 84, toPar: 12, putts: 36, ob: 0 });
     expect(t.series).toEqual([81, 80, 82, 84, 86, 88]);
+    // Each point's day, oldest first like the strokes (v32: the line's dots and its first and last dates).
+    expect(t.dates).toEqual(['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']);
   });
 
   it('has no recent average until there are more full rounds than it covers, and no averages without one', () => {
     expect(trends(entries.slice(0, RECENT)).recent).toBeNull();
     expect(trends(entries.slice(0, RECENT)).all?.rounds).toBe(RECENT);
-    expect(trends([entry('n', nine)])).toEqual({ rounds: 1, full: 0, all: null, recent: null, series: [] });
-    expect(trends([])).toEqual({ rounds: 0, full: 0, all: null, recent: null, series: [] });
+    expect(trends([entry('n', nine)])).toEqual({ rounds: 1, full: 0, all: null, recent: null, series: [], dates: [] });
+    expect(trends([])).toEqual({ rounds: 0, full: 0, all: null, recent: null, series: [], dates: [] });
   });
 
   it(`draws at most the latest ${SERIES} full rounds`, () => {
@@ -259,6 +261,8 @@ describe('trends', () => {
     expect(t.series).toHaveLength(SERIES);
     expect(t.series.at(-1)).toBe(72 + SERIES + 1);
     expect(t.series[0]).toBe(72 + 2);
+    expect(t.dates).toHaveLength(SERIES);
+    expect(t.dates.at(-1)).toBe(`2026-10-${String(SERIES + 2).padStart(2, '0')}`);
   });
 });
 

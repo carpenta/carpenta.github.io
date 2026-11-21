@@ -39,9 +39,8 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { courseShape, courseSvg, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type Box, type CourseFrame, type OsmHole } from './course-art';
+import { bandShape, bandSvg, courseShape, courseSvg, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
-import { paintGrain } from './grain';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
@@ -81,13 +80,16 @@ const MODE_OF: Partial<Record<Club, 'basic' | 'detail'>> = { approach: 'basic', 
 // The capsules' + and − (Tabler since v25), a little bolder than the family's line so the halves read at a glance.
 const PLUS = icon('plus', 24, '', 2.4);
 const MINUS = icon('minus', 24, '', 2.4);
+/** 빼기 in the penalty row (v32): an arrow turning back, not the capsule's −. */
+const UNDO = icon('undo', 24);
 /** The badge's scorecard mark in a 40×40 box. pathLength 1 lets a birdie or better draw itself. */
 const SHAPES: Record<Mark, string> = {
   none: '',
   par: '',
   birdie: '<circle cx="20" cy="20" r="17" pathLength="1"/>',
   eagle: '<circle cx="20" cy="20" r="14" pathLength="1"/><circle cx="20" cy="20" r="19" pathLength="1"/>',
-  bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
+  // As wide as the birdie's circle (v32: 34, it was 32), as on a paper card where ○ and □ are one size.
+  bogey: '<rect x="3" y="3" width="34" height="34" rx="2" pathLength="1"/>',
   double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
   // Triple bogey or worse: a filled square, so a big number stands out on the card.
   triple: '<rect class="fill" x="3" y="3" width="34" height="34" rx="3" pathLength="1"/>',
@@ -195,6 +197,8 @@ const TAB_ID: Record<View, string> = { card: 'tab-card', entry: 'tab-entry', his
 const PANEL_ID: Record<View, string> = { card: 'card-view', entry: 'entry', hist: 'hist-view' };
 /** Kept in memory: a reload opens 기록. */
 let view: View = 'entry';
+const THEME = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+const THEME_ROUGH = THEME?.content ?? '';
 
 function show(next: View, focusTab = false): void {
   // With no round yet (one was just kept), 기록 and 스코어카드 open the course picker over 지난 라운드.
@@ -213,6 +217,9 @@ function show(next: View, focusTab = false): void {
   if (changed) hideToast();
   if (changed && view !== 'entry') $(PANEL_ID[view]).scrollTop = 0;
   if (view === 'hist') renderNow();
+  // The browser's bar takes the colour at the top of the view (v32): the course's rough on 기록 (the page's own value),
+  // the deep header of 스코어카드 and 지난 라운드 elsewhere.
+  THEME?.setAttribute('content', view === 'entry' ? THEME_ROUGH : getComputedStyle($('views')).backgroundColor);
   // 기록's header was fitted while hidden (nothing measures there) if its hole changed elsewhere: fit it now (v25).
   if (view === 'entry') fitNotes();
   drawCourse();
@@ -463,33 +470,65 @@ function fitMeta(): void {
 }
 
 /**
- * The open band a hole from OpenStreetMap needs above the card (v27): its © OpenStreetMap link (the 20px pill, 6px under it
- * and 4px over it). A shorter band (a short screen, where the header's small picture leads) keeps the schematic. The link's
- * touch area reaches up into what the band leaves, up to 14px, and stops 2px short of the chip row: 28 to 40px tall.
+ * The part of 기록's screen the drawing is seen in (v33), measured now: from under whatever is over its top (the
+ * header's chip row, or in 상세 on a short screen the hole switcher, and a banner under them, whose buttons the credit
+ * must not cover) to the entry sheet's top edge, across the sheet's width. While the © OpenStreetMap link shows: its
+ * text and its touch area (with its ::after), as they would stand at the band's left (mirrored if it stands at the right
+ * now), for the hole to keep out of and keep water from behind.
  */
-const OSM_BAND = 30;
+function artBand(): ArtBand {
+  const head = $('hole-info').getBoundingClientRect();
+  const banners = document.querySelector('#entry .banners')!.getBoundingClientRect();
+  const sheet = $('sheet').getBoundingClientRect();
+  const top = Math.max(head.height > 0 ? head.bottom : document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, banners.height > 0 ? banners.bottom : 0);
+  const band: ArtBand = { x0: sheet.left, y0: top, x1: sheet.right, y1: sheet.top, keep: [] };
+  const link = $('osm-credit');
+  const text = link.getBoundingClientRect();
+  if (!link.hidden && text.width > 0) {
+    const after = getComputedStyle(link, '::after');
+    const out = (v: string) => Math.max(0, -parseFloat(v) || 0);
+    const at = (b: Box): Box => (link.classList.contains('end') ? { x0: band.x0 + band.x1 - b.x1, y0: b.y0, x1: band.x0 + band.x1 - b.x0, y1: b.y1 } : b);
+    band.credit = {
+      text: at({ x0: text.left, y0: text.top, x1: text.right, y1: text.bottom }),
+      touch: at({ x0: text.left - out(after.left), y0: text.top - out(after.top), x1: text.right + out(after.right), y1: text.bottom + out(after.bottom) }),
+    };
+  }
+  return band;
+}
 
 function drawCourse(): void {
   const svg = document.getElementById('course')!;
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
   const course = roundCourse(round);
+  const credit = $('osm-credit');
   let osm: OsmHole | null = null;
+  // Fitted into the band (v33) on 기록 when it is at least FIT_BAND tall; else v31's drawing behind the screen.
+  let fit = false;
+  if (view !== 'entry') svg.style.removeProperty('--art-bottom');
   if (view === 'entry') {
-    // The open band starts under the one-row header.
+    // v31's drawing (a short band) has its open band under the one-row header.
     const head = $('hole-info').getBoundingClientRect();
     const sheet = $('sheet').getBoundingClientRect();
     frame.bandTop = head.bottom + 6;
     frame.bandBottom = sheet.top;
     frame.right = sheet.right - 6;
-    // The tee box (27px with its bevel) centred behind 다음 홀.
+    // The drawing ends at the sheet's top edge (v31): the card covers the rest, and what showed round it was noise.
+    svg.style.setProperty('--art-bottom', `${Math.round(sheet.top)}px`);
+    // v31's tee box (27px with its bevel) centred behind 다음 홀.
     const go = $('go-next').getBoundingClientRect();
     frame.teeY = go.top + go.height / 2 - 1.5;
-    // Everis's holes from OpenStreetMap (v27), where the band has room for the drawing and its credit, below whatever is
-    // over it: the header's row (in 상세 on a short screen it steps aside, and the hole switcher is the edge), and a banner
-    // under the header (an earlier day's round, a saving problem), whose buttons the credit must not cover.
-    const banners = document.querySelector('#entry .banners')!.getBoundingClientRect();
-    const above = Math.max(head.height > 0 ? head.bottom : document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, banners.height > 0 ? banners.bottom : 0);
-    if (sheet.top - above >= OSM_BAND) {
+    const open = artBand();
+    fit = open.y1 - open.y0 >= FIT_BAND;
+    // Under FIT_BAND the header's small picture shows the hole instead and the drawing steps back (v33: by the band
+    // measured here, not the screen's height). The picture sits in the chip row at the chips' height, so showing it leaves
+    // the band as it was; the row is fitted again round it.
+    if ($('entry').classList.contains('short-band') === fit) {
+      $('entry').classList.toggle('short-band', !fit);
+      svg.classList.toggle('short-band', !fit);
+      fitNotes();
+    }
+    // Everis's holes from OpenStreetMap (v27), in a band with room for the drawing and its credit.
+    if (fit) {
       // A course's outlines load the first time it is drawn: the drawing waits for them rather than flash the schematic.
       const wait = osmLoading(course.id);
       if (wait) {
@@ -497,49 +536,63 @@ function drawCourse(): void {
         return;
       }
       osm = osmHoleAt(course, round.current);
-      $('osm-credit').style.setProperty('--credit-reach', `${Math.min(14, sheet.top - above - 28)}px`);
+      // The link's touch area reaches up into what the band leaves, up to 14px, and stops 2px short of the chip row.
+      credit.style.setProperty('--credit-reach', `${Math.min(14, open.y1 - open.y0 - 28)}px`);
     }
   }
-  // The credit beside the drawing whenever it is OpenStreetMap's: shown first, so the flag and markers can keep off it and
-  // the version (v27).
-  const credit = $('osm-credit');
+  // The credit beside the drawing whenever it is OpenStreetMap's: shown first, so the hole keeps clear of it (v27).
   credit.hidden = !osm;
-  if (osm) {
-    const box = (el: HTMLElement): Box | null => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 ? { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null;
-    };
-    frame.keep = [box(credit)].filter((b): b is Box => b !== null);
-  }
-  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or v22's line where the note's hazards are drawn.
+  const band = fit ? artBand() : null;
+  // The fitted drawing also ends under the chip row (v33): water the band cuts stops at its edge, not between the chips.
+  if (band) svg.style.setProperty('--art-top', `${Math.round(band.y0)}px`);
+  else svg.style.removeProperty('--art-top');
+  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or (v31) the schematic's line that it is approximate.
   $('hi-osm').hidden = !osm;
-  const art = $('hi-art');
-  art.hidden = osm !== null || art.dataset.named !== 'true';
+  $('hi-art').hidden = osm !== null;
   const info = holeInfo(course, round.current);
   const bend = layoutBend(info?.layout);
   const island = layoutIsland(info?.layout);
-  // The official length in metres, for the 100 m / 150 m markers a tall band shows.
+  // The official length in metres, for the 100 m / 150 m markers.
   const first = info?.distances?.[0];
   const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
   const nine = round.current < 9 ? course.front : course.back;
-  const keep = (frame.keep ?? []).flatMap((b) => [b.x0, b.y0, b.x1, b.y1].map(Math.round));
-  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length, info?.layout ?? '', osm ? `osm:${course.id}:${nine}` : '', ...keep].join(',');
+  const fitAt = band ? [band.x0, band.y0, band.x1, band.y1, ...[...band.keep, ...(band.credit ? [band.credit.text, band.credit.touch] : [])].flatMap((b) => [b.x0, b.y0, b.x1, b.y1])].map(Math.round) : [];
+  const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length, info?.layout ?? '', osm ? `osm:${course.id}:${nine}` : '', ...fitAt].join(',');
   if (svg.dataset.key === key) return;
   svg.dataset.key = key;
   svg.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
-  if (osm) {
+  // Where the hole lies on the screen (the tee, the green's middle, px per metre, the line of play and the band it was
+  // fitted into), for checks.
+  const xy = ([x, y]: [number, number]) => `${x.toFixed(2)},${y.toFixed(2)}`;
+  const mark = (art: string, at: { tee: [number, number]; green: [number, number]; scale: number; line: [number, number][] }, fitted: ArtBand) => Object.assign(svg.dataset, {
+    art, tee: xy(at.tee), green: xy(at.green), scale: at.scale.toFixed(4), line: at.line.map(xy).join(' '), band: [fitted.x0, fitted.y0, fitted.x1, fitted.y1].map((n) => n.toFixed(2)).join(','),
+  });
+  // 홀 안내 says what the 100 m and 150 m markers measure to, while the drawing shows them (v33).
+  const marks = $('hi-marks');
+  if (band && osm) {
     // Static markup from course-art.ts, built from the bundled OpenStreetMap outlines (numbers only).
-    const shape = osmShape(osm, round.current, frame, length);
+    const shape = osmShape(osm, round.current, band, length);
     svg.innerHTML = osmSvg(shape, frame);
-    // Where the hole lies on the screen (the back tee, the greens' middle, px per metre and the line of play), for checks.
-    const xy = ([x, y]: [number, number]) => `${x.toFixed(2)},${y.toFixed(2)}`;
-    Object.assign(svg.dataset, { art: 'osm', tee: xy(shape.tee), green: xy(shape.green), scale: shape.scale.toFixed(4), line: shape.line.map(xy).join(' ') });
+    mark('osm', shape, band);
+    // The credit at the end the drawing chose (v33): the right end where water would lie behind it at the left.
+    credit.classList.toggle('end', shape.credit?.side === 'end');
+    marks.hidden = shape.markers.length === 0;
     return;
   }
-  for (const name of ['tee', 'green', 'scale', 'line']) delete svg.dataset[name];
+  const named = holeHazards(hole().par, info?.layout);
+  if (band) {
+    // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
+    const shape = bandShape(hole().par, round.current, band, bend, island, length, named);
+    svg.innerHTML = bandSvg(shape, frame);
+    mark('schematic', { tee: [shape.tee.x, shape.tee.y], green: [shape.green.cx, shape.green.cy], scale: shape.scale, line: shape.line }, band);
+    marks.hidden = shape.markers.length === 0;
+    return;
+  }
+  for (const name of ['tee', 'green', 'scale', 'line', 'band']) delete svg.dataset[name];
   svg.dataset.art = 'schematic';
+  marks.hidden = true;
   // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
-  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length, holeHazards(hole().par, info?.layout)), frame);
+  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length, named), frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */
@@ -581,11 +634,12 @@ function buildClubs(): void {
     minus.innerHTML = `<span>${MINUS}</span><i class="cue" aria-hidden="true" hidden>−1</i>`;
     // The count on the midline, between the halves. The digit is for the eye; screen readers read the club with it ("드라이버 2").
     const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}`, 'aria-hidden': 'true' }, '0'), h('span', { class: 'sr-only', id: `count-label-${key}` }, `${label} 0`));
-    // The long-press coach mark sits over the middle count (screen readers get it from #lp-hint).
+    // The long-press coach mark sits on the capsules' midline over the row (screen readers get it from #lp-hint). Not
+    // inside the middle capsule any more (v32): the capsule clips what it holds and cut the line short.
     if (key === 'approach') {
       const coach = h('span', { class: 'coach', id: 'coach', 'aria-hidden': 'true', hidden: '' }, '숫자를 길게 누르면 바로 골라요');
       coach.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="3" fill="currentColor"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/></svg>');
-      num.append(coach);
+      box.append(coach);
     }
     // A hole entered in 기본 has no split yet (v28): 어프로치 says so quietly where its 0 would be, until it is split.
     if (key === 'short') num.append(h('span', { class: 'from-basic', 'aria-hidden': 'true' }, '기본에서', h('br'), '기록'));
@@ -820,7 +874,7 @@ function buildPens(): void {
       h('span', { class: 'pen-icon' }, h('span', { class: 'pen-count zero' }, '0')), h('span', { class: 'pen-lbl' }, LABELS[key]));
     pen.querySelector('.pen-icon')!.insertAdjacentHTML('afterbegin', PEN_ICONS[key]);
     box.append(pen);
-    if (key === 'bunker') box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', hidden: '' }));
+    if (key === 'bunker') box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', disabled: '' }));
   }
   box.addEventListener('click', (event) => {
     const pen = (event.target as HTMLElement).closest<HTMLButtonElement>('button.pen');
@@ -1007,13 +1061,16 @@ function renderEntry(a: Analysis, changed?: string): void {
   }
   notes.hidden = phrases.length === 0;
   $('hi-none').hidden = phrases.length > 0;
-  // Where the schematic's bunkers and water come from, when the note names any (v22): drawCourse() shows the line while it
-  // draws the schematic (v27: an OpenStreetMap hole says so instead). Read again only when the hole changes.
+  // What the schematic is drawn from (v31: always, that it is approximate; v22: the bunkers and water a note names):
+  // drawCourse() shows the line while it draws the schematic (v27: an OpenStreetMap hole says so instead). Read again
+  // only when the hole changes.
   const art = $('hi-art');
   const artKey = `${cur.par}|${info?.layout ?? ''}`;
   if (art.dataset.key !== artKey) {
     art.dataset.key = artKey;
-    art.dataset.named = String(layoutIsland(info?.layout) || holeHazards(cur.par, info?.layout).length > 0);
+    // A schematic hole is drawn from its par and length (v31: it always says so), its bunkers and water from the note.
+    const named = layoutIsland(info?.layout) || holeHazards(cur.par, info?.layout).length > 0;
+    setText(art, `그림은 Par와 거리로 그린 대략적인 모양이에요.${named ? ' 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.' : ''}`);
   }
   setText($('hi-title'), `${i + 1}번 홀 안내`);
   setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(', '));
@@ -1123,17 +1180,18 @@ function renderEntry(a: Analysis, changed?: string): void {
     pen.disabled = n >= MAX_COUNT;
     setAttr(pen, 'aria-label', `${LABELS[key]} 하나 더하기${n ? ` (지금 ${n})` : ''}`);
   }
+  // 빼기 holds its column (v32): disabled and out of sight until there is a penalty to take off (CSS keeps its box), so
+  // nothing appears or moves when one comes; then named for the one it takes, with an arrow turning back.
   const target = undoTarget();
-  const undo = $('pen-undo');
-  undo.hidden = target === null;
-  if (target) {
-    if (undo.dataset.key !== target) {
-      undo.dataset.key = target;
-      // Static icon markup and a fixed label.
-      undo.innerHTML = `<span class="u-ico">${MINUS}</span><span>${LABELS[target]} 빼기</span>`;
-    }
-    setAttr(undo, 'aria-label', `${LABELS[target]} 하나 빼기`);
+  const undo = $<HTMLButtonElement>('pen-undo');
+  undo.disabled = target === null;
+  const undoKey = target ?? 'none';
+  if (undo.dataset.key !== undoKey) {
+    undo.dataset.key = undoKey;
+    // Static icon markup and a fixed label.
+    undo.innerHTML = `<span class="u-ico">${UNDO}</span><span>${target ? `${LABELS[target]} 빼기` : '빼기'}</span>`;
   }
+  setAttr(undo, 'aria-label', target ? `${LABELS[target]} 하나 빼기` : '벌타 하나 빼기');
   setText($('go-next'), i === lastHole() ? '라운드 마치기' : '다음 홀');
 }
 
@@ -1213,8 +1271,10 @@ function totalLine(a: Analysis): HTMLElement {
 }
 
 function renderCard(a: Analysis): void {
-  const course = roundCourse(round);
-  setText($('sc-sub'), `${course.name} ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  // The header says which round this is, as 기록's says which hole (v32): the day as the title, the course under it. The
+  // view's own name is on its tab and on the 스코어카드 | 분석 switch, and on 분석 the title no longer reads 스코어카드.
+  setText($('sc-title-h'), `${dateLabel(round.date).replace(/^\d+년 /, '')} 라운드`);
+  setText($('sc-sub'), roundLabel(round));
   $('sc-sheet').classList.toggle('editing', editPar);
   const edit = $('edit-par');
   setText(edit, editPar ? '완료' : '파 수정');
@@ -1259,6 +1319,8 @@ function renderCard(a: Analysis): void {
     : a.worstAreas.length
       ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 ${a.worstAreas.length > 1 ? '각각 ' : ''}${lostBy}타 잃었어요.`
       : '기준보다 잃은 타수가 없어요.');
+  // 분석's one finding is its largest line (v32); until three holes are in, the line is a quiet note.
+  $('lost-note').classList.toggle('finding', !waiting);
   $('lost-how').hidden = waiting;
   // Back under three holes (a hole cleared), the ⓘ goes and its box closes with it.
   if (waiting) {
@@ -2173,8 +2235,6 @@ function bind(): void {
   document.fonts?.addEventListener('loadingdone', () => fitNotes());
   window.addEventListener('resize', () => {
     fitNotes();
-    // A zoom can change the screen's scale: the grain tiles follow it (nothing to do otherwise).
-    paintGrain();
     drawCourse();
     scrollHint();
   });
@@ -2203,9 +2263,6 @@ function bind(): void {
 applyBig(loadDisplay().big);
 bind();
 render();
-// The drawn course's grain (v22), made once just after the first frame so it never holds up the first screen: faint as
-// it is, it simply appears a frame later.
-requestAnimationFrame(() => setTimeout(() => paintGrain()));
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
 if (loaded === null || untouched) {
   openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });

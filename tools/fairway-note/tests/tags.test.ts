@@ -86,7 +86,9 @@ describe('shot tags', () => {
     // 붙음, 칩인 and 뒤땅/토핑 came with 상세's 어프로치 panel (v28); the list is still the one middle count's.
     expect(SHOT_TAGS.approach).toEqual(['green', 'short', 'long', 'left', 'right', 'bunker', 'hazard', 'whiff', 'close', 'in', 'mishit']);
     expect(SHOT_TAGS.putts).toEqual(['in', 'short', 'long', 'left', 'right']);
-    expect(TAG_LABELS.driver).toMatchObject({ 'far-left': '많이 좌', 'far-right': '많이 우', long: '김', short: '짧음' });
+    // 길게 and 짧게 (v32): "김" alone read as a family name, not as "long".
+    expect(TAG_LABELS.driver).toMatchObject({ 'far-left': '많이 좌', 'far-right': '많이 우', long: '길게', short: '짧게' });
+    for (const key of ['approach', 'putts'] as const) expect(TAG_LABELS[key]).toMatchObject({ long: '길게', short: '짧게' });
   });
 });
 
@@ -193,13 +195,13 @@ describe('detail analysis', () => {
     expect(detailLines(a)).toEqual([
       '티샷: 페어웨이 1 · 좌 1 · 우 1 · 좌 OB 1',
       '티샷 방향: 좌 2 (OB 1) · 우 1 (OB 0)',
-      '퍼트: 짧음 2',
+      '퍼트: 짧게 2',
       '퍼트가 짧았던 적이 2번, 길었던 적이 0번입니다. 홀을 지나가게 쳐 보세요.',
     ]);
     const text = reportText(tagged());
     expect(text).toContain('[샷 세부]');
     expect(text).toContain('- 티샷 방향: 좌 2 (OB 1) · 우 1 (OB 0)');
-    expect(text).toContain('1번 Par4: 4타 (E) 드1 그1 퍼2 · 드 좌 · 퍼 짧음');
+    expect(text).toContain('1번 Par4: 4타 (E) 드1 그1 퍼2 · 드 좌 · 퍼 짧게');
     expect(text).toContain('2번 Par4: 6타 (+2) 드2 그1 퍼2 OB 1 · 드 좌 OB, 페어웨이');
   });
 
@@ -232,7 +234,7 @@ describe('detail analysis', () => {
     const round = parseRound(JSON.stringify({ version: 1, date: '2026-11-19', current: 1, holes }))!;
     expect(round.holes[0]).toMatchObject({ approach: 2, tags: { approach: ['hazard', 'short'] } });
     const text = [...detailLines(analyze(round)), reportText(round), analysisText(round), roundCsv(round)].join('\n');
-    expect(text).toContain('그린까지: 짧음 1 · 해저드 1');
+    expect(text).toContain('그린까지: 짧게 1 · 해저드 1');
     expect(text).toContain('드라이버,그린까지,퍼트');
     expect(text).not.toContain('아이언');
     // 세컨 and 어프로치 are the split's own columns (v28), left empty on a hole entered without it.

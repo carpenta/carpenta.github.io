@@ -18,14 +18,13 @@
   --paper: #f2f5ec;
   --white: #fbfcf8;     /* card surfaces */
   /* ---------- Mixed ---------- */
-  --muted: color-mix(in oklab, var(--ink) 74%, var(--white));      /* labels: 4.5:1 on white, tint and pill */
+  --muted: color-mix(in oklab, var(--ink) 78%, var(--white));      /* labels: 7:1 on white, paper and --fill, for sunlight (v32) */
   --quiet: color-mix(in oklab, var(--ink) 64%, var(--white));      /* zero counts, unplayed marks: big, 3:1 (on the glass card too) */
   --line: color-mix(in oklab, var(--fairway) 26%, var(--white));
   --line-strong: color-mix(in oklab, var(--ink) 34%, var(--white));
   --switch-line: color-mix(in oklab, var(--ink) 52%, var(--white));
   --off: color-mix(in oklab, var(--ink) 6%, var(--white));         /* disabled fill */
   --off-ink: color-mix(in oklab, var(--ink) 64%, var(--white));    /* disabled glyph, kept readable */
-  --tick: color-mix(in oklab, var(--fairway) 24%, var(--white));
   --action-press: color-mix(in oklab, var(--action) 84%, var(--ink));
   --sand-tint: color-mix(in oklab, var(--sand) 34%, var(--white));
   --sand-band: color-mix(in oklab, var(--sand) 60%, var(--white));   /* the share image's subtotal heading */
@@ -37,33 +36,30 @@
   --red-ink: color-mix(in oklab, var(--red) 82%, var(--ink));
   --on-dark: var(--white);                                          /* text on deep and rough */
   --on-dark-2: color-mix(in oklab, var(--white) 86%, var(--putting));
+  --on-dark-quiet: color-mix(in oklab, var(--white) 68%, var(--ink));  /* quiet gray text on the rough: 5.3:1 (the OSM credit) */
   --on-dark-soft: color-mix(in srgb, var(--on-dark) 84%, transparent);
   --on-dark-line: color-mix(in srgb, var(--on-dark) 55%, transparent);
-  --tab-ink: color-mix(in oklab, var(--white) 66%, var(--deep));   /* 4.5:1 on --deep */
-  --tab-on: var(--sun);
-  /* Layers: translucent, so they sit on whatever is under them. */
-  --pill: color-mix(in srgb, var(--fairway) 22%, transparent);     /* tinted cells (the scorecard's hole numbers) and some pressed states */
-  --half-up: color-mix(in srgb, var(--fairway) 12%, transparent);  /* a capsule's top half: the lighter tone (v21) */
-  --half-down: color-mix(in srgb, var(--fairway) 30%, transparent); /* its bottom half: a shade deeper */
-  --half-press: color-mix(in srgb, var(--fairway) 52%, transparent); /* the half that was hit, filled */
-  --half-rest: color-mix(in srgb, var(--fairway) 14%, transparent); /* the bottom half at 0 */
-  --tint: color-mix(in srgb, var(--fairway) 11%, transparent);     /* resting fill: pad, penalty icons, toggle, buttons */
-  --press: color-mix(in srgb, var(--fairway) 24%, transparent);
-  --select: color-mix(in srgb, var(--fairway) 46%, transparent);   /* a chosen chip, mode or direction */
-  --cur: color-mix(in srgb, var(--fairway) 16%, transparent);      /* the scorecard's current column */
-  --chosen: color-mix(in srgb, var(--fairway) 9%, transparent);    /* the chosen course row */
-  --pad-hit: color-mix(in srgb, var(--fairway) 34%, transparent);  /* the tee pad's middle */
-  --scrim: color-mix(in srgb, var(--white) 93%, transparent);      /* chips and the quiet badge over the course */
-  --glass-card: color-mix(in srgb, var(--white) 88%, transparent); /* the hole switcher and the 기록 card: glass over the course (v20) */
-  --glass-blur: blur(12px) saturate(1.15);
-  --midline: color-mix(in srgb, var(--ink) 18%, transparent);      /* the line between a capsule's halves (v20) */
-  --scrim-dark: color-mix(in srgb, var(--deep) 72%, transparent);  /* the version and the course's labels */
-  --glass: color-mix(in srgb, var(--white) 16%, transparent);      /* a button on the dark picker */
-  --veil: color-mix(in srgb, var(--white) 78%, transparent);
-  --deep-glass: color-mix(in srgb, var(--deep) 94%, transparent);
-  --press-on-dark: color-mix(in srgb, var(--white) 10%, transparent);
-  --select-on-dark: color-mix(in srgb, var(--sun) 22%, transparent);
+  --tab-ink: color-mix(in oklab, var(--white) 70%, var(--deep));   /* 7:1 on --deep (v32) */
+  --tab-on: var(--on-dark);
+  /* Surfaces (v30): opaque, so cards and controls stand apart from the drawing in sunlight. Three neutral levels on light:
+     the page (--paper), a card or raised control (--white) and a resting control or track (--fill); --fill-2 is the
+     counters' lower half, a pressed control and an unplayed tick, and --fill-press shows only while a half is pressed.
+     On the rough a resting control is --rough-fill; on deep a pressed one is --deep-press. */
+  --fill: color-mix(in srgb, var(--fairway) 12%, var(--white));
+  --fill-2: color-mix(in srgb, var(--fairway) 30%, var(--white));
+  --fill-press: color-mix(in srgb, var(--fairway) 52%, var(--white));
+  --rough-fill: color-mix(in srgb, var(--white) 16%, var(--rough));
+  --rough-press: color-mix(in srgb, var(--white) 6%, var(--rough));
+  --deep-press: color-mix(in srgb, var(--white) 12%, var(--deep));
+  --turf-press: color-mix(in oklab, var(--turf) 80%, var(--ink));   /* a chosen control while pressed */
+  /* Still see-through, and never a fill: the thumbnail's outline, the badge's glow, the dialogs' backdrops, the shadows. */
   --outline-on-art: color-mix(in srgb, var(--white) 35%, transparent);
+  /* The capsule's strokes (v34): see-through ink, so one colour takes the tone of the half under it and of the pressed
+     fill. The + and − at 60%: 3:1 or more on both halves and on the pressed fill (3.5:1 at worst, there; 55% would be
+     3.1:1). The split line and a − at 0 at 35%, about 2:1: the line is decorative, as the two tones mark the split, and
+     the disabled − reads fainter than a live one. Strokes, never a fill. */
+  --on-capsule: color-mix(in srgb, var(--ink) 60%, transparent);
+  --on-capsule-soft: color-mix(in srgb, var(--ink) 35%, transparent);
   --glow: color-mix(in srgb, var(--white) 75%, transparent);
   --backdrop-light: color-mix(in srgb, var(--deep) 22%, transparent);
   --backdrop: color-mix(in srgb, var(--deep) 36%, transparent);
@@ -72,63 +68,37 @@
   --sh-2: color-mix(in srgb, var(--ink) 22%, transparent);
   --sh-3: color-mix(in srgb, var(--ink) 32%, transparent);
   --sh-4: color-mix(in srgb, var(--ink) 40%, transparent);
-  --lift: 0 1px 2px var(--sh-1), 0 4px 10px var(--sh-1);
-  --float: 0 2px 6px var(--sh-2);
-  /* The drawn course (src/course-art.ts). Lit from the top left (v22): highlights up and left, shades down and right. */
-  --art-rough-hi: color-mix(in oklab, var(--rough) 80%, var(--fairway));
-  --art-rough-lo: color-mix(in oklab, var(--rough) 72%, var(--deep));
-  --art-edge: color-mix(in oklab, var(--rough) 84%, var(--deep));  /* the rough's darker edge along the fairway */
-  --art-edge-soft: color-mix(in srgb, var(--deep) 16%, transparent); /* a soft shade outside it, where the taller rough starts (v22) */
-  --art-cut: color-mix(in oklab, var(--fairway) 72%, var(--rough)); /* the first cut */
-  --art-fairway-lit: color-mix(in oklab, var(--fairway) 84%, var(--sun));  /* the fairway toward the light (v22) */
-  --art-fairway-shade: color-mix(in oklab, var(--fairway) 86%, var(--deep)); /* and away from it */
-  --art-stripe-light: color-mix(in srgb, var(--sun) 26%, transparent);
-  --art-stripe-dark: color-mix(in srgb, var(--deep) 12%, transparent);
-  --art-stripe2-light: color-mix(in srgb, var(--sun) 6%, transparent);  /* a fainter mowing pass along the hole (v22) */
-  --art-stripe2-dark: color-mix(in srgb, var(--deep) 5%, transparent);
-  --art-grain-dark: color-mix(in srgb, var(--deep) 30%, transparent);   /* the grain's specks (v22: noise, not dashes): felt, not seen */
-  --art-grain-light: color-mix(in srgb, var(--sun) 20%, transparent);
-  --art-green-hi: color-mix(in oklab, var(--putting) 72%, var(--sun));
-  --art-green-lo: color-mix(in oklab, var(--putting) 80%, var(--fringe));
-  --art-green-stripe: color-mix(in srgb, var(--white) 8%, transparent);
-  --art-green-shadow: color-mix(in srgb, var(--deep) 46%, transparent); /* the soft shade under the raised green (v22) */
-  --art-collar: color-mix(in oklab, var(--fringe) 45%, var(--putting)); /* the collar between the fringe and the surface (v22) */
-  --art-fringe-edge: color-mix(in oklab, var(--fringe) 72%, var(--deep));
-  --art-tee-hi: color-mix(in oklab, var(--putting) 62%, var(--sun));
-  --art-tee-lo: color-mix(in oklab, var(--putting) 82%, var(--fairway));
-  --art-tee-edge: color-mix(in oklab, var(--fairway) 78%, var(--deep));
-  --art-sand-hi: color-mix(in oklab, var(--sand) 76%, var(--white));  /* a bunker's sand toward the light (v22) */
-  --art-sand-lo: color-mix(in oklab, var(--sand) 86%, var(--deep));
-  --art-sand-lip: color-mix(in oklab, var(--sand) 52%, var(--deep));  /* its shaded face under the lip */
-  --art-sandgrain-dark: color-mix(in srgb, var(--deep) 30%, transparent);
-  --art-sandgrain-light: color-mix(in srgb, var(--white) 45%, transparent);
-  --art-water-deep: color-mix(in oklab, var(--water) 68%, var(--deep)); /* water in the middle (v22) */
-  --art-water-shallow: color-mix(in oklab, var(--water) 70%, var(--fairway)); /* and at the bank */
-  --art-water-glint: color-mix(in srgb, var(--white) 62%, transparent);
-  --art-bank: color-mix(in oklab, var(--fringe) 55%, var(--deep));
-  --art-shadow: color-mix(in srgb, var(--deep) 45%, transparent);
-  --art-flag-shade: color-mix(in oklab, var(--red) 72%, var(--ink));
-  --art-vignette: .38;  /* how dark the edges and the top get */
-  --art-shade: .42;
+  /* Shapes (v30): three radii, and three shadows for floating things only (nothing inside a card casts one). */
+  --r-full: 999px; --r-card: 24px; --r-tile: 12px;
+  --sh-float: 0 2px 6px var(--sh-2);    /* a control over the drawing or the rough */
+  --sh-raise: 0 12px 32px var(--sh-3);  /* a card or popover over the drawing */
+  --sh-sheet: 0 -8px 32px var(--sh-2);  /* a sheet from the bottom edge */
+  /* Type (v30): six sizes. Labels 13, body 15, buttons and leads 17, titles and the badge's number 22, the hole number
+     and totals 34, the counts 56 (fluid between their glyphs). A size fitted to a narrow line is a step times a factor. */
+  --t-s: 13px; --t-m: 15px; --t-l: 17px; --t-xl: 22px; --t-2xl: 34px; --t-count: 56px;
+  /* The drawn course (src/course-art.ts, v31): a flat plan view from the palette; one edge colour draws the fairway's first
+     cut, the green's fringe and the water's bank. */
+  --art-cut: color-mix(in oklab, var(--fairway) 72%, var(--rough));
   /* The bundled Pretendard first (v24, fonts.css: 400, 600 and 800, one face per weight token below; 700 draws in 800).
      The system fonts only stand in for what it lacks (⋮, emoji, rare syllables) and until it has loaded. */
   --font: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
   /* One screen inset on every tab (v14): the menu button, the cards, the chips and the right-hand action share it. */
   --m: 16px;
   --card-pad: 16px;                /* one card padding: the 기록 sheet, the scorecard and the boxes */
-  --card-r: 24px;                  /* the scorecard's cards and boxes */
   --bar-row: 56px;                 /* the top bar's first row: the hole switcher's height, kept on every tab */
   --tabbar: 56px;
   --badge: 60px;                   /* the score badge in the top bar's right slot (v15) */
   /* Three weights on 기록 and the shared chrome (v15): values bold, labels medium, helper text regular. */
   --w-value: 800; --w-label: 600; --w-help: 400;
-  /* 기본 sizes (screens 600px and taller). Each capsule's halves carry a round glyph --glyph wide, --glyph-inset in
-     from the capsule's ends; the count on the midline keeps clear of both (v20). The club's name above is a 44px button. */
+  /* 기본 sizes (screens 600px and taller). Each capsule's halves keep a --glyph square --glyph-inset in from the
+     capsule's ends, with the + or − drawn --mark wide in its middle, straight on the capsule (v34: no disc behind it);
+     the count on the midline keeps clear of both squares (v20). The club's name above is a 44px button. */
   --sheet-pt: 8px;
   --glyph: 36px;
   --glyph-inset: 8px;
+  --mark: 24px;
+  --mark-line: 2.4;                /* the glyph's line in its 24-unit grid: 2px or more as drawn, in every mode (v34) */
   --lbl-h: 44px;
-  --count: 56px;
   /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
   --pill-base: 442px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
   --pen: 48px;
@@ -145,7 +115,7 @@ html, body { margin: 0; height: 100%; }
 /* geometricPrecision (v26): the font's own advances everywhere, unhinted. Pretendard carries no hinting, so Linux's
    FreeType hinted each glyph on its own and moved advances by up to a pixel: the tabular 1 came out 25px and the 0
    24px at 40px (CI) though the font gives both 1258 units. Phones and Macs never hint advances, so nothing moves there. */
-body { background: var(--rough); color: var(--ink); font: 16px/1.45 var(--font); font-variant-numeric: tabular-nums; text-rendering: geometricPrecision; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
+body { background: var(--rough); color: var(--ink); font: var(--t-m)/1.45 var(--font); font-variant-numeric: tabular-nums; text-rendering: geometricPrecision; overscroll-behavior: none; -webkit-font-smoothing: antialiased; }
 html:lang(ko) body { word-break: keep-all; }
 p, h1, h2, h3 { margin: 0; font: inherit; }
 /* Chromium's own form-control style sets text-rendering back to auto, so they take the page's (v26). */
@@ -161,10 +131,11 @@ a { -webkit-tap-highlight-color: transparent; }
 svg { display: block; }
 .sr-only { position: fixed; top: 0; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Our own drawn hole fills the screen behind everything. */
-.course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
-/* Its grain tiles (v22, src/grain.ts): kept rendered but sizeless, so WebKit still paints patterns that point at them. */
-.grain-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+/* Our own drawn hole fills the screen behind everything. On 기록 it ends at the sheet's top edge (v31, --art-bottom from
+   main.ts): below it the card covers the hole, and what showed beside the card and above 다음 홀 read as a glitch.
+   Fitted into the band (v33), it also starts under the chip row (--art-top), so water the band cuts ends at its edge.
+   The page under it is the same rough, so neither edge shows. */
+.course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(var(--art-top, 0px) 0 calc(100% - var(--art-bottom, 100%)) 0); }
 
 .app {
   position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;
@@ -174,7 +145,8 @@ svg { display: block; }
 .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 
 /* ---------- top bar: light controls floating on the course ---------- */
-/* Menu, hole switcher and the score badge, the side columns equal: the switcher sits in the screen's centre. */
+/* The hole switcher and the score badge, the side columns equal: the switcher sits in the screen's centre. The left
+   column stays open since 메뉴 moved into the bar (v32). */
 .top {
   flex: none; position: relative; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
   display: grid; grid-template-columns: var(--badge) minmax(0, 1fr) var(--badge); grid-template-rows: var(--bar-row); grid-auto-rows: auto;
@@ -188,43 +160,45 @@ svg { display: block; }
 /* The sheet slides sideways between holes; nothing scrolls the page sideways meanwhile. */
 #entry { overflow-x: clip; }
 .round {
-  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--white); color: var(--ink); box-shadow: var(--float);
+  width: 48px; height: 48px; border-radius: var(--r-full); display: grid; place-items: center;
+  background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
 }
-.round:active { background: var(--press); }
-.menu { grid-column: 1; grid-row: 1; }
+.round:active { background: var(--fill-2); }
 /* Bounded by its column, so whatever the font (Linux and Android draw Hangul and digits wider) it stays centred and
    never reaches the badge: the arrows keep their size, the hole number stays whole, and only the words beside it and
    the Par line under it shorten (v18). */
 .switcher {
   grid-column: 2; grid-row: 1; justify-self: center; max-width: 100%; min-width: 0;
-  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px;
-  background: var(--glass-card); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--float);
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--r-full);
+  background: var(--white); box-shadow: var(--sh-float);
 }
-.switcher .round { flex: none; box-shadow: none; background: var(--tint); }
-.switcher .round:active { background: var(--press); }
+.switcher .round { flex: none; box-shadow: none; background: var(--fill); }
+.switcher .round:active { background: var(--fill-2); }
 .switcher .round:disabled { background: transparent; color: var(--off-ink); }
 .hole-h { display: flex; min-width: 0; margin: 0; font: inherit; }
 /* The hole number is a button: it opens the hole strip. */
 .hole-title {
-  position: relative; min-width: 0; height: 48px; padding: 0 6px 0 8px; border-radius: 24px;
+  position: relative; min-width: 0; height: 48px; padding: 0 6px 0 8px; border-radius: var(--r-full);
   display: flex; align-items: center; gap: 2px; font-weight: var(--w-label); white-space: nowrap; text-align: left; color: var(--ink);
 }
-.hole-title:active, .hole-title[aria-expanded='true'] { background: var(--press); }
+.hole-title:active { background: var(--fill-2); }
+.hole-title[aria-expanded='true'] { background: var(--fill); }
 .hole-chev { flex: none; margin-left: 4px; color: var(--turf); transition: transform .16s; }
 .hole-title[aria-expanded='true'] .hole-chev { transform: rotate(180deg); }
 /* The tick bar: every hole of the round, always in view inside the hole button (v9; a skipped hole is a sand tick). */
 /* As wide as the hole number: a wider switcher would run into the badge on short screens. */
 .ticks { align-self: stretch; display: flex; gap: 1px; height: 4px; margin-top: 4px; }
-.ticks i { flex: 1 1 0; min-width: 2px; border-radius: 1px; background: var(--tick); }
-.ticks i[data-t='done'] { background: var(--fairway); }
+/* 1.5px at least (v32): 18 of them and their gaps come to 44px, so in 큰 글씨 at 360 the bar is no wider than "5번" and
+   the button hugs the word as at the normal size (2px made it 53px and left 8px of air before ⌄). */
+.ticks i { flex: 1 1 0; min-width: 1.5px; border-radius: var(--r-full); background: var(--fill-2); }
+.ticks i[data-t='done'] { background: var(--turf); }
 .ticks i[data-t='miss'] { background: var(--miss); }
-.ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--turf); }
+.ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--deep); }
 .hole-txt { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .hole-main { display: flex; align-items: baseline; gap: 2px; min-width: 0; max-width: 100%; margin: 0; font: inherit; }
-.hole-n { flex: none; font-size: 34px; line-height: 1; letter-spacing: -.02em; }
+.hole-n { flex: none; font-size: var(--t-2xl); line-height: 1; letter-spacing: -.02em; }
 /* Never cut (v25): where "번 홀" cannot fit, main.ts's fitSwitcher() shortens it to 번. */
-.hole-u { min-width: 0; overflow: hidden; font-size: 17px; font-weight: var(--w-label); }
+.hole-u { min-width: 0; overflow: hidden; font-size: var(--t-l); font-weight: var(--w-label); }
 /* Below 381px the switcher gives its words 14px more room (v25), so "5번 홀" fits at 360 and "10번 홀" at 375: 2px gaps
    and a tighter hole button and chevron. Its 4px padding stays, so the arrows keep their radii concentric with it. */
 @media (max-width: 380px) {
@@ -233,22 +207,26 @@ svg { display: block; }
   .hole-chev { margin-left: 2px; }
 }
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
-.hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
-/* The © OpenStreetMap link (v27): the version's twin at the card's left end, shown while the hole is drawn from OpenStreetMap.
-   Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds room (--credit-reach,
-   2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On its dark pill the focus ring is light. */
-.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: 999px; background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; line-height: 20px; font-weight: var(--w-label); white-space: nowrap; text-decoration: none; }
+.hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
+/* The © OpenStreetMap link (v27), shown while the hole is drawn from OpenStreetMap: since v33 quiet gray text, not a pill,
+   6px above the card on its content edge (where the first capsule starts). The hole keeps out of its corner, so only the
+   rough is behind it. Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds
+   room (--credit-reach, 2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On the dark
+   drawing the focus ring is light. */
+.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: var(--card-pad); bottom: calc(100% + 6px); height: 20px; color: var(--on-dark-quiet); font-size: var(--t-s); line-height: 20px; font-weight: var(--w-help); white-space: nowrap; text-decoration: none; }
 .osm-credit::after { content: ''; position: absolute; inset: calc(-1 * var(--credit-reach)) -4px -6px; }
-.osm-credit:active { background: var(--deep-glass); }
+/* At the card's right content edge instead where water would lie behind it at the left (v33; main.ts sets .end). */
+.osm-credit.end { left: auto; right: var(--card-pad); }
+.osm-credit:active { color: var(--on-dark); }
 .osm-credit:focus-visible { outline-color: var(--on-dark); }
-#hole-title.two .hole-n { font-size: 28px; }
-#hole-title.two .hole-u { font-size: 15px; }
+#hole-title.two .hole-n { font-size: calc(var(--t-2xl) * .82); }
+#hole-title.two .hole-u { font-size: var(--t-s); }
 .info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
 .chip .lbl { font-weight: var(--w-label); color: var(--muted); }
 .chip {
-  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 999px;
-  background: var(--scrim); box-shadow: var(--float);
-  font-size: 13px; font-weight: var(--w-label); color: var(--ink); white-space: nowrap; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: var(--r-full);
+  background: var(--white); box-shadow: var(--sh-float);
+  font-size: var(--t-s); font-weight: var(--w-label); color: var(--ink); white-space: nowrap; text-decoration: none;
 }
 .chip.score { font-weight: var(--w-value); }
 .chip.under { color: var(--red); }
@@ -257,8 +235,8 @@ svg { display: block; }
 /* The hole's handicap and layout note: quiet captions on the course, under the chips. 기본 only, and only where there is room. */
 .notes { grid-column: 1 / -1; grid-row: 3; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; padding: 0; list-style: none; max-width: calc(100% - var(--badge) - 16px); }
 .notes li {
-  height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center;
-  background: var(--scrim-dark); color: var(--on-dark-2); font-size: 13px; font-weight: var(--w-label); white-space: nowrap;
+  height: 24px; padding: 0 9px; border-radius: var(--r-full); display: inline-flex; align-items: center;
+  background: var(--deep); color: var(--on-dark-2); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap;
 }
 /* main.ts sets --notes-h on #entry to the captions' height: two rows on tall screens, one below 700px, none below 620px. */
 .notes { max-height: 54px; overflow: hidden; }
@@ -274,40 +252,54 @@ svg { display: block; }
 .sheet.ghost { position: fixed; z-index: 2; margin: 0; pointer-events: none; }
 .sheet {
   flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  background: var(--glass-card); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-radius: 32px; box-shadow: 0 12px 32px var(--sh-3);
+  background: var(--white); border-radius: var(--r-card); box-shadow: var(--sh-raise);
   padding: var(--sheet-pt) var(--card-pad) var(--sheet-pb, 16px); scrollbar-width: none; will-change: transform;
 }
 .sheet::-webkit-scrollbar { display: none; }
 /* A white fade at the bottom says there is more below; drawn over the sheet, so it adds no scroll. */
 .sheet-wrap::after {
-  content: ''; position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 36px; border-radius: 0 0 32px 32px;
-  background: linear-gradient(transparent, var(--glass-card) 85%); pointer-events: none; opacity: 0;
+  content: ''; position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 36px; border-radius: 0 0 var(--r-card) var(--r-card);
+  background: linear-gradient(transparent, var(--white) 85%); pointer-events: none; opacity: 0;
 }
 .sheet-wrap.more::after { opacity: 1; }
 
 /* The score badge (v15): in the top bar's right slot, 60px on the inset and the bar's centre line, never over the card.
-   Before the first tap a quiet light ring shows the hole's par (the goal); then the score and its scorecard mark. */
+   One disc (v32): the white ring round it went, so a mark inside it is no longer a circle in a circle in a circle; a
+   hairline keeps its edge on the rough. Before the first tap it is a quiet deep disc with the hole's par (the goal); then
+   the score and its scorecard mark, deep, turf at par and red under it. */
 .badge {
   grid-column: 3; grid-row: 1; justify-self: end; align-self: center; position: relative; z-index: 3;
-  width: var(--badge); height: var(--badge); border: 3px solid var(--white); border-radius: 50%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  background: var(--deep); color: var(--on-dark); box-shadow: var(--float);
+  width: var(--badge); height: var(--badge); border-radius: var(--r-full);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-float);
+  outline: 1px solid var(--outline-on-art); outline-offset: -1px;
 }
 .badge[data-tone='under'] { background: var(--red); }
-.badge[data-tone='par'] { background: var(--action); color: var(--on-action); }
-.badge-name { font-size: 13px; font-weight: var(--w-label); line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
-.badge[data-tone='none'] { background: var(--white); border: 2px solid var(--line); color: var(--ink); }
-.badge[data-tone='none'] .badge-name { order: -1; color: var(--muted); }
+.badge[data-tone='par'] { background: var(--turf); }
+.badge-name { font-size: var(--t-s); font-weight: var(--w-label); line-height: 1; letter-spacing: -.02em; white-space: nowrap; text-box: trim-both cap alphabetic; }
+/* "Par" over the hole's par (the words are trimmed to their capitals below, so the two sit on the disc's middle). */
+.badge[data-tone='none'] .badge-name { order: -1; color: var(--on-dark-soft); }
 /* A hole in one (v29): the word is the number, so 홀인원 shows alone on the centre line, where the ring is widest. */
 .badge.hio .bmark { display: none; }
-.badge.hio .badge-name { font-size: 15px; font-weight: var(--w-value); }
-body.big .badge.hio .badge-name { font-size: 17px; }
+.badge.hio .badge-name { font-size: var(--t-m); font-weight: var(--w-value); }
+body.big .badge.hio .badge-name { font-size: var(--t-l); }
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
-.bmark { width: 34px; height: 30px; }
-.bmark b { position: relative; font-size: 24px; font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
-.bmark.two b { font-size: 19px; }
-.bm { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; overflow: visible; }
+/* 36px marks (v32, 30 inside the old ring): an eagle's inner circle clears its number by 4px instead of touching it. With
+   no mark (in progress, par) the box is the number's own height, so the number and its word sit on the disc's middle. */
+.bmark { width: 36px; height: 36px; }
+.bmark:is([data-mark='none'], [data-mark='par']) { height: auto; }
+/* Centred by ink, not by line boxes (v32: 보기 had sat 1px low, 큰 글씨's word with it, measured from the pixels). The
+   number and the word are both trimmed to their capitals and baseline, so each box is its ink in either engine. What is
+   left is how far a mark's ink starts inside its box: 3px for ○, □ and ■, 2px for the doubled ◎ and ⧈, and the bare
+   number's 1px; the word takes that much room under it. */
+.badge:has(.bmark:not([data-mark='none'], [data-mark='par'])) { gap: 3px; }
+.badge:not([data-tone='none']) .badge-name { padding-bottom: 1px; }
+.badge:has(.bmark:is([data-mark='birdie'], [data-mark='bogey'], [data-mark='triple'])) .badge-name { padding-bottom: 3px; }
+.badge:has(.bmark:is([data-mark='eagle'], [data-mark='double'])) .badge-name { padding-bottom: 2px; }
+.bmark b { position: relative; font-size: var(--t-xl); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
+.bmark.two b { font-size: var(--t-l); }
+.bm { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; overflow: visible; }
 .bm * { fill: none; stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
 /* Triple bogey or worse: the square is filled and the number turns dark on it. */
 .bm .fill { fill: currentColor; }
@@ -318,11 +310,11 @@ body.big .badge.hio .badge-name { font-size: 17px; }
 /* The dash is a little longer than the path (pathLength 1), so the drawn ring closes without a seam. */
 @keyframes draw { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }
 @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
-@keyframes ring { from { box-shadow: 0 0 0 0 var(--glow); } to { box-shadow: 0 0 0 18px transparent; } }
+@keyframes ring { from { transform: scale(1); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
 .badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
 .badge.celebrate .bm * { stroke-dasharray: 1.02; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
 .badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
-.badge.celebrate::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; animation: ring .7s ease-out both; }
+.badge.celebrate::after { content: ''; position: absolute; inset: 0; border: 6px solid var(--glow); border-radius: var(--r-full); animation: ring .7s ease-out both; }
 /* The scorecard's smaller marks keep their CSS rings. */
 .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
@@ -332,42 +324,46 @@ body.big .badge.hio .badge-name { font-size: 17px; }
 .club { display: flex; flex-direction: column; align-items: center; min-width: 0; container-type: inline-size; }
 /* The club's name and icon: a 44px button that opens its shot details (v20), shown as a small chip with a chevron; a dot
    on it once the club has details on this hole. */
-.club-lbl { position: relative; display: grid; place-items: center; width: 100%; max-width: 104px; height: var(--lbl-h); font-size: 14px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
-.lbl-in { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px 0 7px; border-radius: 999px; background: var(--tint); transition: background-color .12s ease-out; }
-.club-lbl:active .lbl-in, .club-lbl[aria-expanded='true'] .lbl-in { background: var(--press); }
+.club-lbl { position: relative; display: grid; place-items: center; width: 100%; max-width: 104px; height: var(--lbl-h); font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
+.lbl-in { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px 0 7px; border-radius: var(--r-full); background: var(--fill); transition: background-color .12s ease-out; }
+.club-lbl:active .lbl-in { background: var(--fill-2); }
+.club-lbl[aria-expanded='true'] .lbl-in { background: var(--turf); color: var(--on-dark); }
+.club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-dark); }
 .club-lbl svg { flex: none; width: 18px; height: 18px; color: var(--turf); }
 .club-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lbl-chev { flex: none; display: grid; color: var(--turf); }
 .lbl-chev svg { width: 12px; height: 12px; }
-.lbl-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--turf); box-shadow: 0 0 0 2px var(--white); opacity: 0; transition: opacity .16s ease-out; }
+.lbl-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: var(--r-full); background: var(--turf); outline: 2px solid var(--white); opacity: 0; transition: opacity .16s ease-out; }
 .club-lbl.tagged .lbl-dot { opacity: 1; }
 /* A column narrower than the capsule keeps the name whole: the icon steps aside and the name is 13px; the chevron stays. */
-@container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: 13px; } }
+@container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: var(--t-s); } }
 /* 상세's four columns (v28: 68px at 360, 72 at 375, 76 at 390): the name alone, centred in a chip as wide as its capsule,
    so the four chips line up with the four capsules; the chevron steps aside too ("어프로치" would not fit beside it). */
 @container (max-width: 80px) { .lbl-in { width: 100%; justify-content: center; padding: 0 4px; } .lbl-chev { display: none; } }
 .pill {
   position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
-  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: 999px;
+  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: var(--r-full);
 }
-/* A half: a button from the capsule's end to its midline, its round glyph at the outer end; pressed, the whole half tints. */
+/* A half: a button from the capsule's end to its midline, its glyph at the outer end; pressed, the whole half tints. */
 .step { position: relative; display: grid; justify-items: center; width: 100%; min-height: 0; transition: background-color .12s ease-out; }
-/* Two tones, so the split reads at a glance (v21): the top half lighter, the bottom a shade deeper, both translucent
-   over the card; the half that was hit fills, and at 0 the bottom half rests light. */
-.step.plus { align-items: start; padding-top: var(--glyph-inset); background: var(--half-up); }
-.step.minus { align-items: end; padding-bottom: var(--glyph-inset); background: var(--half-down); }
-.step.minus:disabled { background: var(--half-rest); }
+/* Two tones, so the split reads at a glance (v21): the top half lighter, the bottom a shade deeper; the half that was hit
+   fills, and at 0 the bottom half rests light. */
+.step.plus { align-items: start; padding-top: var(--glyph-inset); background: var(--fill); }
+.step.minus { align-items: end; padding-bottom: var(--glyph-inset); background: var(--fill-2); }
+.step.minus:disabled { background: var(--fill); }
 .step:focus-visible { outline: 3px solid var(--sand); outline-offset: -3px; }
-.step span {
-  width: var(--glyph); height: var(--glyph); border-radius: 50%; background: var(--white); color: var(--ink);
-  display: grid; place-items: center; box-shadow: var(--lift); transition: transform .12s ease-out;
-}
-.step span svg { width: 56%; height: 56%; }
-.step:active:not(:disabled) { background: var(--half-press); }
-.step:active:not(:disabled) span { box-shadow: 0 1px 2px var(--sh-2); transform: scale(.94); }
-.step:disabled span { background: var(--off); color: var(--off-ink); box-shadow: inset 0 0 0 1.5px var(--line); }
+/* The + and − are drawn straight on the capsule (v34): no white disc, ring or shadow behind them, so each reads as part
+   of its half and the half as the button. The square keeps its place, so the count and its clearance do not move; the
+   glyph is see-through ink, --mark wide, its line 2px or more as drawn: in 기본 under half the count's size, in 상세 the
+   count leads by weight. 큰 글씨 draws it larger with the count. Pressed, the half fills (the glyph no longer shrinks:
+   bare, it moved under a pixel). */
+.step span { width: var(--glyph); height: var(--glyph); display: grid; place-items: center; color: var(--on-capsule); }
+.step span svg { width: var(--mark); height: var(--mark); stroke-width: var(--mark-line); }
+.step:active:not(:disabled) { background: var(--fill-press); }
+/* At 0 the − is disabled: its half rests light and its glyph turns the disabled ink, still 3:1 on it. */
+.step:disabled span { color: var(--on-capsule-soft); }
 /* +1 or −1 beside the glyph for a moment after a tap, drifting outward (main.ts shows and hides it). */
-.cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: 13px; font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
+.cue { position: absolute; left: calc(50% + var(--mark) / 2 + 4px); font-size: var(--t-s); font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
 .plus .cue { top: var(--glyph-inset); color: var(--turf); animation: cue-up .6s ease-out both; }
 .minus .cue { bottom: var(--glyph-inset); color: var(--muted); animation: cue-down .6s ease-out both; }
 /* 상세's narrower capsules (v28): beside the glyph's middle, where the capsule is still wide enough to show it whole. */
@@ -375,23 +371,28 @@ body.big .badge.hio .badge-name { font-size: 17px; }
 #entry[data-mode='detail'] .minus .cue { bottom: calc(var(--glyph-inset) + var(--glyph) / 2 - 6.5px); }
 @keyframes cue-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cue-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
-/* The midline, with the count on it: a hairline either side of the digits, so the number reads as the value. */
-.num-row { position: absolute; left: 12px; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
-.num-row::before, .num-row::after { content: ''; flex: 1; height: 1px; background: var(--midline); }
+/* The midline, with the count on it. Above both halves (v30): the − half comes after it and is opaque now, so it would
+   hide the digits' lower half. The split is one line from the capsule's edge to the other, broken by the count (v32):
+   the two tones alone are 1.2:1 and fade in sun, and the short hairlines of before, 12px in from each edge, read as
+   ticks cutting the number. Since v34 in the soft see-through ink (about 2:1 on either half), so it blends into the
+   capsule: the user found the solid line too hard, and the two tones already mark the split. */
+.num-row { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
+/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. */
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px solid var(--on-capsule-soft); }
+.club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 .pill-ico { display: none; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
    the 8px it needs, so fonts that draw taller digits than the Mac's (Linux, Android) still keep it clear. 1.38 turns
    a cap height into a font size (v18, v20). */
-.count { font-size: clamp(20px, calc((var(--pill-h) - 2 * (var(--glyph-inset) + var(--glyph)) - 20px) * 1.38), var(--count)); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
+.count { font-size: clamp(20px, calc((var(--pill-h) - 2 * (var(--glyph-inset) + var(--glyph)) - 20px) * 1.38), var(--t-count)); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
 .count.zero { color: var(--quiet); }
 @keyframes bump { from { transform: scale(1.16); } to { transform: scale(1); } }
 .count.bump { animation: bump .12s ease-out; }
 /* A hole entered in 기본, seen in 상세 (v28): 세컨 shows the whole count and 어프로치 says 기본에서 기록, quietly and in
    place of its 0, until either is first changed (that records the split). Two short lines fit between the glyphs. */
-.from-basic { display: none; font-size: 13px; font-weight: var(--w-label); line-height: 15px; color: var(--muted); text-align: center; white-space: nowrap; }
+.from-basic { display: none; font-size: var(--t-s); font-weight: var(--w-label); line-height: 15px; color: var(--muted); text-align: center; white-space: nowrap; }
 .club-short.unsplit .from-basic { display: block; }
 .club-short.unsplit .count { display: none; }
-.club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 
 /* 상세's one-time tip (v28): what 세컨 and 어프로치 are, over the four capsules' middle where the counts sit, so it never
    moves the card (375×553 has no row to spare). Dark like the coach mark, but opaque (design critique: the 94% glass let
@@ -400,47 +401,47 @@ body.big .badge.hio .badge-name { font-size: 17px; }
 .clubs { position: relative; }
 .split-tip {
   position: absolute; z-index: 3; left: 0; right: 0; top: calc(var(--lbl-h) + var(--pill-h) / 2); translate: 0 -50%;
-  display: flex; align-items: center; gap: 4px; padding: 7px 2px 7px 14px; border-radius: 22px;
-  background: var(--deep); color: var(--on-dark); box-shadow: 0 6px 16px var(--sh-3); cursor: pointer;
+  display: flex; align-items: center; gap: 4px; padding: 7px 2px 7px 14px; border-radius: var(--r-card);
+  background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-raise); cursor: pointer;
   animation: fn-rise .16s ease-out;
 }
 .st-defs { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 2px; margin: 0; }
 .st-defs > div { display: contents; }
-.st-defs dt { font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--sun); white-space: nowrap; }
-.st-defs dd { margin: 0; font-size: 13px; font-weight: var(--w-help); line-height: 18px; color: var(--on-dark); text-wrap: pretty; }
-.st-close { flex: none; position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--on-dark); }
+.st-defs dt { font-size: var(--t-s); font-weight: var(--w-label); line-height: 18px; color: var(--sun); white-space: nowrap; }
+.st-defs dd { margin: 0; font-size: var(--t-s); font-weight: var(--w-help); line-height: 18px; color: var(--on-dark); text-wrap: pretty; }
+.st-close { flex: none; position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; color: var(--on-dark); }
 .st-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
-.st-close:active { background: var(--press-on-dark); }
+.st-close:active { background: var(--deep-press); }
 @media (prefers-reduced-motion: reduce) { .split-tip { animation: none; } }
 
 /* 상세: the capsules shrink, then one tee line, one row of five directions and the penalty line. */
-#entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --count: 24px; --pill-fixed: 140px; --pen: 48px; }
+#entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --mark: 18px; --mark-line: 3; --t-count: 24px; --pill-fixed: 140px; --pen: 48px; }
 #entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
-@media (min-height: 660px) { #entry[data-mode='detail'] { --count: 30px; --pill-fixed: 144px; } }
+@media (min-height: 660px) { #entry[data-mode='detail'] { --t-count: 30px; --pill-fixed: 144px; } }
 .detail { margin-top: 8px; }
 .tee-line { display: flex; align-items: center; justify-content: space-between; height: 48px; gap: 8px; }
 /* "티샷" and its result side by side, or the result under it when the chips leave too little room (360px). */
-.tee-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; min-width: 0; font-size: 17px; font-weight: var(--w-label); color: var(--muted); line-height: 1.15; white-space: nowrap; }
-.tee-t .val { font-size: 15px; font-weight: var(--w-value); color: var(--turf); }
+.tee-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; min-width: 0; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 1.15; white-space: nowrap; }
+.tee-t .val { font-size: var(--t-s); font-weight: var(--w-value); color: var(--turf); }
 .tee-t .val.none { color: var(--muted); font-weight: var(--w-help); }
 .tee-chips { display: flex; gap: 8px; flex: none; }
 .tchip {
-  position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: 999px;
+  position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: var(--r-full);
   display: inline-flex; align-items: center; justify-content: center; gap: 3px;
-  background: var(--tint); font-size: 13px; font-weight: var(--w-label); color: var(--ink); white-space: nowrap;
+  background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); color: var(--ink); white-space: nowrap;
 }
 .tchip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
-.tchip[aria-pressed='true'] { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
+.tchip[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 .tchip.miss { min-width: 80px; }
 /* From the card's content edge to the other, like the tee line above it; 페어웨이 stays in the centre. */
 .pad { margin-top: 8px; display: flex; justify-content: space-between; gap: 8px; }
-.dir { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
-.dir:active { background: var(--press); }
-.dir.far { background: var(--tint); box-shadow: none; }
-.dir[aria-pressed='true'] { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
-.d-c { width: 64px; border-radius: 24px; font-size: 13px; font-weight: var(--w-label); background: var(--pad-hit); }
+.dir { flex: none; width: 48px; height: 48px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.dir:active { background: var(--fill-2); }
+.dir.far { background: var(--fill); }
+.dir[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
+.d-c { width: 64px; border-radius: var(--r-full); font-size: var(--t-s); font-weight: var(--w-label); background: var(--fill); }
 
-/* Penalties: OB (white stake, dark band) and 해저드 (red stake); each tap adds a stroke. 벙커 (상세) is noted only.
+/* Penalties: OB (white post) and 해저드 (red post); each tap adds a stroke. 벙커 (상세) is noted only.
    The row sits on the steppers' columns (v14): OB under 드라이버, 해저드 under 퍼터, and in the middle "빼기" (기본) or
    벙커 (상세), so every icon lines up under a stepper. */
 .pens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; justify-items: center; align-items: start; margin-top: 8px; }
@@ -460,31 +461,36 @@ body.big .badge.hio .badge-name { font-size: 17px; }
 #entry[data-mode='detail'] .pens .pen[data-pen='bunker'] { grid-column: 3; }
 #entry[data-mode='detail'] .pens .pen[data-pen='hazard'] { grid-column: 4; }
 #entry[data-mode='detail'] .pen { width: 100%; max-width: 72px; gap: 2px; }
-#entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; }
-.pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--tint); }
-.pen:active:not(:disabled) .pen-icon { background: var(--press); }
-.pen.on .pen-icon { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
-.pen-lbl { font-size: 13px; font-weight: var(--w-label); color: var(--muted); line-height: 16px; text-align: center; white-space: nowrap; }
+/* The penalties' 2px between icon and word (v32): 빼기 kept 4px, so the card grew 2px when the first penalty came. */
+#entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; gap: 2px; }
+.pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); }
+.pen:active:not(:disabled) .pen-icon { background: var(--fill-2); }
+.pen.on .pen-icon { background: var(--sand-tint); outline: 2px solid var(--sand); outline-offset: -2px; }
+.pen-lbl { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 16px; text-align: center; white-space: nowrap; }
 .pen-count {
-  position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px;
-  background: var(--sand); color: var(--ink); font-size: 13px; font-weight: var(--w-value); line-height: 24px; text-align: center; box-shadow: 0 0 0 2px var(--white);
+  position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: var(--r-full);
+  background: var(--sand); color: var(--ink); font-size: var(--t-s); font-weight: var(--w-value); line-height: 24px; text-align: center; outline: 2px solid var(--white);
 }
 .pen-count.zero { display: none; }
 .undo {
   width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: 13px; font-weight: var(--w-label); line-height: 16px; color: var(--turf); white-space: nowrap;
+  font-size: var(--t-s); font-weight: var(--w-label); line-height: 16px; color: var(--turf); white-space: nowrap;
 }
-.undo .u-ico { width: var(--pen); height: var(--pen); border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--lift); }
-.undo:active .u-ico { background: var(--press); }
+.undo .u-ico { width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.undo:active:not(:disabled) .u-ico { background: var(--fill-2); }
+/* With nothing to take off, 빼기 keeps its box but not its look (v32): nothing appears or moves when the first penalty
+   comes, and the busiest card carries no dead control (shown disabled, its − under the capsule's − was one more thing to
+   read and a tap away from the wrong undo). */
+.undo:disabled { visibility: hidden; }
 
 /* 기본 / 상세 */
-.modes { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: 999px; background: var(--tint); color: var(--muted); font-size: 15px; font-weight: var(--w-label); }
+.modes { display: flex; width: fit-content; margin: 12px auto 0; border-radius: var(--r-full); background: var(--fill); }
+.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: var(--r-full); color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
 .mode::after { content: ''; position: absolute; inset: calc((var(--mode-h) - 48px) / 2) 0; }   /* a 48px touch area */
-/* Chosen on light surfaces (v19): a translucent fairway tint with a crisp turf ring, so the choice reads in sun. */
-.mode[aria-pressed='true'] { background: var(--select); color: var(--ink); box-shadow: inset 0 0 0 2px var(--turf); }
+/* What is chosen, everywhere (v30): turf with white letters, so it reads in sun on light and on dark alike. */
+.mode[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 
-.next { flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 17px; font-weight: var(--w-label); box-shadow: var(--float); }
+.next { position: relative; z-index: 1; flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: var(--r-full); background: var(--action); color: var(--on-action); font-size: var(--t-l); font-weight: var(--w-label); box-shadow: var(--sh-float); }
 .next:active { background: var(--action-press); }
 
 /* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. Since the club names became buttons (v20)
@@ -492,15 +498,15 @@ body.big .badge.hio .badge-name { font-size: 17px; }
    long the message, a tap meant for a button never lands on it. */
 .toast {
   position: absolute; z-index: 4; grid-row: 2; grid-column: 1 / -1; left: 0; right: 0; top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: 999px;
-  background: var(--deep); color: var(--on-dark); box-shadow: 0 8px 22px var(--sh-4);
-  font-size: 15px; font-weight: var(--w-label); white-space: nowrap;
+  display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: var(--r-full);
+  background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-raise);
+  font-size: var(--t-m); font-weight: var(--w-label); white-space: nowrap;
 }
 #toast-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* While the bar shows, the chips step aside under it (whatever shows or hides it). */
 .top:has(> .toast:not([hidden])) .info { visibility: hidden; }
-.toast button { flex: none; height: 44px; padding: 0 16px; border-radius: 999px; color: var(--sun); font-weight: var(--w-label); }
-.toast button:active { background: var(--press-on-dark); }
+.toast button { flex: none; height: 44px; padding: 0 16px; border-radius: var(--r-full); color: var(--sun); font-weight: var(--w-label); }
+.toast button:active { background: var(--deep-press); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(calc(-50% + 8px)); } to { opacity: 1; transform: translateY(-50%); } }
 .toast.show { animation: toast-in .16s ease-out; }
 
@@ -510,24 +516,43 @@ body.big .badge.hio .badge-name { font-size: 17px; }
   padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
   background: var(--deep); display: flex; justify-content: center;
 }
-/* 스코어카드 · 기록 · 지난 라운드, with 기록 in the centre; the way home at the left, balanced by an empty column. */
-/* Four equal, labelled columns: 홈 (the link back to the site), then the three tabs. */
+/* The one navigation (v32): 스코어카드 · 기록 · 지난 라운드 · 메뉴, the ☰ that sat at each view's top left folded in under
+   the thumb, four equal columns. Only the app's own places: the way back to the site left the bar for the top left. */
 .bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; align-items: center; }
-.tabs { grid-column: 2 / 5; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
-.tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
-.tab .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
-.tab[aria-selected='true'] .ti { background: var(--select-on-dark); }
-.tab svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-.tab-label { font-size: 13px; white-space: nowrap; }
+.tabs { grid-column: 1 / 4; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
+.tab, .bar-menu { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
+.tab .ti, .bar-menu .ti { width: 56px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; }
+.tab[aria-selected='true'] .ti { background: var(--turf); }
+.tab svg, .bar-menu svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tab-label { font-size: var(--t-s); white-space: nowrap; }
 .tab[aria-selected='true'] { color: var(--tab-on); }
-/* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
-   The top right belongs to the score badge. */
-.home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); text-decoration: none; }
-.home-link .ti { width: 56px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
-.home-link:active .ti { background: var(--press-on-dark); }
+.bar-menu { grid-column: 4; }
+.bar-menu:active .ti { background: var(--deep-press); }
+/* 홈 (v32): the link back to the site at the top left of every view, on the top bar's line, in its open left slot
+   (AGENTS.md: visible at every width). Quiet, as on the site's other tool: soft white and no fill, over 기록's course and
+   the paper views' deep header alike. Out of the bar, where it sat among the views and a tap there left the round. */
+.home-link {
+  position: absolute; z-index: 3; top: max(8px, env(safe-area-inset-top)); left: var(--m); height: var(--bar-row); min-width: 48px;
+  display: inline-flex; align-items: center; gap: 4px; padding-right: 8px;
+  color: var(--on-dark-soft); font-size: var(--t-s); font-weight: var(--w-label); text-decoration: none; white-space: nowrap;
+}
+.home-link svg { width: 20px; height: 20px; }
+.home-link:active { color: var(--on-dark); }
+body.big .home-link { font-size: var(--t-m); }
+/* 기록's 상세 on a short screen starts its top bar 4px down, not 8. */
+@media (max-height: 599px) { .app:has(> #entry:not([hidden])[data-mode='detail']) > .home-link { top: max(4px, env(safe-area-inset-top)); } }
+/* While a dialog is open the bar steps back (v32): the dim backdrop over the dark bar changed nothing there, so its
+   labels and the chosen tab stayed as loud as the panel. */
+.bar { transition: opacity .16s ease-out; }
+body:has(dialog[open]) .tabbar .bar { opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
 
 /* ---------- 스코어카드 ---------- */
-.sc { background: var(--paper); overflow-y: auto; scrollbar-width: none; }
+/* 기록's frame (v32): the header on deep, held at the top, and the page a paper sheet under it with 24px top corners, as
+   기록's card sits on the course. Deep, the bar's colour: dark top and bottom on every screen, and no seventh colour on
+   a screen of six (the rough would have been one). */
+.sc { background: var(--deep); overflow-y: auto; scrollbar-width: none; }
+.sc-body { flex: 1 0 auto; display: flex; flex-direction: column; padding-top: 16px; background: var(--paper); border-radius: var(--r-card) var(--r-card) 0 0; }
 .sc::-webkit-scrollbar { display: none; }
 /* More below (v26): with no scrollbar, a soft fade over the bottom edge of 스코어카드 and 지난 라운드 says so while they
    can scroll further, as on 기록's card (main.ts's scrollHint). Sticky at the view's bottom and pulled up by its own
@@ -537,53 +562,61 @@ body.big .badge.hio .badge-name { font-size: 17px; }
   background: linear-gradient(transparent, var(--paper) 85%); pointer-events: none; opacity: 0;
 }
 .sc.more::after { opacity: 1; }
-/* The same first row as 기록's top bar: the menu button in the same place on every tab, the title in the centre,
-   the right-hand action (파 수정) on the same inset as 기록's version. */
+/* The same first row as 기록's top bar: the title in the centre on the hole switcher's line, the right-hand action
+   (파 수정) on the inset where 기록 has its badge. */
 .sc-top {
+  position: sticky; top: 0; z-index: 2;
   flex: none; display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; grid-template-rows: var(--bar-row);
-  column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px;
+  column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 8px;
+  background: var(--deep); color: var(--on-dark);
 }
-.sc-top > .menu { justify-self: start; }
-.sc-top > .edit { justify-self: end; }
-.sc-title { text-align: center; min-width: 0; }
+.sc-top > .edit { grid-column: 3; justify-self: end; }
+.sc-title { grid-column: 2; text-align: center; min-width: 0; }
 .edit {
-  height: 48px; min-width: 76px; padding: 0 14px; border-radius: 999px; background: var(--white); box-shadow: var(--float);
-  font-size: 15px; font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
+  height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); background: var(--white); box-shadow: var(--sh-float);
+  font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
 }
-.edit.on { background: var(--action); color: var(--on-action); }
+.edit.on { background: var(--turf); color: var(--on-dark); }
+/* On the deep header (v32) 파 수정 is a ghost: no fill or shadow, a soft white ring and white letters, so the round's
+   score under it stays the loudest thing on the page (a white floating pill had outshone the ring, while 기록 keeps a
+   quiet badge in the same slot). While editing it inverts to white with turf letters, as chosen things do on dark. */
+.sc-top .edit { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+.sc-top .edit.on { background: var(--white); color: var(--turf); outline: none; }
+.sc-top .edit:not(.on):active { background-color: var(--deep-press); }
+.sc-top .edit.on:active { background-color: var(--fill); }
 /* Under the tables while 파 수정 is on (v23), on the tables' edges. */
-.edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: 14px; background: var(--tint); font-size: 13px; font-weight: var(--w-help); text-wrap: pretty; }
-.sc-title h2 { font-size: 17px; font-weight: var(--w-label); }
-.sc-title p { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-help); text-wrap: pretty; }
+.sc-title h2 { font-size: var(--t-l); font-weight: var(--w-label); }
+.sc-title p { font-size: var(--t-s); color: var(--on-dark-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 스코어카드 | 분석 (v26): the picker's 18홀 | 9홀 at the cards' width under the title row, the chosen half a white pill on
    the tint. 44px tall with 3px padding, so the radii are concentric (22 outside, 19 inside), each half reaching 48px to
    the touch; 12px from the title row (its 10px and 2px) and from the card under it. */
-.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin: 2px var(--m) 12px; padding: 3px; border-radius: 999px; background: var(--tint); }
-.sc-switch button { position: relative; min-width: 0; height: 38px; border-radius: 999px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
-.sc-switch button::after { content: ''; position: absolute; inset: -5px 0; }   /* a 48px touch area */
-.sc-switch button[aria-checked='true'] { background: var(--white); color: var(--ink); box-shadow: 0 1px 3px var(--sh-2); }
+.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 0 var(--m) 12px; border-radius: var(--r-full); background: var(--fill); }
+.sc-switch button { position: relative; min-width: 0; height: 44px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
+.sc-switch button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
+.sc-switch button[aria-checked='true'] { background: var(--turf); color: var(--on-dark); }
 .sc-analysis { flex: none; }
-.sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--card-r); padding: 16px var(--card-pad); box-shadow: 0 8px 24px var(--sh-1); }
+.sc-sheet { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--r-card); padding: 16px var(--card-pad); outline: 1px solid var(--line); outline-offset: -1px; }
 .under { color: var(--red); }
-.sub-v { font-size: 17px; font-weight: var(--w-value); }
+.sub-v { font-size: var(--t-l); font-weight: var(--w-value); }
 .m { width: 34px; height: 34px; color: var(--ink); }
 .m[data-tone='under'] { color: var(--red); }
 .m[data-tone='par'] { color: var(--turf); }
 .m[data-tone='none'] { color: var(--quiet); }
-.m b { position: relative; font-size: 20px; font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
-.m[data-mark='birdie']::before { width: 29px; height: 29px; border-width: 2px; border-radius: 50%; }
-.m[data-mark='eagle']::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: 50%; }
-.m[data-mark='eagle']::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: 50%; }
-.m[data-mark='bogey']::before { width: 27px; height: 27px; border-width: 2px; border-radius: 2px; }
-.m[data-mark='double']::before { width: 24px; height: 24px; border-width: 1.5px; border-radius: 1px; }
-.m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; border-radius: 2px; }
-.m[data-mark='triple']::before { width: 28px; height: 28px; border-radius: 3px; background: currentColor; }
+.m b { position: relative; font-size: var(--t-xl); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
+.m[data-mark='birdie']::before { width: 29px; height: 29px; border-width: 2px; border-radius: var(--r-full); }
+.m[data-mark='eagle']::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: var(--r-full); }
+.m[data-mark='eagle']::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: var(--r-full); }
+.m[data-mark='bogey']::before { width: 27px; height: 27px; border-width: 2px; }
+.m[data-mark='double']::before { width: 24px; height: 24px; border-width: 1.5px; }
+.m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; }
+.m[data-mark='triple']::before { width: 28px; height: 28px; background: currentColor; }
 .m[data-mark='triple'] b { color: var(--on-dark); }
 /* 스코어카드 legend (v17): the 파 4 기준 line, then the six marks on a grid. Three columns line up with the hero's
    퍼트·OB·해저드 tiles (same 1fr columns, same 8px gap); 큰 글씨 on a narrow phone takes two. */
 .legend {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--lg-col, 92px), 1fr)); gap: 4px 8px; align-items: center;
-  margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: 13px; color: var(--muted);
+  margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); list-style: none; font-size: var(--t-s); color: var(--muted);
 }
 .legend li { display: flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
 .legend .lg-cap { grid-column: 1 / -1; font-weight: var(--w-label); color: var(--ink); }
@@ -596,90 +629,99 @@ body.big .legend { --lg-col: 100px; }
   --sum-w: 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto var(--sum-w); column-gap: 10px; align-items: baseline;
   margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line);
 }
-.tot h3 { font-size: 17px; font-weight: var(--w-label); }
-.tot > span { font-size: 13px; color: var(--muted); }
-.tot b { font-size: 22px; font-weight: var(--w-value); white-space: nowrap; }
-.tot .tot-p { font-size: 17px; text-align: right; }
+.tot h3 { font-size: var(--t-l); font-weight: var(--w-label); }
+.tot > span { font-size: var(--t-s); color: var(--muted); }
+.tot b { font-size: var(--t-xl); font-weight: var(--w-value); white-space: nowrap; }
+.tot .tot-p { font-size: var(--t-l); text-align: right; }
 .tot .tot-n { text-align: center; }
 /* One help line: the hole columns open their hole (v23), then where the pars come from; the underline marks the link. */
-.par-source { margin-top: 10px; font-size: 13px; font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
+.par-source { margin-top: 10px; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
 .par-source a { color: var(--turf); }
 
-.box { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--card-r); padding: var(--card-pad); box-shadow: 0 8px 24px var(--sh-1); }
-.box h3 { font-size: 17px; font-weight: var(--w-label); margin-bottom: 4px; text-wrap: balance; }
-.save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: 13px; text-align: center; }
-.box h4, .past h4 { font-size: 15px; font-weight: var(--w-label); margin: 16px 0 8px; }
+.box { flex: none; margin: 0 var(--m) 12px; background: var(--white); border-radius: var(--r-card); padding: var(--card-pad); outline: 1px solid var(--line); outline-offset: -1px; }
+.box h3 { font-size: var(--t-l); font-weight: var(--w-label); margin-bottom: 4px; text-wrap: balance; }
+.save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: var(--t-s); text-align: center; }
+.box h4, .past h4 { font-size: var(--t-m); font-weight: var(--w-label); margin: 16px 0 8px; }
 #lost-note { text-wrap: pretty; }
+/* 분석's one finding (v32): its largest line, in ink, so the page leads with where the strokes went; the headline of
+   라운드 분석 below only repeats the scorecard's score and steps down to 17. */
+#lost-note.finding { margin-top: 2px; font-size: var(--t-xl); font-weight: var(--w-label); line-height: 1.3; color: var(--ink); }
 /* One bar for both charts (v23): 12px with a 6px radius, the fill too, on --off (white on a past round's paper), rows
    8px apart, values bold; the same label, bar and value columns, so both charts' bars start and end together (v17). */
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-.lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: 13px; }
+.lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: var(--t-s); }
 /* A block, not the tab bar's 4-column .bar grid it shares a name with: in that grid every fill took its width from a
    quarter of the track, so the most lost read as a stub (v29). */
-.lost-bars .bar { display: block; height: 12px; border-radius: 6px; background: var(--off); overflow: hidden; }
-.lost-bars .bar i { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
+.lost-bars .bar { display: block; height: 12px; border-radius: var(--r-full); background: var(--fill); overflow: hidden; }
+.lost-bars .bar i { display: block; height: 100%; border-radius: var(--r-full); background: var(--turf); }
 .lost-bars li.worst .bar i { background: var(--sand); }
 .lost-bars .v { text-align: right; font-weight: var(--w-value); }
 /* 그린까지's two parts over the holes split in 상세 (v28): indented under it in the quiet ink, on the same columns, their
    fill the lighter fairway, and one line under the chart says which holes they count. */
 .lost-bars li.part > span:first-child { padding-left: 12px; color: var(--muted); }
-.lost-bars li.part .bar i { background: var(--fairway); }
-.split-note { margin-top: 8px; font-size: 13px; text-wrap: pretty; }
+.lost-bars li.part .bar i { background: var(--turf); }
+.split-note { margin-top: 8px; font-size: var(--t-s); text-wrap: pretty; }
 
 .muted { color: var(--muted); }
-.small { font-size: 13px; margin-bottom: 8px; }
-.headline { font-size: 22px; font-weight: var(--w-value); }
-.headline .muted { font-size: 15px; font-weight: var(--w-help); }
+.small { font-size: var(--t-s); margin-bottom: 8px; }
+.headline { font-size: var(--t-l); font-weight: var(--w-value); }
+.headline .muted { font-size: var(--t-m); font-weight: var(--w-help); }
 /* Tiles (v23, the summary's grammar): a label, then one value on one line with its qualifier small beside it. */
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .metrics.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
-.metrics div { background: var(--paper); border-radius: 12px; padding: 8px 12px; min-width: 0; }
-.metrics:not(.three) > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.metrics dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
-.metrics dd { margin: 0; font-weight: var(--w-value); white-space: nowrap; }
-.metrics small { margin-left: 4px; font-size: 13px; font-weight: var(--w-help); color: var(--muted); }
+.metrics div { background: var(--paper); border-radius: var(--r-tile); padding: 8px 12px; min-width: 0; }
+/* An odd count leads with its first tile across the card and pairs the rest (v32): the last one stretched across had read
+   as the most important (분석's 벌타, 요약's 업앤다운), and left in its column it read as a gap where something was missing.
+   The first is the lead anyway; a lone tile spans as before. */
+.metrics:not(.three):has(> div:last-child:nth-child(odd)) > div:first-child { grid-column: 1 / -1; }
+.metrics dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
+.metrics dd { margin: 0; font-size: var(--t-l); font-weight: var(--w-value); white-space: nowrap; }
+.metrics small { margin-left: 4px; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); }
 /* Par별 평균: "Par 4" and how many holes at the label's two ends, the average alone the value. */
 .metrics.three dt { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
 .metrics.three dt small { margin-left: 0; white-space: nowrap; }
 .bars { display: grid; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: 5.5em 1fr 3em; align-items: center; gap: 8px; font-size: 13px; }
-.bar-track { height: 12px; background: var(--off); border-radius: 6px; overflow: hidden; }
-.bar-fill { display: block; height: 100%; border-radius: 6px; background: var(--turf); }
-.bar-fill.score-eagle, .bar-fill.score-birdie { background: var(--red); }
-.bar-fill.score-bogey { background: var(--sand); }
-.bar-fill.score-double, .bar-fill.score-triple { background: var(--rough); }
+.bar-row { display: grid; grid-template-columns: 5.5em 1fr 3em; align-items: center; gap: 8px; font-size: var(--t-s); }
+.bar-track { height: 12px; background: var(--fill); border-radius: var(--r-full); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: var(--r-full); background: var(--turf); }
 .bar-value { text-align: right; font-weight: var(--w-value); }
-.best-worst { margin-top: 12px; font-size: 15px; text-wrap: pretty; }
-.insights { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: 15px; text-wrap: pretty; }
+.best-worst { margin-top: 12px; font-size: var(--t-m); text-wrap: pretty; }
+.insights { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: var(--t-m); text-wrap: pretty; }
+.insights li { position: relative; padding-left: 16px; }
+.insights li::before { content: ''; position: absolute; left: 3px; top: .62em; width: 6px; height: 6px; border-radius: var(--r-full); background: var(--turf); }
 #send-status:empty { display: none; }
 
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
-.box h2 { font-size: 17px; font-weight: var(--w-label); margin-bottom: 4px; }
+.box h2 { font-size: var(--t-l); font-weight: var(--w-label); margin-bottom: 4px; }
 /* 지난 라운드: this round first, then the kept ones; the view's header already names it, so the list's own heading steps aside. */
 /* The score on the title's baseline, as each past round's row puts it (v17); under them the course, then the date and
    the holes, each a line of its own across the card, so the score never squeezes them (v23). */
 .now { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title score' 'sub sub' 'btn btn'; column-gap: 8px; align-items: baseline; }
 .now h3 { grid-area: title; margin: 0; }
-.now .big { grid-area: score; margin: 0; font-size: 22px; font-weight: var(--w-value); text-align: right; white-space: nowrap; }
+.now .big { grid-area: score; margin: 0; font-size: var(--t-xl); font-weight: var(--w-value); text-align: right; white-space: nowrap; }
 .now .big.under { color: var(--red); }
-.now .big.none { font-size: 15px; font-weight: var(--w-help); color: var(--muted); }
-#now-sub { grid-area: sub; min-width: 0; margin-top: 2px; font-size: 13px; }
+.now .big.none { font-size: var(--t-m); font-weight: var(--w-help); color: var(--muted); }
+#now-sub { grid-area: sub; min-width: 0; margin-top: 2px; font-size: var(--t-s); }
 #now-sub > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .now .btn { grid-area: btn; margin-top: 12px; }
 #hist-view #history-title { display: none; }
 #hist-view #history { margin-bottom: 24px; }
 /* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v17). */
 #hist-view .history-trends { margin-top: 0; }
-.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--tint); font-size: 13px; font-weight: var(--w-value); vertical-align: middle; }
+.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-value); vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: var(--red-tint); color: var(--red-ink); }
 .history-trends { margin: 8px 0 12px; }
 .history-trends .metrics { margin: 0; }
 .trend-note { margin: 8px 0 0; }
 .spark { display: grid; gap: 2px; margin-top: 10px; }
-.spark-cap { font-size: 13px; color: var(--muted); }
-.spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 13px; font-weight: var(--w-label); }
+.spark-cap { font-size: var(--t-s); color: var(--muted); }
+.spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--t-s); font-weight: var(--w-label); }
 .spark-line { display: block; width: 100%; height: 32px; overflow: visible; }
 .spark-line polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* A dot on each round (v32), so two or three rounds read as rounds and not as a stroke of the pen: a round cap on a path
+   of no length, which stays round however the line is stretched. The first and last days under its ends. */
+.spark-line .spark-dot { fill: none; stroke: var(--turf); stroke-width: 7; stroke-linecap: round; }
+.spark-dates { grid-column: 2; display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); }
 .history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
 .history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
@@ -688,12 +730,12 @@ body.big .legend { --lg-col: 100px; }
 .past-item {
   width: calc(100% + 8px); min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px;
   align-items: baseline; align-content: center;
-  margin-inline: -4px; padding: 10px 4px; border-radius: 12px; text-align: left;
+  margin-inline: -4px; padding: 10px 4px; border-radius: var(--r-tile); text-align: left;
 }
-.past-item:active { background: var(--press); }
-.past-when { font-size: 17px; font-weight: var(--w-label); }
-.past-score { font-size: 20px; font-weight: var(--w-value); text-align: right; white-space: nowrap; }
-.past-where, .past-meta { font-size: 13px; color: var(--muted); }
+.past-item:active { background: var(--fill-2); }
+.past-when { font-size: var(--t-l); font-weight: var(--w-label); }
+.past-score { font-size: var(--t-xl); font-weight: var(--w-value); text-align: right; white-space: nowrap; }
+.past-where, .past-meta { font-size: var(--t-s); color: var(--muted); }
 .past-meta { text-align: right; white-space: nowrap; }
 #history-empty { margin: 4px 0 0; }
 .backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -713,11 +755,11 @@ html.past-open { overflow: hidden; }
   background: var(--white); border-bottom: 1px solid var(--line);
 }
 .past-heading { min-width: 0; }
-.past-head h2 { font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
-.past-head p { font-size: 13px; }
+.past-head h2 { font-size: var(--t-l); font-weight: var(--w-label); text-wrap: balance; }
+.past-head p { font-size: var(--t-s); }
 .past-head .btn { flex: none; }
 .past-body { padding: 0 max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
-.past-body > h3 { font-size: 15px; font-weight: var(--w-label); margin: 16px 0 8px; }
+.past-body > h3 { font-size: var(--t-m); font-weight: var(--w-label); margin: 16px 0 8px; }
 .past-body > h3:first-child { margin-top: 12px; }
 /* The same nine-column tables as 스코어카드 (v23), white on the dialog's paper, 16px apart. */
 #past-scorecard .nine-tbl:first-child { margin-top: 0; }
@@ -728,39 +770,40 @@ html.past-open { overflow: hidden; }
    and the text inside them as inset, not as stray indents (v17). */
 .past .metrics div, .past .bar-track { background: var(--white); }
 
-.btn { min-height: 48px; padding: 8px 14px; border-radius: 999px; background: var(--tint); font-weight: var(--w-label); }
-.btn.primary { background: var(--action); color: var(--on-action); }
-.btn.danger { background: var(--white); color: var(--red); box-shadow: inset 0 0 0 1.5px currentColor; }
-.notice { padding: 8px 12px; border-radius: 14px; background: var(--warn-tint); box-shadow: var(--float); font-size: 14px; }
-.stale { display: grid; gap: 10px; padding: 12px 14px; border-radius: 20px; background: var(--warn-tint); box-shadow: var(--float); }
+/* Secondary (v30): white, a turf ring and turf letters, so it reads as a button on a white sheet or the paper page in
+   sun (the fill alone was 1.1:1 against them). The primary is lime, a chosen thing turf, a quiet one a fill or nothing. */
+.btn { min-height: 48px; padding: 8px 14px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-weight: var(--w-label); }
+.btn.primary { background: var(--action); color: var(--on-action); outline: none; }
+.btn.danger { background: var(--white); color: var(--red); outline: 1.5px solid currentColor; outline-offset: -1.5px; }
+.notice { padding: 8px 12px; border-radius: var(--r-tile); background: var(--warn-tint); box-shadow: var(--sh-float); font-size: var(--t-m); }
+.stale { display: grid; gap: 10px; padding: 12px 14px; border-radius: var(--r-card); background: var(--warn-tint); box-shadow: var(--sh-float); }
 .stale-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 /* ---------- menu and par sheets ---------- */
 .sheet-dialog {
   width: 100%; max-width: 480px; max-height: 85dvh; margin: auto auto 0; overflow-y: auto; border: 0;
-  border-radius: 28px 28px 0 0; background: var(--white); color: var(--ink);
+  border-radius: var(--r-card) var(--r-card) 0 0; background: var(--white); color: var(--ink);
   padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
 }
 .sheet-dialog::backdrop { background: var(--backdrop-strong); }
-.grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 12px; }
-.sheet-dialog h2 { font-size: 17px; font-weight: var(--w-label); }
+.grab { width: 40px; height: 5px; border-radius: var(--r-full); background: var(--fill); margin: 0 auto 12px; }
+.sheet-dialog h2 { font-size: var(--t-l); font-weight: var(--w-label); }
 /* The menu: one list, each item opening its own panel. */
-.menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: 0 -8px 32px var(--sh-2); }
+.menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: var(--sh-sheet); }
 .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0 8px; }
-.menu-head h2 { font-size: 22px; font-weight: var(--w-label); }
-.menu-head span { font-size: 13px; color: var(--muted); }
+.menu-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li + li { border-top: 1px solid var(--line); }
-.mi { width: calc(100% + 8px); margin-inline: -4px; min-height: 64px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: 14px; }
-.mi:active { background: var(--press); }
-.mi .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; color: var(--turf); }
+.mi { width: calc(100% + 8px); margin-inline: -4px; min-height: 64px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: var(--r-tile); }
+.mi:active { background: var(--fill-2); }
+.mi .ic { width: 40px; height: 40px; border-radius: var(--r-tile); background: var(--fill); display: grid; place-items: center; color: var(--turf); }
 .mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-t { min-width: 0; }
-.mi b { display: block; font-size: 17px; font-weight: var(--w-label); }
-.mi small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi b { display: block; font-size: var(--t-l); font-weight: var(--w-label); }
+.mi small { display: block; font-size: var(--t-s); color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi .chev { justify-self: end; color: var(--off-ink); transition: transform .16s; }
 .mi[aria-expanded='true'] .chev { transform: rotate(90deg); }
-.mpanel { padding: 0 0 14px 52px; font-size: 15px; line-height: 1.45; }
+.mpanel { padding: 0 0 14px 52px; font-size: var(--t-m); line-height: 1.45; }
 .mpanel p + p { margin-top: 6px; }
 .mpanel .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .mpanel .row .btn { display: inline-grid; place-items: center; padding: 0 16px; text-decoration: none; color: inherit; }
@@ -769,26 +812,25 @@ html.past-open { overflow: hidden; }
 .backup > h2 { display: none; }
 .backup .muted.small { margin: 0; }
 .mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 36px 48px; align-items: center; gap: 8px; margin: 4px 0 0; }
-.mulligan-label b { display: block; font-size: 15px; font-weight: var(--w-label); }
-.mulligan-label span { display: block; font-size: 13px; color: var(--muted); }
-.step-sm { width: 48px; height: 48px; border-radius: 50%; background: var(--white); box-shadow: var(--lift); font-size: 24px; font-weight: var(--w-label); }
-.step-sm.plus { background: var(--action); color: var(--on-action); }
-.step-sm:disabled { background: var(--off); color: var(--off-ink); box-shadow: none; }
-.step-count { text-align: center; font-size: 22px; font-weight: var(--w-value); }
-.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: 999px; background: var(--tint); font-size: 17px; font-weight: var(--w-label); }
+.mulligan-label b { display: block; font-size: var(--t-m); font-weight: var(--w-label); }
+.mulligan-label span { display: block; font-size: var(--t-s); color: var(--muted); }
+.step-sm { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-xl); font-weight: var(--w-label); }
+.step-sm:disabled { background: var(--fill); color: var(--off-ink); }
+.step-count { text-align: center; font-size: var(--t-xl); font-weight: var(--w-value); }
+.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
   position: fixed; left: 50%; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 72px); transform: translateX(-50%); z-index: 6;
-  max-width: calc(100vw - 24px); min-height: 44px; padding: 10px 16px; border-radius: 999px;
-  background: var(--ink); color: var(--on-dark); font-size: 14px; font-weight: var(--w-label); white-space: nowrap; box-shadow: 0 4px 14px var(--sh-2);
+  max-width: calc(100vw - 24px); min-height: 44px; padding: 10px 16px; border-radius: var(--r-full);
+  background: var(--ink); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; box-shadow: var(--sh-float);
 }
 .update-prompt:disabled { opacity: .7; }
 
 /* Short screens (iPhone SE Safari, 375×553). */
 @media (max-height: 599px) {
   :root {
-    --sheet-pt: 4px; --glyph: 32px; --glyph-inset: 6px; --count: 40px;
+    --sheet-pt: 4px; --glyph: 32px; --glyph-inset: 6px; --mark: 20px; --mark-line: 2.6; --t-count: 40px;
     --pill-base: 420px; --pill-min: 120px; --pill-max: 176px;
     --pen: 48px; --next-h: 48px; --next-m: 8px;
   }
@@ -797,7 +839,7 @@ html.past-open { overflow: hidden; }
   .sheet { --sheet-pb: 8px; }
   /* 상세 on a short screen: the chip row steps aside so the 벌타 row and the toggle fit. The club names stay, the way to
      the shot details (v20): the capsules give them the room, each half still 48px or more. */
-  #entry[data-mode='detail'] { --pill-fixed: 100px; --count: 22px; --glyph: 28px; --glyph-inset: 5px; }
+  #entry[data-mode='detail'] { --pill-fixed: 100px; --t-count: 22px; --glyph: 28px; --glyph-inset: 5px; --mark: 16px; --mark-line: 3; }
   #entry[data-mode='detail'] .detail { margin-top: 4px; }
   #entry[data-mode='detail'] .tee-line { height: 44px; }
   #entry[data-mode='detail'] .pad { margin-top: 6px; }
@@ -805,27 +847,29 @@ html.past-open { overflow: hidden; }
   #entry[data-mode='detail'] .info, #entry[data-mode='detail'] .toast { display: none; }
   #entry[data-mode='detail'] .top { row-gap: 0; padding-top: max(4px, env(safe-area-inset-top)); }
   #entry[data-mode='detail'] .hole-sub { display: block; }
-  #entry[data-mode='detail'] .hole-n { font-size: 26px; }
-  #entry[data-mode='detail'] .hole-u { font-size: 15px; }
+  #entry[data-mode='detail'] .hole-n { font-size: calc(var(--t-2xl) * .76); }
+  #entry[data-mode='detail'] .hole-u { font-size: var(--t-s); }
   #entry[data-mode='detail'] .sheet { padding-top: 2px; padding-bottom: 6px; }
   #entry[data-mode='detail'] .pens { margin-top: 8px; }
   /* One width for all, each its column's (v15; four columns since v28): a 48px tile with the stake over its name, so
      "해저드" fits a 72px column. 16px corners: the card's 32 less its 16px padding. 빼기 is the same tile in white. */
   #entry[data-mode='detail'] .pen, #entry[data-mode='detail'] .undo {
-    width: 100%; max-width: none; height: 48px; margin: 0; flex-direction: column; justify-content: center; gap: 0; padding: 0 4px; border-radius: 16px; background: var(--tint);
+    width: 100%; max-width: none; height: 48px; margin: 0; flex-direction: column; justify-content: center; gap: 0; padding: 0 4px; border-radius: var(--r-tile); background: var(--fill);
   }
-  #entry[data-mode='detail'] .undo { background: var(--white); box-shadow: var(--lift); }
-  #entry[data-mode='detail'] .undo:active { background: var(--press); }
-  #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); box-shadow: inset 0 0 0 2px var(--sand); }
+  #entry[data-mode='detail'] .undo { background: var(--fill); }
+  #entry[data-mode='detail'] .undo:active:not(:disabled) { background: var(--fill-2); }
+  #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); outline: 2px solid var(--sand); outline-offset: -2px; }
   #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon, #entry[data-mode='detail'] .undo .u-ico { width: 100%; height: 24px; background: transparent; box-shadow: none; }
-  #entry[data-mode='detail'] .pen-icon svg { transform: scale(.72); }
+  /* About 20px, 24px in 큰 글씨 (v31): the posts and the sand stay readable and grow with the names. */
+  #entry[data-mode='detail'] .pen-icon svg { width: 24px; height: 24px; transform: scale(.84); }
+  body.big #entry[data-mode='detail'] .pen-icon svg { transform: none; }
   #entry[data-mode='detail'] .undo .u-ico svg { width: 20px; height: 20px; }
   #entry[data-mode='detail'] .pen-icon { position: static; }
   #entry[data-mode='detail'] .pen-count { top: -6px; right: -6px; }
 }
 /* 600–650px tall (360×640): bigger counts would crowd the + and −. */
 @media (min-height: 600px) and (max-height: 650px) {
-  :root { --count: 48px; }
+  :root { --t-count: 48px; }
 }
 /* 600–699px tall (360×640, 375×667): the sheet stays low enough to leave a band for the drawn hole and the version.
    기본's pills stop a little shorter; 상세 keeps the club names (v20) on shorter capsules and closes its gaps. */
@@ -848,7 +892,7 @@ html.past-open { overflow: hidden; }
 /* ---------- course picker: the first screen, on the rough ---------- */
 .picker {
   width: 100%; max-width: 480px; height: 100%; max-height: none; margin: 0 auto; border: 0; padding: 0;
-  background: radial-gradient(120% 80% at 72% 18%, var(--art-rough-hi) 0%, var(--rough) 55%, var(--art-rough-lo) 100%); color: var(--ink);
+  background: var(--rough); color: var(--ink);   /* flat, as the drawn rough is (v31) */
 }
 .picker[open] { display: flex; flex-direction: column; }
 .picker::backdrop { background: var(--rough); }
@@ -856,9 +900,9 @@ html.past-open { overflow: hidden; }
   flex: none; padding: max(14px, env(safe-area-inset-top)) var(--m) 0; color: var(--on-dark);
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 8px;
 }
-.pk-brand { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; font-weight: var(--w-label); color: var(--on-dark-soft); }
-.picker-head h2 { font-size: 34px; font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
-.picker-head .btn { min-height: 44px; background: var(--glass); color: var(--on-dark); }
+.pk-brand { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-dark-soft); }
+.picker-head h2 { font-size: var(--t-2xl); font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
+.picker-head .btn { min-height: 44px; background: var(--rough-fill); color: var(--on-dark); outline: none; }
 /* The title's line: the title, then 취소 or the way back to the site in one place at the header's inner edge. The row
    is fixed, so the title stays on it when the brand line above steps aside on short screens. 취소 and 홈 are 44px glass
    chips with their middle on the title's (v29); their negative margins keep the line as tall as the title, so the
@@ -869,29 +913,30 @@ html.past-open { overflow: hidden; }
    site (AGENTS.md), a quiet 홈 with the tab bar's house (v29), not an underlined address. White, not muted: the header
    is dark green (v17). */
 .picker-home {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 10px; border-radius: 22px;
-  background: var(--glass); color: var(--on-dark); font-size: 13px; font-weight: var(--w-label); white-space: nowrap; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 10px; border-radius: var(--r-full);
+  background: var(--rough-fill); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; text-decoration: none;
 }
 .picker-home svg { flex: none; }
-.picker-home:active { background: var(--press-on-dark); }
+.picker-home:active { background: var(--rough-press); }
 /* From the menu or an earlier day's round, 취소 leads back to the app and its tab bar's 홈 instead. */
 .picker-head:has(> #picker-cancel:not([hidden])) > .picker-home { display: none; }
 /* 16px in, so the search icon starts on the list rows' text edge (v17). */
 .pk-search {
   flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
-  border-radius: 16px; background: var(--white); color: var(--muted); box-shadow: var(--float);
+  border-radius: var(--r-tile); background: var(--white); color: var(--muted); box-shadow: var(--sh-float);
 }
-.picker-search { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 17px; color: var(--ink); }
+.picker-search { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: var(--t-l); color: var(--ink); }
 .picker-search::placeholder { color: var(--muted); }
 .pk-search:focus-within, .picker-chosen input:focus-visible { outline: 3px solid var(--sand); outline-offset: 2px; }
 .picker-areas { flex: none; margin: 16px 0 0; padding: 0 var(--m) 2px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .picker-areas::-webkit-scrollbar { display: none; }
 .picker .chip {
-  position: relative; flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: 999px;
-  background: var(--scrim); color: var(--ink); font-size: 15px; font-weight: var(--w-label); box-shadow: var(--float);
+  position: relative; flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: var(--r-full);
+  background: var(--rough-fill); color: var(--on-dark); font-size: var(--t-m); font-weight: var(--w-label); box-shadow: none;
 }
 .picker .chip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
-.picker .chip[aria-pressed='true'] { background: var(--sun); }
+/* On the dark picker the chosen chip inverts (v30), so it stays the brightest in its row: white with turf letters. */
+.picker .chip[aria-pressed='true'] { background: var(--white); color: var(--turf); }
 /* The list takes the room the rest leaves (from nothing, so a long list never squeezes the sheet below), down to a
    row and a half; past that the sheet gives way instead (v18). It opens with the chosen course's row at its top and
    comes to rest on whole rows (v23): the rows' offset parent, snapping to their tops. Mandatory: WebKit's proximity
@@ -899,24 +944,25 @@ html.past-open { overflow: hidden; }
 .picker-list {
   position: relative; flex: 1 1 0; min-height: 96px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory;
   list-style: none; margin: 16px var(--m) 0; padding: 0;
-  background: var(--white); border-radius: 24px; box-shadow: 0 8px 24px var(--sh-2); scrollbar-width: none;
+  background: var(--white); border-radius: var(--r-card); box-shadow: var(--sh-raise); scrollbar-width: none;
 }
 .picker-list::-webkit-scrollbar { display: none; }
 /* The line under each row but the last, so a row at the list's top starts clean. */
 .picker-list > li { scroll-snap-align: start; }
 .picker-list > li:not(:last-child) { border-bottom: 1px solid var(--line); }
 .picker-list .course { width: 100%; min-height: 64px; padding: 12px 16px; border: 0; background: transparent; text-align: left; }
-.picker-list .course:active { background: var(--press); }
-.picker-list .course b { display: block; font-size: 17px; font-weight: var(--w-label); line-height: 1.3; }
-.picker-list .course span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-list .course[aria-pressed='true'] { background: var(--chosen); box-shadow: inset 4px 0 0 var(--turf); }
-.picker-list .empty { padding: 16px; font-size: 15px; }
+.picker-list .course:active { background: var(--fill-2); }
+.picker-list .course b { display: block; font-size: var(--t-l); font-weight: var(--w-label); line-height: 1.3; }
+.picker-list .course span { display: block; margin-top: 3px; font-size: var(--t-s); color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-list .course[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
+.picker-list .course[aria-pressed='true'] span { color: var(--on-dark-2); }
+.picker-list .empty { padding: 16px; font-size: var(--t-m); }
 /* The chosen course rises from the bottom as a sheet, with its nines and the start button. Where it can't all fit
    (wider type on a short screen) the course and its nines scroll inside the sheet, and 이 코스로 시작 stays on
    screen under them (v18). */
 .picker-foot {
   flex: 0 1 auto; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; padding: 16px var(--m) max(14px, env(safe-area-inset-bottom));
-  background: var(--white); border-radius: 28px 28px 0 0; box-shadow: 0 -8px 28px var(--sh-2);
+  background: var(--white); border-radius: var(--r-card) var(--r-card) 0 0; box-shadow: var(--sh-sheet);
 }
 /* 6px of room inside the scroller, given back by the margin, so focus rings and touch areas at its edges aren't cut.
    The room fades out top and bottom: empty at rest, it softens only what scrolls past the edge. */
@@ -927,42 +973,42 @@ html.past-open { overflow: hidden; }
 .pk-scroll::-webkit-scrollbar { display: none; }
 /* The chosen course's name alone (v23), whole on up to two balanced lines: its nines are the rows right under it. */
 .picker-label {
-  font-size: 17px; font-weight: var(--w-label); line-height: 1.3; text-wrap: balance;
+  font-size: var(--t-l); font-weight: var(--w-label); line-height: 1.3; text-wrap: balance;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
 /* The course name row: the chosen course, then 18홀 / 9홀 (v11), centred on the name's one or two lines. */
 .pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .pk-name .picker-label { min-width: 0; }
-.pk-holes { flex: none; font-size: 15px; font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
-.pk-len { flex: none; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--tint); }
+.pk-holes { flex: none; font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
+.pk-len { flex: none; display: flex; border-radius: var(--r-full); background: var(--fill); }
 .pk-len[hidden] { display: none; }
-.pk-len button { position: relative; min-width: 54px; height: 36px; padding: 0 10px; border-radius: 999px; font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
-.pk-len button::after { content: ''; position: absolute; inset: -6px 0; }   /* a 48px touch area */
-.pk-len button[aria-pressed='true'] { background: var(--white); color: var(--ink); box-shadow: 0 1px 3px var(--sh-2); }
+.pk-len button { position: relative; min-width: 54px; height: 42px; padding: 0 10px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
+.pk-len button::after { content: ''; position: absolute; inset: -3px 0; }   /* a 48px touch area */
+.pk-len button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 .picker-chosen { display: grid; gap: 8px; }
 .picker-chosen .small { margin: 0; }
-.picker-chosen input { width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); font: inherit; color: inherit; }
+.picker-chosen input { width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-tile); background: var(--white); font: inherit; color: inherit; }
 .nine-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
 .nine-row:has(.nine-fixed) { grid-template-columns: minmax(0, 1fr) auto; }
-.nine-label { font-size: 15px; font-weight: var(--w-label); color: var(--muted); }
+.nine-label { font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
 /* The nines as equal columns, so 전반 and 후반 read as one grid; a longer name widens only its own column, and many
    nines scroll sideways (v17). */
 .nine-pick { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: 14px; background: var(--tint); font-size: 15px; font-weight: var(--w-label); }
+.nine-pick button { position: relative; min-width: 64px; height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-tile); background: var(--fill); font-size: var(--t-m); font-weight: var(--w-label); }
 .nine-pick button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
-.nine-pick button[aria-checked='true'] { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
-.nine-fixed { min-width: 0; font-size: 15px; font-weight: var(--w-label); }
-.nine-row .swap { min-height: 44px; padding: 0 14px; font-size: 15px; }
-.picker-foot > .btn { flex: none; min-height: 52px; font-size: 17px; }
+.nine-pick button[aria-checked='true'] { background: var(--turf); color: var(--on-dark); }
+.nine-fixed { min-width: 0; font-size: var(--t-m); font-weight: var(--w-label); }
+.nine-row .swap { min-height: 44px; padding: 0 14px; font-size: var(--t-m); }
+.picker-foot > .btn { flex: none; min-height: 52px; font-size: var(--t-l); }
 @media (max-height: 599px) {
   .pk-brand { display: none; }
-  .picker-head h2 { margin-top: 0; font-size: 28px; }
+  .picker-head h2 { margin-top: 0; font-size: calc(var(--t-2xl) * .82); }
   .picker-areas { margin-top: 14px; }
   .picker-list { margin-top: 14px; }
 }
 
 /* ---------- round summary: what the recorded holes say ---------- */
-.sum-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 32px var(--sh-3); }
+.sum-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: var(--sh-sheet); }
 /* The round buttons never leave the screen (v23): everything above them is one scrolling body, which on a short screen
    or in 큰 글씨 scrolls under them; a hairline over them says so, only while it can. */
 #summary[open] { display: flex; flex-direction: column; overflow: hidden; }
@@ -972,60 +1018,60 @@ html.past-open { overflow: hidden; }
 .sum-body::-webkit-scrollbar { display: none; }
 /* 클럽 상세's close (v23): a 44px disc with a 48px touch area, centred on the title's line, the preview well clear below. */
 .sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: start; }
-.sum-head h2 { font-size: 22px; font-weight: var(--w-label); text-wrap: balance; }
-.sum-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
-.sum-close { position: relative; width: 44px; height: 44px; margin-top: calc((22px * 1.45 - 44px) / 2); border-radius: 50%; background: var(--tint); color: var(--ink); display: grid; place-items: center; }
+.sum-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); text-wrap: balance; }
+.sum-head p { font-size: var(--t-s); color: var(--muted); margin-top: 2px; }
+.sum-close { position: relative; width: 44px; height: 44px; margin-top: calc((22px * 1.45 - 44px) / 2); border-radius: var(--r-full); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
 .sum-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-columns: auto; column-gap: 16px; align-items: center; }
 /* The ring's white gap and hairline are drawn inside its 80px box (v23), so the box is the edge the eye sees: a 70px
    disc on the content box, toned through background-color so the clip stays. */
 .sum-ring {
-  width: 80px; height: 80px; padding: 5px; border-radius: 50%; background: var(--deep) content-box; color: var(--on-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--line);
+  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-full); background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1.5px solid var(--line); outline-offset: -1.5px;
 }
 .sum-ring[data-tone='under'] { background-color: var(--red); }
 .sum-ring[data-tone='par'] { background-color: var(--turf); }
-.sum-ring b { font-size: 30px; font-weight: var(--w-value); line-height: 1; }
-.sum-ring span { font-size: 13px; font-weight: var(--w-label); margin-top: 3px; }
+.sum-ring b { font-size: var(--t-2xl); font-weight: var(--w-value); line-height: 1; }
+.sum-ring span { font-size: var(--t-s); font-weight: var(--w-label); margin-top: 3px; }
 /* 파 대비 as a label, the score as the value (v23). */
-.sum-hero-txt .big { font-size: 22px; font-weight: var(--w-label); }
+.sum-hero-txt .big { font-size: var(--t-xl); font-weight: var(--w-label); }
 #sum-vs b { font-weight: var(--w-value); }
 #sum-vs .under { color: var(--red); }
-#sum-vs .none { font-size: 17px; font-weight: var(--w-help); }
-.sum-hero-txt p + p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+#sum-vs .none { font-size: var(--t-l); font-weight: var(--w-help); }
+.sum-hero-txt p + p { font-size: var(--t-s); color: var(--muted); margin-top: 4px; }
 /* The image 공유 sends (v17): 4:5 like the image, at the inner right edge, centred on the ring's line and smaller than
    the ring, so the score leads and the close button keeps its room. Deep turf, the image's own ground, holds its place
    until it is drawn; then it fades in with a badge for what a tap does (share, or save where files cannot be shared). */
 .sum-card {
-  position: relative; grid-column: 3; width: 56px; height: 70px; border-radius: 10px; overflow: hidden;
-  background: var(--deep); box-shadow: var(--lift); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  position: relative; grid-column: 3; width: 56px; height: 70px; border-radius: var(--r-tile); overflow: hidden;
+  background: var(--deep); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .sum-card img { display: block; width: 100%; height: 100%; animation: fn-fade .2s ease-out; }
 .sum-card:active img { opacity: .82; }
 .sum-badge {
-  position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--tint); color: var(--turf); display: grid; place-items: center; box-shadow: 0 1px 3px var(--sh-3);
+  position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: var(--r-full);
+  background: var(--fill); color: var(--turf); display: grid; place-items: center; outline: 2px solid var(--white);
 }
 .sum-card[data-state='drawing'] .sum-badge, .sum-card[data-act='share'] .b-save, .sum-card[data-act='save'] .b-share { display: none; }
 @media (prefers-reduced-motion: reduce) { .sum-card img { animation: none; } }
 /* Narrower beside the preview, the line under the score breaks evenly, between its sentences where it can. */
 .sum-hero-txt p + p { text-wrap: balance; }
 .sum-marks { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.sum-marks li { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 14px; background: var(--paper); }
-.sum-marks small { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.sum-marks li { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: var(--r-tile); background: var(--paper); }
+.sum-marks small { font-size: var(--t-s); color: var(--muted); white-space: nowrap; }
 /* One value per tile, on one line (v23); an odd last tile spans the row. */
 .sum-stats { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.sum-stats div { padding: 7px 12px; border-radius: 16px; background: var(--paper); min-width: 0; }
-.sum-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.sum-stats dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
-.sum-stats dd { margin: 3px 0 0; font-size: 17px; font-weight: var(--w-value); white-space: nowrap; }
-.sum-stats dd small { font-size: 13px; font-weight: var(--w-help); color: var(--muted); margin-left: 4px; }
+.sum-stats div { padding: 7px 12px; border-radius: var(--r-tile); background: var(--paper); min-width: 0; }
+.sum-stats:has(> div:last-child:nth-child(odd)) > div:first-child { grid-column: 1 / -1; }
+.sum-stats dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
+.sum-stats dd { margin: 3px 0 0; font-size: var(--t-l); font-weight: var(--w-value); white-space: nowrap; }
+.sum-stats dd small { font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); margin-left: 4px; }
 /* Said once under the tiles, on their text's edge, while no tee result is recorded. */
-.sum-hint { margin: 6px 12px 0; font-size: 13px; font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
+.sum-hint { margin: 6px 12px 0; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); text-wrap: pretty; }
 /* Where the round lost most: the label, 8px, then the value, no colon (v23); otherwise one plain sentence. */
 .sum-insight {
-  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: 16px;
-  background: var(--sand-tint); font-size: 15px; font-weight: var(--w-help);
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 8px; padding: 10px 12px; border-radius: var(--r-tile);
+  background: var(--paper); font-size: var(--t-m); font-weight: var(--w-help);
 }
 .sum-insight span { font-weight: var(--w-label); }
 .sum-insight b { font-weight: var(--w-value); }
@@ -1038,27 +1084,31 @@ html.past-open { overflow: hidden; }
 #summary[data-overflow] .sum-actions::before { opacity: 1; }
 /* The same round buttons in a past round (v23). */
 .sum-actions > *, .round-actions > * {
-  flex: none; width: 52px; height: 52px; border-radius: 999px; background: var(--tint); font-size: 15px; font-weight: var(--w-label);
+  flex: none; width: 52px; height: 52px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-m); font-weight: var(--w-label);
   color: var(--turf); display: grid; place-items: center; text-decoration: none;
 }
-.sum-actions .primary { flex: 1; width: auto; min-width: 0; background: var(--action); color: var(--on-action); font-size: 17px; }
-.sum-actions .primary:disabled { background: var(--off); color: var(--off-ink); }
-.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: 999px; background: var(--white); color: var(--turf); font-size: 17px; font-weight: var(--w-label); box-shadow: inset 0 0 0 2px var(--turf); }
+.sum-actions .primary { flex: 1; width: auto; min-width: 0; background: var(--action); color: var(--on-action); font-size: var(--t-l); }
+.sum-actions .primary:disabled { background: var(--fill); color: var(--off-ink); }
+.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
 
 /* ---------- press (v23): every control outside 기록 answers a tap with its colour, as 기록's do; colour only ----------
    The tap highlight is off, so without this a press in sunlight reads as "didn't work" and invites a second tap.
-   Resting tint turns --press, a filled button --action-press, a white one --tint; on the dark picker a light chip turns
-   --veil and a glass button --press-on-dark; the danger button turns --red-tint, its red deepened so it still reads 4.5:1. */
+   A resting fill turns --fill-2 with ink letters (v30: turf on --fill-2 is under 4.5:1), a filled button --action-press,
+   a white one --fill; on the dark picker a white chip turns --fill and a button on the rough --rough-press; the danger
+   button turns --red-tint, its red deepened so it still reads 4.5:1. */
 .btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
 .ct-col, .sum-actions > *, .round-actions > * {
   transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
 }
 .btn:active, .sum-close:active, .menu-close:active, .check-actions button:active, .nine-pick button:active, .pk-len button:active, .sc-switch button:active,
-button.ct-col:active, .sum-actions > :active, .round-actions > :active { background-color: var(--press); }
-.btn.primary:active, .sh-go:active, .edit.on:active, .check-actions .primary:active, .sum-actions .primary:active:not(:disabled) { background-color: var(--action-press); }
-.edit:not(.on):active, .sc-finish:active { background-color: var(--tint); }
-.picker .chip:active { background-color: var(--veil); }
-.picker-head .btn:active { background-color: var(--press-on-dark); }
+button.ct-col:active, .sum-actions > :active, .round-actions > :active { background-color: var(--fill-2); color: var(--ink); }
+.btn.primary:active, .sh-go:active, .check-actions .primary:active, .sum-actions .primary:active:not(:disabled) { background-color: var(--action-press); }
+.edit:not(.on):active { background-color: var(--fill); }
+.edit.on:active { background-color: var(--turf-press); }
+.sc-finish:active { background-color: var(--fill-2); color: var(--ink); }
+.picker .chip:active { background-color: var(--rough-press); }
+.picker .chip[aria-pressed='true']:active { background-color: var(--fill); }
+.picker-head .btn:active { background-color: var(--rough-press); color: var(--on-dark); }
 .pk-missing .btn:not(.primary):active { background-color: var(--white); }
 .btn.danger:active { background-color: var(--red-tint); color: var(--red-ink); }
 @media (prefers-reduced-motion: reduce) {
@@ -1085,13 +1135,13 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .ct, .strip-row, .sum-marks, .np-row, .sum-stats dd, .metrics dd, .lost-bars .v, .bar-value, .past-score, .tot b, .now .big, .chip, .prog { font-variant-numeric: tabular-nums; }
 
 /* ---------- first-run and empty states (v13) ---------- */
-.pk-first { grid-column: 1 / -1; grid-row: 3; margin-top: 4px; font-size: 15px; font-weight: var(--w-help); color: var(--on-dark-soft); }
+.pk-first { grid-column: 1 / -1; grid-row: 3; margin-top: 4px; font-size: var(--t-m); font-weight: var(--w-help); color: var(--on-dark-soft); }
 .pk-first[hidden] { display: none; }
 @media (max-height: 599px) { .pk-first { display: none; } }
 .hist-empty { display: grid; justify-items: center; gap: 4px; padding: 16px 8px 8px; text-align: center; }
 .hist-empty[hidden] { display: none; }
-.hist-empty .he-1 { margin-top: 6px; font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
-.hist-empty .he-2 { font-size: 15px; color: var(--muted); text-wrap: pretty; }
+.hist-empty .he-1 { margin-top: 6px; font-size: var(--t-l); font-weight: var(--w-label); text-wrap: balance; }
+.hist-empty .he-2 { font-size: var(--t-m); color: var(--muted); text-wrap: pretty; }
 
 /* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
 /* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v17). */
@@ -1099,40 +1149,40 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .sc-hero[hidden], .sh-empty[hidden] { display: none; }
 /* The same ring as 라운드 요약's: 80px, 16px to the text (v17), its halo inside the box (v23). */
 .sh-ring {
-  width: 80px; height: 80px; padding: 5px; border-radius: 50%; background: var(--deep) content-box; color: var(--on-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--line);
+  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-full); background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1.5px solid var(--line); outline-offset: -1.5px;
 }
 .sh-ring[data-tone='under'] { background-color: var(--red); }
 .sh-ring[data-tone='par'] { background-color: var(--turf); }
-.sh-ring b { font-size: 30px; font-weight: var(--w-value); line-height: 1; font-variant-numeric: tabular-nums; }
-.sh-ring span { margin-top: 3px; font-size: 13px; font-weight: var(--w-label); }
+.sh-ring b { font-size: var(--t-2xl); font-weight: var(--w-value); line-height: 1; font-variant-numeric: tabular-nums; }
+.sh-ring span { margin-top: 3px; font-size: var(--t-s); font-weight: var(--w-label); }
 /* 파 대비 as a label, the score as its value (v23). */
-.sh-topar { font-size: 22px; font-weight: var(--w-label); font-variant-numeric: tabular-nums; }
+.sh-topar { font-size: var(--t-xl); font-weight: var(--w-label); font-variant-numeric: tabular-nums; }
 #sum-topar { font-weight: var(--w-value); }
 .sh-topar .under { color: var(--red); }
-.sh-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
+.sh-sub { margin-top: 4px; font-size: var(--t-s); color: var(--muted); }
 .sh-stats { grid-column: 1 / -1; margin: 12px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.sh-stats div { padding: 8px 12px; border-radius: 14px; background: var(--paper); }
-.sh-stats dt { font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
-.sh-stats dd { margin: 2px 0 0; font-size: 17px; font-weight: var(--w-value); font-variant-numeric: tabular-nums; }
+.sh-stats div { padding: 8px 12px; border-radius: var(--r-tile); background: var(--paper); }
+.sh-stats dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
+.sh-stats dd { margin: 2px 0 0; font-size: var(--t-l); font-weight: var(--w-value); font-variant-numeric: tabular-nums; }
 .sh-empty { padding: 6px 0 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
-.sh-e1 { font-size: 17px; font-weight: var(--w-label); text-wrap: balance; }
-.sh-e2 { margin-top: 4px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
-.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 15px; font-weight: var(--w-label); }
+.sh-e1 { font-size: var(--t-l); font-weight: var(--w-label); text-wrap: balance; }
+.sh-e2 { margin-top: 4px; font-size: var(--t-s); color: var(--muted); text-wrap: pretty; }
+.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: var(--r-full); background: var(--action); color: var(--on-action); font-size: var(--t-m); font-weight: var(--w-label); }
 /* Each nine as one table, the same shape in every mode (v23): the label column, nine hole columns and the sum column on
    one grid, each column four rows (26 / 26 / 40 / 26). On the round being recorded a hole's column is a button as tall
    as the table, about 24px wide at 360 (WCAG 2.5.8), with the hole strip's 48×64 cells one tap away on the hole number. */
 .nine-tbl { margin-top: 16px; color: var(--ink); }
 .nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 0 8px; }
-.nt-h b { font-size: 17px; font-weight: var(--w-label); }
-.nt-h small { font-size: 13px; color: var(--muted); }
-.ct { position: relative; display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: 14px; overflow: hidden; background: var(--white); font-variant-numeric: tabular-nums; }
+.nt-h b { font-size: var(--t-l); font-weight: var(--w-label); }
+.nt-h small { font-size: var(--t-s); color: var(--muted); }
+.ct { position: relative; display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: var(--r-tile); overflow: hidden; background: var(--white); font-variant-numeric: tabular-nums; }
 /* The hairline round the table is drawn over the cells (v23): under them, the header row and the sum column covered it,
    and on a past round's paper the sum column seemed to stand outside its table. */
-.ct::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--line); pointer-events: none; }
+.ct::after { content: ''; position: absolute; inset: 0; border-radius: inherit; outline: 1px solid var(--line); outline-offset: -1px; pointer-events: none; }
 .ct > * { display: flex; flex-direction: column; min-width: 0; }
-.ct :is(.c-hole, .c-par, .c-score, .c-putt) { display: grid; place-items: center; min-width: 0; height: 26px; font-size: 13px; }
-.ct .c-hole { background: var(--pill); font-weight: var(--w-label); }
+.ct :is(.c-hole, .c-par, .c-score, .c-putt) { display: grid; place-items: center; min-width: 0; height: 26px; font-size: var(--t-s); }
+.ct .c-hole { background: var(--fill); font-weight: var(--w-label); }
 .ct .c-par { color: var(--muted); border-bottom: 1px solid var(--line); }
 .ct .c-score { height: 40px; }
 .ct .c-putt { color: var(--muted); border-top: 1px solid var(--line); }
@@ -1142,92 +1192,71 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .ct-sum :is(.c-hole, .c-par, .c-score, .c-putt) { color: var(--ink); font-weight: var(--w-value); }
 .ct-sum .c-hole { background: var(--line); font-weight: var(--w-label); }
 .ct-col { color: var(--ink); }
-.ct-col.cur { background-color: var(--cur); }
-.ct-col.cur .c-hole { background: var(--action); color: var(--on-action); }
+.ct-col.cur { background-color: var(--fill); }
+.ct-col.cur .c-hole { background: var(--turf); color: var(--on-dark); }
 /* Inset, so the table's rounded clip never cuts the ring. */
 button.ct-col:focus-visible { outline-offset: -3px; }
 /* 파 수정: each par cell reads as a key in the same column (nothing moves); a par changed from the course's is chosen. */
 .ct.editing .ct-col .c-par { position: relative; isolation: isolate; color: var(--ink); font-weight: var(--w-value); }
-.ct.editing .ct-col .c-par::before { content: ''; position: absolute; z-index: -1; inset: 2px 2px 3px; border-radius: 6px; background: var(--tint); box-shadow: inset 0 0 0 1.5px var(--fairway); }
-.ct.editing .ct-col .c-par.changed::before { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
+.ct.editing .ct-col .c-par::before { content: ''; position: absolute; z-index: -1; inset: 2px 2px 3px; border-radius: var(--r-tile); background: var(--fill); outline: 1.5px solid var(--fairway); outline-offset: -1.5px; }
+.ct.editing .ct-col .c-par.changed { color: var(--on-dark); }
+.ct.editing .ct-col .c-par.changed::before { background: var(--turf); outline: none; }
 /* A 34px mark is wider than a hole's column (24–30px), and a grid item that overflows its column is put at the start
    instead of the middle, so the mark drifted 2–5px right of the hole number. The negative margin keeps its box narrower
    than any column; the drawn mark, scaled about its own middle, then sits on the column's middle (v17). */
 .ct .m { transform: scale(.76); margin-inline: -8px; }
-body.big .ct :is(.c-hole, .c-par, .c-score, .c-putt) { font-size: 15px; }
+body.big .ct :is(.c-hole, .c-par, .c-score, .c-putt) { font-size: var(--t-m); }
 
 /* The course drawing's distance markers (100 m, 150 m) in a tall band. */
-#course .marker text { font-size: 13px; font-weight: var(--w-label); fill: var(--on-dark); }
-/* The drawn course, the small hole picture and the empty history's flag (v19): every fill and stop from the palette,
-   with the stripes, grain and shadows as translucent layers. The grain tiles read their tints from the tokens (v22). */
-.a-rough-hi { stop-color: var(--art-rough-hi); }
-.a-rough { stop-color: var(--rough); }
-.a-rough-lo { stop-color: var(--art-rough-lo); }
+#course .marker text { font-size: var(--t-s); font-weight: var(--w-label); fill: var(--on-dark); }
+/* The drawn course, the small hole picture and the empty history's flag (v31): flat fills from the palette, as a yardage
+   book draws a hole in plan; one edge colour for the grass's edges (the fairway's first cut, the green's fringe), and the
+   deep line for what must read on any ground (the shore: water was 1.26:1 on the fairway; the pole: white was 2.1:1 on
+   the green). */
 .a-rough-fill { fill: var(--rough); }
-.a-dark-0 { stop-color: var(--deep); stop-opacity: 0; }
-.a-vignette { stop-color: var(--deep); stop-opacity: var(--art-vignette); }
-.a-shade { stop-color: var(--deep); stop-opacity: var(--art-shade); }
-.a-edge-soft { stroke: var(--art-edge-soft); }
-.a-edge { stroke: var(--art-edge); }
 .a-cut { stroke: var(--art-cut); }
+#course .fairway { fill: var(--fairway); }
+.a-sand { fill: var(--sand); }
+#course .water { fill: var(--water); stroke: var(--deep); }
+.a-fringe { fill: var(--art-cut); }
+#course :is(.green, .green2, .tee), .a-tee-fill { fill: var(--putting); }
+/* An OpenStreetMap hole's other tees, quieter than the back tee the line of play starts from (v33 critique: a row of bright
+   tees read as a ball's flight). */
+#course .tee2 { fill: var(--fairway); }
 .th-fairway { stroke: var(--fairway); }
-/* The fairway's fill, lit from the top left (v22). */
-.a-fw-lit { stop-color: var(--art-fairway-lit); }
-.a-fw { stop-color: var(--fairway); }
-.a-fw-shade { stop-color: var(--art-fairway-shade); }
-.a-mow-light { stop-color: var(--art-stripe-light); }
-.a-mow-dark { stop-color: var(--art-stripe-dark); }
-.a-mow2-light { stop-color: var(--art-stripe2-light); }
-.a-mow2-dark { stop-color: var(--art-stripe2-dark); }
-.a-green-hi { stop-color: var(--art-green-hi); }
-.a-green { stop-color: var(--putting); }
-.a-green-lo { stop-color: var(--art-green-lo); }
-.a-green-fill, .th-green { fill: var(--putting); stroke: var(--art-fringe-edge); }
-.a-green-stripe { fill: var(--art-green-stripe); }
-.a-gshadow { stop-color: var(--art-green-shadow); }
-.a-fringe { fill: var(--fringe); stroke: var(--art-fringe-edge); }
-.a-collar { fill: var(--art-collar); }
-.a-tee-hi { stop-color: var(--art-tee-hi); }
-.a-tee-lo { stop-color: var(--art-tee-lo); }
-.a-tee-fill { fill: var(--art-tee-hi); }
-.a-tee-edge { fill: var(--art-tee-edge); }
-/* Bunkers and water from the hole note (v22). */
-.a-sand-lip { fill: var(--art-sand-lip); }
-.a-sand-lo { stop-color: var(--art-sand-lo); }
-.a-sand-mid { stop-color: var(--sand); }
-.a-sand-hi { stop-color: var(--art-sand-hi); }
-#course .water { stroke: var(--art-bank); }
-.a-water-deep { stop-color: var(--art-water-deep); }
-.a-water { stop-color: var(--water); }
-.a-water-shallow { stop-color: var(--art-water-shallow); }
-.a-water-glint { stroke: var(--art-water-glint); }
 .th-water { fill: var(--water); }
-.a-shadow { fill: var(--art-shadow); }
-.a-shadow-line { stroke: var(--art-shadow); }
-.a-cup { fill: var(--ink); }
+.a-green-fill, .th-green { fill: var(--putting); stroke: var(--art-cut); }
+.a-cup { fill: var(--deep); }
+.a-pole-edge { stroke: var(--deep); }
 .a-pole { stroke: var(--white); }
 .a-pole-fill { fill: var(--white); }
 .a-pole-quiet { stroke: var(--quiet); }
 .a-flag, #course .flag { fill: var(--red); }
-.a-flag-shade { fill: var(--art-flag-shade); opacity: .55; }
-.a-marker { fill: var(--white); stroke: var(--art-shadow); }
-.a-marker-label { fill: var(--scrim-dark); }
-/* The penalty stakes (src/icons.ts): OB white with a dark band, the hazard red. */
-.stake-ob { fill: var(--white); stroke: var(--ink); }
-.stake-band { fill: var(--ink); }
+.a-marker { fill: var(--white); stroke: var(--deep); }
+.a-marker-label { fill: var(--deep); }
+/* The golf icons (src/icons.ts, v31): OB a white post on grass, 해저드 a red post at water, each post with a shaded
+   side inside its line (white alone was 1.1:1 on its button, an empty outline), 벙커 a bean of sand seen from above.
+   They grow with the text in 큰 글씨, as the names under them do. */
+.stake-ob { fill: var(--white); }
+.stake-ob-side { fill: var(--quiet); stroke: none; }
 .stake-hazard { fill: var(--red); stroke: var(--red-ink); }
+.stake-hazard-side { fill: var(--red-ink); stroke: none; }
+.ic-grass { stroke: var(--turf); }
+.ic-water { stroke: var(--water); }
+.ic-sand { fill: var(--sand); }
+body.big .pen-icon svg { width: 28px; height: 28px; }
 
 /* ---------- 홀 목록: every hole at a glance, opened from the hole number ---------- */
 .strip {
   position: fixed; inset: auto 0 auto 0; margin: 0 auto; width: calc(min(100vw, 480px) - 2 * var(--m)); max-width: none;
-  padding: 12px 0 8px; border: 0; border-radius: 24px; background: var(--white); color: var(--ink);
-  box-shadow: 0 12px 32px var(--sh-3);
+  padding: 12px 0 8px; border: 0; border-radius: var(--r-card); background: var(--white); color: var(--ink);
+  box-shadow: var(--sh-raise);
 }
 .strip::backdrop { background: var(--backdrop); }
 .strip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; padding: 0 16px; }
-.strip-head h2 { font-size: 17px; font-weight: var(--w-label); }
-.strip-note { font-size: 13px; font-weight: var(--w-help); color: var(--muted); white-space: nowrap; }
-.strip-note.warn { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: var(--w-label); box-shadow: inset 0 0 0 1.5px var(--sand); }
+.strip-head h2 { font-size: var(--t-l); font-weight: var(--w-label); }
+.strip-note { font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); white-space: nowrap; }
+.strip-note.warn { height: 28px; padding: 0 10px; border-radius: var(--r-full); display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: var(--w-label); outline: 1.5px solid var(--sand); outline-offset: -1.5px; }
 /* Whole cells (v23): it opens with the two holes before this one in view, the first on the heading's edge, and comes
    to rest on a cell's start. Whatever scrolls under the 16px edges fades out there instead of being chopped through. */
 .strip-row {
@@ -1238,28 +1267,28 @@ body.big .ct :is(.c-hole, .c-par, .c-score, .c-putt) { font-size: 15px; }
 .strip-row > li { flex: none; display: flex; scroll-snap-align: start; }
 .strip-row::-webkit-scrollbar { display: none; }
 .scell {
-  flex: none; width: 48px; height: 64px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: none; width: 48px; height: 64px; border-radius: var(--r-tile); display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding-top: 5px; background: var(--white); border: 1px solid var(--line);
 }
-button.scell:active { background: var(--tint); }
-.scell .sc-no { height: 18px; font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
-.scell[aria-current='true'] { padding-top: 3.5px; border: 2.5px solid var(--turf); }
-.scell[aria-current='true'] .sc-no { color: var(--turf); }
-.scell[data-st='later'] { padding-top: 4.5px; background: var(--paper); border: 1.5px dashed var(--line-strong); }
+button.scell:active { background: var(--fill); }
+.scell .sc-no { height: 18px; font-size: var(--t-s); font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
+.scell[aria-current='true'] { background: var(--fill); }
+.scell[aria-current='true'] .sc-no { padding: 0 6px; border-radius: var(--r-full); background: var(--turf); color: var(--on-dark); }
+.scell[data-st='later'] { padding-top: 4.5px; background: var(--white); border: 1.5px dashed var(--line-strong); }
 .scell[data-st='missed'] { padding-top: 4.5px; background: var(--sand-tint); border: 1.5px dashed var(--sand-line); }
 .scell[data-st='missed'] .sc-no, .scell[data-st='missed'] .m { color: var(--sand-ink); }
-.scell.sub { background: var(--tint); border-color: transparent; }
+.scell.sub { background: var(--fill); border-color: transparent; }
 .scell.sub .sub-v { height: 34px; display: grid; place-items: center; }
 
 /* ---------- 라운드 마치기: the quick check ---------- */
 .check-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.check-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--paper); }
-.ci { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--sand-tint); color: var(--sand-ink); }
-.check-list b { display: block; font-size: 15px; font-weight: var(--w-label); }
-.check-list small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+.check-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); }
+.ci { width: 36px; height: 36px; border-radius: var(--r-tile); display: grid; place-items: center; background: var(--sand-tint); color: var(--sand-ink); }
+.check-list b { display: block; font-size: var(--t-m); font-weight: var(--w-label); }
+.check-list small { display: block; margin-top: 2px; font-size: var(--t-s); color: var(--muted); }
 .check-actions { margin-top: 14px; display: grid; gap: 8px; }
-.check-actions button { height: 52px; border-radius: 999px; background: var(--tint); color: var(--turf); font-size: 17px; font-weight: var(--w-label); }
-.check-actions .primary { background: var(--action); color: var(--on-action); }
+.check-actions button { height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
+.check-actions .primary { background: var(--action); color: var(--on-action); outline: none; }
 
 /* ---------- long-press a count: a one-row 0 … 5+ picker ---------- */
 .pill { -webkit-touch-callout: none; }
@@ -1268,53 +1297,56 @@ button.scell:active { background: var(--tint); }
 .pen.pressing .pen-icon { transform: scale(.94); transition: transform .4s ease-out; }
 .numpick {
   position: fixed; inset: auto 0 auto 0; margin: 0 auto; width: calc(min(100vw, 480px) - 2 * var(--m)); max-width: none;
-  padding: 10px var(--card-pad); border: 0; border-radius: var(--card-r); background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
+  padding: 10px var(--card-pad); border: 0; border-radius: var(--r-card); background: var(--white); color: var(--ink); box-shadow: var(--sh-raise);
 }
 .numpick::backdrop { background: var(--backdrop); }
-.np-h { padding: 2px 0 8px; font-size: 15px; font-weight: var(--w-label); }
+.np-h { padding: 2px 0 8px; font-size: var(--t-m); font-weight: var(--w-label); }
 .np-row { display: flex; justify-content: space-between; gap: 4px; }
-.np-row button { width: 48px; height: 48px; border-radius: 50%; background: var(--tint); font-size: 22px; font-weight: var(--w-value); color: var(--ink); }
-.np-row button:active { background: var(--pill); }
-.np-row button[aria-pressed='true'] { background: var(--action); color: var(--on-action); }
+.np-row button { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-xl); font-weight: var(--w-value); color: var(--ink); }
+.np-row button:active { background: var(--fill); }
+.np-row button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 @media (max-width: 369px) { .np-row { gap: 6px; } .np-row button { width: 44px; height: 44px; } }
 
 /* ---------- 메뉴: the 큰 글씨 switch, 앱 정보 ---------- */
 .mi.tg { grid-template-columns: 40px minmax(0, 1fr) 44px; }
-.sw { position: relative; width: 44px; height: 26px; border-radius: 13px; background: var(--off); box-shadow: inset 0 0 0 1.5px var(--switch-line); }
-.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px var(--sh-3); transition: transform .16s; }
+.sw { position: relative; width: 44px; height: 26px; border-radius: var(--r-full); background: var(--fill); outline: 1.5px solid var(--switch-line); outline-offset: -1.5px; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: var(--r-full); background: var(--white); transition: transform .16s; }
 .mi[aria-checked='true'] .sw { background: var(--turf); box-shadow: none; }
 .mi[aria-checked='true'] .sw::after { transform: translateX(18px); }
-.mpanel .ab-h { font-size: 15px; font-weight: var(--w-label); }
+.mpanel .ab-h { font-size: var(--t-m); font-weight: var(--w-label); }
 .mpanel .ab-h ~ .ab-h { margin-top: 14px; }
 .promise { margin: 6px 0 0; padding: 0 0 0 20px; display: grid; gap: 4px; }
 .promise li::marker { color: var(--turf); }
 .mpanel .ab-foot { margin-top: 12px; }
 
 /* ---------- 큰 글씨: about 1.15 times ---------- */
-body.big { --count: 64px; --pill-base: 452px; }
-body.big .hole-n { font-size: 40px; }
-body.big .hole-u { font-size: 20px; }
-body.big #hole-title.two .hole-n { font-size: 32px; }
-body.big #hole-title.two .hole-u { font-size: 17px; }
-body.big .chip { height: 32px; padding: 0 10px; font-size: 15px; }
+body.big { --t-count: 64px; --pill-base: 452px; --mark: 28px; }
+/* The capsule's + and − grow with the counts (v34 critique: they stayed small beside a 64px count), inside their squares. */
+body.big #entry[data-mode='detail'] { --mark: 20px; }
+body.big .hole-n { font-size: calc(var(--t-2xl) * 1.18); }
+body.big .hole-u { font-size: calc(var(--t-l) * 1.18); }
+body.big #hole-title.two .hole-n { font-size: calc(var(--t-2xl) * .94); }
+body.big #hole-title.two .hole-u { font-size: var(--t-l); }
+body.big .chip { height: 32px; padding: 0 10px; font-size: var(--t-m); }
 body.big .chip.icon { width: 32px; padding: 0; }
 body.big .notes { max-height: 28px; }
-body.big .notes li { height: 28px; font-size: 15px; }
-body.big .club-lbl { font-size: 16px; }
-body.big .pen-lbl, body.big .undo { font-size: 15px; line-height: 18px; }
-body.big .mode { font-size: 17px; }
-body.big .next { font-size: 20px; }
-body.big .toast { font-size: 17px; }
-body.big .tab-label { font-size: 15px; }
-body.big .sc-title h2 { font-size: 20px; }
+body.big .notes li { height: 28px; font-size: var(--t-m); }
+body.big .club-lbl { font-size: calc(var(--t-s) * 1.23); }
+body.big .pen-lbl, body.big .undo { font-size: var(--t-m); line-height: 18px; }
+body.big .mode { font-size: var(--t-l); }
+body.big .next { font-size: calc(var(--t-l) * 1.18); }
+body.big .toast { font-size: var(--t-l); }
+body.big .tab-label { font-size: var(--t-m); }
+body.big .sc-title h2 { font-size: calc(var(--t-l) * 1.18); }
 body.big .badge-name, body.big .legend, body.big .mi small, body.big .sum-marks small,
-body.big .check-list small, body.big .strip-note, body.big .scell .sc-no { font-size: 15px; }
-body.big .m b { font-size: 22px; }
-body.big .mi b, body.big .tot h3 { font-size: 20px; }
+body.big .check-list small, body.big .strip-note, body.big .scell .sc-no { font-size: var(--t-m); }
+body.big .m b { font-size: var(--t-xl); }
+body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 @media (max-height: 599px) {
   /* Short screens: bigger letters, the same heights. The pills keep their full height, so the counts stay as large as
      with 큰 글씨 off; the toggle gives the 2px the taller 벌타 labels take (v18). */
-  body.big { --count: 44px; --pill-base: 420px; }
+  body.big { --t-count: 44px; --pill-base: 420px; --mark: 24px; --mark-line: 2.4; }
+  body.big #entry[data-mode='detail'] { --mark: 18px; }
   body.big .chip { height: 28px; }
   body.big .modes { margin-top: 12px; }
 }
@@ -1322,13 +1354,13 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 /* ---------- one header row (v10): Par, length, HDCP and progress in one pill, then 홀 안내 ---------- */
 .info { align-items: center; flex-wrap: nowrap; }
 .meta {
-  display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: 999px;
-  background: var(--scrim); box-shadow: var(--float); font-size: 13px; font-weight: var(--w-label); white-space: nowrap; color: var(--ink);
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: var(--r-full);
+  background: var(--white); box-shadow: var(--sh-float); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; color: var(--ink);
 }
 .mt-len, .mt-hd { color: var(--muted); font-weight: var(--w-label); }
 .progress {
-  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px;
-  background: var(--scrim); box-shadow: var(--float); font-size: 13px; white-space: nowrap;
+  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-full);
+  background: var(--white); box-shadow: var(--sh-float); font-size: var(--t-s); white-space: nowrap;
 }
 .progress[hidden] + .info-chip { margin-left: auto; }
 /* Plain text in one pill like the meta pill (no chips inside a chip): how far, then the score against par. */
@@ -1336,65 +1368,71 @@ body.big .mi b, body.big .tot h3 { font-size: 20px; }
 .prog.score { font-weight: var(--w-value); color: var(--ink); }
 .prog.under { color: var(--red); }
 /* A small picture of the hole leads the row where a short screen leaves no band for the drawn hole (v15). */
-.thumb { display: none; flex: none; width: 40px; height: 28px; border-radius: 8px; overflow: hidden; box-shadow: var(--float); outline: 1px solid var(--outline-on-art); outline-offset: -1px; }
+.thumb { display: none; flex: none; width: 40px; height: 28px; border-radius: var(--r-tile); overflow: hidden; box-shadow: var(--sh-float); outline: 1px solid var(--outline-on-art); outline-offset: -1px; }
 .thumb svg { display: block; }
-@media (max-height: 599px) { .thumb { display: block; } }
+/* It shows where the band under the chips is too short to fit the hole (v33: under 50px as drawCourse measures it, which
+   sets .short-band; v15–v31: a screen under 600px tall). The drawing behind the header is then a sliver that never reads
+   as one: it steps back (v31), so the green and water there are not louder than the chips on them. */
+#entry.short-band .thumb { display: block; }
+.course-art.short-band { opacity: .4; }
 .meta.tight .mt-hd, .meta.tighter .mt-len { display: none; }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */
-.info-chip[aria-expanded='true'] { background: var(--tint); }
-.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--action); color: var(--on-action); font-size: 13px; font-weight: var(--w-value); line-height: 1; }
+.info-chip[aria-expanded='true'] { background: var(--fill); }
+.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); display: inline-grid; place-items: center; background: var(--turf); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-value); line-height: 1; }
 .hinfo {
   position: fixed; inset: auto auto auto var(--m, 12px); margin: 0; width: min(300px, calc(100vw - 24px));
-  padding: 14px 16px 6px; border: 0; border-radius: 20px; background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
+  padding: 14px 16px 6px; border: 0; border-radius: var(--r-card); background: var(--white); color: var(--ink); box-shadow: var(--sh-raise);
 }
 .hinfo::backdrop { background: var(--backdrop-light); }
 .hinfo:focus { outline: none; }
-.hi-h { font-size: 17px; font-weight: var(--w-label); }
-.hi-facts { margin-top: 2px; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+.hi-h { font-size: var(--t-l); font-weight: var(--w-label); }
+.hi-facts { margin-top: 2px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
-.hi-notes li { height: 28px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--tint); font-size: 13px; font-weight: var(--w-label); }
-.hi-none, .hi-art, .hi-osm { margin-top: 8px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+.hi-notes li { height: 28px; padding: 0 10px; border-radius: var(--r-full); display: inline-flex; align-items: center; background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); }
+.hi-none, .hi-art, .hi-osm { margin-top: 8px; font-size: var(--t-s); color: var(--muted); text-wrap: pretty; }
 /* The OpenStreetMap credit in 홀 안내 and 앱 정보 (v27): a link inside the sentence, underlined so it reads as one. */
 .hi-osm a, .ab-foot a { color: var(--turf); font-weight: var(--w-label); text-decoration: underline; text-underline-offset: 2px; }
-.hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: 15px; font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
-body.big .meta { height: 32px; font-size: 15px; }
+.hi-link { margin-top: 10px; height: 48px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); text-decoration: none; }
+body.big .meta { height: 32px; font-size: var(--t-m); }
 body.big .prog { height: 24px; }
-body.big .info-chip { font-size: 15px; }
+body.big .info-chip { font-size: var(--t-m); }
 @media (max-height: 599px) { body.big .meta { height: 28px; } body.big .prog { height: 20px; } }
 
 /* ---------- saved records gone or unreadable: the first screen's card ---------- */
-.pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: 24px; background: var(--sand-tint); box-shadow: inset 0 0 0 1.5px var(--sand), 0 8px 24px var(--sh-2); color: var(--sand-ink); }
+.pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: var(--r-card); background: var(--sand-tint); box-shadow: var(--sh-raise); outline: 1.5px solid var(--sand); outline-offset: -1.5px; color: var(--sand-ink); }
 .pk-missing[hidden] { display: none; }
 .pk-missing .nc-head { display: flex; align-items: center; gap: 10px; }
-.pk-missing h3 { margin: 0; font-size: 17px; font-weight: var(--w-label); color: var(--ink); }
-.pk-missing .nc-ico { background: var(--veil); color: var(--sand-ink); }
-.pk-missing > p { margin-top: 8px; font-size: 15px; line-height: 1.45; }
+.pk-missing h3 { margin: 0; font-size: var(--t-l); font-weight: var(--w-label); color: var(--ink); }
+.pk-missing .nc-ico { background: var(--white); color: var(--sand-ink); }
+.pk-missing > p { margin-top: 8px; font-size: var(--t-m); line-height: 1.45; }
 .pk-missing .pm-status:empty { display: none; }
 .pk-missing .pm-status { font-weight: var(--w-label); }
-.pk-missing .btn:not(.primary) { background: var(--veil); }
+.pk-missing .btn:not(.primary) { background: var(--white); }
 
 /* ---------- the home-screen card on 지난 라운드 ---------- */
 .home-card .nc-head { display: flex; align-items: center; gap: 10px; }
-.home-card .nc-head h3 { margin: 0; font-size: 15px; font-weight: var(--w-label); }
-.nc-ico { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--tint); color: var(--turf); }
-.hc-more > p, .hc-text { margin-top: 10px; font-size: 15px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.home-card .nc-head h3 { margin: 0; font-size: var(--t-m); font-weight: var(--w-label); }
+.nc-ico { flex: none; width: 36px; height: 36px; border-radius: var(--r-tile); display: grid; place-items: center; background: var(--fill); color: var(--turf); }
+.hc-more > p, .hc-text { margin-top: 10px; font-size: var(--t-m); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 .steps { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-.steps li { padding: 10px 12px; border-radius: 14px; background: var(--paper); font-size: 15px; line-height: 1.5; }
-.steps b { display: block; font-size: 13px; font-weight: var(--w-label); color: var(--muted); }
+.steps li { padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); font-size: var(--t-m); line-height: 1.5; }
+.steps b { display: block; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 /* Chrome's ⋮ menu, drawn in the sentence (v25: the font has no ⋮): 1.1em with its middle 0.35em over the baseline,
    the middle of the Hangul beside it, so it scales with 큰 글씨. Its dots are 0.17em wide in that box, so -0.2em each
    side leaves about the air a ⋮ glyph would have between the words. */
 .steps .kebab { display: inline-block; width: 1.1em; height: 1.1em; margin-inline: -0.2em; vertical-align: -0.2em; }
 .nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
-/* ---------- the long-press coach mark: once, on hole 1 of the first round (centred on the midline's count row) ---------- */
+/* ---------- the long-press coach mark: once, on hole 1 of the first round, on the capsules' midline ----------
+   Over the capsule row, not inside the middle capsule (v32): the capsule clips what it holds, and cut the line to
+   "를 길게 누르면 바…". Centred on the card like 상세's tip, where the counts sit; 기본 only, as before. */
 .coach {
-  position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
-  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: 999px;
-  background: var(--deep-glass); color: var(--on-dark); font-size: 15px; font-weight: var(--w-label); box-shadow: 0 6px 16px var(--sh-3);
+  position: absolute; z-index: 2; left: 50%; top: calc(var(--lbl-h) + var(--pill-h) / 2); transform: translate(-50%, -50%); pointer-events: none;
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: var(--r-full);
+  background: var(--deep); color: var(--on-dark); font-size: var(--t-m); font-weight: var(--w-label); box-shadow: var(--sh-raise);
 }
-.coach[hidden] { display: none; }
+.coach[hidden], #entry[data-mode='detail'] .coach { display: none; }
 /* The counts are all 0 under it; hidden so they do not peek out. */
 .clubs.coached .count { visibility: hidden; }
 @media (max-height: 599px) { #entry[data-mode='detail'] .ticks { display: none; } }
@@ -1411,8 +1449,8 @@ body.big .info-chip { font-size: 15px; }
    eye and 48px to the finger. Only a choice is filled: fairway for a chip, turf for the shot, sand for an OB. */
 .shot-panel {
   position: fixed; inset: auto; margin: 0; width: calc(min(100vw, 480px) - 2 * var(--m) - 32px); max-width: none; max-height: calc(100dvh - 16px);
-  overflow: hidden auto; overscroll-behavior: contain; padding: 12px; border: 0; border-radius: var(--card-r, 24px);
-  background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
+  overflow: hidden auto; overscroll-behavior: contain; padding: 12px; border: 0; border-radius: var(--r-card);
+  background: var(--white); color: var(--ink); box-shadow: var(--sh-raise);
 }
 .shot-panel[open] { display: grid; gap: 12px; animation: fn-rise .16s ease-out; }
 .shot-panel::backdrop { background: var(--backdrop); }
@@ -1424,51 +1462,51 @@ body.big .info-chip { font-size: 15px; }
 .sp-ico { color: var(--turf); }
 .sp-title { display: grid; min-width: 0; }
 .sp-club, .sp-shot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sp-club { font-size: 17px; font-weight: var(--w-label); line-height: 22px; }
-.sp-shot { font-size: 13px; font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
+.sp-club { font-size: var(--t-l); font-weight: var(--w-label); line-height: 22px; }
+.sp-shot { font-size: var(--t-s); font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
 /* 세컨's and 어프로치's panels say what they are under their name (v28), in helper text. */
-.sp-help { font-size: 13px; font-weight: var(--w-help); line-height: 18px; color: var(--muted); text-wrap: pretty; }
-body.big .sp-help { font-size: 15px; line-height: 20px; }
-.sp-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
+.sp-help { font-size: var(--t-s); font-weight: var(--w-help); line-height: 18px; color: var(--muted); text-wrap: pretty; }
+body.big .sp-help { font-size: var(--t-m); line-height: 20px; }
+.sp-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .sp-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
-.sp-close:active { background: var(--pill); }
+.sp-close:active { background: var(--fill); }
 /* Which shot the chips write, with two or more, five across at most: numbers as in the 0 … 5+ picker, the chosen one
    turf with white, a dot on those with a detail. */
 .sp-shots { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 8px; }
 .sp-shots button {
-  position: relative; height: 44px; border-radius: 12px; background: var(--tint); color: var(--ink); font-size: 17px; font-weight: var(--w-value);
+  position: relative; height: 44px; border-radius: var(--r-tile); background: var(--fill); color: var(--ink); font-size: var(--t-l); font-weight: var(--w-value);
   transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
 }
 .sp-shots button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
-.sp-shots button:active { background: var(--pill); }
-.sp-shots button[aria-pressed='true'] { background: var(--action); color: var(--on-action); }
-.sp-dot { position: absolute; left: calc(50% + 8px); top: calc(50% - 9px); width: 6px; height: 6px; border-radius: 50%; background: var(--turf); opacity: 0; }
-.sp-shots button[aria-pressed='true'] .sp-dot { background: var(--on-action); }
+.sp-shots button:active { background: var(--fill); }
+.sp-shots button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
+.sp-dot { position: absolute; left: calc(50% + 8px); top: calc(50% - 9px); width: 6px; height: 6px; border-radius: var(--r-full); background: var(--turf); opacity: 0; }
+.sp-shots button[aria-pressed='true'] .sp-dot { background: var(--on-dark); }
 .sp-shots button.tagged .sp-dot { opacity: 1; }
 /* The chips: one six-column grid, three across or two across, with the same gap both ways. */
 .sp-chips { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .sp-chip {
-  position: relative; grid-column: span 2; height: 44px; min-width: 0; padding: 0 4px; border-radius: 12px;
+  position: relative; grid-column: span 2; height: 44px; min-width: 0; padding: 0 4px; border-radius: var(--r-tile);
   display: flex; align-items: center; justify-content: center; gap: 3px;
-  background: var(--tint); color: var(--ink); font-size: 15px; font-weight: var(--w-label); white-space: nowrap;
+  background: var(--fill); color: var(--ink); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap;
   transition-property: background-color, box-shadow; transition-duration: .12s; transition-timing-function: ease-out;
 }
 .sp-chip svg { flex: none; }
 .sp-chip.half { grid-column: span 3; }
 .sp-chip::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
-.sp-chip[aria-pressed='true'] { background: var(--select); box-shadow: inset 0 0 0 2px var(--turf); }
+.sp-chip[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 /* An OB chip adds a penalty stroke (unless the OB is counted already): outlined in the penalty stake's sand, filled
    with it when chosen. */
-.sp-chip.ob { box-shadow: inset 0 0 0 1.5px var(--sand); }
-.sp-chip.ob[aria-pressed='true'] { background: var(--sand); box-shadow: none; }
-.sp-chip:active { background: var(--pill); }
-body.big .sp-club { font-size: 20px; line-height: 24px; }
-body.big .sp-shot { font-size: 15px; line-height: 20px; }
-body.big .sp-chip { font-size: 17px; }
-body.big .sp-shots button { font-size: 20px; }
+.sp-chip.ob { outline: 1.5px solid var(--sand); outline-offset: -1.5px; }
+.sp-chip.ob[aria-pressed='true'] { outline: none; }
+.sp-chip:active { background: var(--fill); }
+body.big .sp-club { font-size: calc(var(--t-l) * 1.18); line-height: 24px; }
+body.big .sp-shot { font-size: var(--t-m); line-height: 20px; }
+body.big .sp-chip { font-size: var(--t-l); }
+body.big .sp-shots button { font-size: calc(var(--t-l) * 1.18); }
 @media (prefers-reduced-motion: reduce) {
   .shot-panel[open], .shot-panel[open]::backdrop { animation: none; }
-  .lbl-dot, .lbl-in, .step, .step span, .sp-chip, .sp-shots button { transition: none; }
+  .lbl-dot, .lbl-in, .step, .sp-chip, .sp-shots button { transition: none; }
   .cue { animation: none; }
 }
 
@@ -1477,9 +1515,9 @@ body.big .sp-shots button { font-size: 20px; }
    다음 홀. 다음 홀 keeps its right edge, where a right thumb lands, and gives the button its width and an 8px gap. */
 .vc-open {
   position: absolute; z-index: 1; left: var(--m); bottom: var(--next-m); width: var(--next-h); height: var(--next-h);
-  border-radius: 50%; display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--float);
+  border-radius: var(--r-full); display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
 }
-.vc-open:active { background: var(--press); }
+.vc-open:active { background: var(--fill-2); }
 .vc-open:not([hidden]) + .next { margin-left: calc(var(--m) + var(--next-h) + 8px); }
 /* The sheet hangs from the top, on the card's edges, so the keyboard below never covers the field. Its top is the
    badge's, which rises (60 − 56) / 2 px above the bar's row, so nothing of the top bar peeks out above it. */
@@ -1487,42 +1525,42 @@ body.big .sp-shots button { font-size: 20px; }
   position: fixed; inset: calc(max(8px, env(safe-area-inset-top)) - (var(--badge) - var(--bar-row)) / 2) 0 auto; margin: 0 auto;
   width: min(calc(100% - 2 * var(--m)), calc(480px - 2 * var(--m))); max-width: none;
   max-height: calc(100dvh - 2 * max(8px, env(safe-area-inset-top))); overflow-y: auto; overscroll-behavior: contain;
-  padding: var(--card-pad); border: 0; border-radius: var(--card-r);
-  background: var(--white); color: var(--ink); box-shadow: 0 12px 32px var(--sh-3);
+  padding: var(--card-pad); border: 0; border-radius: var(--r-card);
+  background: var(--white); color: var(--ink); box-shadow: var(--sh-raise);
 }
 .vc-sheet::backdrop { background: var(--backdrop); }
 .vc-sheet[open] { animation: fn-rise .16s ease-out; }
 .vc-sheet[open]::backdrop { animation: fn-fade .16s ease-out; }
 .vc-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: center; }
-.vc-head h2 { font-size: 17px; font-weight: var(--w-label); line-height: 22px; }
-.vc-close { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--tint); color: var(--ink); }
+.vc-head h2 { font-size: var(--t-l); font-weight: var(--w-label); line-height: 22px; }
+.vc-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .vc-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
-.vc-close:active { background: var(--press); }
+.vc-close:active { background: var(--fill-2); }
 /* The field: a 52px pill with 입력 inside it, 4px in all round, so the two curves share a centre (22 + 4 = 26). */
 .vc-field {
   margin-top: 12px; height: var(--next-h); display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 18px;
-  border-radius: calc(var(--next-h) / 2); background: var(--tint);
+  border-radius: var(--r-full); background: var(--fill);
 }
-.vc-field:focus-within { box-shadow: inset 0 0 0 2px var(--turf); }
+.vc-field:focus-within { outline: 2px solid var(--turf); outline-offset: -2px; }
 .vc-line {
   flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: none;
-  font: inherit; font-size: 17px; color: var(--ink);
+  font: inherit; font-size: var(--t-l); color: var(--ink);
 }
 .vc-line::placeholder { color: var(--muted); }
 /* After a line it could not read, the line is selected for the next dictation to replace: in the palette's chosen tint. */
-.vc-line::selection { background: var(--select); color: var(--ink); }
+.vc-line::selection { background: var(--fill-2); color: var(--ink); }
 .vc-go {
-  flex: none; height: 44px; padding: 0 18px; border-radius: 22px;
-  background: var(--action); color: var(--on-action); font-size: 15px; font-weight: var(--w-label);
+  flex: none; height: 44px; padding: 0 18px; border-radius: var(--r-full);
+  background: var(--action); color: var(--on-action); font-size: var(--t-m); font-weight: var(--w-label);
 }
 .vc-go:active { background: var(--action-press); }
-.vc-error { margin-top: 8px; font-size: 15px; font-weight: var(--w-label); line-height: 20px; color: var(--red-ink); text-wrap: pretty; }
-.vc-help { margin-top: 12px; font-size: 15px; line-height: 20px; text-wrap: pretty; }
-.vc-ex { margin-top: 2px; font-size: 15px; line-height: 20px; color: var(--muted); text-wrap: pretty; }
-.vc-privacy { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 18px; color: var(--muted); text-wrap: pretty; }
-body.big .vc-head h2 { font-size: 20px; line-height: 24px; }
-body.big .vc-help, body.big .vc-ex, body.big .vc-error { font-size: 17px; line-height: 22px; }
-body.big .vc-privacy { font-size: 15px; line-height: 20px; }
+.vc-error { margin-top: 8px; font-size: var(--t-m); font-weight: var(--w-label); line-height: 20px; color: var(--red-ink); text-wrap: pretty; }
+.vc-help { margin-top: 12px; font-size: var(--t-m); line-height: 20px; text-wrap: pretty; }
+.vc-ex { margin-top: 2px; font-size: var(--t-m); line-height: 20px; color: var(--muted); text-wrap: pretty; }
+.vc-privacy { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: var(--t-s); line-height: 18px; color: var(--muted); text-wrap: pretty; }
+body.big .vc-head h2 { font-size: calc(var(--t-l) * 1.18); line-height: 24px; }
+body.big .vc-help, body.big .vc-ex, body.big .vc-error { font-size: var(--t-l); line-height: 22px; }
+body.big .vc-privacy { font-size: var(--t-m); line-height: 20px; }
 /* A spoken line's toast says everything it set. Past one line it wraps to two inside the toast's own height, so it still
    covers no button. Over the card's top (absolute in .sheet-wrap, shifted back by half its width) it takes its line's
    width up to the card's, not the half that the 50% offset would leave a wrapping box; nothing else of the toast's
@@ -1541,14 +1579,17 @@ body.big .toast.vc #toast-msg { line-height: 20px; }
 }
 
 /* ---------- v29: the finding first, how it counts behind ⓘ ---------- */
-.pk-brand img { flex: none; border-radius: 5px; }
+.pk-brand img { flex: none; }
 .lost-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lost-head h3 { margin-bottom: 0; }
 /* A 44px ⓘ that keeps the heading's line: it shows how the bars count, only when asked. */
-.info-toggle { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; border-radius: 50%; display: grid; place-items: center; color: var(--muted); }
-.info-toggle:active, .info-toggle[aria-expanded='true'] { background: var(--tint); color: var(--turf); }
-.how-box { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--paper); color: var(--muted); font-size: 13px; line-height: 1.5; text-wrap: pretty; }
+.info-toggle { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; border-radius: var(--r-full); display: grid; place-items: center; color: var(--muted); }
+.info-toggle:active, .info-toggle[aria-expanded='true'] { background: var(--fill); color: var(--turf); }
+.how-box { margin: 8px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); color: var(--muted); font-size: var(--t-s); line-height: 1.5; text-wrap: pretty; }
 .how-box p + p { margin-top: 6px; }
 details.how { margin-top: 8px; }
-details.how > summary, details.shot-details > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: var(--w-label); }
-details.shot-details > summary { margin: 16px 0 8px; font-size: 15px; color: var(--ink); }
+details.how > summary, details.shot-details > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
+:is(details.how, details.shot-details) > summary::-webkit-details-marker { display: none; }
+:is(details.how, details.shot-details) > summary::after { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--turf); border-bottom: 2px solid var(--turf); transform: translateY(-2px) rotate(45deg); transition: transform .16s ease-out; }
+:is(details.how, details.shot-details)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); color: var(--ink); }
