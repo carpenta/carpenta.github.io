@@ -2388,23 +2388,25 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
         expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBeLessThanOrEqual(0);
         expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
         expect(await sideScroll(page)).toBe(0);
+        // v39: the tab bar is a floating island, 18px off the bottom edge and 62px tall; every control ends above it.
         const tabs = (await page.locator('#views').boundingBox())!;
-        expect(tabs.y + tabs.height).toBeCloseTo(height, 0);
+        expect(tabs.y + tabs.height).toBeCloseTo(height - 18, 0);
         expect(tabs.height).toBeGreaterThanOrEqual(56);
-        const go = (await next(page).boundingBox())!;
-        expect(go.y + go.height).toBeLessThanOrEqual(tabs.y);
-        for (const selector of ['#prev-hole', '#next-hole', '#stake-ob', '#stake-hazard', ...keys.flatMap((k) => [`.club-${k} .plus`, `.club-${k} .minus`])]) {
+        // OB and 해저드 are in 상세 only since v39.
+        const pens = keys === KEYS.기본 ? [] : ['#stake-ob', '#stake-hazard'];
+        for (const selector of ['#prev-hole', '#next-hole', ...pens, ...keys.flatMap((k) => [`.club-${k} .plus`, `.club-${k} .minus`])]) {
           const box = (await page.locator(selector).first().boundingBox())!;
-          expect(box.y + box.height, selector).toBeLessThanOrEqual(go.y);
+          expect(box.y + box.height, selector).toBeLessThanOrEqual(tabs.y);
           expect(box.height, selector).toBeGreaterThanOrEqual(48);
           expect(box.width, selector).toBeGreaterThanOrEqual(48);
         }
         // The way back to the site sits at the top left since v32, left of the hole switcher, out of the bar.
         const home = (await page.locator('.home-link').boundingBox())!;
-        const switcher = (await page.locator('#entry .switcher').boundingBox())!;
+        // v39: left of the course name and the round in the top bar (the switcher moved down).
+        const head = (await page.locator('#entry .round-head').boundingBox())!;
         expect(Math.min(home.width, home.height)).toBeGreaterThanOrEqual(48);
         expect(home.y + home.height).toBeLessThanOrEqual(tabs.y);
-        expect(home.x + home.width).toBeLessThanOrEqual(switcher.x);
+        expect(home.x + home.width).toBeLessThanOrEqual(head.x);
         // The count keeps at least 8px clear of the round + and −.
         for (const key of keys) {
           const [plus, n, minus] = await Promise.all([`.club-${key} .plus span`, `#count-${key}`, `.club-${key} .minus span`].map(async (s) => (await page.locator(s).boundingBox())!));
@@ -2423,13 +2425,11 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       await check();
       await next(page).tap();
       await expect(page.locator('#hole-title')).toHaveText('2번 홀');
-      await page.locator('#stake-ob').tap();
       await page.locator('.club-driver .plus').tap();
       await check();
-      // 상세 fits as well (on 553px the chips step aside for Par and length under the hole number), with every direction a 48px target.
+      // 상세 fits as well, with every direction a 48px target (v39: Par and HCP are on the low switcher).
       await page.getByRole('button', { name: '상세', exact: true }).tap();
-      // The length steps aside where it would push the switcher into the badge (WebKit draws digits wider); it stays in 홀 안내.
-      if (height < 600) await expect(page.locator('#hole-sub')).toHaveText(/^Par 4(, 376 m)?$/);
+      await expect(page.locator('#nav-par')).toHaveText('4');
       // Four capsules since v28, with the one-time tip over their middle and then without it.
       await check(KEYS.상세);
       await page.locator('#split-tip').tap();
