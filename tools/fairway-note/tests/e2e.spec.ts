@@ -217,7 +217,8 @@ test('adds a penalty stroke for each OB or hazard and takes the last one off wit
   expect((await stored(page)).holes[0]).toEqual({ par: 4, driver: 1, approach: 0, putts: 1, ob: 0, hazard: 1, mulligan: 0, bunker: 0 });
   await showCard(page);
   await expect(page.locator('#sum-hazard')).toHaveText('1');
-  await expect(page.locator('#analysis')).toContainText('해저드 1회로 벌타 1타가 더해졌습니다');
+  // The page speaks 해요체 (v29); the outgoing report keeps its formal sentence.
+  await expect(page.locator('#analysis')).toContainText('해저드 1회로 벌타 1타가 더해졌어요.');
 });
 
 test('records the tee shot on the 상세 pad as the first drive’s detail', async ({ page }) => {
@@ -300,7 +301,8 @@ test('switches between 스코어카드 and 기록 with the tabs and arrow keys',
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#entry')).toBeVisible();
   await expect(card).toHaveAttribute('tabindex', '-1');
-  await expect(page.locator('#app-version')).toHaveText('v28');
+  // 기록 carries no version since v29: it lives under 앱 정보.
+  await expect(page.locator('#app-version')).toHaveCount(0);
 });
 
 test('opens a hole from the scorecard in 기록, and shows the current one', async ({ page }) => {
@@ -335,12 +337,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v28');
+  await expect(page.locator('#menu-version')).toHaveText('v29');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v28');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v29');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -694,16 +696,10 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
     const sheet = await rect(page, '#sheet');
     const credit = await rect(page, '#osm-credit');
     const go = await rect(page, '#go-next');
-    // The credit mirrors the version pill: on the card's left edge, 6px above it, the same height and line.
+    // The credit on the card's left edge, 6px above it (alone on that line since v29 took the version off 기록).
     expectAligned(credit.x, sheet.x, 'credit left = card left');
     expectAligned(credit.y + credit.height, sheet.y - 6, 'credit bottom 6px above the card');
     expect(credit.y).toBeGreaterThanOrEqual((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 4);
-    if (await page.locator('#app-version').isVisible()) {
-      const ver = await rect(page, '#app-version');
-      expectAligned(credit.y, ver.y, 'credit top = version top');
-      expectAligned(credit.height, ver.height, 'credit height = version height');
-      expect(credit.x + credit.width).toBeLessThan(ver.x - 8);
-    }
     // The axis: the back tee behind 다음 홀's middle, the greens' middle straight above it.
     const axis = await osmAxis(page);
     expectAligned(axis.tee[0], width / 2, 'back tee on the screen middle');
@@ -946,7 +942,7 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   // 10 strokes against this hole's par: +5 on a par 5, +6 on a par 4, +7 on a par 3.
   const par = Number((await page.locator('#hole-par').textContent())!.replace('Par ', ''));
   await expect(page.locator('#hole-name')).toHaveText(`+${10 - par}`);
-  // A long name is shortened in the badge, and read in full.
+  // Past 더블 the badge reads the score against par (v29), and the full name is read aloud.
   await tap(page, 'putts', 2);
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
@@ -955,7 +951,7 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   // Now 1 + 2 + 4 = 7 strokes: 트리플 보기 on this par 4 (Everis 새별 2).
   expect(par).toBe(4);
-  await expect(page.locator('#hole-name')).toHaveText('트리플');
+  await expect(page.locator('#hole-name')).toHaveText('+3');
   await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 7타 트리플 보기');
   // Escape closes the strip and keeps the hole.
   await holeBtn.click();
@@ -979,13 +975,21 @@ test('다음 홀 on a hole with nothing recorded says it is left blank, and 되�
   await expect(page.locator('#hole-title')).toHaveText('2번 홀');
   await expect(page.locator('#toast-msg')).toHaveText('1번 홀은 비워 두고 넘어가요');
   await expect(page.locator('#announce')).toContainText('1번 홀은 비워 두고 넘어가요');
-  // The long notice covers no button either (v20): the chip row's 홀 안내 steps aside under it.
-  const bar = (await page.locator('#toast').boundingBox())!;
-  for (const control of await page.locator('#entry button:not(#toast-undo)').all()) {
-    const b = await control.boundingBox();
-    if (!b || !(await control.isVisible())) continue;
-    expect(b.x + b.width <= bar.x || bar.x + bar.width <= b.x || b.y + b.height <= bar.y || bar.y + bar.height <= b.y, await control.getAttribute('aria-label') ?? (await control.textContent()) ?? '').toBe(true);
-  }
+  // The long notice covers no button either (v20): the chip row's 홀 안내 steps aside under it. Every visible button
+  // (a box and not visibility: hidden, as Playwright counts it) is read in one go while the notice shows: four round
+  // trips a button outlasted the notice's 4 seconds on a busy WebKit (v29).
+  const covered = await page.evaluate(() => {
+    const bar = document.getElementById('toast')!.getBoundingClientRect();
+    return [...document.querySelectorAll<HTMLElement>('#entry button:not(#toast-undo)')]
+      .filter((el) => {
+        const b = el.getBoundingClientRect();
+        if (!b.width || !b.height || getComputedStyle(el).visibility === 'hidden') return false;
+        return !(b.right <= bar.left || bar.right <= b.left || b.bottom <= bar.top || bar.bottom <= b.top);
+      })
+      .map((el) => el.getAttribute('aria-label') ?? el.textContent ?? '');
+  });
+  expect(covered, 'buttons under the notice').toEqual([]);
+  await expect(page.locator('#toast')).toBeVisible();
   await page.getByRole('button', { name: '되돌리기' }).click();
   await expect(page.locator('#hole-title')).toHaveText('1번 홀');
   await expect(page.locator('#info-btn')).toBeVisible();
@@ -1456,7 +1460,8 @@ test('sums up the round on 라운드 마치기 and keeps it among past rounds, t
   await expect(page.locator('#sum-count')).toHaveText('3홀만 기록했어요. 기록한 홀만 계산해요');
   await expect(page.locator('#sum-marks li')).toHaveText(['0이글', '1버디', '1파', '0보기', '1더블', '0트리플+트리플 이상']);
   await expect(page.locator('#sum-stats')).toContainText('전반14타+1');
-  await expect(page.locator('#sum-stats')).toContainText('페어웨이 안착1/1100%');
+  // A rate from fewer than three says the count alone (v29): 1/1, not 100%.
+  await expect(page.locator('#sum-stats div', { hasText: '페어웨이 안착' }).locator('dd')).toHaveText('1/1');
   await expect(page.locator('#sum-stats')).toContainText('벌타OB 1해저드 0');
   await expect(page.locator('#sum-stats')).toContainText('베스트 홀2번 홀버디');
   await expect(page.locator('#sum-insight')).toContainText('타수를 가장 많이 잃은 곳');
@@ -1548,13 +1553,20 @@ test('takes the last tap back from the toast for four seconds, over no button', 
   await expect(toast).toBeVisible();
   await expect(page.locator('#toast-msg')).toHaveText('OB +1');
   // It sits on the chip row, over no button (v20: the club names became buttons): every control of 기록 is clear of it.
-  const box = (await toast.boundingBox())!;
-  for (const control of await page.locator('#entry button:not(#toast-undo)').all()) {
-    const b = await control.boundingBox();
-    if (!b || !(await control.isVisible())) continue;
-    const apart = b.x + b.width <= box.x || box.x + box.width <= b.x || b.y + b.height <= box.y || box.y + box.height <= b.y;
-    expect(apart, await control.getAttribute('aria-label') ?? (await control.textContent()) ?? '').toBe(true);
-  }
+  // Every visible button (a box and not visibility: hidden, as Playwright counts it) is read in one go while the toast
+  // shows: four round trips a button outlasted its 4 seconds on a busy WebKit (v29).
+  const covered = await page.evaluate(() => {
+    const bar = document.getElementById('toast')!.getBoundingClientRect();
+    return [...document.querySelectorAll<HTMLElement>('#entry button:not(#toast-undo)')]
+      .filter((el) => {
+        const b = el.getBoundingClientRect();
+        if (!b.width || !b.height || getComputedStyle(el).visibility === 'hidden') return false;
+        return !(b.right <= bar.left || bar.right <= b.left || b.bottom <= bar.top || bar.bottom <= b.top);
+      })
+      .map((el) => el.getAttribute('aria-label') ?? el.textContent ?? '');
+  });
+  expect(covered, 'buttons under the toast').toEqual([]);
+  await expect(toast).toBeVisible();
   await page.getByRole('button', { name: '되돌리기' }).click();
   await expect(toast).toBeHidden();
   await expect(page.locator('#stake-ob .pen-count')).toHaveClass(/zero/);
@@ -1576,7 +1588,7 @@ test('keeps a hole in progress out of the score until it is putted, and counts a
   await open(page);
   await tap(page, 'driver');
   await expect(page.locator('#hole-strokes')).toHaveText('1');
-  await expect(page.locator('#hole-name')).toHaveText('진행 중');
+  await expect(page.locator('#hole-name')).toHaveText('진행');
   await expect(page.locator('#bmark')).toHaveAttribute('data-mark', 'none');
   await expect(page.locator('#sum-strokes')).toHaveText('0');
   await tap(page, 'approach', 2);
@@ -1591,7 +1603,7 @@ test('라운드 마치기 counts a chip-in on the last hole the way 다음 홀 d
   await seed(page, Object.fromEntries(Array.from({ length: 17 }, (_, i) => [i, { driver: 1, approach: 1, putts: 2 }])), 17);
   await tap(page, 'driver');
   await tap(page, 'approach');
-  await expect(page.locator('#hole-name')).toHaveText('진행 중');
+  await expect(page.locator('#hole-name')).toHaveText('진행');
   await expect(next(page)).toHaveText('라운드 마치기');
   await next(page).click();
   await expect(page.locator('#check-list li')).toHaveText(['퍼트가 없는 홀 1개18번 홀. 칩인으로 끝났다면 그대로 두세요.']);
@@ -1601,9 +1613,9 @@ test('라운드 마치기 counts a chip-in on the last hole the way 다음 홀 d
   await expect(page.locator('#sum-count')).toHaveText('18홀을 모두 기록했어요');
   // Finished: back on 기록 the hole shows its result, until it is recorded on again.
   await page.getByRole('button', { name: '요약 닫기' }).click();
-  await expect(page.locator('#hole-name')).not.toHaveText('진행 중');
+  await expect(page.locator('#hole-name')).not.toHaveText('진행');
   await tap(page, 'approach');
-  await expect(page.locator('#hole-name')).toHaveText('진행 중');
+  await expect(page.locator('#hole-name')).toHaveText('진행');
   await next(page).click();
   await page.getByRole('button', { name: '그대로 마치기' }).click();
   await expect(page.locator('#sum-total')).toHaveText('71');
@@ -1896,17 +1908,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         expectAligned(badge.x + badge.width, sheet.x + sheet.width, `${mode}: badge right edge on the inset`);
         expectAligned(midY(badge), midY(menuBtn), `${mode}: badge on the top bar's centre line`);
         expect(badge.y + badge.height, `${mode}: badge clear of the card`).toBeLessThan(sheet.y);
-        // The version stays on 기록, quietly: just above the card's right end, clear of the badge and the chip row.
-        // 상세 below 700px tall has no room for it beside a 44px tap band in the pills, so it steps aside there.
-        if (mode === '상세' && height < 700) await expect(page.locator('#app-version')).toBeHidden();
-        else {
-          const ver = await rect(page, '#app-version');
-          expectAligned(ver.x + ver.width, sheet.x + sheet.width, `${mode}: version right edge`);
-          expect(ver.y + ver.height, `${mode}: version above the card`).toBeLessThanOrEqual(sheet.y - 2);
-          expect(ver.y, `${mode}: version below the badge`).toBeGreaterThanOrEqual(badge.y + badge.height);
-          const chips = await rect(page, '#hole-info');
-          expect(ver.y, `${mode}: version clear of the chip row`).toBeGreaterThanOrEqual(chips.y + chips.height + 4);
-        }
+        // 기록 carries no version since v29: it lives under 앱 정보.
+        await expect(page.locator('#app-version')).toHaveCount(0);
         expect((await rect(page, 'button[data-mode="basic"]')).height, `${mode}: toggle height`).toBeGreaterThanOrEqual(44);
         if (mode === '상세') {
           // The direction pad runs from the card's content edge to the other, like the tee line.
@@ -1966,12 +1969,11 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await atRest(page);
       const menu = await rect(page, '#entry .top .menu');
       const sheet = await rect(page, '#sheet');
-      const ver = await rect(page, '#app-version');
       await showCard(page);
       const cardMenu = await rect(page, '#card-view .sc-top .menu');
       for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(cardMenu[k], menu[k], `스코어카드 menu ${k}`);
       const edit = await rect(page, '#edit-par');
-      expectAligned(edit.x + edit.width, ver.x + ver.width, '파 수정 right edge');
+      expectAligned(edit.x + edit.width, sheet.x + sheet.width, '파 수정 right edge');
       expectAligned(midY(edit), midY(menu), '파 수정 middle');
       expectAligned(midX(await rect(page, '#card-view .sc-title')), width / 2, '스코어카드 title centre');
       const card = await rect(page, '#sc-sheet');
@@ -2213,7 +2215,7 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
   await tap(page, 'putts');
   const checks = await contrastOf(page, [
     ...['#hole-name', '.tab-label', '.home-link'].map((sel) => ({ sel, min: 4.5 })),
-    ...['.club-lbl', '.pen-lbl', '.mode', '#hole-par', '#prog-n', '#info-btn', '.ver'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })),
+    ...['.club-lbl', '.pen-lbl', '.mode', '#hole-par', '#prog-n', '#info-btn'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })),
   ]);
   await showCard(page);
   checks.push(...await contrastOf(page, ['.sh-stats dt', '.ct-lbl .c-par', '.ct-col .c-par', '.nt-h small', '#par-source', '.metrics dt'].map((sel) => ({ sel, min: 4.5 }))));
@@ -2259,7 +2261,6 @@ for (const [width, height] of [[390, 844], [375, 553]]) {
         { sel: '#tab-card .tab-label', min: 4.5 }, { sel: '#tab-entry .tab-label', min: 4.5 }, { sel: '.home-link', min: 4.5 },
         { sel: '#hole-par', min: 4.5, unders: OVER_ART }, { sel: '#info-btn', min: 4.5, unders: OVER_ART }, { sel: '#prog-n', min: 4.5, unders: OVER_ART },
         { sel: '#hole-n', min: 3, unders: OVER_ART }, { sel: '#hole-name', min: 4.5 }, { sel: '#hole-strokes', min: 3 },
-        ...(height >= 600 ? [{ sel: '.ver', min: 4.5, unders: OVER_ART }] : []),
       ]);
       await page.getByRole('button', { name: '상세', exact: true }).tap();
       await page.getByRole('button', { name: '페어웨이' }).tap();
@@ -3154,7 +3155,9 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       const home = page.locator('#picker a[href="../../"]');
       await expect(home).toHaveCount(1);
       await expect(home).toBeVisible();
-      await expect(home).toHaveText('carpenta.github.io');
+      // A quiet 홈 chip since v29, named in full for screen readers.
+      await expect(home).toHaveText('홈');
+      await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
       await settled(page);
       const box = (await home.boundingBox())!;
       expect(box.height).toBeGreaterThanOrEqual(44);
@@ -3162,8 +3165,9 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(box.y + box.height).toBeLessThanOrEqual(height);
       expect(await sideScroll(page)).toBe(0);
-      // It sits on the title's baseline, its right edge on the header's inner edge, where 취소 goes in the other modes.
-      within1px(await baselineOf(page, '#picker a[href="../../"]'), await baselineOf(page, '#picker-title'), 'baseline');
+      // A glass chip like 취소 (v29), its middle on the title's middle and its right edge on the header's inner edge,
+      // where 취소 goes in the other modes. A filled chip lines up by its middle, not by its small text's baseline.
+      within1px(midY(box), midY(await rect(page, '#picker-title')), 'middle on the title’s');
       within1px(endOf(box), endOf(await spanOf(page, '.pk-search')), 'right edge');
       const size = await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(13);
@@ -3176,6 +3180,11 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
       await expect(home).toBeHidden();
       await settled(page);
       within1px(endOf(await spanOf(page, '#picker-cancel')), endOf(await spanOf(page, '.pk-search')), '취소 right edge');
+      // 취소 takes 홈's box, so the title keeps its place whichever of the two the picker shows.
+      const cancel = await rect(page, '#picker-cancel');
+      within1px(cancel.y, box.y, '취소 top where 홈’s was');
+      within1px(cancel.height, box.height, '취소 as tall as 홈');
+      within1px(midY(cancel), midY(await rect(page, '#picker-title')), '취소 middle on the title’s');
     });
   });
 }
@@ -4694,7 +4703,7 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         expect(await oneLine(page, '#sum-stats dd'), where).not.toContain(false);
         // 페어웨이 안착 shows once a tee result says something; until then its hint sits once under the tiles.
         if (tee) {
-          await expect(page.locator('#sum-stats')).toContainText('페어웨이 안착1/250%');
+          await expect(page.locator('#sum-stats div', { hasText: '페어웨이 안착' }).locator('dd')).toHaveText('1/2');
           await expect(page.locator('#sum-hint')).toBeHidden();
         } else {
           await expect(page.locator('#sum-stats')).not.toContainText('페어웨이 안착');
@@ -5732,12 +5741,14 @@ test('분석 adds 세컨 and 어프로치 under 그린까지 for the split holes
   await expect(page.locator('#lost-split')).toHaveText('세컨과 어프로치는 상세로 나눈 3홀만, 세컨 Par−3번과 어프로치 0번을 기준으로 셌어요.');
   const split = page.locator('#analysis .metrics.split');
   await expect(split.locator('dt')).toHaveText(['나눈 홀', '그린 적중', '업앤다운']);
-  await expect(split.locator('dd')).toHaveText(['3/4', '1/333%', '1/250%']);
-  await expect(page.locator('#analysis .insights').first()).toContainText('상세로 나눈 3홀에서 세컨은 기준(Par−3)보다 +0타, 어프로치는 +3타입니다.');
+  // A percent only from three (v29): 1/3 is 33%, 1/2 stays a count.
+  await expect(split.locator('dd')).toHaveText(['3/4', '1/333%', '1/2']);
+  // The bars already say what 세컨 and 어프로치 lost, so 정리 does not repeat it on the page (v29); the report still does.
+  await expect(page.locator('#analysis')).not.toContainText('상세로 나눈 3홀에서');
   await page.locator('#finish-round').click();
   await page.getByRole('button', { name: '그대로 마치기' }).click();
   await expect(page.locator('#sum-stats dt').last()).toHaveText('업앤다운');
-  await expect(page.locator('#sum-stats dd').last()).toHaveText('1/250%');
+  await expect(page.locator('#sum-stats dd').last()).toHaveText('1/2');
   await expect(page.locator('#sum-insight')).toHaveText('타수를 가장 많이 잃은 곳 그린까지 +4');
 });
 
@@ -5815,3 +5826,158 @@ for (const [width, height] of [[390, 844], [375, 553], [360, 640]]) {
     });
   });
 }
+
+/* ---------- v29: the first design clean-up (no version or maker link on the product, one voice, findings first) ---------- */
+
+test('shows no version or maker link on the product: the version only in 앱 정보, the picker’s way home a quiet 홈 (v29)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  await expect(page.locator('#picker .pk-brand')).not.toContainText(/v\d+/);
+  const home = page.locator('#picker a[href="../../"]');
+  await expect(home).toHaveText('홈');
+  await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
+  expect(await home.evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe('none');
+  // Measured at rest: while the picker opens, its scale leaves the chip a hair under 44px.
+  await settled(page);
+  const box = (await home.boundingBox())!;
+  expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#app-version')).toHaveCount(0);
+  await expect(page.locator('#entry')).not.toContainText(/v\d+/);
+  await menu(page, '앱 정보');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v29');
+});
+
+test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
+  await open(page);
+  // Holes 1–3 recorded: 그린까지 over twice (+2), a 3-putt, an OB.
+  await seedHoles(page, { 0: { driver: 1, approach: 2, putts: 3 }, 1: { driver: 1, approach: 2, putts: 2, ob: 1 }, 2: { driver: 1, approach: 2, putts: 2 } }, 3);
+  await showCard(page);
+  await page.getByRole('radio', { name: '분석', exact: true }).click();
+  await expect(page.locator('#lost-note')).toHaveText('그린까지에서 2타 잃었어요.');
+  // Each bar fills its track by its share of the scale, max(most, 3): 그린까지 2 of 3 (v29: the tab bar's 4-column
+  // .bar grid had squeezed every fill into a quarter of its track, so +4 of 4 drew 23%).
+  const shares = await page.locator('#lost-bars li').evaluateAll((lis) => lis.map((li) => {
+    const track = li.querySelector('.bar')!.getBoundingClientRect();
+    const fill = li.querySelector('.bar i')!.getBoundingClientRect();
+    return `${li.firstElementChild!.textContent} ${Math.round((fill.width / track.width) * 100)}%`;
+  }));
+  expect(shares).toEqual(['티샷 0%', '그린까지 67%', '퍼트 33%', '벌타 33%']);
+  const how = page.locator('#lost-how');
+  await expect(how).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#lost-method')).toBeHidden();
+  await how.click();
+  await expect(how).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#lost-method')).toContainText('티샷 1번, 그린까지 Par−3번, 퍼트 2번');
+  // 정리 says only what the tiles and bars do not: the 3-putt and the OB, in 해요체.
+  await expect(page.locator('#analysis .insights li')).toHaveText([/^3퍼트 이상이 1홀 있어요\./, /^OB 1회로 벌타 1타가 더해졌어요\./]);
+  await expect(page.locator('#card-view')).not.toContainText(/습니다|입니다/);
+  // Back under three holes (hole 3 cleared in 기록), the ⓘ goes and the box it opened closes with it.
+  await showEntry(page);
+  await page.locator('#prev-hole').click();
+  await expect(page.locator('#hole-n')).toHaveText('3');
+  for (const key of ['driver', 'approach', 'putts']) {
+    await atRest(page);
+    await longPress(page, key);
+    await page.getByRole('button', { name: '0번', exact: true }).click();
+    await expect(count(page, key)).toHaveText('0');
+  }
+  await showCard(page);
+  await expect(page.locator('#lost-note')).toHaveText('1홀 더 기록하면 어디서 타수를 잃었는지 보여요.');
+  await expect(how).toBeHidden();
+  await expect(page.locator('#lost-how-box')).toBeHidden();
+});
+
+test('hides tiles of nothing and percents of fewer than three, and leads the summary with where the round lost most (v29)', async ({ page }) => {
+  await open(page);
+  // Two holes, no mulligan, no penalty, one tee result, nothing on the back nine.
+  await seedHoles(page, { 0: { driver: 1, approach: 2, putts: 2 }, 1: { driver: 1, approach: 1, putts: 2 } }, 2);
+  await seedTee(page);
+  await showCard(page);
+  await page.getByRole('radio', { name: '분석', exact: true }).click();
+  const dts = page.locator('#analysis .metrics dt');
+  await expect(dts.filter({ hasText: '멀리건' })).toHaveCount(0);
+  await expect(dts.filter({ hasText: '벌타' })).toHaveCount(0);
+  await expect(page.locator('#analysis .metrics div', { hasText: '그린 적중' }).locator('dd')).toHaveText('1/2');
+  await page.locator('#finish-round').click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  const stats = page.locator('#sum-stats');
+  await expect(stats.locator('dt').filter({ hasText: '벌타' })).toHaveCount(0);
+  await expect(stats.locator('dt').filter({ hasText: '후반' })).toHaveCount(0);
+  await expect(stats.locator('div', { hasText: '페어웨이 안착' }).locator('dd')).toHaveText('1/1');
+  const insight = (await page.locator('#sum-insight').boundingBox())!;
+  const marks = (await page.locator('#sum-marks').boundingBox())!;
+  expect(insight.y + insight.height).toBeLessThanOrEqual(marks.y);
+});
+
+/** Gives hole 1 a 페어웨이 tee result, as 상세's pad would. */
+async function seedTee(page: Page) {
+  await page.evaluate((key) => {
+    const r = JSON.parse(localStorage.getItem(key)!);
+    r.holes[0].tags = { driver: ['fairway'] };
+    localStorage.setItem(key, JSON.stringify(r));
+  }, STORAGE_KEY);
+  await page.reload();
+  await expect(page.locator('#entry')).toBeVisible();
+}
+
+test.describe('the badge and the hole line on small phones (v29)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('says two syllables at most, numbers past 더블 and 홀인원 alone, every word clear of the ring, with 큰 글씨 too', async ({ page }) => {
+    await open(page);
+    // The widest word of each kind: before the first tap, mid-hole, a hole in one, under and over par past the words,
+    // two syllables, and a two-digit count.
+    const cases: [string, Record<string, number>][] = [
+      ['Par', { driver: 0, approach: 0, putts: 0 }],
+      ['진행', { driver: 1, approach: 1, putts: 0 }],
+      ['홀인원', { driver: 0, approach: 0, putts: 1 }],
+      ['−3', { par: 5, driver: 1, approach: 0, putts: 1 }],
+      ['더블', { driver: 1, approach: 3, putts: 2 }],
+      ['+3', { driver: 1, approach: 4, putts: 2 }],
+      ['+6', { driver: 1, approach: 7, putts: 2 }],
+    ];
+    for (const big of [false, true]) {
+      await page.evaluate(([key, on]) => localStorage.setItem(key as string, JSON.stringify({ ...JSON.parse(localStorage.getItem(key as string) ?? '{}'), big: on })), [PREFS_KEY, big] as const);
+      for (const [word, hole] of cases) {
+        await seedHoles(page, { 0: { par: 4, ...hole } }, 0);
+        await expect(page.locator('#hole-name')).toHaveText(word);
+        await atRest(page);
+        // The word's box, corners included, keeps half a pixel inside the white ring's inner edge.
+        const clear = await page.evaluate(() => {
+          const badge = document.getElementById('badge')!;
+          const b = badge.getBoundingClientRect();
+          const w = document.getElementById('hole-name')!.getBoundingClientRect();
+          const r = b.width / 2 - parseFloat(getComputedStyle(badge).borderTopWidth);
+          const [cx, cy] = [b.x + b.width / 2, b.y + b.height / 2];
+          return r - Math.max(...[[w.left, w.top], [w.right, w.top], [w.left, w.bottom], [w.right, w.bottom]].map(([x, y]) => Math.hypot(x - cx, y - cy)));
+        });
+        expect(clear, `${word}${big ? ' with 큰 글씨' : ''} clear of the ring`).toBeGreaterThanOrEqual(0.5);
+        if (word === '홀인원') {
+          // The word is the number: it shows alone, on the badge's centre line, and is read in full.
+          await expect(page.locator('#bmark')).toBeHidden();
+          expect(Math.abs(midY(await rect(page, '#hole-name')) - midY(await rect(page, '#badge')))).toBeLessThanOrEqual(1);
+          await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 1타 홀인원');
+        } else {
+          await expect(page.locator('#bmark')).toBeVisible();
+        }
+        if (word === '진행') await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 2타 진행 중');
+      }
+    }
+  });
+});
+
+test('375×553 상세 never cuts the line under the hole number with …: the length steps aside instead (v29)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 553 });
+  await open(page);
+  await detailMode(page);
+  for (let index = 0; index < 18; index += 1) {
+    await pickHole(page, index);
+    const fits = await page.locator('#hole-sub').evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getBoundingClientRect().width <= el.getBoundingClientRect().width + 0.5;
+    });
+    expect(fits, `hole ${index + 1}: ${await page.locator('#hole-sub').textContent()}`).toBe(true);
+  }
+});

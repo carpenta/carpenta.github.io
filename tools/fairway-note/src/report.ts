@@ -31,6 +31,28 @@ export function insights(a: Analysis): string[] {
   return out;
 }
 
+/** A rate's percent, only from three or more (v29): "1/1 100%" says nothing. */
+export function rateSub(n: number, d: number): string {
+  return d >= 3 ? `${pct(n, d)}%` : '';
+}
+
+/**
+ * The page's 정리 (v29): only what the tiles and the lost strokes do not already say (three putts, penalties,
+ * mulligans), in the page's 해요체. The outgoing report keeps its formal insights().
+ */
+export function adviceLines(a: Analysis): string[] {
+  const t = a.totals;
+  const out: string[] = [];
+  if (a.threePutts) out.push(`3퍼트 이상이 ${a.threePutts}홀 있어요. 첫 퍼트 거리감을 맞추면 바로 줄일 수 있어요.`);
+  if (t.ob || t.hazard) {
+    const counts = [t.ob ? `OB ${t.ob}회` : '', t.hazard ? `해저드 ${t.hazard}회` : ''].filter(Boolean).join('·');
+    const retee = t.ob ? ' 다시 친 샷까지 치면 OB 하나에 보통 2타를 잃어요.' : '';
+    out.push(`${counts}로 벌타 ${t.ob + t.hazard}타가 더해졌어요.${retee}`);
+  }
+  if (t.mulligan) out.push(`멀리건 ${t.mulligan}회를 썼어요. 멀리건 없이 쳤다면 스코어가 더 나왔을 수 있어요.`);
+  return out;
+}
+
 /** The middle count's tags by where they are counted: 그린까지 on holes not split, then 세컨 and 어프로치 (v28). */
 const DETAIL_ROWS: { key: Tagged | Part; tags: Tagged; label: string }[] = [
   { key: 'driver', tags: 'driver', label: AREA_LABELS.driver },
@@ -41,7 +63,8 @@ const DETAIL_ROWS: { key: Tagged | Part; tags: Tagged; label: string }[] = [
 ];
 
 /** Short summary of shot tags on finished holes, shared by the page and the report. Empty without tags. */
-export function detailLines(a: Analysis): string[] {
+export function detailLines(a: Analysis, polite = false): string[] {
+  const be = polite ? '이에요' : '입니다';
   const d = a.details;
   if (!d) return [];
   const out: string[] = [];
@@ -59,12 +82,12 @@ export function detailLines(a: Analysis): string[] {
     if (key === 'putts') {
       const short = d.putts.short ?? 0;
       const long = d.putts.long ?? 0;
-      if (short > long && short >= 2) out.push(`퍼트가 짧았던 적이 ${short}번, 길었던 적이 ${long}번입니다. 홀을 지나가게 쳐 보세요.`);
-      if (long > short && long >= 2) out.push(`퍼트가 길었던 적이 ${long}번, 짧았던 적이 ${short}번입니다. 첫 퍼트 세기를 줄여 보세요.`);
+      if (short > long && short >= 2) out.push(`퍼트가 짧았던 적이 ${short}번, 길었던 적이 ${long}번${be}. 홀을 지나가게 쳐 보세요.`);
+      if (long > short && long >= 2) out.push(`퍼트가 길었던 적이 ${long}번, 짧았던 적이 ${short}번${be}. 첫 퍼트 세기를 줄여 보세요.`);
     }
   }
   const whiffs = (d.driver.whiff ?? 0) + (d.approach.whiff ?? 0) + (d.second.whiff ?? 0) + (d.short.whiff ?? 0);
-  if (whiffs) out.push(`헛스윙 ${whiffs}번이 타수에 들어갔습니다.`);
+  if (whiffs) out.push(`헛스윙 ${whiffs}번이 타수에 ${polite ? '들어갔어요' : '들어갔습니다'}.`);
   return out;
 }
 

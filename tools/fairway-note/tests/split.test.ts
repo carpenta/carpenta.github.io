@@ -310,7 +310,7 @@ describe('the round in words, in a spreadsheet and in the share image', () => {
 
   it('shows the up and down rate in the share image only when the round has a chance at one', () => {
     expect(shareCardContent(r).stats.map((s) => s.key)).toEqual(['putts', 'gir', 'fairway', 'penalty', 'best', 'updown']);
-    expect(shareCardContent(r).stats.at(-1)).toEqual({ key: 'updown', label: '업앤다운', value: '1/2', sub: '50%' });
+    expect(shareCardContent(r).stats.at(-1)).toEqual({ key: 'updown', label: '업앤다운', value: '1/2', sub: '' });
     expect(shareCardContent(roundOf([hole(4, 1, 1, 2, { short: 0 })])).stats.map((s) => s.key)).toEqual(['putts', 'gir', 'fairway', 'penalty', 'best']);
   });
 });

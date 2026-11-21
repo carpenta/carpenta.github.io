@@ -74,8 +74,7 @@
         <div class="spacer"></div>
 
         <div class="sheet-wrap" id="sheet-wrap">
-          <span class="ver" id="app-version" aria-hidden="true"></span>
-          <!-- The credit for a hole drawn from OpenStreetMap (v27): the version's twin at the card's left end, shown with that
+          <!-- The credit for a hole drawn from OpenStreetMap (v27): a pill at the card's left end, shown with that
                drawing only. A link to OSM's copyright page; the CSP is unchanged, as following a link is navigation. -->
           <a class="osm-credit" id="osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창" hidden>© OpenStreetMap</a>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
@@ -169,11 +168,17 @@
         <!-- 분석 (v26): where the strokes went, then the round's analysis -->
         <div class="sc-analysis" id="sc-analysis" hidden>
           <section class="box lost" aria-labelledby="lost-title">
-            <h3 id="lost-title">타수를 잃은 곳</h3>
+            <!-- The finding first (v29); how it is counted waits behind ⓘ, with the split holes' note (v28) -->
+            <div class="lost-head">
+              <h3 id="lost-title">타수를 잃은 곳</h3>
+              <button type="button" class="info-toggle" id="lost-how" aria-expanded="false" aria-controls="lost-how-box" aria-label="세는 방법"><svg data-icon="info-circle" width="20" height="20"></svg></button>
+            </div>
             <p id="lost-note" class="muted">홀을 기록하면 보여요.</p>
+            <div class="how-box" id="lost-how-box" hidden>
+              <p id="lost-method"></p>
+              <p id="lost-split" hidden></p>
+            </div>
             <ul class="lost-bars" id="lost-bars"></ul>
-            <!-- With holes split in 상세 (v28), under the chart: which holes 세컨's and 어프로치's rows under 그린까지 count -->
-            <p id="lost-split" class="muted lost-split" hidden></p>
           </section>
 
           <section class="box" aria-labelledby="analysis-title">
@@ -387,11 +392,12 @@
             <span class="sum-badge" id="sum-badge"></span>
           </div>
         </div>
+        <!-- Where the round lost most, right under the score (v29): the summary's one finding, before the counts -->
+        <p class="sum-insight" id="sum-insight"></p>
         <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
         <dl class="sum-stats" id="sum-stats"></dl>
         <!-- Said once under the tiles while no tee result is recorded, instead of a 페어웨이 안착 tile with no value -->
         <p class="sum-hint" id="sum-hint" hidden>상세에서 티샷 방향을 고르면 페어웨이 안착이 보여요.</p>
-        <p class="sum-insight" id="sum-insight"></p>
         <p id="sum-status" class="muted small" role="status"></p>
       </div>
       <!-- Round buttons from the icon family (main.ts draws them): 공유 or 결과 복사, 이미지 저장 where the image cannot be
@@ -456,11 +462,11 @@
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title" tabindex="-1" autofocus>
       <div class="picker-head">
-        <p class="pk-brand"><span>Fairway Note</span><span id="picker-version"></span></p>
+        <p class="pk-brand"><img src="./favicon.svg" alt="" width="20" height="20" /><span>Fairway Note</span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
         <!-- The picker covers the tab bar's 홈, so it carries its own way back to the site (AGENTS.md) -->
-        <a class="picker-home" href="../../">carpenta.github.io</a>
+        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="18" height="18"></svg>홈</a>
         <button id="picker-cancel" class="btn" type="button">취소</button>
       </div>
       <label class="pk-search">

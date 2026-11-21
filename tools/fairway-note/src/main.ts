@@ -23,6 +23,7 @@ import {
   played,
   roundCourse,
   scoreWord,
+  badgeWord,
   setTeeTag,
   strokes,
   teeTag,
@@ -42,7 +43,7 @@ import { courseShape, courseSvg, holeHazards, holeThumb, layoutBend, layoutIslan
 import { osmHoleAt, osmLoading } from './osm-holes';
 import { paintGrain } from './grain';
 import { registerOffline } from './offline';
-import { analysisText, csvName, dateLabel, detailLines, insights, mailtoHref, reportSubject, reportText, roundCsv } from './report';
+import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
@@ -447,7 +448,10 @@ function fitSwitcher(): void {
   if (getComputedStyle(sub).display === 'none' || !sub.dataset.par) return;
   // The switcher is bounded by its column (v18): when the line would be cut, the length steps aside instead.
   const right = document.querySelector('#entry .switcher')!.getBoundingClientRect().right;
-  if (sub.scrollWidth > sub.clientWidth + 1 || right > $('badge').getBoundingClientRect().left - 6) setText(sub, sub.dataset.par);
+  // Any overflow at all steps the length aside (v29: a 1px allowance left "Par 3, 159 …" cut with an ellipsis).
+  const range = document.createRange();
+  range.selectNodeContents(sub);
+  if (range.getBoundingClientRect().width > sub.getBoundingClientRect().width + 0.01 || right > $('badge').getBoundingClientRect().left - 6) setText(sub, sub.dataset.par);
 }
 
 /** Keeps the header to one row beside the badge: HDCP steps aside first, then the length (both stay in 홀 안내). */
@@ -505,7 +509,7 @@ function drawCourse(): void {
       const r = el.getBoundingClientRect();
       return r.width > 0 ? { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom } : null;
     };
-    frame.keep = [box(credit), box($('app-version'))].filter((b): b is Box => b !== null);
+    frame.keep = [box(credit)].filter((b): b is Box => b !== null);
   }
   // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or v22's line where the note's hazards are drawn.
   $('hi-osm').hidden = !osm;
@@ -1064,9 +1068,11 @@ function renderEntry(a: Analysis, changed?: string): void {
   bmark.classList.toggle('two', s >= 10);
   const badge = $('badge');
   setAttr(badge, 'data-tone', done ? toneOf(d) : played(cur) ? 'progress' : 'none');
-  // The badge is a 60px circle (v15): 더블 보기, 트리플 보기 and 쿼드러플 보기 read 더블, 트리플 and 쿼드러플 there, as on the
-  // scorecard's marks (its spoken name keeps the whole word).
-  setText($('hole-name'), name.replace(/^(더블|트리플|쿼드러플) 보기$/, '$1'));
+  // The badge is a 60px circle (v15). Its word under the number says two syllables at most (v29), so it stays clear of the
+  // ring: 이글 to 더블, past them the score against par (−3, +3 …), and 진행 mid-hole; the spoken name keeps the whole
+  // word. 홀인원 shows alone, in place of the number it already says.
+  setText($('hole-name'), done ? badgeWord(s, cur.par) : played(cur) ? '진행' : 'Par');
+  badge.classList.toggle('hio', done && s === 1);
   setAttr(badge, 'aria-label', played(cur) ? `이 홀 ${s}타 ${name}` : `이 홀 아직 기록 전, Par ${cur.par}`);
   const markKey = `${i}:${mark}`;
   // Static markup from SHAPES; written only when the mark changes, so a drawing mark is not restarted.
@@ -1246,14 +1252,23 @@ function renderCard(a: Analysis): void {
   // 타수를 잃은 곳 waits for three finished holes: one or two say little.
   const waiting = t.holes < 3;
   $('lost-bars').hidden = waiting;
+  // The finding first, with its number (v29); how it was counted waits behind ⓘ.
+  const lostBy = a.worstAreas.length ? a.lost[a.worstAreas[0]] : 0;
   setText($('lost-note'), waiting
     ? `${3 - t.holes}홀 더 기록하면 어디서 타수를 잃었는지 보여요.`
     : a.worstAreas.length
-      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 가장 많이 잃었어요. 티샷 1번, ${AREA_LABELS.approach} Par−3번, 퍼트 2번을 기준으로 셌어요.`
+      ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 ${a.worstAreas.length > 1 ? '각각 ' : ''}${lostBy}타 잃었어요.`
       : '기준보다 잃은 타수가 없어요.');
+  $('lost-how').hidden = waiting;
+  // Back under three holes (a hole cleared), the ⓘ goes and its box closes with it.
+  if (waiting) {
+    setAttr($('lost-how'), 'aria-expanded', 'false');
+    $('lost-how-box').hidden = true;
+  }
+  setText($('lost-method'), `티샷 1번, ${AREA_LABELS.approach} Par−3번, 퍼트 2번을 기준으로 더 친 타수와 벌타를 셌어요. 잘 친 홀이 다른 홀의 손실을 지우지는 않아요.`);
   // Under 그린까지, its two parts over the holes split in 상세 (v28): 세컨 against Par−3, 어프로치 against none.
   const splitNote = $('lost-split');
-  splitNote.hidden = waiting || !s.holes;
+  splitNote.hidden = !s.holes;
   setText(splitNote, s.holes ? `세컨과 어프로치는 상세로 나눈 ${s.holes}홀만, 세컨 Par−3번과 어프로치 0번을 기준으로 셌어요.` : '');
   const scale = Math.max(most, 3);
   const row = (label: string, value: number, cls: string) => {
@@ -1267,7 +1282,6 @@ function renderCard(a: Analysis): void {
   ]));
 }
 
-const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 const one = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
 
 function bar(label: string, value: number, max: number, text: string, cls = ''): HTMLElement {
@@ -1288,6 +1302,7 @@ function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)
   const t = a.totals;
   if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나와요.')];
   const maxDist = Math.max(...Object.values(a.distribution));
+  const advice = adviceLines(a);
   return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
       t.holes < holes ? h('span', { class: 'muted' }, `, 남은 ${holes - t.holes}홀`) : null),
@@ -1295,9 +1310,10 @@ function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)
       tile('평균 퍼트', `${one(a.puttsPerHole)}개/홀`),
       tile('1퍼트', `${a.onePutts}홀`),
       tile('3퍼트 이상', `${a.threePutts}홀`),
-      tile('그린 적중', `${a.girHoles}/${t.holes}`, `${pct(a.girHoles, t.holes)}%`),
-      tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
-      tile('멀리건', `${t.mulligan}회`)),
+      tile('그린 적중', `${a.girHoles}/${t.holes}`, rateSub(a.girHoles, t.holes)),
+      // Tiles of nothing step aside (v29): no 벌타 tile without a penalty, no 멀리건 tile without a mulligan.
+      t.ob || t.hazard ? tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`) : '',
+      t.mulligan ? tile('멀리건', `${t.mulligan}회`) : ''),
     h('h4', {}, '스코어 분포'),
     h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
     h('h4', {}, 'Par별 평균'),
@@ -1312,14 +1328,14 @@ function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)
     ...(a.split.holes
       ? [h('h4', {}, '세컨·어프로치'), h('dl', { class: 'metrics three split' },
           tile('나눈 홀', `${a.split.holes}/${t.holes}`),
-          tile('그린 적중', `${a.split.gir}/${a.split.holes}`, `${pct(a.split.gir, a.split.holes)}%`),
-          tile('업앤다운', a.split.upDown.chances ? `${a.split.upDown.made}/${a.split.upDown.chances}` : '–', a.split.upDown.chances ? `${pct(a.split.upDown.made, a.split.upDown.chances)}%` : '')),
-        h('p', { class: 'muted split-note' }, '그린 적중은 어프로치 없이 Par−2타 안에 올린 홀, 업앤다운은 어프로치 한 번에 1퍼트 이하로 마친 홀이에요.')]
+          tile('그린 적중', `${a.split.gir}/${a.split.holes}`, rateSub(a.split.gir, a.split.holes)),
+          tile('업앤다운', a.split.upDown.chances ? `${a.split.upDown.made}/${a.split.upDown.chances}` : '–', a.split.upDown.chances ? rateSub(a.split.upDown.made, a.split.upDown.chances) : '')),
+        h('details', { class: 'how' }, h('summary', {}, '세는 방법'), h('p', { class: 'muted split-note' }, '그린 적중은 어프로치 없이 Par−2타 안에 올린 홀, 업앤다운은 어프로치 한 번에 1퍼트 이하로 마친 홀이에요.'))]
       : []),
-    h('h4', {}, '정리'),
-    h('ul', { class: 'insights' }, ...insights(a).map((s) => h('li', {}, s))),
+    // 정리 (v29): only the advice the tiles do not already give, in the page's 해요체; nothing when there is none.
+    ...(advice.length ? [h('h4', {}, '정리'), h('ul', { class: 'insights' }, ...advice.map((s) => h('li', {}, s)))] : []),
     ...(a.details
-      ? [h('h4', {}, '샷 세부'), h('ul', { class: 'insights details' }, ...detailLines(a).map((s) => h('li', {}, s)))]
+      ? [h('details', { class: 'shot-details' }, h('summary', {}, '샷 세부'), h('ul', { class: 'insights details' }, ...detailLines(a, true).map((s) => h('li', {}, s))))]
       : []),
   ];
 }
@@ -1525,14 +1541,15 @@ function renderSummary(): void {
   // One value per tile, on one line (v23). 페어웨이 안착 waits for a tee result; until then its hint is said once, under the tiles.
   $('sum-stats').replaceChildren(
     // A 9-hole round has no other nine to compare.
-    ...(nine || count === 9 ? [] : [tile('전반', ...half(a.front) as [string, string]), tile('후반', ...half(a.back) as [string, string])]),
+    // A nine with nothing on it yet steps aside rather than saying 기록 없음 (v29).
+    ...(nine || count === 9 ? [] : [a.front.holes ? tile('전반', ...half(a.front) as [string, string]) : '', a.back.holes ? tile('후반', ...half(a.back) as [string, string]) : '']),
     tile('퍼트', `${t.putts}개`, t.holes ? `홀당 ${one(a.puttsPerHole)}` : ''),
-    tile('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? `${pct(a.girHoles, t.holes)}%` : ''),
-    drives.length ? tile('페어웨이 안착', `${hit}/${drives.length}`, `${pct(hit, drives.length)}%`) : '',
-    tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`),
+    tile('그린 적중', t.holes ? `${a.girHoles}/${t.holes}` : '–', t.holes ? rateSub(a.girHoles, t.holes) : ''),
+    drives.length ? tile('페어웨이 안착', `${hit}/${drives.length}`, rateSub(hit, drives.length)) : '',
+    t.ob || t.hazard ? tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`) : '',
     tile('베스트 홀', a.best && best ? `${a.best.hole}번 홀` : '–', a.best && best ? scoreWord(strokes(best), best.par) : ''),
     // 업앤다운 (v28), once an 어프로치 was recorded in 상세, as the share image has it.
-    a.split.upDown.chances ? tile('업앤다운', `${a.split.upDown.made}/${a.split.upDown.chances}`, `${pct(a.split.upDown.made, a.split.upDown.chances)}%`) : '',
+    a.split.upDown.chances ? tile('업앤다운', `${a.split.upDown.made}/${a.split.upDown.chances}`, rateSub(a.split.upDown.made, a.split.upDown.chances)) : '',
   );
   $('sum-hint').hidden = drives.length > 0 || !t.holes;
   // Where the round lost most: the label, then the value, no colon between (v23); otherwise one sentence.
@@ -2101,17 +2118,22 @@ function bind(): void {
   bindMenu();
   // 말로 입력 (v21): the opt-in one-line entry (src/voice-view.ts); applyLine applies it as taps would.
   bindVoice(voicePage);
-  setText($('app-version'), VERSION_LABEL);
   // 스코어카드 legend: how each result looks on a par 4.
   $('legend').replaceChildren(h('li', { class: 'lg-cap' }, '파 4 기준'), ...LEGEND.map(([m, tone, n, label, shape]) => h('li', {},
     h('span', { class: 'm', 'data-mark': m, 'data-tone': tone, 'aria-hidden': 'true' }, h('b', {}, String(n))), label, h('span', { class: 'sr-only' }, `, ${n}타 ${shape}`))));
   $('toast-undo').addEventListener('click', restore);
+  // 타수를 잃은 곳's ⓘ (v29): how it counts, shown only when asked.
+  const how = $('lost-how');
+  how.addEventListener('click', () => {
+    const open = how.getAttribute('aria-expanded') !== 'true';
+    setAttr(how, 'aria-expanded', String(open));
+    $('lost-how-box').hidden = !open;
+  });
   $('now-continue').addEventListener('click', () => show('entry'));
   $('sh-go').addEventListener('click', () => show('entry', true));
   bindHomeCard();
   bindBackupCard();
   bindSummary();
-  setText($('picker-version'), VERSION_LABEL);
   bindSwipe();
   $('prev-hole').addEventListener('click', () => changeHole(-1));
   $('next-hole').addEventListener('click', () => changeHole(1));

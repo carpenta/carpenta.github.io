@@ -368,6 +368,19 @@ export function scoreWord(strokes: number, par: number): string {
   return words[d] ?? `+${d}`;
 }
 
+/**
+ * The score badge's word under its number (v29): two syllables at most, so it fits the 60px ring at 13px and with 큰 글씨
+ * at 15px ("쿼드러플" spilled out, "트리플" and "알바트로스" touched or crossed it). 이글 to 더블 in words, 더블 without 보기
+ * as on the scorecard's marks; past them the score against par, as golfers write it on a card: −3, +3, +4 …
+ * 홀인원 the badge shows alone, in place of the number it already says (main.ts).
+ */
+export function badgeWord(strokes: number, par: number): string {
+  if (strokes === 1) return '홀인원';
+  const d = strokes - par;
+  const words: Record<number, string> = { [-2]: '이글', [-1]: '버디', 0: '파', 1: '보기', 2: '더블' };
+  return words[d] ?? (d > 0 ? `+${d}` : `−${-d}`);
+}
+
 export function scoreName(toPar: number): ScoreName {
   if (toPar <= -2) return 'eagle';
   if (toPar === -1) return 'birdie';
