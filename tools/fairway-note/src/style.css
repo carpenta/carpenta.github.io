@@ -1965,3 +1965,6 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 .sc::after { display: none; }
 .sc-top { background: linear-gradient(180deg, rgb(10 22 15 / .55) 0%, rgb(10 22 15 / .32) 70%, rgb(10 22 15 / 0) 100%); -webkit-backdrop-filter: none; backdrop-filter: none; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
 .sc-sheet, .box { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+/* No ground behind the title at all (the user: the gradient still looked odd): the title scrolls away with the page, so
+   nothing ever passes under it and it needs none. */
+.sc-top { position: relative; background: none; }
