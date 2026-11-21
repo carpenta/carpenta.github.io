@@ -73,15 +73,26 @@ describe('one design system (v30)', () => {
     expect(off).toEqual([]);
   });
 
-  it('paints no see-through surface: a background is a solid token, a gradient fade, or the backdrop', () => {
-    // Tokens mixed with transparent are for shadows, backdrops, text on dark and the drawing, never for a fill.
+  // Tokens mixed with transparent are for shadows, backdrops, text on dark and the drawing, never for a fill; since v38
+  // the one exception is the chip row's pills over the drawing (--chip-on-art), the user's call so they stop hiding it.
+  const seeThrough = () => {
     const root = rules(css).find(({ selector }) => selector === ':root')!.body;
     const clear = new Set([...root.matchAll(/(--[\w-]+):\s*color-mix\([^;]*transparent[^;]*\);/g)].map((m) => m[1]));
-    const off = declared(/background(?:-color)?/)
+    return declared(/background(?:-color)?/)
       .filter(({ selector }) => !selector.includes('::backdrop'))
-      .filter(({ value }) => !/gradient\(/.test(value) && (/transparent\)/.test(value) || [...clear].some((name) => value.includes(`var(${name})`))))
+      .filter(({ value }) => !/gradient\(/.test(value) && (/transparent\)/.test(value) || [...clear].some((name) => value.includes(`var(${name})`))));
+  };
+
+  it('paints no see-through surface but the chip row\'s pills: a background is a solid token, a gradient fade, or the backdrop', () => {
+    const off = seeThrough()
+      .filter(({ value }) => value !== 'var(--chip-on-art)')
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
+  });
+
+  it('lets the drawing show through the chip row\'s pills, and only there (v38)', () => {
+    const pills = seeThrough().filter(({ value }) => value === 'var(--chip-on-art)').map(({ selector }) => selector);
+    expect(pills).toEqual([".meta, .progress, .info .info-chip:not([aria-expanded='true'])"]);
   });
 
   it('keeps the accent for the primary action alone: 다음 홀, 라운드 마치기, 이 코스로 시작, 지난 라운드에 보관', () => {

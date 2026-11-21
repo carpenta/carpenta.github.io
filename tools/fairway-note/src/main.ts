@@ -472,18 +472,26 @@ function fitMeta(): void {
 }
 
 /**
- * The part of 기록's screen the drawing is seen in (v33), measured now: from under whatever is over its top (the
- * header's chip row, or in 상세 on a short screen the hole switcher, and a banner under them, whose buttons the credit
- * must not cover) to the entry sheet's top edge, across the sheet's width. While the © OpenStreetMap link shows: its
+ * The part of 기록's screen the drawing is seen in (v33), measured now: from under whatever is over its top (since v38
+ * the hole switcher and the score badge, with the chip row's see-through pills as boxes the hole keeps clear of; a
+ * banner under them, whose buttons the credit must not cover) to the entry sheet's top edge, across the sheet's width. While the © OpenStreetMap link shows: its
  * text and its touch area (with its ::after), as they would stand at the band's left (mirrored if it stands at the right
  * now), for the hole to keep out of and keep water from behind.
  */
 function artBand(): ArtBand {
-  const head = $('hole-info').getBoundingClientRect();
   const banners = document.querySelector('#entry .banners')!.getBoundingClientRect();
   const sheet = $('sheet').getBoundingClientRect();
-  const top = Math.max(head.height > 0 ? head.bottom : document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, banners.height > 0 ? banners.bottom : 0);
-  const band: ArtBand = { x0: sheet.left, y0: top, x1: sheet.right, y1: sheet.top, keep: [] };
+  // v38: from under the switcher and the score badge, so the hole also lies behind the chip row, whose pills are
+  // see-through: they no longer hide the drawing. A banner (which takes over the chip row) still ends it at its bottom.
+  const bar = Math.max(document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, $('badge').getBoundingClientRect().bottom);
+  const top = Math.max(bar, banners.height > 0 ? banners.bottom : 0);
+  // The hole itself keeps clear of the pills (v38): the drawing shows through them, but the tee, the green and the flag
+  // are never under one.
+  const keep = [...document.querySelectorAll('#hole-info > :is(.meta, .progress, .info-chip, .thumb)')]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.height > 0 && r.bottom > top)
+    .map((r) => ({ x0: r.left, y0: r.top, x1: r.right, y1: r.bottom }));
+  const band: ArtBand = { x0: sheet.left, y0: top, x1: sheet.right, y1: sheet.top, keep };
   const link = $('osm-credit');
   const text = link.getBoundingClientRect();
   if (!link.hidden && text.width > 0) {
@@ -520,7 +528,8 @@ function drawCourse(): void {
     const go = $('go-next').getBoundingClientRect();
     frame.teeY = go.top + go.height / 2 - 1.5;
     const open = artBand();
-    fit = open.y1 - open.y0 >= FIT_BAND;
+    // Whether to fit is still measured under the chip row (v33): the band over it (v38) only gives the hole more room.
+    fit =open.y1 - Math.max(open.y0, head.height > 0 ? head.bottom : 0) >= FIT_BAND;
     // Under FIT_BAND the header's small picture shows the hole instead and the drawing steps back (v33: by the band
     // measured here, not the screen's height). The picture sits in the chip row at the chips' height, so showing it leaves
     // the band as it was; the row is fitted again round it.

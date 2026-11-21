@@ -62,6 +62,13 @@
   --on-capsule: color-mix(in srgb, var(--ink) 60%, transparent);
   --on-capsule-soft: color-mix(in srgb, var(--ink) 35%, transparent);
   --glow: color-mix(in srgb, var(--white) 75%, transparent);
+  /* The chip row's pills over the drawing (v38, the user's call over v30's opaque rule): see-through, so they no longer
+     hide the hole behind them; still light enough that their ink and muted text keep 4.5:1 over the rough and the hole. */
+  --chip-on-art: color-mix(in srgb, var(--white) 72%, transparent);
+  /* Ink, muted and these darker turf and red on it: 4.5:1 or more over the rough, the deep rough and every fill the hole
+     is drawn in (turf 5.0:1, red 4.6:1 at worst; the plain ones fall to 3.1 and 2.7 over the rough). */
+  --turf-on-chip: color-mix(in oklab, var(--turf) 60%, var(--ink));
+  --red-on-chip: color-mix(in oklab, var(--red) 60%, var(--ink));
   --backdrop-light: color-mix(in srgb, var(--deep) 22%, transparent);
   --backdrop: color-mix(in srgb, var(--deep) 36%, transparent);
   --backdrop-strong: color-mix(in srgb, var(--deep) 52%, transparent);
@@ -134,7 +141,8 @@ svg { display: block; }
 
 /* Our own drawn hole fills the screen behind everything. On 기록 it ends at the sheet's top edge (v31, --art-bottom from
    main.ts): below it the card covers the hole, and what showed beside the card and above 다음 홀 read as a glitch.
-   Fitted into the band (v33), it also starts under the chip row (--art-top), so water the band cuts ends at its edge.
+   Fitted into the band (v33), it also starts at the band's top (--art-top), so water the band cuts ends at its edge;
+   since v38 that is under the switcher, and the chip row's see-through pills lie over the drawing.
    The page under it is the same rough, so neither edge shows. */
 .course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(var(--art-top, 0px) 0 calc(100% - var(--art-bottom, 100%)) 0); }
 
@@ -374,8 +382,9 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
    ticks cutting the number. Since v34 in the soft see-through ink (about 2:1 on either half), so it blends into the
    capsule: the user found the solid line too hard, and the two tones already mark the split. */
 .num-row { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
-/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. */
-.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px solid var(--on-capsule-soft); }
+/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. Dashed
+   since v38 (the user's call): a quieter split than the solid line. */
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px dashed var(--on-capsule-soft); }
 .club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 .pill-ico { display: none; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
@@ -1418,6 +1427,10 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */
 .info-chip[aria-expanded='true'] { background: var(--fill); }
+/* v38: the drawing runs behind the chip row, and its pills let it show through (--chip-on-art). */
+.meta, .progress, .info .info-chip:not([aria-expanded='true']) { background: var(--chip-on-art); }
+.info .info-chip:not([aria-expanded='true']) { color: var(--turf-on-chip); }
+.progress .prog.under { color: var(--red-on-chip); }
 .info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); display: inline-grid; place-items: center; background: var(--turf); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-value); line-height: 1; }
 .hinfo {
   position: fixed; inset: auto auto auto var(--m, 12px); margin: 0; width: min(300px, calc(100vw - 24px));

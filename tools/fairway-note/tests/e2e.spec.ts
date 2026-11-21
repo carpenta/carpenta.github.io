@@ -337,13 +337,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v37');
+  await expect(page.locator('#menu-version')).toHaveText('v38');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v37');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v38');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -843,13 +843,13 @@ for (const [width, height] of [[375, 667], [390, 844]]) {
     // The axis (v33): across the band between the chips and the card, the back tee at the left and the greens' middle
     // level with it at the right.
     const axis = await osmAxis(page);
-    const chips = await rect(page, '#hole-info');
+    const top = (await visibleBand(page)).y0;
     expect(axis.tee[0]).toBeLessThan(axis.green[0]);
     expectAligned(axis.green[1], axis.tee[1], 'greens level with the back tee');
     for (const [x, y] of [axis.tee, axis.green]) {
       expect(x).toBeGreaterThanOrEqual(sheet.x);
       expect(x).toBeLessThanOrEqual(sheet.x + sheet.width);
-      expect(y).toBeGreaterThan(chips.y + chips.height);
+      expect(y).toBeGreaterThan(top);
       expect(y).toBeLessThan(sheet.y);
     }
     expectAligned(axis.line[0][0], axis.tee[0], 'line starts at the tee (x)');
@@ -980,11 +980,14 @@ test('shows Everis 레이크 1’s right-hand dogleg from OpenStreetMap: the lin
 // ---------- The hole in the band 기록 shows (v33) ----------
 
 type Band = { x0: number; y0: number; x1: number; y1: number };
-/** The band as the page lays it out: from the bottom of the chips under the hole switcher to the sheet's top edge, across the sheet. */
+/**
+ * The band as the page lays it out: from under the hole switcher and the score badge to the sheet's top edge, across the
+ * sheet (v38: the chip row lies over it, its pills see-through; v33–v37 started it under the chips).
+ */
 const visibleBand = (page: Page) => page.evaluate((): Band => {
-  const chips = document.getElementById('hole-info')!.getBoundingClientRect();
+  const bar = Math.max(document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, document.getElementById('badge')!.getBoundingClientRect().bottom);
   const sheet = document.getElementById('sheet')!.getBoundingClientRect();
-  return { x0: sheet.left, y0: chips.bottom, x1: sheet.right, y1: sheet.top };
+  return { x0: sheet.left, y0: bar, x1: sheet.right, y1: sheet.top };
 });
 
 /**
@@ -999,9 +1002,16 @@ const seenParts = (page: Page, band: Band, selectors: string[], probes: [number,
   // Over the point: a clear container, or a control hit only through a clear pseudo-element reaching past its box (the
   // chips' 48px touch areas reach into the band; nothing there is drawn, and the drawing takes no taps).
   const texted = (el: Element) => [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== '');
+  // The chip row's pills (v38) are see-through, their words a caption on the drawing: the hole shows through them. Their
+  // own text and any part that is not (the 홀 안내 count's disc, the small picture) still cover it.
+  const pill = (el: Element) => el.closest('#hole-info') !== null && !el.closest('.info-n, .thumb') && (() => {
+    const bg = getComputedStyle(el).backgroundColor;
+    const alpha = /^rgba\(.*,\s*([\d.]+)\)$/.exec(bg)?.[1] ?? /^color\(srgb [^/]*\/\s*([\d.]+)\)$/.exec(bg)?.[1];
+    return bg === 'transparent' || (alpha !== undefined && Number(alpha) < 1);
+  })();
   const clear = (el: Element, x: number, y: number) => {
     const r = el.getBoundingClientRect();
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return unpainted(getComputedStyle(el)) && !texted(el) && !(el instanceof SVGElement) && !(el instanceof HTMLImageElement);
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return pill(el) || (unpainted(getComputedStyle(el)) && !texted(el) && !(el instanceof SVGElement) && !(el instanceof HTMLImageElement));
     return ['::before', '::after'].every((p) => unpainted(getComputedStyle(el, p)));
   };
   const seen = (x: number, y: number) => {
@@ -1061,12 +1071,14 @@ for (const [width, height] of [[390, 844], [375, 667]]) {
     await settled(page);
     const middle = (r: { x: number; y: number; width: number; height: number }): [number, number] => [r.x + r.width / 2, r.y + r.height / 2];
     await expectInSight(page, '새별 1', { '.tee': 1, '.tee2': 4, '.green': 1, '.green2': 1, '.flag': 1, '.bunker path': 7 },
-      [middle(await rect(page, '#osm-credit')), middle(await rect(page, '#hole-par'))]);
+      [middle(await rect(page, '#osm-credit')), middle(await rect(page, '#info-n'))]);
     await expectCreditLegible(page, '새별 1');
-    // Nothing of the drawing shows between the chips: it starts under them.
+    // v38: the drawing runs on behind the chip row (v33–v37 started it under the chips), and stops under the switcher.
     const chips = await rect(page, '#hole-info');
     const info = await rect(page, '#info-btn');
-    expect(await drawnAt(page, info.x - 12, chips.y + chips.height / 2), 'between the chips').toBe(false);
+    const switcher = await rect(page, '#entry .switcher');
+    expect(await drawnAt(page, info.x - 12, chips.y + chips.height / 2), 'between the chips').toBe(true);
+    expect(await drawnAt(page, info.x - 12, switcher.y + switcher.height - 2), 'beside the switcher').toBe(false);
     await pickHole(page, 6);
     await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
     await expectInSight(page, '새별 7', { '.tee': 1, '.green': 1, '.flag': 1 });
@@ -6346,7 +6358,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v37');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v38');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -6542,6 +6554,8 @@ function styleInventory() {
   probe.style.background = 'var(--action)';
   document.body.append(probe);
   const accentKey = bytes(getComputedStyle(probe).backgroundColor).join(' ');
+  probe.style.background = 'var(--chip-on-art)';
+  const chipOnArt = getComputedStyle(probe).backgroundColor;
   probe.remove();
   const modal = [...document.querySelectorAll('dialog[open]')].find((d) => d.matches(':modal'));
   const cover = modal?.getBoundingClientRect();
@@ -6561,8 +6575,10 @@ function styleInventory() {
     if ([...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())) add(seen.fontSize, cs.fontSize, d);
     if (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') {
       const [r8, g8, b8, a8] = bytes(cs.backgroundColor);
-      if (a8 > 0) {
-        add(seen.background, `rgb(${r8} ${g8} ${b8}${a8 < 255 ? ` / ${(a8 / 255).toFixed(2)}` : ''})`, d);
+      // v38: the chip row's pills over the drawing are see-through by the user's call: the one exception, not counted.
+      const pill = a8 < 255 && el.closest('#hole-info') !== null && cs.backgroundColor === chipOnArt;
+      if (a8 > 0 && !pill) {
+        add(seen.background,`rgb(${r8} ${g8} ${b8}${a8 < 255 ? ` / ${(a8 / 255).toFixed(2)}` : ''})`, d);
         if (a8 < 255) translucent.push(d);
         if (`${r8} ${g8} ${b8} ${a8}` === accentKey) accent.push(d);
       }
@@ -6986,9 +7002,12 @@ test('each capsule’s split is one see-through line across its midline, edge to
       const line = await page.locator(`.club-${key} .num-row`).evaluate((el) => ({
         content: getComputedStyle(el, '::before').content, colour: getComputedStyle(el, '::before').borderTopColor,
         width: getComputedStyle(el, '::before').borderTopWidth, gap: parseFloat(getComputedStyle(el).columnGap),
+        styles: [getComputedStyle(el, '::before').borderTopStyle, getComputedStyle(el, '::after').borderTopStyle],
       }));
       expect(line.content, where).not.toBe('none');
       expect(line.width, `${where}: a hairline`).toBe('1px');
+      // Dashed since v38 (the user's call): a quieter split than a solid line, on both sides of the count.
+      expect(line.styles, `${where}: dashed`).toEqual(['dashed', 'dashed']);
       // See-through ink since v34 (the user: the line and the glyphs blend into the capsule): it takes each half's tone,
       // lighter than the glyphs. Decorative, as the two tones mark the split, so under 3:1, but still seen on both.
       const [ours, theirs] = [await overPaint(page, line.colour, halves[0]), await overPaint(page, glyph, halves[0])];
