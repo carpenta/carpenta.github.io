@@ -1815,3 +1815,8 @@ body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass
 /* More room under the hole switcher: its ring hangs 10px below the pill, and in 상세 it nearly met the card (v39). */
 .hole-nav { margin-bottom: 24px; }
 .osm-credit { bottom: calc(100% + 24px + 60px + 6px + 6px); }
+/* The ring's words are trimmed to the cap height for alignment; Hangul stands above it, so nothing may clip them. Its
+   sizes are the ring's own, whatever 큰 글씨 or a two-digit hole would set elsewhere. */
+.hole-nav .hole-u { overflow: visible; }
+body .hole-nav #hole-title .hole-u { font-size: var(--t-s); }
+body .hole-nav #hole-title .hole-n { font-size: 32px; }
