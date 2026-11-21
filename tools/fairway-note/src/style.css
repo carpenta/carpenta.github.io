@@ -36,6 +36,7 @@
   --red-ink: color-mix(in oklab, var(--red) 82%, var(--ink));
   --on-dark: var(--white);                                          /* text on deep and rough */
   --on-dark-2: color-mix(in oklab, var(--white) 86%, var(--putting));
+  --on-dark-quiet: color-mix(in oklab, var(--white) 68%, var(--ink));  /* quiet gray text on the rough: 5.3:1 (the OSM credit) */
   --on-dark-soft: color-mix(in srgb, var(--on-dark) 84%, transparent);
   --on-dark-line: color-mix(in srgb, var(--on-dark) 55%, transparent);
   --tab-ink: color-mix(in oklab, var(--white) 70%, var(--deep));   /* 7:1 on --deep (v32) */
@@ -123,8 +124,9 @@ svg { display: block; }
 
 /* Our own drawn hole fills the screen behind everything. On 기록 it ends at the sheet's top edge (v31, --art-bottom from
    main.ts): below it the card covers the hole, and what showed beside the card and above 다음 홀 read as a glitch.
-   The page under it is the same rough, so the edge does not show. */
-.course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(0 0 calc(100% - var(--art-bottom, 100%)) 0); }
+   Fitted into the band (v33), it also starts under the chip row (--art-top), so water the band cuts ends at its edge.
+   The page under it is the same rough, so neither edge shows. */
+.course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(var(--art-top, 0px) 0 calc(100% - var(--art-bottom, 100%)) 0); }
 
 .app {
   position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;
@@ -197,12 +199,16 @@ svg { display: block; }
 }
 /* Par and length under the hole number, for 상세 on a short screen where the chips step aside. */
 .hole-sub { display: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 15px; }
-/* The © OpenStreetMap link (v27): the version's twin at the card's left end, shown while the hole is drawn from OpenStreetMap.
-   Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds room (--credit-reach,
-   2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On its dark pill the focus ring is light. */
-.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: 0; bottom: calc(100% + 6px); height: 20px; padding: 0 8px; border-radius: var(--r-full); background: var(--deep); color: var(--on-dark-2); font-size: var(--t-s); line-height: 20px; font-weight: var(--w-label); white-space: nowrap; text-decoration: none; }
+/* The © OpenStreetMap link (v27), shown while the hole is drawn from OpenStreetMap: since v33 quiet gray text, not a pill,
+   6px above the card on its content edge (where the first capsule starts). The hole keeps out of its corner, so only the
+   rough is behind it. Its touch area reaches 6px down to the card's edge and up into the open band as far as main.ts finds
+   room (--credit-reach, 2–14px, 2px short of the chip row): 28 to 40px tall, never under WCAG 2.2's 24px. On the dark
+   drawing the focus ring is light. */
+.osm-credit { --credit-reach: 14px; position: absolute; z-index: 1; left: var(--card-pad); bottom: calc(100% + 6px); height: 20px; color: var(--on-dark-quiet); font-size: var(--t-s); line-height: 20px; font-weight: var(--w-help); white-space: nowrap; text-decoration: none; }
 .osm-credit::after { content: ''; position: absolute; inset: calc(-1 * var(--credit-reach)) -4px -6px; }
-.osm-credit:active { background: var(--deep); }
+/* At the card's right content edge instead where water would lie behind it at the left (v33; main.ts sets .end). */
+.osm-credit.end { left: auto; right: var(--card-pad); }
+.osm-credit:active { color: var(--on-dark); }
 .osm-credit:focus-visible { outline-color: var(--on-dark); }
 #hole-title.two .hole-n { font-size: calc(var(--t-2xl) * .82); }
 #hole-title.two .hole-u { font-size: var(--t-s); }
@@ -1200,7 +1206,10 @@ body.big .ct :is(.c-hole, .c-par, .c-score, .c-putt) { font-size: var(--t-m); }
 .a-sand { fill: var(--sand); }
 #course .water { fill: var(--water); stroke: var(--deep); }
 .a-fringe { fill: var(--art-cut); }
-#course :is(.green, .green2, .tee, .tee2), .a-tee-fill { fill: var(--putting); }
+#course :is(.green, .green2, .tee), .a-tee-fill { fill: var(--putting); }
+/* An OpenStreetMap hole's other tees, quieter than the back tee the line of play starts from (v33 critique: a row of bright
+   tees read as a ball's flight). */
+#course .tee2 { fill: var(--fairway); }
 .th-fairway { stroke: var(--fairway); }
 .th-water { fill: var(--water); }
 .a-green-fill, .th-green { fill: var(--putting); stroke: var(--art-cut); }

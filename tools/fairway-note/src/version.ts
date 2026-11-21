@@ -1,3 +1,3 @@
 /** The design round shipped. Each improvement round adds one (see docs/IMPROVEMENTS.md). */
-export const VERSION = 32;
+export const VERSION = 33;
 export const VERSION_LABEL = `v${VERSION}`;

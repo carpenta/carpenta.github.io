@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { courseShape, courseSvg, holeHazards, layoutHazards, layoutIsland, type CourseFrame, type CourseShape, type HazardShape, type HoleHazard, type NamedHazard } from '../src/course-art';
+import { bandShape, bandSvg, courseShape, courseSvg, holeHazards, layoutHazards, layoutIsland, type ArtBand, type BandShape, type Box, type CourseFrame, type CourseShape, type HazardShape, type HoleHazard, type NamedHazard } from '../src/course-art';
 import type { Par } from '../src/round';
 
 /** One line per hazard, so the phrase table reads like the notes: "bunker green front ×1". */
@@ -395,6 +395,175 @@ describe('the drawn course, a yardage book’s plan view (v31)', () => {
       expect(svg).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
       expect(svg).not.toMatch(/(fill|stroke|stop-color|flood-color|lighting-color)="(?!none")/);
       expect(svg).not.toMatch(/style=|<script|\son\w+=|href/);
+    }
+  });
+});
+
+describe('the schematic fitted into the band 기록 shows (v33)', () => {
+  // The band at each size as main.ts measures it (`artBand`): under the chip row, above the entry sheet, across its width.
+  // A schematic hole has no credit to keep clear.
+  const BANDS: [string, ArtBand][] = [
+    ['390×844 기본', { x0: 16, y0: 106, x1: 374, y1: 316, keep: [] }],
+    ['390×844 상세', { x0: 16, y0: 106, x1: 374, y1: 278, keep: [] }],
+    ['390×664 기본', { x0: 16, y0: 106, x1: 374, y1: 162, keep: [] }],
+    ['375×667 기본', { x0: 16, y0: 106, x1: 359, y1: 165, keep: [] }],
+    ['375×667 상세', { x0: 16, y0: 106, x1: 359, y1: 153, keep: [] }],
+    ['360×640 기본', { x0: 16, y0: 106, x1: 344, y1: 138, keep: [] }],
+  ];
+  const NOTES = ['', '그린 앞 벙커', '그린 주변 벙커 다수', '그린 앞 연못', '좌우 호수·벙커', 'IP 좌우 벙커', '티 앞 연못', '연못 넘기는 티샷, 오르막, 그라스 벙커',
+    '그린 둘러싼 웨이스트 벙커', '그린 앞 연못·벙커, 페어웨이 좌측 연못', '그린 좌측 연못, 그린 우측 벙커 2개'];
+  type Pt = [number, number];
+  const inside = ([x, y]: Pt, b: { x0: number; y0: number; x1: number; y1: number }, tol = 0.5) => x >= b.x0 - tol && x <= b.x1 + tol && y >= b.y0 - tol && y <= b.y1 + tol;
+  const hits = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  const shrink = (b: Box, d: number): Box => ({ x0: b.x0 + d, y0: b.y0 + d, x1: b.x1 - d, y1: b.y1 - d });
+  /** Points round an ellipse `k` times a shape's axes and largest outline factor, turned `angle` degrees. */
+  const ellipse = (cx: number, cy: number, rx: number, ry: number, k: number, angle = 0, n = 48): Pt[] => {
+    const a = (angle * Math.PI) / 180;
+    return Array.from({ length: n }, (_, j): Pt => {
+      const t = (j / n) * Math.PI * 2;
+      const x = Math.cos(t) * rx * k;
+      const y = Math.sin(t) * ry * k;
+      return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)];
+    });
+  };
+  const flagBox = (p: { x: number; y: number; pole: number }): Box => ({ x0: p.x - 3.6, y0: p.y - p.pole - 1.9, x1: p.x + 1 + Math.max(13, p.pole * 0.46), y1: p.y + 1.9 });
+  const drawn: [string, BandShape, ArtBand][] = [];
+  beforeAll(() => {
+    for (const [size, band] of BANDS) for (const par of [3, 4, 5] as const) for (const bend of [-1, 0, 1] as const) for (const index of [0, 3, 7, 12]) {
+      for (const note of NOTES) {
+        const length = par === 3 ? 165 : par === 4 ? 380 : 505;
+        drawn.push([`${note || '(none)'} / par ${par} bend ${bend} hole ${index + 1} at ${size}`, bandShape(par, index, band, bend, false, length, holeHazards(par, note)), band]);
+      }
+      if (par === 3) drawn.push([`island / hole ${index + 1} at ${size}`, bandShape(3, index, band, 0, true, 160, []), band]);
+    }
+  }, 30_000);
+
+  it('lays each hole across the band: the tee at the left, the green at the right, the line of play from one to the other', () => {
+    for (const [what, s] of drawn) {
+      expect(s.line[0], what).toEqual([s.tee.x, s.tee.y]);
+      expect(s.line[s.line.length - 1], what).toEqual([s.green.cx, s.green.cy]);
+      expect(s.tee.x, what).toBeLessThan(s.green.cx);
+    }
+  });
+
+  // One expect over every size, par, bend, hole and note, so it runs fast: the problems found, none expected.
+  it('fits the tee, the green in its fringe, the fairway in its cut, the named hazards, an island’s water, the flag and the markers in the band', () => {
+    const problems: string[] = [];
+    let named = 0;
+    for (const [what, s, band] of drawn) {
+      const g = s.green;
+      const m = Math.max(...g.outline) * 1.02;
+      const parts: [string, Pt[], number][] = [
+        ['tee', [[s.tee.x - s.tee.along / 2, s.tee.y - s.tee.across / 2], [s.tee.x + s.tee.along / 2, s.tee.y + s.tee.across / 2]], 0],
+        ['green', ellipse(g.cx, g.cy, g.rx, g.ry, 1.1 * m), 0],
+        ...(s.water ? [['island water', ellipse(g.cx, g.cy, g.rx, g.ry, s.water * m), 1] as [string, Pt[], number]] : []),
+        ...(s.fairway ? [['fairway', s.fairway, 4] as [string, Pt[], number]] : []),
+        ...s.hazards.map((h, j): [string, Pt[], number] => [`${h.kind} ${j}`, ellipse(h.cx, h.cy, h.rx, h.ry, Math.max(...h.outline) * 1.08, h.angle), 1]),
+      ];
+      named += s.hazards.length;
+      for (const [part, pts, edge] of parts) if (pts.some((p) => !inside(p, shrink(band, edge)))) problems.push(`${what}: ${part} leaves the band`);
+      // At least 6px under the chip row (the v33 critique), the flag and the pills too; a tee box the eye finds (16×10px).
+      const top = Math.min(...parts.map(([, pts, edge]) => Math.min(...pts.map((p) => p[1])) - edge), ...(s.pin ? [flagBox(s.pin).y0] : []), ...s.markers.map((mk) => mk.label.y0));
+      if (top < band.y0 + 6 - 0.5) problems.push(`${what}: ${(top - band.y0).toFixed(1)}px under the chips`);
+      if (s.tee.along < 16 || s.tee.across < 10) problems.push(`${what}: a ${s.tee.along.toFixed(1)}×${s.tee.across.toFixed(1)}px tee`);
+      if (s.markers.length === 2 && (s.markers[0].label.y1 <= s.markers[0].y) !== (s.markers[1].label.y1 <= s.markers[1].y)) problems.push(`${what}: pills on both sides`);
+      if (!s.pin) problems.push(`${what}: no flag`);
+      else {
+        const flag = flagBox(s.pin);
+        if (!inside([flag.x0, flag.y0], band) || !inside([flag.x1, flag.y1], band)) problems.push(`${what}: flag leaves the band`);
+      }
+      const labels: Box[] = [];
+      for (const mk of s.markers) {
+        for (const b of [{ x0: mk.x - 6.25, y0: mk.y - 6.25, x1: mk.x + 6.25, y1: mk.y + 6.25 }, mk.label]) {
+          if (!inside([b.x0, b.y0], band) || !inside([b.x1, b.y1], band)) problems.push(`${what}: ${mk.d} m leaves the band`);
+          if (s.pin && hits(b, flagBox(s.pin))) problems.push(`${what}: ${mk.d} m on the flag`);
+        }
+        if (labels.some((l) => hits(l, mk.label))) problems.push(`${what}: ${mk.d} m label on another`);
+        labels.push(mk.label);
+      }
+    }
+    expect(problems).toEqual([]);
+    expect(named).toBeGreaterThan(drawn.length);
+  });
+
+  // Course markers measure to the middle of the green. v31 measured from the green's front edge while drawing the green
+  // larger than life; now the green is drawn about its real size (a little larger where the band is very short).
+  it('measures 100 m and 150 m from the green’s centre along the line of play at the drawing’s scale, the green near its real size', () => {
+    let seen = 0;
+    for (const [what, s] of drawn) {
+      for (const mk of s.markers) {
+        seen++;
+        let along = 0;
+        let found = Infinity;
+        for (let k = s.line.length - 1; k > 0; k--) {
+          const [a, b] = [s.line[k], s.line[k - 1]];
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          const len = Math.hypot(dx, dy);
+          const t = ((mk.x - a[0]) * dx + (mk.y - a[1]) * dy) / (len * len);
+          if (t >= -1e-6 && t <= 1 + 1e-6 && Math.abs((mk.x - a[0]) * dy - (mk.y - a[1]) * dx) / len < 0.01) {
+            found = along + t * len;
+            break;
+          }
+          along += len;
+        }
+        expect(Math.abs(found - mk.d * s.scale), `${what}: ${mk.d} m`).toBeLessThanOrEqual(0.5);
+      }
+      // A green about 32 m long and 26 m wide, never smaller than 9 by 7px.
+      expect(Math.abs(s.green.rx - Math.max(16 * s.scale, 9)), what).toBeLessThanOrEqual(0.01);
+      expect(Math.abs(s.green.ry - Math.max(13 * s.scale, 7)), what).toBeLessThanOrEqual(0.01);
+    }
+    expect(seen).toBeGreaterThan(100);
+  });
+
+  it('keeps an island green in its water at every size: 1.78 times the green where the band allows, at least 1.4 on the shortest', () => {
+    for (const [size, band] of BANDS) {
+      const s = bandShape(3, 6, band, 0, true, 160, []);
+      expect(s.water, size).toBeGreaterThanOrEqual(1.4);
+      expect(s.water, size).toBeLessThanOrEqual(1.78);
+      if (band.y1 - band.y0 >= 100) expect(s.water, size).toBe(1.78);
+    }
+    expect(bandShape(3, 6, BANDS[0][1], 0, false, 160, []).water).toBe(0);
+  });
+
+  it('puts named hazards where their words say: the front toward the tee, the player’s left above the line', () => {
+    const band = BANDS[0][1];
+    const front = bandShape(3, 0, band, 0, false, 160, holeHazards(3, '그린 앞 연못'));
+    expect(front.hazards).toHaveLength(1);
+    expect(front.hazards[0].cx).toBeLessThan(front.green.cx);
+    const left = bandShape(4, 0, band, 0, false, 380, holeHazards(4, '페어웨이 좌측 연못'));
+    expect(left.hazards).toHaveLength(1);
+    expect(left.hazards[0].cy).toBeLessThan(left.tee.y);
+    const right = bandShape(4, 0, band, 0, false, 380, holeHazards(4, '우측 벙커'));
+    expect(right.hazards[0].cy).toBeGreaterThan(right.tee.y);
+    // Water the tee shot carries lies between the tee and the green, nearer the tee.
+    const carry = bandShape(5, 3, band, 0, false, 505, holeHazards(5, '연못 넘기는 티샷, 오르막, 그라스 벙커'));
+    expect(carry.hazards.map((h) => h.kind)).toEqual(['water']);
+    expect(carry.hazards[0].cx).toBeGreaterThan(carry.tee.x);
+    expect(carry.hazards[0].cx).toBeLessThan((carry.tee.x + carry.green.cx) / 2);
+  });
+
+  it('keeps 그린필드’s named ponds in sight at every size: 4’s tee-shot carry and 7’s pond in front of the green', () => {
+    for (const [size, band] of BANDS) {
+      const carry = bandShape(5, 3, band, 0, false, 505, holeHazards(5, '연못 넘기는 티샷, 오르막, 그라스 벙커'));
+      const front = bandShape(5, 6, band, 0, false, 484, holeHazards(5, '20m 내리막, 짧은 파5, 그린 앞 연못'));
+      const around = bandShape(3, 5, band, 0, false, 160, holeHazards(3, '그린 둘러싼 웨이스트 벙커'));
+      expect(carry.hazards.filter((h) => h.kind === 'water'), `그린필드 4 at ${size}`).toHaveLength(1);
+      expect(front.hazards.filter((h) => h.kind === 'water'), `그린필드 7 at ${size}`).toHaveLength(1);
+      expect(around.hazards.filter((h) => h.kind === 'bunker'), `그린필드 6 at ${size}`).toHaveLength(3);
+    }
+  });
+
+  it('is flat as v31’s plan view: its classes only, no gradient, url() or colour in the markup', () => {
+    const frame: CourseFrame = { width: 390, height: 844, bandTop: 106, bandBottom: 316, right: 374 };
+    const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'a-pole-fill'];
+    for (const [, s] of drawn.slice(0, 400)) {
+      const svg = bandSvg(s, frame);
+      expect(svg).not.toMatch(/<(linearGradient|radialGradient|pattern|mask|clipPath|filter|fe[A-Z])\b|url\(#|NaN|Infinity/);
+      expect(svg).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
+      expect(svg).not.toMatch(/(fill|stroke|stop-color|flood-color|lighting-color)="(?!none")/);
+      const classes = [...new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(' ')))];
+      expect(classes.filter((c) => !FLAT.includes(c))).toEqual([]);
     }
   });
 });
