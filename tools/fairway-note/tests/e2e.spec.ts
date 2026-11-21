@@ -7805,35 +7805,34 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
     // page's CSP would refuse and report (as the v32 badge test).
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
 
-    test('상세 stands OB, 벙커 and 해저드 together under the first three capsules; 빼기 comes in under 퍼터 and nothing moves', async ({ page }) => {
+    // v39 (the user: 상세's rows aligned): OB, 벙커 and 해저드 stand on the direction pad's far-left, 페어웨이 and far-right
+    // lines (v36–v38: under the first three capsules); 빼기 comes in at the row's end, on the far-right line; 기본 has none.
+    test('상세 stands OB, 벙커 and 해저드 on the pad’s lines; 빼기 comes in at the row’s end; 기본 shows no penalties', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: '상세', exact: true }).click();
       if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
       await atRest(page);
-      const caps = await Promise.all(KEYS.상세.map((k) => rect(page, `.club-${k} .pill`)));
+      const lines = await Promise.all(['far-left', 'fairway', 'far-right'].map((d) => rect(page, `#pad button[data-tee="${d}"]`)));
       const pens = ['#stake-ob', '#stake-bunker', '#stake-hazard'] as const;
-      // At rest one group: one under each of the first three capsules, no column held empty between them.
-      const before = await Promise.all(pens.map((s) => rect(page, s)));
-      before.forEach((b, j) => expectAligned(midX(b), midX(caps[j]), `${pens[j]} under ${KEYS.상세[j]}`));
+      const before = await Promise.all(pens.map((s) => rect(page, `${s} .pen-icon`)));
+      before.forEach((b, j) => expectAligned(midX(b), midX(lines[j]), `${pens[j]} on the pad's line`));
       await expect(page.locator('#pen-undo')).toBeHidden();
       // Tab goes the way the eye does.
       expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'stake-hazard', 'pen-undo']);
-      // The first penalty brings 빼기 in under 퍼터, after the three, and none of them moves.
+      // The first penalty brings 빼기 in at the end, on the far-right line; OB keeps its place and every row its line.
       await tap(page, 'ob');
       await atRest(page);
       await expect(page.locator('#pen-undo')).toBeVisible();
       await expect(page.locator('#pen-undo')).toHaveText('OB 빼기');
-      expectAligned(midX(await rect(page, '#pen-undo')), midX(caps[3]), '빼기 under 퍼터');
-      const after = await Promise.all(pens.map((s) => rect(page, s)));
-      after.forEach((b, j) => {
-        expectAligned(b.x, before[j].x, `${pens[j]}: x after the first penalty`);
-        expectAligned(b.y, before[j].y, `${pens[j]}: y after the first penalty`);
-      });
-      // 기본 keeps its row: OB and 해저드 under the outer capsules, 빼기 between them under 그린까지, in that order for Tab.
+      expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(lines[2]), '빼기 on the far-right line');
+      const ob = await rect(page, '#stake-ob .pen-icon');
+      expectAligned(ob.x, before[0].x, 'OB: x after the first penalty');
+      for (const s of [...pens, '#pen-undo']) expectAligned((await rect(page, `${s}`)).y, (await rect(page, '#stake-ob')).y, `${s} on one row`);
+      // 기본 (v39): no penalty row at all; what 상세 counted still counts.
       await page.getByRole('button', { name: '기본', exact: true }).click();
       await atRest(page);
-      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'pen-undo', 'stake-hazard']);
-      expectAligned(midX(await rect(page, '#pen-undo')), midX(await rect(page, '.club-approach .pill')), '기본: 빼기 under 그린까지');
+      await expect(page.locator('#pens')).toBeHidden();
+      await expect(page.locator('#hole-strokes')).toHaveText('1');
     });
 
     test('멀리건 is two taps from 기록: 메뉴, then + on its row, which names the hole; nothing for it on the card', async ({ page }) => {
@@ -7871,48 +7870,50 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       await expect(page.locator('#entry')).not.toContainText('멀리건');
     });
 
-    test('the menu stops on the bar: the bar stays in view with 메뉴 marked, and a tap on it goes on to the bar', async ({ page }) => {
+    // v39 (the user: as a sheet the menu covered the screen oddly): a centred modal, the whole screen dimmed behind it, the
+    // island too (v36–v38: a sheet that stopped on the bar, which stayed lit). Where the island shows below it, a tap there
+    // still goes on to the bar.
+    test('the menu is a centred modal over a dimmed screen, 메뉴 marked; where the island shows, a tap on it goes on to the bar', async ({ page }) => {
       await open(page);
       await atRest(page);
       const bar = await rect(page, '#views');
-      const edge = [bar.x + 3, bar.y + bar.height - 3] as const;   // the bar's own ground, left of its first column
+      const edge = [bar.x + 3, bar.y + bar.height / 2] as const;   // the island's own ground, left of its first column
       const corner = [3, 3] as const;                               // the screen's top corner
       const barGround = await pixelAt(page, ...edge);
       const cornerGround = await pixelAt(page, ...corner);
       await page.locator('#bar-menu').click();
       await expect(page.locator('#menu')).toBeVisible();
       await settled(page);
-      // The sheet's foot on the bar's top edge.
       const sheet = await rect(page, '#menu');
-      expectAligned(sheet.y + sheet.height, bar.y, 'the sheet stops on the bar');
-      // The dim stops there too: the bar shows as it was, the screen above it dims.
-      expect(await pixelAt(page, ...edge), 'the bar under the open menu').toEqual(barGround);
-      expect(await pixelAt(page, ...corner), 'the screen above the bar dims').not.toEqual(cornerGround);
-      // 메뉴 marked as where the sheet came from, the view's own tab stepping aside for it, the bar whole.
+      expectAligned(midX(sheet), width / 2, 'the menu centred across');
+      expectAligned(midY(sheet), height / 2, 'the menu centred down');
+      expectAligned(sheet.width, Math.min(360, width - 32), 'the menu min(360px, 100vw − 32px) wide');
+      expect(sheet.height, 'the menu at most min(720px, 100dvh − 64px) tall').toBeLessThanOrEqual(Math.min(720, height - 64) + 0.5);
+      // The dim covers everything, the island included.
+      expect(await pixelAt(page, ...edge), 'the island dims under the open menu').not.toEqual(barGround);
+      expect(await pixelAt(page, ...corner), 'the screen dims').not.toEqual(cornerGround);
       await expect(page.locator('#bar-menu')).toHaveAttribute('aria-expanded', 'true');
-      const pill = (s: string) => page.locator(`${s} .ti`).evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(await pill('#bar-menu')).toBe(await token(page, '--turf'));
-      expect(await pill('#tab-entry')).toBe('rgba(0, 0, 0, 0)');
-      await atRest(page);
-  expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
-      // A tap on 메뉴 closes it: the focus back on 메뉴, 기록's tab marked again.
       const menuButton = await rect(page, '#bar-menu');
-      await page.mouse.click(midX(menuButton), midY(menuButton));
-      await expect(page.locator('#menu')).toBeHidden();
-      await expect(page.locator('#bar-menu')).toHaveAttribute('aria-expanded', 'false');
-      await expect(page.locator('#bar-menu')).toBeFocused();
-      await atRest(page);
-      expect(await pill('#tab-entry')).toBe(await token(page, '--turf'));
-      // A tap on a view under the open menu closes it and opens that view: one tap, as with the menu closed.
-      await page.locator('#bar-menu').click();
-      await expect(page.locator('#menu')).toBeVisible();
-      const card = await rect(page, '#tab-card');
-      await page.mouse.click(midX(card), midY(card));
-      await expect(page.locator('#menu')).toBeHidden();
-      await expect(page.locator('#card-view')).toBeVisible();
-      await expect(tab(page, '스코어카드')).toHaveAttribute('aria-selected', 'true');
-      // The × closes it too: on the title's line, ending where the rows end, named 닫기.
-      await page.locator('#bar-menu').click();
+      // The island's foot shows below the menu: a tap there lands on the bar (the backdrop passes it on).
+      const foot = (sheet.y + sheet.height + bar.y + bar.height) / 2;
+      expect(foot, 'some of the island shows below the menu').toBeGreaterThan(sheet.y + sheet.height);
+      {
+        // A tap on 메뉴 closes it: the focus back on 메뉴.
+        await page.mouse.click(midX(menuButton), foot);
+        await expect(page.locator('#menu')).toBeHidden();
+        await expect(page.locator('#bar-menu')).toHaveAttribute('aria-expanded', 'false');
+        await expect(page.locator('#bar-menu')).toBeFocused();
+        // A tap on a view under the open menu closes it and opens that view: one tap, as with the menu closed.
+        await page.locator('#bar-menu').click();
+        await expect(page.locator('#menu')).toBeVisible();
+        const card = await rect(page, '#tab-card');
+        await page.mouse.click(midX(card), foot);
+        await expect(page.locator('#menu')).toBeHidden();
+        await expect(page.locator('#card-view')).toBeVisible();
+        await expect(tab(page, '스코어카드')).toHaveAttribute('aria-selected', 'true');
+        await page.locator('#bar-menu').click();
+      }
+      // The × closes it: on the title's line, ending where the rows end, named 닫기; the focus back on 메뉴.
       await settled(page);
       const x = await rect(page, '#menu-close');
       expectAligned(midY(x), midY(await rect(page, '#menu-title')), '× on the title\'s line');
@@ -7922,6 +7923,7 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       await expect(page.locator('#menu-close')).toHaveAccessibleName('닫기');
       await page.locator('#menu-close').click();
       await expect(page.locator('#menu')).toBeHidden();
+      await expect(page.locator('#bar-menu')).toBeFocused();
     });
 
     test('the menu sorts its items by job: 라운드, 기록 보관 and 설정, then 앱 정보, in one icon family and one row rhythm', async ({ page }) => {

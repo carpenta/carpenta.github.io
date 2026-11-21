@@ -1899,7 +1899,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 /* The menu as a centred modal (the user: as a sheet it covered the screen oddly): a card in the middle of the screen,
    the whole screen dimmed behind it, scrolling inside where a screen is short; it fades in rather than rising. */
 .menu-sheet {
-  margin: auto; width: min(360px, calc(100vw - 32px)); max-height: min(660px, calc(100dvh - 64px));
+  margin: auto; width: min(360px, calc(100vw - 32px)); max-height: min(720px, calc(100dvh - 64px));   /* the whole menu on a 390×844 phone (v36), 706px */
   border-radius: var(--r-card); padding: 14px 16px 16px;
 }
 #menu::backdrop { background: var(--backdrop-strong); }
