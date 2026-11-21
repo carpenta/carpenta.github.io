@@ -6832,8 +6832,8 @@ test.describe('the badge and the hole line on small phones (v29)', () => {
           return r - Math.max(...[[w.left, w.top], [w.right, w.top], [w.left, w.bottom], [w.right, w.bottom]].map(([x, y]) => Math.hypot(x - cx, y - cy)));
         });
         expect(clear, `${word}${big ? ' with 큰 글씨' : ''} clear of the ring`).toBeGreaterThanOrEqual(0.5);
-        if (word === '홀인원') {
-          // The word is the number: it shows alone, on the badge's centre line, and is read in full.
+        if (word === 'Ace') {
+          // The word is the number (v39: Ace; v29–v38: 홀인원): it shows alone, on the badge's centre line, and is read in full.
           await expect(page.locator('#bmark')).toBeHidden();
           expect(Math.abs(midY(await rect(page, '#hole-name')) - midY(await rect(page, '#badge')))).toBeLessThanOrEqual(1);
           await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 1타 홀인원');
@@ -6920,6 +6920,8 @@ function styleInventory() {
   probe.style.background = 'var(--action)';
   document.body.append(probe);
   const accentKey = bytes(getComputedStyle(probe).backgroundColor).join(' ');
+  probe.style.background = 'var(--lime)';
+  const limeKey = bytes(getComputedStyle(probe).backgroundColor).join(' ');
   probe.style.background = 'var(--chip-on-art)';
   const chipOnArt = getComputedStyle(probe).backgroundColor;
   probe.remove();
@@ -6930,6 +6932,16 @@ function styleInventory() {
   const desc = (el: Element) => el.tagName.toLowerCase() + (el.id ? `#${el.id}` : '') + (el.classList.length ? `.${[...el.classList].slice(0, 2).join('.')}` : '');
   const translucent: string[] = [];
   const accent: string[] = [];
+  // v39 (the user could not bear the bright green buttons): anything a tap lands on, filled solid lime or the old accent,
+  // itself or by a pseudo-element as large as half of it.
+  const limeOn: string[] = [];
+  const solidLime = (c: string) => [limeKey, accentKey].includes(bytes(c).join(' '));
+  for (const control of document.querySelectorAll('button, a[href], [role="button"], [role="tab"], [role="radio"], [role="switch"], summary, label')) {
+    const box = control.getBoundingClientRect();
+    if (!box.width || !box.height || !(control as HTMLElement).checkVisibility?.()) continue;
+    const parts = [getComputedStyle(control), getComputedStyle(control, '::before'), getComputedStyle(control, '::after')];
+    if (parts.some((s, k) => solidLime(s.backgroundColor) && (k === 0 || parseFloat(s.width) * parseFloat(s.height) >= (box.width * box.height) / 2))) limeOn.push(desc(control));
+  }
   for (const el of document.querySelectorAll('body *')) {
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
@@ -6957,7 +6969,7 @@ function styleInventory() {
   const list = (m: Map<string, string[]>) => [...m.entries()].map(([v, l]) => `${v} (${[...new Set(l)].slice(0, 3).join(' ')})`);
   return {
     background: list(seen.background), radius: list(seen.radius), shadow: list(seen.shadow), fontSize: list(seen.fontSize),
-    translucent: [...new Set(translucent)], accent: [...new Set(accent)],
+    translucent: [...new Set(translucent)], accent: [...new Set(accent)], limeOn: [...new Set(limeOn)],
   };
 }
 
@@ -6983,14 +6995,34 @@ const SYSTEM_SCREENS: [string, (page: Page) => Promise<unknown>][] = [
   }],
   ['지난 라운드', async (page) => { await page.locator('#sum-close').click(); await tab(page, '지난 라운드').click(); }],
 ];
-/** The primary action, the one thing on a screen that wears the accent. */
-const PRIMARY = ['#go-next', '#picker-start', '#sum-archive', '#finish-round', '#now-continue'];
+/** The primary action, the one thing on a screen that wears the accent (v30–v38; v39 gives it the lime edge instead). */
+const PRIMARY = ['#picker-start', '#sum-archive', '#finish-round', '#now-continue'];
+/**
+ * v39's see-through surfaces (the user's glow mock-up; tests/ui-rules.test.ts holds the stylesheet to the same tokens):
+ * map glass over the hole (dark green 50%, 70% pressed), the panels' dark glass (82%), and white tints of at most 24% for
+ * fills, chosen controls and primary actions, and lime light of at most 10% (the scorecard's current column). The deep glass of the card and the island is a gradient, not a colour.
+ */
+const isGlass = (bg: string) => {
+  const m = /^rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)$/.exec(bg);
+  if (!m) return false;
+  const [r, g, b, a] = m.slice(1).map(Number);
+  // The scorecard's current column is lime light at 8% (a canvas reads a faint colour back a few bytes off).
+  const lime = Math.abs(r - 196) <= 8 && Math.abs(g - 224) <= 8 && Math.abs(b - 79) <= 8 && a <= 0.1;
+  return (r === 10 && g === 24 && b === 16 && (a === 0.5 || a === 0.7)) || (r === 13 && g === 28 && b === 20 && a === 0.82) || (r === 255 && g === 255 && b === 255 && a <= 0.24) || lime;
+};
+/** A shadow's layers in v39: the v30 drops, the glass drop, the 1.5px lime edge, and lime glows no wider than 26px. */
+const SHADOW_LAYER = /^c (0px 2px 6px 0px|0px 12px 32px 0px|0px -8px 32px 0px|0px 6px 16px 0px|0px 0px 0px 1\.5px( inset)?|0px 0px (\d|1\d|2[0-6])px( \dpx)?( 0px)?)$/;
 
 for (const [width, height] of [[390, 844], [375, 553]] as const) {
-  test.describe(`one design system on a ${width}×${height} phone (v30)`, () => {
+  test.describe(`one design system on a ${width}×${height} phone (v30; v39 glass)`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('every screen keeps to six opaque backgrounds, three radii, three shadows and five type sizes, and the accent marks only the primary action', async ({ page }) => {
+    // v39 replaced v30's opaque-only rule with glass (the spec: rewrite the rule checks to the new limits, as numbers):
+    // at most six opaque backgrounds, any see-through one from the glass family; four radii (full, card, tile and the
+    // scorecard's 6px); at most five shadows, each made of the v39 layers; seven type sizes (v30's five on 기록 plus the
+    // ring's 32 and the badge's 20, or the strip's 22 over the low switcher's); and the accent never fills anything a tap
+    // lands on.
+    test('every screen keeps to six opaque backgrounds and glass, four radii, five shadows of the v39 layers and seven type sizes, and no lime slab', async ({ page }) => {
       const over: string[] = [];
       for (const [name, go] of SYSTEM_SCREENS) {
         await go(page);
@@ -6999,11 +7031,19 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
         const limit = (what: string, values: string[], max: number) => {
           if (values.length > max) over.push(`${name}: ${values.length} ${what} (≤ ${max}): ${values.join(' | ')}`);
         };
-        limit('backgrounds', found.background, 6);
-        limit('radii', found.radius, 3);
-        limit('shadows', found.shadow, 3);
-        limit('type sizes', found.fontSize, 5);
-        if (found.translucent.length) over.push(`${name}: see-through ${found.translucent.join(' ')}`);
+        const opaque = found.background.filter((b) => !b.includes(' / '));
+        const clear = found.background.filter((b) => b.includes(' / ')).map((b) => b.replace(/ \(.*$/, ''));
+        limit('opaque backgrounds', opaque, 6);
+        const odd = clear.filter((b) => !isGlass(b));
+        if (odd.length) over.push(`${name}: see-through but not glass: ${odd.join(' | ')}`);
+        limit('radii', found.radius, 4);
+        const radii = found.radius.map((r) => r.replace(/ \(.*$/, '')).filter((r) => !['999px', '24px', '12px', '6px', '50%'].includes(r));
+        if (radii.length) over.push(`${name}: radii off the scale: ${radii.join(' | ')}`);
+        limit('shadows', found.shadow, 5);
+        const layers = found.shadow.map((s) => s.replace(/ \(.*$/, '')).flatMap((s) => s.split(/, (?=c )/)).filter((l) => !SHADOW_LAYER.test(l));
+        if (layers.length) over.push(`${name}: shadow layers off the system: ${[...new Set(layers)].join(' | ')}`);
+        limit('type sizes', found.fontSize, 7);
+        if (found.limeOn.length) over.push(`${name}: a lime slab on ${found.limeOn.join(' ')}`);
         const stray = found.accent.filter((d) => !PRIMARY.some((id) => d.includes(id)));
         if (stray.length) over.push(`${name}: the accent on ${stray.join(' ')}`);
       }
@@ -7012,49 +7052,69 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
   });
 }
 
-test('marks whatever is chosen one way: turf with white letters, no ring; on the dark picker inverted, white with turf letters (v30)', async ({ page }) => {
+// v39 (the user: what is chosen has a lime edge and glow, never a lime fill): a chosen control on the glass is light glass
+// (white 10%) with white letters, a 1.5px lime edge inside and a soft lime glow; a chosen tab (the card's, the scorecard's
+// switch, the island's) has no fill, white letters and a glowing lime underline or dot. The course picker is still on
+// paper: its chosen ones white with ink letters and a turf edge, and on its dark rough the region chip inverts (v30).
+test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the paper picker white with a turf edge (v39)', async ({ page }) => {
   const chosen: string[] = [];
-  const check = async (selector: string, onDark = false) => {
+  const look = async (selector: string) => {
     const el = page.locator(selector).first();
     await expect(el, selector).toBeVisible();
     // Read at rest: chips and shot tabs ease their colour in.
     await settled(page);
-    const look = await el.evaluate((node) => ({ background: getComputedStyle(node).backgroundColor, color: getComputedStyle(node).color, ring: getComputedStyle(node).boxShadow }));
-    const [fill, letters] = onDark ? [white, turf] : [turf, white];
-    chosen.push(`${selector}: ${look.background === fill && look.color === letters && look.ring === 'none' ? 'ok' : JSON.stringify(look)}`);
+    return el.evaluate((node) => ({ background: getComputedStyle(node).backgroundColor, color: getComputedStyle(node).color, ring: getComputedStyle(node).boxShadow }));
+  };
+  const expectLook = async (selector: string, want: { background: string; color: string; ring: string }) => {
+    const got = await look(selector);
+    chosen.push(`${selector}: ${JSON.stringify(got) === JSON.stringify(want) ? 'ok' : JSON.stringify(got)}`);
+  };
+  const LIME_EDGE = 'rgb(196, 224, 79) 0px 0px 0px 1.5px inset, rgba(196, 224, 79, 0.28) 0px 0px 14px 0px';
+  const onGlass = 'rgb(244, 247, 240)';
+  const control = (selector: string) => expectLook(selector, { background: 'rgba(255, 255, 255, 0.1)', color: onGlass, ring: LIME_EDGE });
+  /** A tab: no fill, white letters, and the lime mark (underline or dot) under it, glowing. */
+  const tabMark = async (selector: string, mark: '::before' | '::after') => {
+    const got = await look(selector);
+    const line = await page.locator(selector).first().evaluate((node, m) => {
+      const s = getComputedStyle(node, m);
+      return { fill: s.backgroundColor, glow: s.boxShadow.includes('0px 0px 8px') };
+    }, mark);
+    const ok = got.background === 'rgba(0, 0, 0, 0)' && got.color === onGlass && line.fill === 'rgb(196, 224, 79)' && line.glow;
+    chosen.push(`${selector}: ${ok ? 'ok' : JSON.stringify({ ...got, ...line })}`);
   };
   await page.goto('/');
   await expect(page.locator('#picker')).toBeVisible();
-  const turf = await token(page, '--turf');
-  const white = await token(page, '--on-dark');
+  const [turf, white, ink, paper] = [await token(page, '--turf'), await token(page, '--on-dark'), await token(page, '--ink'), await token(page, '--white')];
   // The region chips sit on the dark rough: the chosen one is the brightest there, its neighbours quiet.
-  await check(".picker .chip[aria-pressed='true']", true);
+  await expectLook(".picker .chip[aria-pressed='true']", { background: white, color: turf, ring: 'none' });
   expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(white);
-  for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) await check(selector);
+  for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
+    await expectLook(selector, { background: paper, color: ink, ring: `${turf} 0px 0px 0px 1.5px inset` });
+  }
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
-  await check(".mode[aria-pressed='true']");
-  await check("#tab-entry .ti");
+  await tabMark(".sheet .mode[aria-pressed='true']", '::before');
+  await tabMark('#tab-entry', '::after');
   await page.getByRole('button', { name: '상세', exact: true }).click();
   await page.locator('#split-tip').click();
   await page.getByRole('button', { name: '페어웨이' }).click();
-  await check(".dir[aria-pressed='true']");
+  await control(".dir[aria-pressed='true']");
   await page.locator(".tchip[data-tee='long']").click();
-  await check(".tchip[aria-pressed='true']");
+  await control(".tchip[aria-pressed='true']");
   await longPress(page, 'driver');
-  await check(".np-row button[aria-pressed='true']");
+  await control(".np-row button[aria-pressed='true']");
   await page.keyboard.press('Escape');
   // A second drive, so the panel shows its shot tabs; the first, the 페어웨이 one, chosen.
   await tap(page, 'driver');
   await page.locator('#lbl-driver').click();
   await page.locator('.sp-shots button').first().click();
-  await check(".sp-shots button[aria-pressed='true']");
-  await check(".sp-chip[aria-pressed='true']");
+  await control(".sp-shots button[aria-pressed='true']");
+  await control(".sp-chip[aria-pressed='true']");
   await page.keyboard.press('Escape');
   await showCard(page);
-  await check("#sc-pick-card[aria-checked='true']");
+  await tabMark("#sc-pick-card[aria-checked='true']", '::before');
   expect(chosen.filter((line) => !line.endsWith(': ok'))).toEqual([]);
-  // The tab's own letters turn white with its pill.
-  expect(await page.locator('#tab-card').evaluate((el) => getComputedStyle(el).color)).toBe(white);
+  // The island's chosen tab is white, its icon and name.
+  expect(await page.locator('#tab-card').evaluate((el) => getComputedStyle(el).color)).toBe(onGlass);
 });
 
 test('paints each count over both halves of its capsule, whole, in 기본 and 상세 (v30: the halves are opaque now)', async ({ page }) => {

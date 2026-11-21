@@ -293,7 +293,7 @@ svg { display: block; }
 /* A hole in one (v29): the word is the number, so 홀인원 shows alone on the centre line, where the ring is widest. */
 .badge.hio .bmark { display: none; }
 .badge.hio .badge-name { font-size: var(--t-m); font-weight: var(--w-value); }
-body.big .badge.hio .badge-name { font-size: var(--t-l); }
+body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px); }   /* v39: 17px Ace on the middle (it sat 1px high) */
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
 /* 36px marks (v32, 30 inside the old ring): an eagle's inner circle clears its number by 4px instead of touching it. With
