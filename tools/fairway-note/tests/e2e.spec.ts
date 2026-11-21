@@ -2444,39 +2444,61 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
       }
     });
 
-    test('keeps the hole\'s shape in view: a small picture in the header on a short screen, the drawn band on a taller one', async ({ page }) => {
+    // v39: the band runs down to the low hole switcher, so on both phones 기본 has the drawn hole (the band is 96px at
+    // 375×553); 상세's taller card leaves under 50px (FIT_BAND), and the header's small picture shows the hole there
+    // (under 600px tall 상세 hides the chip row, picture and all, as it has since v23, for the pad's room).
+    test('keeps the hole\'s shape in view: the drawn band in 기본, a small picture in the header in 상세', async ({ page }) => {
       await open(page);
       await atRest(page);
       const thumb = page.locator('#hole-thumb');
-      const sheet = (await page.locator('#sheet').boundingBox())!;
+      await expect(thumb).toBeHidden();
+      const nav = (await page.locator('#entry .hole-nav').boundingBox())!;
+      const green = await shapeBox(page.locator('#course .green'));
+      expect(green.y + green.height).toBeLessThanOrEqual(nav.y);
+      await page.getByRole('button', { name: '상세', exact: true }).tap();
+      await atRest(page);
+      await expect(page.locator('#entry')).toHaveClass(/short-band/);
       if (height < 600) {
-        await expect(thumb).toBeVisible();
-        const t = (await thumb.boundingBox())!;
-        expect(t.y + t.height).toBeLessThanOrEqual(sheet.y);
-        await expect(thumb.locator('.th-green')).toHaveCount(1);
-      } else {
-        await expect(thumb).toBeHidden();
-        const green = (await page.locator('#course .green').boundingBox())!;
-        expect(green.y).toBeLessThan(sheet.y);
+        await expect(page.locator('#hole-info')).toBeHidden();
+        return;
       }
+      await expect(thumb).toBeVisible();
+      const t = (await thumb.boundingBox())!;
+      const sheet = (await page.locator('#sheet').boundingBox())!;
+      expect(t.y + t.height).toBeLessThanOrEqual(sheet.y);
+      await expect(thumb.locator('.th-green')).toHaveCount(1);
     });
 
-    test('상세 keeps its penalty pills one width on their columns, and the toggle at least 44px tall', async ({ page }) => {
+    test('상세 keeps its penalty pills one width on the pad’s lines, and the tabs’ touch areas 48px tall', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: '상세', exact: true }).click();
-      // An OB, so 빼기 shows too (since v36 under 퍼터, after the three penalties).
+      await atRest(page);
+      // v39 (the user: 상세's rows aligned): OB under the pad's far-left button, 벙커 under 페어웨이, 해저드 under its
+      // far-right button, 72px wide (v28–v38 stood them on the capsules' columns).
+      const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
+      const pads = await Promise.all(['far-left', 'fairway', 'far-right'].map(async (d) => (await page.locator(`#pad button[data-tee="${d}"]`).boundingBox())!));
+      const three = await Promise.all(['#stake-ob', '#stake-bunker', '#stake-hazard'].map(async (s) => (await page.locator(s).boundingBox())!));
+      three.forEach((b, j) => {
+        expect(Math.abs(centre(b) - centre(pads[j])), `pill ${j} on the pad's line`).toBeLessThanOrEqual(1);
+        expect(b.width, `pill ${j} width`).toBeCloseTo(72, 0);
+      });
+      // An OB, so 빼기 shows too, last in the row.
       await tap(page, 'ob');
       await atRest(page);
-      // OB under 드라이버, 벙커 under 세컨, 해저드 under 어프로치, 빼기 under 퍼터: four columns since v28, in this order
-      // since v36.
       const pens = await Promise.all(['#stake-ob', '#stake-bunker', '#stake-hazard', '#pen-undo'].map(async (s) => (await page.locator(s).boundingBox())!));
-      const cols = await Promise.all(KEYS.상세.map(async (k) => (await page.locator(`.club-${k} .pill`).boundingBox())!));
+      const card = (await page.locator('#sheet').boundingBox())!;
       pens.forEach((b, j) => {
         expect(Math.abs(b.width - pens[0].width), `pill ${j} width`).toBeLessThanOrEqual(1);
-        expect(Math.abs(b.x + b.width / 2 - (cols[j].x + cols[j].width / 2)), `pill ${j} centre`).toBeLessThanOrEqual(1);
+        expect(Math.abs(b.y - pens[0].y), `pill ${j} on one row`).toBeLessThanOrEqual(1);
+        if (j) expect(b.x, `pill ${j} after the one before`).toBeGreaterThanOrEqual(pens[j - 1].x + pens[j - 1].width);
+        expect(b.x, `pill ${j} inside the card`).toBeGreaterThanOrEqual(card.x);
+        expect(b.x + b.width, `pill ${j} inside the card`).toBeLessThanOrEqual(card.x + card.width);
         expect(Math.min(b.width, b.height), `pill ${j} target`).toBeGreaterThanOrEqual(48);
       });
-      for (const m of ['basic', 'detail']) expect((await page.locator(`button[data-mode="${m}"]`).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(Math.abs(centre(pens[0]) - centre(pads[0])), 'OB still on the far-left line').toBeLessThanOrEqual(1);
+      // v39's tabs are words over an underline, 34–36px tall under 700px (9ccb9c4, so 상세 fits); what a thumb finds is
+      // their 48px touch area, every point of it the tab's own.
+      for (const m of ['basic', 'detail', 'voice']) expect(await tabTarget(page, `.sheet .mode[data-mode="${m}"], .sheet #mode-${m}`), m).toBeGreaterThanOrEqual(48);
       // Each capsule splits in half (v20): two buttons of at least 48px that meet at its midline, in both modes.
       for (const mode of ['상세', '기본'] as const) {
         if (mode === '기본') await page.getByRole('button', { name: '기본', exact: true }).click();
@@ -2511,12 +2533,26 @@ const rect = async (page: Page, selector: string) => (await page.locator(selecto
 const midX = (b: { x: number; width: number }) => b.x + b.width / 2;
 const midY = (b: { y: number; height: number }) => b.y + b.height / 2;
 const atRest = (page: Page) => page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+/** How tall a button's touch area is down its centre line: the run of points, 1px apart, where a tap lands on it. */
+const tabTarget = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => {
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const on = (y: number) => el.contains(document.elementFromPoint(x, y));
+  let top = r.top + r.height / 2;
+  let bottom = top;
+  while (on(top - 1)) top -= 1;
+  while (on(bottom + 1)) bottom += 1;
+  return bottom - top + 1;
+});
 
 for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
   test.describe(`lined up on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('기록 sits on one grid: switcher centred, chips on the card edge, badge and penalties on the stepper columns', async ({ page }) => {
+    // v39: the hole switcher sits low, between the hole and the card; the top bar holds 홈, the course and the round, and
+    // the badge; 기본 has no penalties ("ob 해저드 벙커는 상세에서만"), and 상세's OB · 벙커 · 해저드 stand on the direction
+    // pad's far-left, 페어웨이 and far-right buttons (the user: 상세's rows aligned).
+    test('기록 sits on one grid: switcher centred, chips on the card edge, badge on the top bar, penalties on the pad', async ({ page }) => {
       await open(page);
       for (const mode of ['기본', '상세'] as const) {
         if (mode === '상세') await page.getByRole('button', { name: '상세', exact: true }).click();
@@ -2524,18 +2560,28 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         const sheet = await rect(page, '#sheet');
         const switcher = await rect(page, '#entry .switcher');
         expectAligned(midX(switcher), width / 2, `${mode}: hole switcher centre`);
+        expect(switcher.y + switcher.height, `${mode}: switcher above the card`).toBeLessThanOrEqual(sheet.y);
         // No menu button at the top left since v32: 메뉴 is in the bar.
         await expect(page.locator('#entry .top [data-menu]')).toHaveCount(0);
-        // The badge sits in the top bar's right slot: 60px, on the inset, on the bar's centre line, clear of the card.
+        // The badge sits in the top bar's right slot: 60px, on the inset, on the bar's centre line (홈's and the course's),
+        // clear of the card.
         const badge = await rect(page, '#badge');
+        const head = await rect(page, '#entry .round-head');
         expectAligned(badge.width, 60, `${mode}: badge width`);
         expectAligned(badge.height, 60, `${mode}: badge height`);
         expectAligned(badge.x + badge.width, sheet.x + sheet.width, `${mode}: badge right edge on the inset`);
-        expectAligned(midY(badge), midY(switcher), `${mode}: badge on the top bar's centre line`);
+        expectAligned(midY(badge), midY(head), `${mode}: badge on the top bar's centre line`);
+        expectAligned(midY(await rect(page, '.home-link')), midY(head), `${mode}: 홈 on the top bar's centre line`);
+        expectAligned(midX(head), width / 2, `${mode}: the course and the round centred`);
         expect(badge.y + badge.height, `${mode}: badge clear of the card`).toBeLessThan(sheet.y);
         // 기록 carries no version since v29: it lives under 앱 정보.
         await expect(page.locator('#app-version')).toHaveCount(0);
-        expect((await rect(page, 'button[data-mode="basic"]')).height, `${mode}: toggle height`).toBeGreaterThanOrEqual(44);
+        for (const m of ['basic', 'detail']) expect(await tabTarget(page, `.sheet .mode[data-mode="${m}"]`), `${mode}: ${m} tab's touch area`).toBeGreaterThanOrEqual(48);
+        expect(await tabTarget(page, '#mode-voice'), `${mode}: 음성 tab's touch area`).toBeGreaterThanOrEqual(48);
+        // The three tabs share the card's width, 음성 on the right.
+        const tabs = await Promise.all(['.sheet .mode[data-mode="basic"]', '.sheet .mode[data-mode="detail"]', '#mode-voice'].map((s) => rect(page, s)));
+        expectAligned(midX(tabs[1]), width / 2, `${mode}: 상세 tab centred`);
+        expectAligned(tabs[0].width, tabs[2].width, `${mode}: tabs one width`);
         if (mode === '상세') {
           // The direction pad runs from the card's content edge to the other, like the tee line.
           const pad = await page.locator('#pad button').all();
@@ -2553,29 +2599,29 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         for (const [j, c] of cols.entries()) {
           expectAligned(c.width, c1.width, `${mode}: capsule ${j + 1} width`);
           if (j) expectAligned(c.x - (cols[j - 1].x + cols[j - 1].width), cols[1].x - (c1.x + c1.width), `${mode}: gap before capsule ${j + 1}`);
-          // Each name sits over its capsule: in 상세 a chip as wide as it (v28), in 기본 centred on it.
+          // Each name sits over its capsule: in 상세 a chip as wide as it (v28), in 기본 an icon chip centred on it.
           const chip = await rect(page, `#lbl-${KEYS[mode][j]} .lbl-in`);
           expectAligned(midX(chip), midX(c), `${mode}: ${KEYS[mode][j]} name over its capsule`);
           if (mode === '상세') expectAligned(chip.width, c.width, `상세: ${KEYS[mode][j]} name as wide as its capsule`);
         }
-        expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), midX(c1), `${mode}: OB under 드라이버`);
-        // 해저드 under 퍼터 in 기본; in 상세 (v36) under 어프로치, with 벙커 and OB beside it.
-        expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), midX(mode === '기본' ? cLast : cols[2]), `${mode}: 해저드 under ${mode === '기본' ? '퍼터' : '어프로치'}`);
         if (mode === '기본') {
           expectAligned(midX(c2), width / 2, '기본: middle stepper');
           expectAligned((await rect(page, '#hole-info')).x, sheet.x, '기본: chips left edge');
           const info = await rect(page, '#info-btn');
           expectAligned(info.x + info.width, sheet.x + sheet.width, '기본: 홀 안내 on the right inset');
-          await expect(page.locator('#stake-bunker')).toBeHidden();
+          await expect(page.locator('#pens')).toBeHidden();
+        } else {
+          // Four capsules (v28): the gap between 세컨 and 어프로치 on the screen's centre line.
+          expectAligned((c2.x + c2.width + cols[2].x) / 2, width / 2, '상세: middle gap on the centre line');
+          const line = async (dir: string) => midX(await rect(page, `#pad button[data-tee="${dir}"]`));
+          expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), await line('far-left'), '상세: OB under the pad\'s far-left button');
+          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), await line('fairway'), '상세: 벙커 under 페어웨이');
+          expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), await line('far-right'), '상세: 해저드 under the pad\'s far-right button');
+          // An OB brings 빼기, at the row's right end, on the far-right line; OB keeps its place.
           await tap(page, 'ob');
           await atRest(page);
-          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(c2), '기본: 빼기 under 그린까지');
-        } else {
-          // Four capsules (v28): the gap between 세컨 and 어프로치 on the screen's centre line; since v36 벙커 under 세컨
-          // and 빼기 (an OB was added in 기본) under 퍼터, after the three penalties.
-          expectAligned((c2.x + c2.width + cols[2].x) / 2, width / 2, '상세: middle gap on the centre line');
-          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(cLast), '상세: 빼기 under 퍼터');
-          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), midX(c2), '상세: 벙커 under 세컨');
+          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), await line('far-right'), '상세: 빼기 under the pad\'s far-right button');
+          expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), await line('far-left'), '상세: OB stays on the far-left line');
           // The 0 … 5+ picker spans the card, its first and last choice on the card's content edge.
           await longPressPen(page, 'hazard');
           const pick = await rect(page, '#numpick');
@@ -2593,8 +2639,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
     test('the title row, the right-hand action and the card keep their place on every tab', async ({ page }) => {
       await open(page);
       await atRest(page);
-      // The row's line is the hole switcher's (v32: the menu button that set it moved into the bar).
-      const line = midY(await rect(page, '#entry .switcher'));
+      // The row's line is 기록's top bar: 홈, the course and the round, and the badge (v39: the switcher moved down).
+      const line = midY(await rect(page, '#entry .round-head'));
       const sheet = await rect(page, '#sheet');
       await showCard(page);
       const edit = await rect(page, '#edit-par');
@@ -2625,10 +2671,14 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
     // Only to add the widening style: the page's own CSP blocks injected styles.
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
 
-    test('the hole switcher stays centred and clear of the badge, and 기록 still fits', async ({ page }) => {
+    // v39: the switcher is low, between the hole and the card, the badge alone in the top bar's right slot with the course
+    // and the round in its middle.
+    test('the hole switcher stays centred under the badge, the top bar clear of it, and 기록 still fits', async ({ page }) => {
       await open(page);
       await page.addStyleTag({ content: WIDER });
       for (const hole of [0, 9]) {
+        // A recorded hole, so the bar's middle also says how the round stands (its widest).
+        if (hole === 0) await tap(page, 'driver');
         if (hole === 9) await pickHole(page, 9);
         for (const mode of ['기본', '상세'] as const) {
           await page.getByRole('button', { name: mode, exact: true }).click();
@@ -2636,12 +2686,17 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
           const where = `hole ${hole + 1} ${mode}`;
           const sw = await rect(page, '#entry .switcher');
           const badge = await rect(page, '#badge');
+          const head = await rect(page, '#entry .round-head');
+          const home = await rect(page, '.home-link');
           expectAligned(midX(sw), width / 2, `${where}: switcher centre`);
-          expect(sw.x + sw.width, `${where}: switcher clear of the badge`).toBeLessThanOrEqual(badge.x - 4);
-          // The hole number stays whole; only the words beside it may shorten.
+          expect(sw.y, `${where}: switcher under the badge`).toBeGreaterThanOrEqual(badge.y + badge.height);
+          expect(head.x + head.width, `${where}: the course clear of the badge`).toBeLessThanOrEqual(badge.x - 4);
+          expect(head.x, `${where}: the course clear of 홈`).toBeGreaterThanOrEqual(home.x + home.width);
+          // The hole number stays whole inside its ring.
           const n = await rect(page, '#hole-n');
-          expect(n.x, where).toBeGreaterThanOrEqual(sw.x);
-          expect(n.x + n.width, where).toBeLessThanOrEqual(sw.x + sw.width);
+          const ring = await rect(page, '#hole-btn');
+          expect(n.x, where).toBeGreaterThanOrEqual(ring.x);
+          expect(n.x + n.width, where).toBeLessThanOrEqual(ring.x + ring.width);
           const info = page.locator('#hole-info');
           if (await info.isVisible()) {
             const row = await rect(page, '#hole-info');
@@ -2666,7 +2721,16 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
             const col = await rect(page, `.club-${key}`);
             expect(name.x, where).toBeGreaterThanOrEqual(col.x - 0.5);
             expect(name.x + name.width, where).toBeLessThanOrEqual(col.x + col.width + 0.5);
-            expect(await page.locator(`#name-${key}`).evaluate((el) => el.scrollWidth - el.clientWidth), `${where}: name whole`).toBeLessThanOrEqual(0);
+            // v39: the clubs are icons (the names kept for the screen reader), but for 상세's 세컨 and 어프로치, which both
+            // swing the iron and say which by name.
+            if (key === 'second' || key === 'short') {
+              expect(await page.locator(`#name-${key}`).evaluate((el) => el.scrollWidth - el.clientWidth), `${where}: name whole`).toBeLessThanOrEqual(0);
+            } else {
+              const icon = await rect(page, `#lbl-${key} .lbl-in > svg`);
+              expect(icon.width, `${where}: icon`).toBeGreaterThanOrEqual(20);
+              expect(icon.x, `${where}: icon inside its chip`).toBeGreaterThanOrEqual(name.x);
+              expect(icon.x + icon.width, `${where}: icon inside its chip`).toBeLessThanOrEqual(name.x + name.width);
+            }
             const plus = await rect(page, `.club-${key} .plus`);
             const minus = await rect(page, `.club-${key} .minus`);
             expect(Math.min(plus.height, minus.height), `${where}: halves`).toBeGreaterThanOrEqual(48);
@@ -2818,21 +2882,80 @@ function contrastIn(checks: Contrast[]) {
     const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
     return (x + 0.05) / (y + 0.05);
   };
+  /**
+   * v39 ('paint' in `unders`): the painted course really behind a text, the lightest and darkest of it on the canvas under
+   * the text's box (the spec: measure white type over the brightest part of the picture). Under glass that blurs what is
+   * behind it (backdrop-filter: blur(r)), what shows is the paint averaged over about 2r, so it is read that way there.
+   */
+  const paintUnder = (el: Element): number[][] => {
+    const canvas = document.getElementById('course-paint') as HTMLCanvasElement | null;
+    if (!canvas || canvas.hidden || !canvas.width) return [];
+    let blur = 0;
+    for (let e: Element | null = el; e && !blur; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      blur = Number(/blur\(([\d.]+)px\)/.exec(s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter'))?.[1] ?? 0);
+    }
+    const ctx = canvas.getContext('2d')!;
+    const c = canvas.getBoundingClientRect();
+    const k = canvas.width / c.width;
+    // The text's own line box where it has text (a button's box can reach far past its word), else the element's.
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const t = range.getBoundingClientRect();
+    const r = t.width && t.height && el.textContent!.trim() ? t : el.getBoundingClientRect();
+    const x0 = Math.max(0, Math.floor((r.left - blur - c.left) * k));
+    const y0 = Math.max(0, Math.floor((r.top - blur - c.top) * k));
+    const w = Math.min(canvas.width - x0, Math.ceil((r.width + 2 * blur) * k));
+    const h = Math.min(canvas.height - y0, Math.ceil((r.height + 2 * blur) * k));
+    if (w <= 0 || h <= 0) return [];
+    const d = ctx.getImageData(x0, y0, w, h).data;
+    const win = Math.max(1, Math.round(2 * blur * k));
+    const step = Math.max(1, Math.round(win / 4));
+    let [light, dark] = [[0, 0, 0, 1], [255, 255, 255, 1]];
+    // Each window's mean (a single pixel where nothing blurs), over the text's box only.
+    const [inX, inY] = [Math.round(blur * k), Math.round(blur * k)];
+    for (let y = blur ? 0 : inY; y + win <= h || y === 0; y += step) {
+      for (let x = blur ? 0 : inX; x + win <= w || x === 0; x += step) {
+        const sum = [0, 0, 0];
+        let n = 0;
+        for (let yy = y; yy < Math.min(h, y + win); yy += blur ? 2 : 1) {
+          for (let xx = x; xx < Math.min(w, x + win); xx += blur ? 2 : 1) {
+            const i = (yy * w + xx) * 4;
+            sum[0] += d[i]; sum[1] += d[i + 1]; sum[2] += d[i + 2]; n++;
+          }
+        }
+        const px = [sum[0] / n, sum[1] / n, sum[2] / n, 1];
+        if (lum(px) > lum(light)) light = px;
+        if (lum(px) < lum(dark)) dark = px;
+        if (x + win >= w) break;
+      }
+      if (y + win >= h) break;
+    }
+    return [light, dark];
+  };
   return checks.map(({ sel, min, unders, also }) => {
     const el = document.querySelector(sel);
     if (!el) return { sel, min, size: 0, ratio: null as number | null };
-    const layers: number[][] = [];
+    // Each layer is its colours to try: the background colour, or (v39's deep glass) each stop of a gradient over it,
+    // so the worst place on the gradient counts.
+    const layers: number[][][] = [];
     for (let e: Element | null = el; e && !(unders && (e === document.body || e === document.documentElement)); e = e.parentElement) {
-      const c = rgba(getComputedStyle(e).backgroundColor);
-      if (c[3] > 0) layers.push(c);
+      const s = getComputedStyle(e);
+      const c = rgba(s.backgroundColor);
+      if (c[3] > 0) layers.push([c]);
+      const stops = s.backgroundImage.includes('gradient(') ? (s.backgroundImage.match(/rgba?\([^)]*\)/g) ?? []).map(rgba) : [];
+      if (stops.length) layers.push(stops);
     }
-    const bases = unders ? unders.map((u) => rgba(u.startsWith('--') ? tokenColour(u) : u)) : [[255, 255, 255, 1]];
+    const bases = unders ? unders.flatMap((u) => (u === 'paint' ? paintUnder(el) : [rgba(u.startsWith('--') ? tokenColour(u) : u)])) : [[255, 255, 255, 1]];
+    const grounds = (under: number[][], rest: number[][][]): number[][] => rest.length
+      ? grounds(rest[0].flatMap((layer) => under.map((bg) => over(layer, bg))), rest.slice(1))
+      : under;
     let worst = Infinity;
     for (const base of bases) {
-      let bg = base;
-      for (const layer of layers.slice().reverse()) bg = over(layer, bg);
-      for (const layer of also ?? []) bg = over(rgba(getComputedStyle(document.querySelector(layer)!).backgroundColor), bg);
-      worst = Math.min(worst, ratio(over(rgba(getComputedStyle(el).color), bg), bg));
+      for (let bg of grounds([base], layers.slice().reverse())) {
+        for (const layer of also ?? []) bg = over(rgba(getComputedStyle(document.querySelector(layer)!).backgroundColor), bg);
+        worst = Math.min(worst, ratio(over(rgba(getComputedStyle(el).color), bg), bg));
+      }
     }
     return { sel, min, size: parseFloat(getComputedStyle(el).fontSize), ratio: worst };
   });
@@ -2875,16 +2998,28 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
   await open(page);
   await tap(page, 'driver');
   await tap(page, 'putts');
+  await settled(page);
+  // v39: the card and the switcher are glass over the painted course, so what is under them is read from the paint
+  // itself (its lightest and darkest pixels under each text); the chips over the band keep the drawn course's tokens.
+  // Par and HCP are said by the low switcher (#hole-par is for the screen reader now); 기본's clubs are icons, read as
+  // graphics (3:1), and 상세's 세컨, 어프로치 and the penalties' names as text.
   const checks = await contrastOf(page, [
     ...['#hole-name', '.tab-label', '.home-link'].map((sel) => ({ sel, min: 4.5 })),
-    ...['.club-lbl', '.pen-lbl', '.mode', '#hole-par', '#prog-n', '#info-btn'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })),
+    ...['.mode', '#mode-voice', '.nav-stat span', '#nav-par', '#prog-n'].map((sel) => ({ sel, min: 4.5, unders: ['paint'] })),
+    { sel: '#info-btn', min: 4.5, unders: OVER_ART },
   ]);
+  const icons = await contrastOf(page, KEYS.기본.map((k) => ({ sel: `#lbl-${k} .lbl-in > svg`, min: 3, unders: ['paint'] })));
+  await modeTab(page, '상세').click();
+  await settled(page);
+  checks.push(...await contrastOf(page, ['#name-second', '#name-short', '#stake-ob .pen-lbl', '.tee-t'].map((sel) => ({ sel, min: 4.5, unders: ['paint'] }))));
+  await modeTab(page, '기본').click();
   await showCard(page);
-  checks.push(...await contrastOf(page, ['.sh-stats dt', '.ct-lbl .c-par', '.ct-col .c-par', '.nt-h small', '#par-source', '.metrics dt'].map((sel) => ({ sel, min: 4.5 }))));
+  checks.push(...await contrastOf(page, ['.sh-stats dt', '.ct-lbl .c-par', '.ct-col .c-par', '.nt-h small', '#par-source', '.metrics dt'].map((sel) => ({ sel, min: 4.5, unders: ['paint'] }))));   // v39: deep glass over the painted course
   for (const { sel, size, ratio } of checks) {
     expect(size, sel).toBeGreaterThanOrEqual(13);
     expect(ratio, sel).toBeGreaterThanOrEqual(4.5);
   }
+  for (const { sel, ratio } of icons) expect(ratio, sel).toBeGreaterThanOrEqual(3);
   await showEntry(page);
   const look = (selector: string) => page.locator(selector).evaluate((el) => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity }));
   const on = await look('.club-driver .minus span');
@@ -2914,39 +3049,47 @@ for (const [width, height] of [[390, 844], [375, 553]]) {
         { sel: '#picker-start', min: 4.5 },
       ]);
       await page.getByRole('button', { name: '이 코스로 시작' }).tap();
-      await check('기록, 0타', [{ sel: '#count-driver', min: 3, unders: OVER_ART, also: ['.club-driver .minus'] }]);
+      await settled(page);
+      // v39: the card, the switcher and the scorecard's panels are glass over the painted course, so what is under them
+      // is read from the paint itself ('paint': its lightest and darkest, blurred as the glass blurs it); the chips over
+      // the band keep the drawn course's tokens; the top bar's words stand on the paint with no glass at all.
+      const P = ['paint'];
+      await check('기록, 0타', [{ sel: '#count-driver', min: 3, unders: P, also: ['.club-driver .minus'] }]);
       // Four holes played (a birdie, a double and two pars) and hole 5 at par: the par badge, counts and chips over the course.
       await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 3, putts: 2 }, 2: { driver: 1, approach: 2, putts: 2 }, 3: { driver: 1, putts: 1 }, 4: { driver: 1, approach: 2, putts: 1 } }, 4);
+      await settled(page);
       await atRest(page);
+      // Par and HCP are said by the low switcher (#hole-par is for the screen reader); 다음 홀 is gone, › moves on, an
+      // icon read as a graphic (3:1), as 기본's club icons are.
       await check('기록 기본', [
-        { sel: '#count-driver', min: 3, unders: OVER_ART, also: ['.club-driver .minus'] }, { sel: '.club-lbl', min: 4.5, unders: OVER_ART }, { sel: '.pen-lbl', min: 4.5, unders: OVER_ART },
-        { sel: ".mode[aria-pressed='false']", min: 4.5, unders: OVER_ART }, { sel: ".mode[aria-pressed='true']", min: 4.5, unders: OVER_ART }, { sel: '#go-next', min: 4.5 },
-        { sel: '#tab-card .tab-label', min: 4.5 }, { sel: '#tab-entry .tab-label', min: 4.5 }, { sel: '.home-link', min: 4.5 },
-        { sel: '#hole-par', min: 4.5, unders: OVER_ART }, { sel: '#info-btn', min: 4.5, unders: OVER_ART }, { sel: '#prog-n', min: 4.5, unders: OVER_ART },
-        { sel: '#hole-n', min: 3, unders: OVER_ART }, { sel: '#hole-name', min: 4.5 }, { sel: '#hole-strokes', min: 3 },
+        { sel: '#count-driver', min: 3, unders: P, also: ['.club-driver .minus'] }, { sel: '#lbl-driver .lbl-in > svg', min: 3, unders: P },
+        { sel: ".mode[aria-pressed='false']", min: 4.5, unders: P }, { sel: ".mode[aria-pressed='true']", min: 4.5, unders: P }, { sel: '#mode-voice', min: 4.5, unders: P },
+        { sel: '#next-hole svg', min: 3, unders: P }, { sel: '#prev-hole svg', min: 3, unders: P },
+        { sel: '#tab-card .tab-label', min: 4.5, unders: P }, { sel: '#tab-entry .tab-label', min: 4.5, unders: P }, { sel: '.home-link', min: 4.5, unders: P },
+        { sel: '#nav-par', min: 4.5, unders: P }, { sel: '.nav-stat span', min: 4.5, unders: P }, { sel: '#info-btn', min: 4.5, unders: OVER_ART },
+        { sel: '#dist-btn', min: 4.5, unders: OVER_ART }, { sel: '#prog-n', min: 4.5, unders: P }, { sel: '#round-name', min: 4.5, unders: P },
+        { sel: '#hole-n', min: 3, unders: P }, { sel: '.hole-u', min: 4.5, unders: P }, { sel: '#hole-name', min: 4.5, unders: P }, { sel: '#hole-strokes', min: 3, unders: P },
       ]);
       await page.getByRole('button', { name: '상세', exact: true }).tap();
       await page.getByRole('button', { name: '페어웨이' }).tap();
       await atRest(page);
-      await check('기록 상세', ['.tee-t', '.tee-t .val', '.tchip', ".dir[aria-pressed='true']", '.pen-lbl', '.club-lbl'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })));
+      await check('기록 상세', ['.tee-t', '.tee-t .val', '.tchip', ".dir[aria-pressed='true']", '.pen-lbl', '#name-second', '#name-short'].map((sel) => ({ sel, min: 4.5, unders: P })));
       await page.getByRole('button', { name: '기본', exact: true }).tap();
       await tab(page, '스코어카드').tap();
       await settled(page);
       await check('스코어카드', [
-        { sel: '.sh-stats dt', min: 4.5 }, { sel: '.ct-lbl .c-par', min: 4.5 }, { sel: '.ct-col .c-par', min: 4.5 }, { sel: '.nt-h small', min: 4.5 },
-        { sel: '#par-source', min: 4.5 }, { sel: ".m[data-tone='under'] b", min: 3 }, { sel: ".m[data-tone='par'] b", min: 3 }, { sel: '#sh-ring b', min: 3 },
-        { sel: '#scorecard .ct-col.cur .c-hole', min: 4.5 },
-        // 스코어카드 | 분석 (v26): the chosen half on its white pill, the other in --muted on the tint.
-        { sel: "#sc-switch [aria-checked='true']", min: 4.5 }, { sel: "#sc-switch [aria-checked='false']", min: 4.5 },
+        { sel: '.sh-stats dt', min: 4.5, unders: P }, { sel: '.ct-lbl .c-par', min: 4.5, unders: P }, { sel: '.ct-col .c-par', min: 4.5, unders: P }, { sel: '.nt-h small', min: 4.5, unders: P },
+        { sel: '#par-source', min: 4.5, unders: P }, { sel: ".m[data-tone='under'] b", min: 3, unders: P }, { sel: ".m[data-tone='par'] b", min: 3, unders: P }, { sel: '#sh-ring b', min: 3, unders: P },
+        { sel: '#scorecard .ct-col.cur .c-hole', min: 4.5, unders: P },
+        // 스코어카드 | 분석 (v39): underline tabs, the chosen one white, the other soft white.
+        { sel: "#sc-switch [aria-checked='true']", min: 4.5, unders: P }, { sel: "#sc-switch [aria-checked='false']", min: 4.5, unders: P },
       ]);
       await page.locator('#finish-round').tap();
       await page.getByRole('button', { name: '그대로 마치기' }).tap();
       await expect(page.locator('#sum-card')).toHaveAttribute('data-state', 'ready');
       await check('요약', [{ sel: '.sum-actions .primary', min: 4.5 }, { sel: '.sum-ring b', min: 3 }, { sel: '.sum-stats dt', min: 4.5 }]);
-      for (const r of found) {
-        expect(r.ratio, `${r.where} ${r.sel}: not found`).not.toBeNull();
-        expect(r.ratio!, `${r.where} ${r.sel}`).toBeGreaterThanOrEqual(r.min);
-      }
+      // Every shortfall at once, each with its ratio.
+      expect(found.filter((r) => r.ratio === null || r.ratio < r.min).map((r) => `${r.where} ${r.sel}: ${r.ratio?.toFixed(2) ?? 'not found'} < ${r.min}`)).toEqual([]);
     });
   });
 }
