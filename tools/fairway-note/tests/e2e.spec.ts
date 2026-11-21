@@ -7969,12 +7969,17 @@ test.describe('the 상세 row and the menu at 360 in 큰 글씨 and with wider t
       await page.getByRole('button', { name: '상세', exact: true }).click();
       if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
       await atRest(page);
-      const caps = await Promise.all(KEYS.상세.map((k) => rect(page, `.club-${k} .pill`)));
+      // v39: on the pad's far-left, 페어웨이 and far-right lines, each name whole inside its 72px button and the card.
+      const lines = await Promise.all(['far-left', 'fairway', 'far-right'].map((d) => rect(page, `#pad button[data-tee="${d}"]`)));
+      const card = await rect(page, '#sheet');
       for (const [j, s] of ['#stake-ob', '#stake-bunker', '#stake-hazard'].entries()) {
-        expectAligned(midX(await rect(page, s)), midX(caps[j]), `${where}: ${s} under ${KEYS.상세[j]}`);
-        const label = await rect(page, `${s} .pen-lbl`);
-        expect(label.x, `${where}: ${s}'s name inside its column`).toBeGreaterThanOrEqual(caps[j].x - 0.5);
-        expect(label.x + label.width, `${where}: ${s}'s name inside its column`).toBeLessThanOrEqual(caps[j].x + caps[j].width + 0.5);
+        expectAligned(midX(await rect(page, `${s} .pen-icon`)), midX(lines[j]), `${where}: ${s} on the pad's line`);
+        const [label, button] = [await rect(page, `${s} .pen-lbl`), await rect(page, s)];
+        expect(label.x, `${where}: ${s}'s name inside its button`).toBeGreaterThanOrEqual(button.x - 0.5);
+        expect(label.x + label.width, `${where}: ${s}'s name inside its button`).toBeLessThanOrEqual(button.x + button.width + 0.5);
+        expect(label.x, `${where}: ${s}'s name inside the card`).toBeGreaterThanOrEqual(card.x);
+        expect(label.x + label.width, `${where}: ${s}'s name inside the card`).toBeLessThanOrEqual(card.x + card.width);
+        expect(await page.locator(`${s} .pen-lbl`).evaluate((e) => e.scrollWidth - e.clientWidth), `${where}: ${s}'s name whole`).toBeLessThanOrEqual(0);
       }
       await page.getByRole('button', { name: '기본', exact: true }).click();
       await page.locator('#bar-menu').click();
@@ -8016,43 +8021,46 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
   test.describe(`지난 라운드 열기 in 기록’s frame on a ${width}×${height} phone (v35)`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('a past round opens under a deep header held at the top, its day on the top bar’s line and 닫기 a ghost on the right, over a paper sheet', async ({ page }) => {
+    // v39: the dialog's own deep ground with white type (its tokens retinted as the other screens'), the header held at
+    // the top on that ground so 닫기 stays in reach, 닫기 light glass as 파 수정 (v35–v38: a ghost over a paper sheet).
+    test('a past round opens under a deep header held at the top, its day on the top bar’s line and 닫기 light glass on the right, the round in white on the deep', async ({ page }) => {
       await page.goto('/');
       await seedAudit(page);
       await atRest(page);
       const line = midY(await rect(page, '.app > .home-link'));
-      const [deep, paper, onDark] = [await token(page, '--deep'), await token(page, '--paper'), await token(page, '--on-dark')];
+      const [deep, onDark] = [await token(page, '--deep'), await token(page, '--on-dark')];
       await tab(page, '지난 라운드').tap();
       await pastItems(page).first().tap();
       await expect(page.locator('#past')).toBeVisible();
       await settled(page);
-      // The header as 스코어카드's and 지난 라운드's: deep, the round's day white in the middle of the bar's line, the course under it.
       expect(await page.locator('#past .sc-top').evaluate((el) => getComputedStyle(el).backgroundColor), 'the header').toBe(deep);
+      expect(await page.locator('#past').evaluate((el) => getComputedStyle(el).backgroundColor), 'the ground').toBe(deep);
       expect(await page.locator('#past-title').evaluate((el) => getComputedStyle(el).color), 'the title').toBe(onDark);
+      // The round's own type white on the deep, its headings and totals too (they kept the paper's ink, 1.1:1).
+      for (const sel of ['#past', '#past .past-body > h3', '#past .tot h3']) {
+        const [c] = await contrastOf(page, [{ sel, min: 4.5, unders: [deep] }]);
+        expect(c.ratio!, `${sel} on the deep`).toBeGreaterThanOrEqual(4.5);
+      }
       await expect(page.locator('#past-title')).toHaveText(/^\d{1,2}월 \d{1,2}일 라운드$/);
       await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
       const title = await rect(page, '#past .sc-title');
       expectAligned(midY(title), line, 'title on the top bar’s line');
       expectAligned(midX(title), width / 2, 'title centred');
-      // 닫기 in the right-hand action's place (파 수정's), a ghost on deep: white letters, no fill or shadow, a 48px target.
+      // 닫기 in the right-hand action's place (파 수정's), light glass with white letters and no shadow, a 48px target.
       const close = await rect(page, '#past-close');
       expectAligned(close.x + close.width, width - 16, '닫기 on the right inset');
       expectAligned(midY(close), line, '닫기 on the line');
       expect(Math.min(close.width, close.height), '닫기: a 48px target').toBeGreaterThanOrEqual(48);
       expect(close.x, '닫기 clear of the title').toBeGreaterThanOrEqual(title.x + title.width - 0.5);
       expect(await page.locator('#past-close').evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow, color: getComputedStyle(el).color })))
-        .toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', color: onDark });
-      // The round on a paper sheet with 24px top corners, right under the header, across the screen.
-      const look = await page.locator('#past > .sc-body').evaluate((el) => {
-        const s = getComputedStyle(el);
-        return { background: s.backgroundColor, left: s.borderTopLeftRadius, right: s.borderTopRightRadius };
-      });
-      expect(look, 'the sheet').toEqual({ background: paper, left: '24px', right: '24px' });
+        .toEqual({ background: 'rgba(255, 255, 255, 0.1)', shadow: 'none', color: 'rgb(244, 247, 240)' });
+      // The round right under the header, across the screen, clear so the deep shows.
       const head = await rect(page, '#past .sc-top');
       const body = await rect(page, '#past > .sc-body');
-      expectAligned(body.y, head.y + head.height, 'the sheet right under the header');
-      expectAligned(body.x, 0, 'the sheet from the left edge');
-      expectAligned(body.width, width, 'the sheet across the screen');
+      expect(await page.locator('#past > .sc-body').evaluate((el) => getComputedStyle(el).backgroundColor), 'the body').toBe('rgba(0, 0, 0, 0)');
+      expectAligned(body.y, head.y + head.height, 'the round right under the header');
+      expectAligned(body.x, 0, 'the round from the left edge');
+      expectAligned(body.width, width, 'the round across the screen');
       // Held at the top while the round scrolls under it; nothing scrolls sideways.
       await page.locator('#past').evaluate((el) => el.scrollTo(0, el.scrollHeight));
       await settled(page);
