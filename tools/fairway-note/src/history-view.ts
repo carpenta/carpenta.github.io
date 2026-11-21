@@ -193,8 +193,9 @@ export function refreshHistory(): void {
 function buildSheet(): NonNullable<typeof sheet> {
   if (sheet) return sheet;
   const title = h('h2', { id: 'past-title' });
-  const course = h('p', { id: 'past-course', class: 'muted' });
-  const close = h('button', { id: 'past-close', class: 'btn', type: 'button' }, '닫기');
+  const course = h('p', { id: 'past-course' });
+  // The header's right-hand action, a ghost on deep as 스코어카드's 파 수정 (v35).
+  const close = h('button', { id: 'past-close', class: 'head-btn', type: 'button' }, '닫기');
   const scorecard = h('div', { id: 'past-scorecard' });
   const analysis = h('div', { id: 'past-analysis' });
   // The summary's round buttons (v23): 공유 or 결과 복사, 이미지 저장 where the image cannot be shared, and email.
@@ -205,9 +206,11 @@ function buildSheet(): NonNullable<typeof sheet> {
   const row = h('div', { class: 'round-actions' }, share, save, email);
   const status = h('p', { id: 'past-status', class: 'muted small', role: 'status' });
   const remove = h('button', { id: 'past-delete', class: 'btn danger', type: 'button' }, '이 라운드 지우기');
+  // 기록's frame (v35), as 스코어카드 and 지난 라운드 have it since v32: the header on deep, held at the top, the round's day in
+  // the middle of the top bar's line and 닫기 where 파 수정 sits; the round under it on a paper sheet with round top corners.
   const dialog = h('dialog', { id: 'past', class: 'past', 'aria-labelledby': 'past-title' },
-    h('div', { class: 'past-head' }, h('div', { class: 'past-heading' }, title, course), close),
-    h('div', { class: 'past-body' },
+    h('header', { class: 'sc-top past-head' }, h('div', { class: 'sc-title' }, title, course), close),
+    h('div', { class: 'sc-body past-body' },
       h('h3', {}, '스코어카드'), scorecard,
       h('h3', {}, '라운드 분석'), analysis,
       row,
@@ -241,8 +244,11 @@ function show(e: Entry): void {
   const s = buildSheet();
   shown = e;
   const a = analyze(e.round);
-  setText(s.title, `${dateLabel(e.round.date)} 라운드`);
-  setText(s.course, courseName(e.round));
+  // Its day, as 스코어카드 names the round (v35: the header's middle is 160px at 360, too narrow for the year as well); a
+  // round from another year says the year beside its course.
+  const year = e.round.date.slice(0, 4);
+  setText(s.title, `${dateLabel(e.round.date).replace(/^\d+년 /, '')} 라운드`);
+  setText(s.course, year === String(new Date().getFullYear()) ? courseName(e.round) : `${year}년, ${courseName(e.round)}`);
   s.scorecard.replaceChildren(...page.scorecard(e.round, a));
   s.analysis.replaceChildren(...page.analysis(a, e.round));
   s.email.href = mailtoHref(e.round);

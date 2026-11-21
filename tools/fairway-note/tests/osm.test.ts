@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import data from '../src/data/osm/everis.json';
 import mapping from '../src/data/osm/everis-holes.json';
 import { COURSES } from '../src/courses';
-import { FIT_BAND, osmShape, osmSvg, orientedHole, type ArtBand, type Box, type CourseFrame, type OsmHole } from '../src/course-art';
-import { inRing, lineLength, orienter, playLine, pointFromEnd, projector, ringCentroid, segmentDistance, simplifyLine, simplifyRing, type Pt } from '../src/osm-geo';
+import { CREDIT_SIDES, FIT_BAND, osmShape, osmSvg, orientedHole, type ArtBand, type Box, type CourseFrame, type OsmHole, type OsmShape } from '../src/course-art';
+import { inRing, lineLength, orienter, playLine, pointFromEnd, projector, ringArea, ringCentroid, segmentDistance, simplifyLine, simplifyRing, type Pt } from '../src/osm-geo';
 import { osmHoleAt, osmLoading } from '../src/osm-holes';
 import type { RoundCourse } from '../src/round';
 
@@ -459,9 +459,12 @@ describe('drawing a hole from OpenStreetMap in the band 기록 shows (v33)', () 
   });
 
   it('is flat as the schematic is (v31): no gradient, pattern, mask, clip path or filter, nothing painted by url(), no grain', () => {
-    const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'green2', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'tee2', 'a-pole-fill'];
+    // v35: the water beyond the play area (`water-far`) under one shore line (`shore`), the bare marker numbers, and the
+    // green's window with its own parts (`inset`, `in-*`), all flat fills from the palette.
+    const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'green2', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'tee2', 'a-pole-fill',
+      'water-far', 'shore', 'a-marker-num', 'inset', 'in-fairway', 'in-water', 'in-green', 'in-flag'];
     for (const [i, h] of [[0, first], [2, holes.saebyul[2]!], [6, holes.saebyul[6]!]] as const) {
-      const svg = osmSvg(osmShape(h, i, tall, null), frameOf(tall));
+      const svg = osmSvg(osmShape(h, i, tall, 381, CREDIT_SIDES, { bare: true, inset: true }), frameOf(tall));
       expect(svg).not.toMatch(/<(linearGradient|radialGradient|pattern|mask|clipPath|filter|fe[A-Z])\b/);
       expect(svg).not.toMatch(/url\(#|\smask=|clip-path=|filter=/);
       expect(svg).not.toContain('grain');
@@ -478,5 +481,150 @@ describe('drawing a hole from OpenStreetMap in the band 기록 shows (v33)', () 
     expect(inRing(s.green, pond[0])).toBe(true);
     expect(pond.slice(1).some((inner) => inRing(s.green, inner))).toBe(true);
     expect(osmSvg(s, frameOf(tall))).toMatch(/class="water"[^>]*fill-rule="evenodd"|fill-rule="evenodd"[^>]*class="water"/);
+  });
+});
+
+/* ---------- v35: the markers' bare numbers, the water the hole plays over, the green up close ---------- */
+
+describe('the drawing’s leftovers from the v33 critique (v35)', () => {
+  const tall = BANDS[0][1];
+  const first = holes.saebyul[0]!;
+  const seventh = holes.saebyul[6]!;
+  /** The water's area in px², islands taken out. */
+  const wetArea = (ponds: Pt[][][]) => ponds.reduce((sum, rings) => sum + rings.reduce((a, r, j) => a + (j ? -1 : 1) * Math.abs(ringArea(r)), 0), 0);
+  /** In a ring or on its edge, within `tol` px. */
+  const within = (p: Pt, ring: Pt[], tol = 0.5) => inRing(p, ring) || ring.some((a, j) => segmentDistance(p, a, ring[(j + 1) % ring.length]) <= tol);
+  const grown = (b: Box, d: number): Box => ({ x0: b.x0 - d, y0: b.y0 - d, x1: b.x1 + d, y1: b.y1 + d });
+  const DRAW = { bare: true, inset: true };
+
+  it('labels the markers with their bare numbers where the screen gives the unit, and "100 m" in a pill where it does not', () => {
+    const bare = osmShape(first, 0, tall, 381, CREDIT_SIDES, { bare: true });
+    expect(bare.markers.map((m) => m.text)).toEqual(['100', '150']);
+    const svg = osmSvg(bare, frameOf(tall));
+    expect([...svg.matchAll(/<text class="a-marker-num"[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(['100', '150']);
+    expect(svg).not.toContain('a-marker-label');
+    // A number's room is its own, narrower and lower than the pill's (54 by 22px), so it sits nearer its dot.
+    for (const m of bare.markers) {
+      expect(m.label.x1 - m.label.x0, `${m.d}`).toBeLessThan(40);
+      expect(m.label.y1 - m.label.y0, `${m.d}`).toBeLessThan(22);
+    }
+    const pill = osmShape(first, 0, tall, 381);
+    expect(pill.markers.map((m) => m.text)).toEqual(['100 m', '150 m']);
+    expect(osmSvg(pill, frameOf(tall))).toMatch(/class="a-marker-label"/);
+  });
+
+  it('keeps the water 새별 7 plays over in full colour and fades the rest of its lake, the island a hole in both', () => {
+    const s = osmShape(seventh, 6, tall, 159, CREDIT_SIDES, DRAW);
+    // The play area holds the line of play, the tees, the fairways and the greens' fringes, with room round them.
+    for (const p of [...s.line, ...s.tees.flat(), ...s.fairways.flat(), ...s.greens.flatMap((g) => grow(g, 1.1))]) expect(inRing(p, s.play), `${p}`).toBe(true);
+    const near = wetArea(s.near);
+    const all = wetArea(s.water);
+    expect(near).toBeGreaterThan(0);
+    // The lake reaches well beyond the hole: most of it fades.
+    expect(near).toBeLessThan(all * 0.6);
+    for (const p of s.near.flat(2)) expect(within(p, s.play), `${p}`).toBe(true);
+    const island = s.near.find((rings) => rings.slice(1).some((r) => inRing(s.green, r)));
+    expect(island, 'the green on an island in the water it plays over').toBeDefined();
+    expect(inRing(s.green, island![0])).toBe(true);
+    // Drawn from the ground up: the whole lake in the far tint, the water in play over it, one shore line over both.
+    const svg = osmSvg(s, frameOf(tall));
+    const at = (c: string) => svg.indexOf(`class="${c}"`);
+    expect(at('water-far')).toBeGreaterThan(-1);
+    expect(at('water-far')).toBeLessThan(at('water'));
+    expect(at('water')).toBeLessThan(at('shore'));
+    expect(svg).toMatch(/class="water-far"[^>]*fill-rule="evenodd"/);
+  });
+
+  it('fades no water that lies all in play, and keeps the credit’s water test on all the water, faded or not', () => {
+    let faded = 0;
+    for (const [nine, list] of Object.entries(holes)) {
+      list.forEach((h, i) => {
+        if (!h) return;
+        const s = osmShape(h, i, tall, officialLength(nine, i), CREDIT_SIDES, DRAW);
+        const where = `${nine} ${i + 1}`;
+        const near = wetArea(s.near);
+        const all = wetArea(s.water);
+        expect(near, where).toBeLessThanOrEqual(all + 1);
+        const svg = osmSvg(s, frameOf(tall));
+        // A far tint only where some water lies beyond the play area.
+        if (all - near < 1) expect(svg, where).not.toContain('water-far');
+        else faded++;
+        // The credit's gray text is read against all the water (v33), whatever its tint.
+        expect(s.credit!.wet, where).toBe(osmShape(h, i, tall, officialLength(nine, i)).credit!.wet);
+      });
+    }
+    expect(faded).toBeGreaterThan(0);
+  });
+
+  /** What keeps a green's window honest (v35): where it stands, what it stays clear of, and what it shows. */
+  function insetProblems(s: OsmShape, band: ArtBand, where: string): string[] {
+    const w = s.inset;
+    if (!w) return [];
+    const out: string[] = [];
+    const b = w.box;
+    if (b.x0 < band.x0 - 0.5 || b.x1 > band.x1 + 0.5 || b.y0 < band.y0 + 6 - 0.5 || b.y1 > band.y1 + 0.5) out.push(`${where}: window leaves the band`);
+    if (b.x1 - b.x0 < 72 || b.y1 - b.y0 < 56) out.push(`${where}: a ${(b.x1 - b.x0).toFixed(0)}×${(b.y1 - b.y0).toFixed(0)} window`);
+    // Clear of the hole, 4px apart: its tees, greens with their fringes, fairways with their cut, bunkers, and the water it
+    // plays over; of the flag, the markers and the credit.
+    const clear = grown(b, 3.5);
+    const parts: [string, Pt[][]][] = [['tee', s.tees], ['green', s.greens.map((g) => grow(g, 1.1))], ['bunker', s.bunkers], ['water in play', s.near.flat()]];
+    for (const [what, rings] of parts) {
+      if (rings.some((r) => dense(r).some((p) => inBox(p, clear)))) out.push(`${where}: window on a ${what}`);
+    }
+    if (s.fairways.some((fw) => dense(fw).some((p) => inBox(p, grown(clear, 4))))) out.push(`${where}: window on a fairway`);
+    const middle: Pt = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
+    if ([...s.fairways, ...s.near.map((rings) => rings[0])].some((r) => inRing(middle, r))) out.push(`${where}: window inside the hole`);
+    if (hits(clear, flagBox(s.pin))) out.push(`${where}: window on the flag`);
+    for (const m of s.markers) {
+      if (hits(clear, { x0: m.x - 6.25, y0: m.y - 6.25, x1: m.x + 6.25, y1: m.y + 6.25 }) || hits(clear, m.label)) out.push(`${where}: window on ${m.d}`);
+    }
+    if ([...band.keep, ...(s.credit ? [s.credit.touch] : [])].some((k) => hits(clear, k))) out.push(`${where}: window on the credit`);
+    // Up close: twice the drawing's scale or more, the flagged green 40px across or more, all of it in the window.
+    if (w.scale < 2 * s.scale - 1e-9) out.push(`${where}: window at ${(w.scale / s.scale).toFixed(2)}× the drawing`);
+    const g = w.greens[w.flagged];
+    const across = Math.max(...g.map((p) => p[0])) - Math.min(...g.map((p) => p[0]));
+    if (across < 40) out.push(`${where}: a ${across.toFixed(1)}px green in the window`);
+    const shown = [...w.greens.flat(), ...w.bunkers.flat(), ...w.fairways.flat(), ...w.water.flat(2)];
+    if (shown.some((p) => !inside(p, b))) out.push(`${where}: window shows something beyond its edge`);
+    if (!inRing([w.pin.x, w.pin.y], g)) out.push(`${where}: window's pin off its green`);
+    const flag = flagBox(w.pin);
+    if (!inside([flag.x0, flag.y0], b) || !inside([flag.x1, flag.y1], b)) out.push(`${where}: window's flag leaves it`);
+    return out;
+  }
+
+  it('shows 새별 1’s green up close in a window where the tall band has room, clear of the hole, its markers, flag and credit', () => {
+    const s = osmShape(first, 0, tall, 381, CREDIT_SIDES, DRAW);
+    expect(s.inset, '새별 1 at 390×844 기본').not.toBeNull();
+    expect(insetProblems(s, tall, '새별 1')).toEqual([]);
+    // Its own group, after the hole, in its own classes (the hole's counts stay the hole's).
+    const svg = osmSvg(s, frameOf(tall));
+    expect(svg).toMatch(/<g class="inset">.*<\/g>$/s);
+    expect(svg.indexOf('<g class="inset">')).toBeGreaterThan(svg.indexOf('class="tee"'));
+    const window = svg.slice(svg.indexOf('<g class="inset">'));
+    expect(window).toContain('class="in-green"');
+    expect(window).toContain('class="in-flag"');
+    expect(window).not.toMatch(/class="(green|green2|flag|fairway|water|bunker)"/);
+    // Without the option, no window (the share image and older callers draw the hole alone).
+    expect(osmShape(first, 0, tall, 381).inset).toBeNull();
+  });
+
+  it('fits the window on every Everis hole it shows on, on most holes of the tall bands, and on none where there is no room', () => {
+    const problems: string[] = [];
+    const shown: Record<string, number> = {};
+    for (const [size, band] of BANDS) {
+      shown[size] = 0;
+      for (const [nine, list] of Object.entries(holes)) {
+        list.forEach((h, i) => {
+          if (!h) return;
+          const s = osmShape(h, i, band, officialLength(nine, i), CREDIT_SIDES, DRAW);
+          if (s.inset) shown[size]++;
+          problems.push(...insetProblems(s, band, `${nine} ${i + 1} at ${size}`));
+        });
+      }
+    }
+    expect(problems).toEqual([]);
+    expect(shown['390×844 기본']).toBeGreaterThan(0);
+    expect(shown['390×664 기본']).toBe(0);
+    expect(shown['375×667 기본']).toBe(0);
   });
 });

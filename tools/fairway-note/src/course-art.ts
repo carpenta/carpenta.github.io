@@ -1,4 +1,4 @@
-import { inRing, lineLength, orienter, pointFromEnd, ringCentroid, type Pt } from './osm-geo';
+import { inRing, lineLength, orienter, pointFromEnd, ringCentroid, segmentDistance, type Pt } from './osm-geo';
 import type { Par } from './round';
 
 /** -1 bends the drawn hole left, 1 right. */
@@ -617,9 +617,9 @@ function pondSvg(h: HazardShape): string {
 
 /**
  * The pin (v31), on the schematic and OpenStreetMap's alike: the cup, a white pole in a dark edge (white alone was 2.1:1 on
- * the green) and a red pennant, flat.
+ * the green) and a red pennant, flat. In the green's window (v35) the pennant is the window's own (`in-flag`).
  */
-function pinSvg(pin: { x: number; y: number; pole: number }): string {
+function pinSvg(pin: { x: number; y: number; pole: number }, flag = 'flag'): string {
   const fw = flagWidth(pin.pole);
   const fh = Math.max(10, pin.pole * 0.34);
   const top = pin.y - pin.pole;
@@ -628,17 +628,23 @@ function pinSvg(pin: { x: number; y: number; pole: number }): string {
   return `<ellipse class="a-cup" cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9"/>`
     + `<path class="a-pole-edge" d="${pole}" stroke-width="3.8" stroke-linecap="round"/>`
     + `<path class="a-pole" d="${pole}" stroke-width="2.2" stroke-linecap="round"/>`
-    + `<path class="flag" d="M${f(x + 1)} ${f(top)}l${f(fw)} ${f(fh * 0.42)}l${f(-fw)} ${f(fh * 0.42)}z"/>`;
+    + `<path class="${flag}" d="M${f(x + 1)} ${f(top)}l${f(fw)} ${f(fh * 0.42)}l${f(-fw)} ${f(fh * 0.42)}z"/>`;
 }
 
 /**
  * A 100 m or 150 m marker: a white dot on the line of play and its distance in a dark pill, beside it (v31) or where
- * the band drawing put it, above or below the dot (v33).
+ * the band drawing put it, above or below the dot (v33). Since v35, where the screen already gives the unit, the bare
+ * number in the middle of its room, white in a deep halo (style.css), as a yardage book writes it.
  */
-function markerSvg(m: { x: number; y: number; d: number; label?: Box }): string {
+function markerSvg(m: { x: number; y: number; d: number; label?: Box; text?: string }): string {
+  const dot = `<circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`;
+  if (m.label && m.text === String(m.d)) {
+    // The baseline half the figures' height (13px Pretendard's 9.4px) under the room's middle.
+    return `<g class="marker">${dot}<text class="a-marker-num" x="${f((m.label.x0 + m.label.x1) / 2)}" y="${f((m.label.y0 + m.label.y1) / 2 + 4.7)}" text-anchor="middle">${m.text}</text></g>`;
+  }
   const w = markerWidth(m.d);
   const at = m.label ?? { x0: m.x + 10, y0: m.y - 11, x1: m.x + 10 + w, y1: m.y + 11 };
-  return `<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`
+  return `<g class="marker">${dot}`
     + `<rect x="${f(at.x0)}" y="${f(at.y0)}" width="${w}" height="22" rx="11" class="a-marker-label"/>`
     + `<text x="${f(at.x0 + w / 2)}" y="${f(at.y0 + 15.5)}" text-anchor="middle">${m.d} m</text></g>`;
 }
@@ -723,8 +729,24 @@ export interface ArtBand extends Box { keep: Box[]; credit?: Credit }
  */
 export const FIT_BAND = 50;
 
-/** A 100 m or 150 m marker on the line of play, with its distance pill above or below the dot (v33). */
-export interface Marker { x: number; y: number; d: number; label: Box }
+/**
+ * A 100 m or 150 m marker on the line of play, with its distance pill above or below the dot (v33); `text` is what the
+ * label says, "150 m" in its pill or (v35) the bare "150".
+ */
+export interface Marker { x: number; y: number; d: number; label: Box; text: string }
+
+/** How a hole is drawn in the band (v35). */
+export interface DrawOptions {
+  /** The markers as bare numbers: the screen already gives the unit in metres (the chip says "381 m"; 홀 안내 says what
+   * the marks measure). */
+  bare?: boolean;
+  /** The green up close in a window, where a tall band has room beside the hole (OpenStreetMap's holes). */
+  inset?: boolean;
+}
+
+/** A marker's label and the room it takes: the bare number (v35: "150" at 13px, 800, is about 24px, its halo 1.5px each
+ * side) or "150 m" in its 54 by 22px pill, 3px off the dot. */
+const labelOf = (d: number, bare: boolean) => (bare ? { text: String(d), w: 30, h: 18, gap: 2 } : { text: `${d} m`, w: markerWidth(d), h: 22, gap: 3 });
 
 /** Kept between the hole and the band's top and bottom: 2px on a short band, up to 8px on a tall one. */
 const padFor = (h: number) => clamp(Math.round(h * 0.04), 2, 8);
@@ -857,9 +879,9 @@ function fitIn(band: ArtBand, boxAt: (s: number) => Box): { s: number; room: Box
  * `soft` too where it can be (the hazards). Both pills go on one side of the line, both over their dots or both leaning
  * apart (150 m's toward the tee, 100 m's toward the green): of the four, the one that shows most, then the one off the
  * hazards, then above and over the dots. `length` is the official length: a marker only where the hole is at least 60 m
- * longer than it.
+ * longer than it. `bare` labels them with their bare numbers (v35).
  */
-function placeMarkers(length: number | null, at: (d: number) => Pt | null, band: Box, hard: Box[], soft: Box[]): Marker[] {
+function placeMarkers(length: number | null, at: (d: number) => Pt | null, band: Box, hard: Box[], soft: Box[], bare = false): Marker[] {
   const room: Box = { ...band, y0: band.y0 + CHIPS };
   const lay = (side: -1 | 1, apart: boolean) => {
     const markers: Marker[] = [];
@@ -870,15 +892,15 @@ function placeMarkers(length: number | null, at: (d: number) => Pt | null, band:
       const p = at(d);
       if (!p) continue;
       const [x, y] = p;
-      const w = markerWidth(d);
+      const { text, w, h, gap } = labelOf(d, bare);
       const dot: Box = { x0: x - DOT, y0: y - DOT, x1: x + DOT, y1: y + DOT };
       if (!contains(room, dot) || taken.some((b) => overlaps(dot, b))) continue;
-      const top = side < 0 ? y - DOT - 3 - 22 : y + DOT + 3;
+      const top = side < 0 ? y - DOT - gap - h : y + DOT + gap;
       const x0 = !apart ? x - w / 2 : d === 150 ? x + DOT - w : x - DOT;
-      const label: Box = { x0, y0: top, x1: x0 + w, y1: top + 22 };
+      const label: Box = { x0, y0: top, x1: x0 + w, y1: top + h };
       if (!contains(room, label) || taken.some((t) => overlaps(label, t))) continue;
       if (soft.some((t) => overlaps(label, t))) missed++;
-      markers.push({ x, y, d, label });
+      markers.push({ x, y, d, label, text });
       taken.push(dot, label);
     }
     return { markers, missed };
@@ -954,9 +976,10 @@ export interface BandShape {
  * the band at one scale, tee at the left and green at the right, the player's left up, as large as the band allows and
  * in its middle. The green is about its real size, so the 100 m and 150 m markers, measured to its middle as course
  * markers are, agree with it. The bunkers and water the note names lie wholly in the band; where they find no room the
- * hole is drawn a little smaller, up to four times. `length` is the official length, when the course publishes one.
+ * hole is drawn a little smaller, up to four times. `length` is the official length, when the course publishes one;
+ * `opts.bare` labels the markers with their bare numbers (v35).
  */
-export function bandShape(par: Par, index: number, band: ArtBand, bend: Bend, island = false, length: number | null = null, named: HoleHazard[] = []): BandShape {
+export function bandShape(par: Par, index: number, band: ArtBand, bend: Bend, island = false, length: number | null = null, named: HoleHazard[] = [], opts: DrawOptions = {}): BandShape {
   const i = ((index % PIN.length) + PIN.length) % PIN.length;
   const k = par === 3 ? 0 : par === 4 ? 1 : 2;
   const L = length ?? [150, 360, 480][k];
@@ -1042,7 +1065,7 @@ export function bandShape(par: Par, index: number, band: ArtBand, bend: Bend, is
     if (k > 0 && length !== null) {
       const fringe: Box = { x0: green.cx - green.rx * 1.1 * m, y0: green.cy - green.ry * 1.1 * m, x1: green.cx + green.rx * 1.1 * m, y1: green.cy + green.ry * 1.1 * m };
       const soft = hazards.map((h) => bounds(fitted(h).rim));
-      shape.markers = placeMarkers(length, (d) => P(alongLine(line, d).p), band, [...keep, grow(flagBox(pin), CLEAR), grow(teeBox, 2), fringe], soft);
+      shape.markers = placeMarkers(length, (d) => P(alongLine(line, d).p), band, [...keep, grow(flagBox(pin), CLEAR), grow(teeBox, 2), fringe], soft, opts.bare);
     }
     return shape;
   };
@@ -1161,6 +1184,32 @@ export interface OsmShape {
   room: Box;
   /** The credit where this drawing stands it, and the share of its text with water behind it (v33), or null without one. */
   credit: (Credit & { side: CreditSide; wet: number }) | null;
+  /** Where the hole is played (v35): round its line of play, tees, fairways and greens' fringes, with room for a shot's
+   * carry and a ball's run beside them. Convex. */
+  play: Pt[];
+  /** The water in the play area, the water the hole plays over, each pond's outer ring then its islands; the rest of the
+   * water fades (v35). */
+  near: Pt[][][];
+  /** The green up close (v35), where asked and the band has room. */
+  inset: Inset | null;
+}
+
+/**
+ * The green up close (v35, the v33 critique: a tall band drew a long hole's green 20px across): a window in the band's
+ * free room, clear of the hole, its markers, the flag and the credit, showing the flagged green's surroundings at twice
+ * the drawing's scale or more. What it shows is cut to the window in px (no clip path), each pond's outer ring then its
+ * islands.
+ */
+export interface Inset {
+  box: Box;
+  /** px per metre inside it. */
+  scale: number;
+  greens: Pt[][];
+  flagged: number;
+  fairways: Pt[][];
+  bunkers: Pt[][];
+  water: Pt[][][];
+  pin: { x: number; y: number; pole: number };
 }
 
 /** A point inside a ring: its middle, or else the middle of the widest stretch across it at its middle's height. */
@@ -1189,12 +1238,14 @@ function insidePoint(ring: Pt[]): Pt {
  * that clears it, or leaves least behind it. `sides` are the credit's ends to try, in order: the first whose text stays
  * clear of water, else the one with least behind it. `length` (the official length in metres) decides which distance
  * markers there may be, as on the schematic: each at its distance from the greens' middle along the line of play, where
- * the band shows its dot and pill clear of the flag, the greens, the tees, the credit and `band.keep`.
+ * the band shows its dot and pill clear of the flag, the greens, the tees, the credit and `band.keep`. Since v35 the
+ * water beyond the play area fades (`play`, `near`); `opts` labels the markers with bare numbers and asks for the green's
+ * window.
  */
-export function osmShape(hole: OsmHole, index: number, band: ArtBand, length: number | null, sides: CreditSide[] = CREDIT_SIDES): OsmShape {
+export function osmShape(hole: OsmHole, index: number, band: ArtBand, length: number | null, sides: CreditSide[] = CREDIT_SIDES, opts: DrawOptions = {}): OsmShape {
   let best: OsmShape | null = null;
   for (const side of band.credit ? sides : ['start' as const]) {
-    const shape = osmAt(hole, index, band, length, side);
+    const shape = osmAt(hole, index, band, length, side, opts);
     if (!best || (shape.credit?.wet ?? 0) < (best.credit?.wet ?? 0)) best = shape;
     if (!shape.credit || shape.credit.wet === 0) break;
   }
@@ -1202,7 +1253,7 @@ export function osmShape(hole: OsmHole, index: number, band: ArtBand, length: nu
 }
 
 /** `osmShape` with the credit at one end. */
-function osmAt(hole: OsmHole, index: number, band: ArtBand, length: number | null, side: CreditSide): OsmShape {
+function osmAt(hole: OsmHole, index: number, band: ArtBand, length: number | null, side: CreditSide, opts: DrawOptions): OsmShape {
   const o = orientedHole(hole);
   const i = ((index % PIN.length) + PIN.length) % PIN.length;
   // A quarter turn: what ran up the screen (v, down from the greens) runs right, and the player's left (u < 0) is up.
@@ -1261,14 +1312,187 @@ function osmAt(hole: OsmHole, index: number, band: ArtBand, length: number | nul
     scale: s, tee: line[0], green: line[line.length - 1], line,
     greens: greens.map((gr) => gr.map(P)), flagged, tees: tees.map((t) => t.map(P)), back: o.back,
     fairways: fairways.map((fw) => fw.map(P)), bunkers: bunkers.map((b) => b.map(P)), water: o.water.map((w) => w.map((r) => r.map((p) => P(q(p))))),
-    pin: { x: px, y: py, pole }, markers: [], room, credit: credit ? { ...credit, side, wet } : null,
+    pin: { x: px, y: py, pole }, markers: [], room, credit: credit ? { ...credit, side, wet } : null, play: [], near: [], inset: null,
   };
   const hard = [...keep.map((b) => grow(b, CLEAR)), grow(flagBox(shape.pin), CLEAR), ...shape.greens.map((gr) => bounds(grown(gr, 1.1))), ...shape.tees.map(bounds)];
   shape.markers = placeMarkers(length, (d) => {
     const at = pointFromEnd(o.line, d);
     return at && P(q(at));
-  }, band, hard, shape.bunkers.map(bounds));
+  }, band, hard, shape.bunkers.map(bounds), opts.bare);
+  // The water the hole plays over (v35): what lies in the play area keeps the water's colour, the rest of a lake fades, so
+  // a big one (새별 7's) no longer outweighs the hole. The play area is round the hole with room for a carry or a run
+  // beside it: 24 m at the drawing's scale, 12 to 32px.
+  shape.play = grownHull([...line, ...shape.tees.flat(), ...shape.fairways.flat(), ...shape.greens.flatMap((gr) => grown(gr, 1.1))], clamp(Math.round(24 * s), 12, 32));
+  shape.near = shape.water.flatMap((rings) => {
+    const outer = clipToConvex(rings[0], shape.play);
+    return outer.length < 3 ? [] : [[outer, ...rings.slice(1).map((r) => clipToConvex(r, shape.play)).filter((r) => r.length >= 3)]];
+  });
+  if (opts.inset) {
+    shape.inset = greenWindow(shape, band, keep, {
+      greens, flagged, fairways, bunkers, water: o.water.map((w) => w.map((r) => r.map(q))), pin: pinAt,
+    });
+  }
   return shape;
+}
+
+// ---------- v35: the water the hole plays over, and the green up close ----------
+
+/** 16 points round a unit circle, for growing a hull by a margin. */
+const AROUND = Array.from({ length: 16 }, (_, j): Pt => [Math.cos((j / 16) * Math.PI * 2), Math.sin((j / 16) * Math.PI * 2)]);
+
+/** The convex hull of some points (Andrew's monotone chain), every turn of it the same way. */
+function hull(pts: Pt[]): Pt[] {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (p.length < 3) return p;
+  const turn = (o: Pt, a: Pt, b: Pt) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: Pt[]) => {
+    const out: Pt[] = [];
+    for (const pt of list) {
+      while (out.length >= 2 && turn(out[out.length - 2], out[out.length - 1], pt) <= 0) out.pop();
+      out.push(pt);
+    }
+    return out.slice(0, -1);
+  };
+  return [...half(p), ...half([...p].reverse())];
+}
+
+/** The hull of some points, grown `by` px all round. */
+const grownHull = (pts: Pt[], by: number): Pt[] => hull(hull(pts).flatMap(([x, y]) => AROUND.map(([c, s]): Pt => [x + c * by, y + s * by])));
+
+/**
+ * What of a ring lies inside a convex ring that turns as `hull` does (Sutherland–Hodgman), its cut edges along the
+ * convex ring's: the water the hole plays over, and what a window shows, cut in px instead of by a clip path.
+ */
+function clipToConvex(ring: Pt[], clip: Pt[]): Pt[] {
+  let out = ring;
+  for (let i = 0; i < clip.length && out.length; i++) {
+    const [a, b] = [clip[i], clip[(i + 1) % clip.length]];
+    const side = (p: Pt) => (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+    const input = out;
+    out = [];
+    input.forEach((p, j) => {
+      const n = input[(j + 1) % input.length];
+      const [sp, sn] = [side(p), side(n)];
+      if (sp >= 0) out.push(p);
+      if (sp >= 0 !== sn >= 0) {
+        const t = sp / (sp - sn);
+        out.push([p[0] + (n[0] - p[0]) * t, p[1] + (n[1] - p[1]) * t]);
+      }
+    });
+  }
+  return out;
+}
+
+/** A window's outline as a convex ring: its box with its corners rounded `r` px, turning as `hull`'s rings do. */
+function roundedBox(b: Box, r: number): Pt[] {
+  const corners: [number, number, number][] = [[b.x1 - r, b.y1 - r, 0], [b.x0 + r, b.y1 - r, 90], [b.x0 + r, b.y0 + r, 180], [b.x1 - r, b.y0 + r, 270]];
+  return corners.flatMap(([cx, cy, from]) => Array.from({ length: 5 }, (_, k): Pt => {
+    const a = ((from + k * 22.5) * Math.PI) / 180;
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  }));
+}
+
+/**
+ * The band's free room as a 2px grid (v35): the cells nothing drawn reaches, boxes as given and rings with their `reach`,
+ * and the free box of a size nearest a point (a summed-area table makes each box one look-up), or null.
+ */
+function freeRoom(band: Box, boxes: Box[], rings: [Pt[], number][]) {
+  const C = 2;
+  const nx = Math.max(0, Math.floor((band.x1 - band.x0) / C));
+  const ny = Math.max(0, Math.floor((band.y1 - band.y0) / C));
+  const used = new Uint8Array(nx * ny);
+  const span = (b: Box) => ({
+    i0: Math.max(0, Math.floor((b.x0 - band.x0) / C)), i1: Math.min(nx, Math.ceil((b.x1 - band.x0) / C)),
+    j0: Math.max(0, Math.floor((b.y0 - band.y0) / C)), j1: Math.min(ny, Math.ceil((b.y1 - band.y0) / C)),
+  });
+  for (const b of boxes) {
+    const { i0, i1, j0, j1 } = span(b);
+    for (let j = j0; j < j1; j++) used.fill(1, j * nx + i0, j * nx + Math.max(i0, i1));
+  }
+  for (const [ring, reach] of rings) {
+    const { i0, i1, j0, j1 } = span(grow(bounds(ring), reach));
+    for (let j = j0; j < j1; j++) {
+      for (let i = i0; i < i1; i++) {
+        if (used[j * nx + i]) continue;
+        const p: Pt = [band.x0 + (i + 0.5) * C, band.y0 + (j + 0.5) * C];
+        if (inRing(p, ring) || ring.some((a, k) => segmentDistance(p, a, ring[(k + 1) % ring.length]) <= reach + C)) used[j * nx + i] = 1;
+      }
+    }
+  }
+  const sat = new Int32Array((nx + 1) * (ny + 1));
+  for (let j = 0; j < ny; j++) {
+    let row = 0;
+    for (let i = 0; i < nx; i++) {
+      row += used[j * nx + i];
+      sat[(j + 1) * (nx + 1) + i + 1] = sat[j * (nx + 1) + i + 1] + row;
+    }
+  }
+  const busy = (i0: number, j0: number, i1: number, j1: number) => sat[j1 * (nx + 1) + i1] - sat[j0 * (nx + 1) + i1] - sat[j1 * (nx + 1) + i0] + sat[j0 * (nx + 1) + i0];
+  return (w: number, h: number, near: Pt, within: Box): Box | null => {
+    const [cw, ch] = [Math.ceil(w / C), Math.ceil(h / C)];
+    let best: Box | null = null;
+    let gap = Infinity;
+    for (let j = Math.max(0, Math.ceil((within.y0 - band.y0) / C)); j + ch <= Math.min(ny, Math.floor((within.y1 - band.y0) / C)); j++) {
+      for (let i = Math.max(0, Math.ceil((within.x0 - band.x0) / C)); i + cw <= Math.min(nx, Math.floor((within.x1 - band.x0) / C)); i++) {
+        if (busy(i, j, i + cw, j + ch)) continue;
+        const b: Box = { x0: band.x0 + i * C, y0: band.y0 + j * C, x1: band.x0 + i * C + w, y1: band.y0 + j * C + h };
+        const d = Math.hypot((b.x0 + b.x1) / 2 - near[0], (b.y0 + b.y1) / 2 - near[1]);
+        if (d < gap) [best, gap] = [b, d];
+      }
+    }
+    return best;
+  };
+}
+
+/** The window's corner radius, in px: the tile radius (--r-tile). */
+const WINDOW_R = 12;
+
+/**
+ * The green up close (v35): the largest window the band's free room holds (from 120 by 92px down to 73 by 56), nearest
+ * the green, clear of the hole by `CLEAR` (its tees, greens in their fringes, fairways in their cut, bunkers, the water it
+ * plays over), of the flag, the markers and what the band keeps clear; in it, the flagged green in its fringe and its flag
+ * as large as the window allows less 6px all round, with whatever else lies there cut to the window. None where that is
+ * under twice the drawing's scale or the green comes out under 40px across. `m` is the hole in metres, turned as drawn.
+ */
+function greenWindow(shape: OsmShape, band: ArtBand, keep: Box[], m: { greens: Pt[][]; flagged: number; fairways: Pt[][]; bunkers: Pt[][]; water: Pt[][][]; pin: Pt }): Inset | null {
+  const boxes = [
+    ...keep, grow(flagBox(shape.pin), 0), ...shape.markers.flatMap((mk) => [{ x0: mk.x - DOT, y0: mk.y - DOT, x1: mk.x + DOT, y1: mk.y + DOT }, mk.label]),
+    ...shape.tees.map(bounds), ...shape.greens.map((g) => bounds(grown(g, 1.1))), ...shape.bunkers.map(bounds),
+  ].map((b) => grow(b, CLEAR));
+  const rings: [Pt[], number][] = [...shape.fairways.map((fw): [Pt[], number] => [fw, 4 + CLEAR]), ...shape.near.map((w): [Pt[], number] => [w[0], CLEAR])];
+  const find = freeRoom(band, boxes, rings);
+  const within = padded(band);
+  const g = m.greens[m.flagged];
+  const fringe = bounds(grown(g, 1.1));
+  for (let h = 92; h >= 56; h -= 4) {
+    const w = Math.round(h * 1.3);
+    const box = find(w, h, [shape.pin.x, shape.pin.y], within);
+    if (!box) continue;
+    const pole = clamp(Math.round(h * 0.26), 12, 20);
+    const inner: Box = grow(box, -6);
+    const boxAt = (k: number): Box => union([{ x0: k * fringe.x0, y0: k * fringe.y0, x1: k * fringe.x1, y1: k * fringe.y1 }, flagBox({ x: k * m.pin[0], y: k * m.pin[1], pole })]);
+    const k = largestScale(boxAt, inner);
+    const at = boxAt(k);
+    const [dx, dy] = [(inner.x0 + inner.x1) / 2 - (at.x0 + at.x1) / 2, (inner.y0 + inner.y1) / 2 - (at.y0 + at.y1) / 2];
+    const W = ([x, y]: Pt): Pt => [dx + k * x, dy + k * y];
+    const across = (fringe.x1 - fringe.x0) / 1.1 * k;
+    if (k < 2 * shape.scale || across < 40) return null;
+    const cut = roundedBox(box, WINDOW_R);
+    const clipped = (r: Pt[]) => clipToConvex(r.map(W), cut);
+    const kept = (list: Pt[][]) => list.map(clipped).filter((r) => r.length >= 3);
+    const greens = m.greens.map(clipped);
+    return {
+      box, scale: k,
+      greens: greens.filter((r) => r.length >= 3), flagged: greens.slice(0, m.flagged).filter((r) => r.length >= 3).length,
+      fairways: kept(m.fairways), bunkers: kept(m.bunkers),
+      water: m.water.flatMap((rs) => {
+        const outer = clipped(rs[0]);
+        return outer.length < 3 ? [] : [[outer, ...kept(rs.slice(1))]];
+      }),
+      pin: { x: W(m.pin)[0], y: W(m.pin)[1], pole },
+    };
+  }
+  return null;
 }
 
 /** The transform drawing an outline `scale` times its size about its middle: a green's fringe. */

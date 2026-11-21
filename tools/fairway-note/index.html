@@ -462,13 +462,15 @@
     </dialog>
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title" tabindex="-1" autofocus>
+      <!-- The first row as every view's (v35): 홈 at the top left, 취소 at the right, the app's name between them on a tall
+           screen; the question under it, or in the row's middle on a shorter one -->
       <div class="picker-head">
         <p class="pk-brand"><img src="./favicon.svg" alt="" width="20" height="20" /><span>Fairway Note</span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
-        <!-- The picker covers the tab bar's 홈, so it carries its own way back to the site (AGENTS.md) -->
-        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="18" height="18"></svg>홈</a>
-        <button id="picker-cancel" class="btn" type="button">취소</button>
+        <!-- The picker covers the views' 홈, so it carries its own way back to the site (AGENTS.md), in the same place -->
+        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></a>
+        <button id="picker-cancel" class="head-btn" type="button">취소</button>
       </div>
       <label class="pk-search">
         <svg data-icon="search" width="20" height="20"></svg>

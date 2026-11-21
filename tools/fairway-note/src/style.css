@@ -570,8 +570,10 @@ body:has(dialog[open]) .tabbar .bar { opacity: .4; }
   column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 8px;
   background: var(--deep); color: var(--on-dark);
 }
-.sc-top > .edit { grid-column: 3; justify-self: end; }
+.sc-top > .edit, .sc-top > .head-btn { grid-column: 3; justify-self: end; }
 .sc-title { grid-column: 2; text-align: center; min-width: 0; }
+/* A header's right-hand action other than 파 수정 (v35: 닫기 on a past round, 취소 on the picker), sized as 파 수정. */
+.head-btn { height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); white-space: nowrap; }
 .edit {
   height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); background: var(--white); box-shadow: var(--sh-float);
   font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
@@ -580,9 +582,9 @@ body:has(dialog[open]) .tabbar .bar { opacity: .4; }
 /* On the deep header (v32) 파 수정 is a ghost: no fill or shadow, a soft white ring and white letters, so the round's
    score under it stays the loudest thing on the page (a white floating pill had outshone the ring, while 기록 keeps a
    quiet badge in the same slot). While editing it inverts to white with turf letters, as chosen things do on dark. */
-.sc-top .edit { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+.sc-top .edit, .sc-top .head-btn { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
 .sc-top .edit.on { background: var(--white); color: var(--turf); outline: none; }
-.sc-top .edit:not(.on):active { background-color: var(--deep-press); }
+.sc-top .edit:not(.on):active, .sc-top .head-btn:active { background-color: var(--deep-press); }
 .sc-top .edit.on:active { background-color: var(--fill); }
 /* Under the tables while 파 수정 is on (v23), on the tables' edges. */
 .edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-help); text-wrap: pretty; }
@@ -742,25 +744,20 @@ body.big .legend { --lg-col: 100px; }
 #backup-share { grid-column: 1 / -1; }
 #history-status, #backup-status, #past-status { margin: 8px 0 0; }
 #history-status:empty, #backup-status:empty, #past-status:empty { display: none; }
-/* Never sets display, so the closed dialog stays hidden by the browser's own rule. */
+/* In 기록's frame since v35 (a white header over paper until v34): deep behind the header (`.sc-top`) and round the
+   paper sheet's top corners (`.sc-body`), as 스코어카드 and 지난 라운드. Sets display only while open, so the closed
+   dialog stays hidden by the browser's own rule. */
 .past {
   width: 100%; max-width: 640px; height: 100%; max-height: none; margin: 0 auto; padding: 0; border: 0;
-  background: var(--paper); color: var(--ink); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--deep); color: var(--ink); overflow-y: auto; overscroll-behavior: contain;
 }
+.past[open] { display: flex; flex-direction: column; }
 .past::backdrop { background: var(--backdrop-strong); }
 html.past-open { overflow: hidden; }
-.past-head {
-  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left));
-  background: var(--white); border-bottom: 1px solid var(--line);
-}
-.past-heading { min-width: 0; }
-.past-head h2 { font-size: var(--t-l); font-weight: var(--w-label); text-wrap: balance; }
-.past-head p { font-size: var(--t-s); }
-.past-head .btn { flex: none; }
-.past-body { padding: 0 max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+/* The sheet's own flow inside (headings and tables as before), its 16px from the sheet's top edge as 스코어카드's switch. */
+.past-body { display: block; padding: 16px max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 .past-body > h3 { font-size: var(--t-m); font-weight: var(--w-label); margin: 16px 0 8px; }
-.past-body > h3:first-child { margin-top: 12px; }
+.past-body > h3:first-child { margin-top: 0; }
 /* The same nine-column tables as 스코어카드 (v23), white on the dialog's paper, 16px apart. */
 #past-scorecard .nine-tbl:first-child { margin-top: 0; }
 /* The summary's round buttons (v23): 공유 or 결과 복사, 이미지 저장 where the image cannot be shared, and email. */
@@ -896,30 +893,32 @@ html.past-open { overflow: hidden; }
 }
 .picker[open] { display: flex; flex-direction: column; }
 .picker::backdrop { background: var(--rough); }
+/* The first row as every view's (v35, stage 4's frame; v29–v34 put 홈 or 취소 as a glass chip on the title's line): on
+   the top bar's line, 홈 at the left inset where the views have it and in the same box, 취소 at the right where 파 수정 and
+   the badge sit (a ghost on the rough, as 파 수정 on deep), the app's name between them on a tall screen. The question
+   is the screen's one title: large under the row on a tall screen, in the row's middle on a shorter one. */
 .picker-head {
-  flex: none; padding: max(14px, env(safe-area-inset-top)) var(--m) 0; color: var(--on-dark);
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 8px;
+  flex: none; display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; grid-template-rows: var(--bar-row) auto auto;
+  column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 0; color: var(--on-dark);
 }
-.pk-brand { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-dark-soft); }
-.picker-head h2 { font-size: var(--t-2xl); font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
-.picker-head .btn { min-height: 44px; background: var(--rough-fill); color: var(--on-dark); outline: none; }
-/* The title's line: the title, then 취소 or the way back to the site in one place at the header's inner edge. The row
-   is fixed, so the title stays on it when the brand line above steps aside on short screens. 취소 and 홈 are 44px glass
-   chips with their middle on the title's (v29); their negative margins keep the line as tall as the title, so the
-   title sits in the same place whichever of the two shows. */
-.picker-head > h2 { grid-column: 1; grid-row: 2; align-self: center; }
-.picker-head > .btn, .picker-home { grid-column: 2; grid-row: 2; align-self: center; margin-block: -8px; }
-/* The first picker covers the whole screen, the tab bar's 홈 too, and has no 취소: this chip is its way back to the
-   site (AGENTS.md), a quiet 홈 with the tab bar's house (v29), not an underlined address. White, not muted: the header
-   is dark green (v17). */
+.pk-brand { grid-column: 2; grid-row: 1; justify-self: center; display: flex; align-items: center; gap: 8px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-dark-soft); }
+.picker-head > h2 { grid-column: 1 / -1; grid-row: 2; margin-top: 2px; font-size: var(--t-2xl); font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
+.picker-head > .head-btn { grid-column: 3; grid-row: 1; justify-self: end; background: transparent; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+/* The views' 홈 (.home-link), here in the row: quiet, no fill, a 48px target. */
 .picker-home {
-  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 10px; border-radius: var(--r-full);
-  background: var(--rough-fill); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; text-decoration: none;
+  grid-column: 1; grid-row: 1; justify-self: start; height: var(--bar-row); min-width: 48px;
+  display: inline-flex; align-items: center; gap: 4px; padding-right: 8px;
+  color: var(--on-dark-soft); font-size: var(--t-s); font-weight: var(--w-label); text-decoration: none; white-space: nowrap;
 }
-.picker-home svg { flex: none; }
-.picker-home:active { background: var(--rough-press); }
-/* From the menu or an earlier day's round, 취소 leads back to the app and its tab bar's 홈 instead. */
-.picker-head:has(> #picker-cancel:not([hidden])) > .picker-home { display: none; }
+.picker-home:active { color: var(--on-dark); }
+body.big .picker-home { font-size: var(--t-m); }
+/* Under 700px tall the question moves into the row's middle (22px), where every view has its title, and the app's name
+   steps aside: the list keeps its rows and the sheet its nines. */
+@media (max-height: 699px) {
+  .pk-brand { display: none; }
+  .picker-head > h2 { grid-column: 2; grid-row: 1; justify-self: center; margin-top: 0; font-size: var(--t-xl); line-height: 1.2; letter-spacing: 0; white-space: nowrap; }
+  .picker-head > .pk-first { grid-row: 2; margin-top: 0; text-align: center; }
+}
 /* 16px in, so the search icon starts on the list rows' text edge (v17). */
 .pk-search {
   flex: none; margin: 12px var(--m) 0; height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
@@ -1000,11 +999,12 @@ html.past-open { overflow: hidden; }
 .nine-fixed { min-width: 0; font-size: var(--t-m); font-weight: var(--w-label); }
 .nine-row .swap { min-height: 44px; padding: 0 14px; font-size: var(--t-m); }
 .picker-foot > .btn { flex: none; min-height: 52px; font-size: var(--t-l); }
+/* Under 600px tall the first row takes 18px more than v34's title line did: the gaps give it back, so the list keeps
+   its row and a half and the sheet its nines whole. */
 @media (max-height: 599px) {
-  .pk-brand { display: none; }
-  .picker-head h2 { margin-top: 0; font-size: calc(var(--t-2xl) * .82); }
-  .picker-areas { margin-top: 14px; }
-  .picker-list { margin-top: 14px; }
+  .pk-search { margin-top: 8px; }
+  .picker-areas { margin-top: 10px; }
+  .picker-list { margin-top: 10px; }
 }
 
 /* ---------- round summary: what the recorded holes say ---------- */
@@ -1096,7 +1096,7 @@ html.past-open { overflow: hidden; }
    A resting fill turns --fill-2 with ink letters (v30: turf on --fill-2 is under 4.5:1), a filled button --action-press,
    a white one --fill; on the dark picker a white chip turns --fill and a button on the rough --rough-press; the danger
    button turns --red-tint, its red deepened so it still reads 4.5:1. */
-.btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
+.btn, .edit, .head-btn, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
 .ct-col, .sum-actions > *, .round-actions > * {
   transition-property: background-color, color; transition-duration: .12s; transition-timing-function: ease-out;
 }
@@ -1108,11 +1108,11 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .sc-finish:active { background-color: var(--fill-2); color: var(--ink); }
 .picker .chip:active { background-color: var(--rough-press); }
 .picker .chip[aria-pressed='true']:active { background-color: var(--fill); }
-.picker-head .btn:active { background-color: var(--rough-press); color: var(--on-dark); }
+.picker-head .head-btn:active { background-color: var(--rough-press); }
 .pk-missing .btn:not(.primary):active { background-color: var(--white); }
 .btn.danger:active { background-color: var(--red-tint); color: var(--red-ink); }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .edit, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
+  .btn, .edit, .head-btn, .sc-finish, .sh-go, .sum-close, .menu-close, .check-actions button, .nine-pick button, .pk-len button, .sc-switch button, .picker .chip,
   .ct-col, .sum-actions > *, .round-actions > * { transition: none; }
 }
 
