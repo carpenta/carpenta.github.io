@@ -68,7 +68,7 @@ async function showEntry(page: Page) {
   await expect(page.locator('#entry')).toBeVisible();
 }
 
-/** Opens the menu, and one of its items when given (새 라운드, 결과 보내기, 백업과 복원, 이 홀 멀리건 …). */
+/** Opens the menu, and one of its items when given (새 라운드, 결과 보내기, 백업과 복원, 앱 정보 …). */
 async function menu(page: Page, item?: string) {
   await page.getByRole('button', { name: '메뉴' }).click();
   await expect(page.locator('#menu')).toBeVisible();
@@ -337,20 +337,22 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v34');
+  await expect(page.locator('#menu-version')).toHaveText('v36');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
-  // Every item is a 48px button that opens its own panel and closes the one open before.
+  // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
+  // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v34');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v36');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
-  await page.locator('#menu .mi', { hasText: '이 홀 멀리건' }).click();
+  await page.locator('#menu .mi', { hasText: '결과 보내기' }).click();
   await expect(page.locator('#mp-about')).toBeHidden();
+  await expect(page.locator('#mp-send')).toBeVisible();
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
   await expect(page.locator('#mulligan-count')).toHaveText('1');
-  await expect(page.locator('#mulligan-sub')).toHaveText('1번 홀 1개, 타수에 넣지 않아요');
+  await expect(page.locator('#mulligan-title')).toHaveText('1번 홀 멀리건');
   await closeMenu(page);
   // A mulligan alone does not record the hole.
   await expect(page.locator('#badge')).toHaveAttribute('data-tone', 'none');
@@ -520,6 +522,8 @@ const drawingMakeup = (page: Page) => page.evaluate(() => {
   const svg = document.getElementById('course')!;
   const paints = new Set<string>();
   for (const el of svg.querySelectorAll('path, rect, ellipse, circle, use, polygon, line')) {
+    // An outline written once in <defs> (v33) is never rendered, only its <use> copies: its default black is no colour.
+    if (el.closest('defs')) continue;
     const s = getComputedStyle(el);
     if (s.fill && s.fill !== 'none') paints.add(s.fill);
     if (s.stroke && s.stroke !== 'none') paints.add(s.stroke);
@@ -652,14 +656,32 @@ const markerFits = (page: Page) => page.evaluate(() => [...document.querySelecto
   pill: Number(g.querySelector('rect')!.getAttribute('width')),
 })));
 
-test('fits the drawn distance pills to their labels in the page font, with room on each side (v24)', async ({ page }) => {
+/** Each drawn marker's label (v35): its text, whether it sits in a pill, and how the text is painted. */
+const markerNumbers = (page: Page) => page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => {
+  const t = g.querySelector('text')!;
+  const s = getComputedStyle(t);
+  return { label: t.textContent, pills: g.querySelectorAll('rect').length, fill: s.fill, stroke: s.stroke, halo: parseFloat(s.strokeWidth), order: s.paintOrder };
+}));
+
+test('fits the drawn distance pills to their labels in the page font where the course gives yards, and writes bare numbers where it gives metres (v24, v35)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  // The schematic on 에코랜드 와일드 1 (342 m) shows 100 m and 150 m in a tall band (v27: Everis is drawn from OpenStreetMap).
-  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  // 렉스필드 레이크 1 is 359 yd: the chip gives yards, so the markers (in metres) keep their unit, in a pill that fits it.
+  await openCourse(page, '렉스필드', '렉스필드 컨트리클럽');
   await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('#hole-distance')).toContainText('yd');
   const fit = await markerFits(page);
   expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
   for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
+  // The schematic on 에코랜드 와일드 1 (342 m) shows them in a tall band (v27: Everis is drawn from OpenStreetMap). Its chip
+  // gives metres, so since v35 each is its bare number (the v33 critique), white in a deep halo that reads on any ground.
+  await page.evaluate(() => localStorage.clear());
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  await expect(page.locator('#hole-distance')).toContainText(' m');
+  const [white, deep] = [await token(page, '--on-dark'), await token(page, '--deep')];
+  const numbers = await markerNumbers(page);
+  expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
+  for (const n of numbers) expect({ pills: n.pills, fill: n.fill, stroke: n.stroke, order: n.order.split(' ')[0] }, n.label!).toEqual({ pills: 0, fill: white, stroke: deep, order: 'stroke' });
+  for (const n of numbers) expect(n.halo, `${n.label}: halo`).toBeGreaterThanOrEqual(2);
 });
 
 test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
@@ -755,14 +777,14 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(course).toHaveAttribute('data-art', 'osm');
   expect(await course.locator('.green').getAttribute('d')).not.toBe(green);
   await expect(credit).toBeVisible();
-  // The whole of a long hole in the band (v33): 새별 3 (par 5) shows its 100 m and 150 m pills, which fit their labels
-  // as the schematic's do.
+  // The whole of a long hole in the band (v33): 새별 3 (par 5) shows its 100 m and 150 m markers, as the schematic does:
+  // since v35 their bare numbers, Everis giving its lengths in metres.
   await page.getByRole('button', { name: '다음 홀로 이동' }).click();
   await expect(page.locator('#hole-n')).toHaveText('3');
   await page.evaluate(() => document.fonts.ready);
-  const fit = await markerFits(page);
-  expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
-  for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
+  const numbers = await markerNumbers(page);
+  expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
+  for (const n of numbers) expect(n.pills, n.label!).toBe(0);
   // Bundled: no request left the page, and nothing new was stored.
   expect(requests).toEqual([]);
   expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
@@ -1245,7 +1267,8 @@ test('lays the hole across the band at one scale, tee at the left, and measures 
   }
   await page.locator('#info-btn').click();
   await expect(page.locator('#hi-marks')).toBeVisible();
-  await expect(page.locator('#hi-marks')).toHaveText('그림의 100 m·150 m 표시는 그린 중앙까지의 거리예요.');
+  // v35: the markers are bare numbers where the chip gives metres, so 홀 안내 names the unit.
+  await expect(page.locator('#hi-marks')).toHaveText('그림의 100·150 표시는 그린 중앙까지의 거리(m)예요.');
   await page.keyboard.press('Escape');
 });
 
@@ -2272,11 +2295,12 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
     test('상세 keeps its penalty pills one width on their columns, and the toggle at least 44px tall', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: '상세', exact: true }).click();
-      // An OB, so 빼기 shows too (v28: under 세컨, as it sits under the middle in 기본).
+      // An OB, so 빼기 shows too (since v36 under 퍼터, after the three penalties).
       await tap(page, 'ob');
       await atRest(page);
-      // OB under 드라이버, 빼기 under 세컨, 벙커 under 어프로치, 해저드 under 퍼터: four columns since v28.
-      const pens = await Promise.all(['#stake-ob', '#pen-undo', '#stake-bunker', '#stake-hazard'].map(async (s) => (await page.locator(s).boundingBox())!));
+      // OB under 드라이버, 벙커 under 세컨, 해저드 under 어프로치, 빼기 under 퍼터: four columns since v28, in this order
+      // since v36.
+      const pens = await Promise.all(['#stake-ob', '#stake-bunker', '#stake-hazard', '#pen-undo'].map(async (s) => (await page.locator(s).boundingBox())!));
       const cols = await Promise.all(KEYS.상세.map(async (k) => (await page.locator(`.club-${k} .pill`).boundingBox())!));
       pens.forEach((b, j) => {
         expect(Math.abs(b.width - pens[0].width), `pill ${j} width`).toBeLessThanOrEqual(1);
@@ -2366,7 +2390,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
           if (mode === '상세') expectAligned(chip.width, c.width, `상세: ${KEYS[mode][j]} name as wide as its capsule`);
         }
         expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), midX(c1), `${mode}: OB under 드라이버`);
-        expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), midX(cLast), `${mode}: 해저드 under 퍼터`);
+        // 해저드 under 퍼터 in 기본; in 상세 (v36) under 어프로치, with 벙커 and OB beside it.
+        expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), midX(mode === '기본' ? cLast : cols[2]), `${mode}: 해저드 under ${mode === '기본' ? '퍼터' : '어프로치'}`);
         if (mode === '기본') {
           expectAligned(midX(c2), width / 2, '기본: middle stepper');
           expectAligned((await rect(page, '#hole-info')).x, sheet.x, '기본: chips left edge');
@@ -2377,11 +2402,11 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
           await atRest(page);
           expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(c2), '기본: 빼기 under 그린까지');
         } else {
-          // Four capsules (v28): the gap between 세컨 and 어프로치 on the screen's centre line; 빼기 under 세컨 (an OB
-          // was added in 기본), 벙커 under 어프로치.
+          // Four capsules (v28): the gap between 세컨 and 어프로치 on the screen's centre line; since v36 벙커 under 세컨
+          // and 빼기 (an OB was added in 기본) under 퍼터, after the three penalties.
           expectAligned((c2.x + c2.width + cols[2].x) / 2, width / 2, '상세: middle gap on the centre line');
-          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(c2), '상세: 빼기 under 세컨');
-          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), midX(cols[2]), '상세: 벙커 under 어프로치');
+          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(cLast), '상세: 빼기 under 퍼터');
+          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), midX(c2), '상세: 벙커 under 세컨');
           // The 0 … 5+ picker spans the card, its first and last choice on the card's content edge.
           await longPressPen(page, 'hazard');
           const pick = await rect(page, '#numpick');
@@ -3606,43 +3631,43 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
   test.describe(`the first course picker on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('links back to the site, the only way out of the full-screen picker, on the title’s line', async ({ page }) => {
+    test('links back to the site, the only way out of the full-screen picker, at the top left where every view has it (v35)', async ({ page }) => {
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
       // The modal picker covers the tab bar and its 홈, so it carries its own link back (AGENTS.md: at every width).
       const home = page.locator('#picker a[href="../../"]');
       await expect(home).toHaveCount(1);
       await expect(home).toBeVisible();
-      // A quiet 홈 chip since v29, named in full for screen readers.
+      // Named in full for screen readers.
       await expect(home).toHaveText('홈');
       await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
       await settled(page);
       const box = (await home.boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(48);
       expect(Math.min(box.x, box.y)).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(box.y + box.height).toBeLessThanOrEqual(height);
       expect(await sideScroll(page)).toBe(0);
-      // A glass chip like 취소 (v29), its middle on the title's middle and its right edge on the header's inner edge,
-      // where 취소 goes in the other modes. A filled chip lines up by its middle, not by its small text's baseline.
-      within1px(midY(box), midY(await rect(page, '#picker-title')), 'middle on the title’s');
-      within1px(endOf(box), endOf(await spanOf(page, '.pk-search')), 'right edge');
+      // Since v35 in stage 4's place (it was a glass chip on the title's line, v29–v34): the box of the views' own 홈 under
+      // the picker, at the top left on the top bar's line, quiet, with no fill.
+      const views = await rect(page, '.app > .home-link');
+      within1px(box.x, views.x, 'left, as on every view');
+      within1px(midY(box), midY(views), 'on the top bar’s line');
+      expect(await home.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
       const size = await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(13);
-      // From the menu's 새 라운드 the picker has 취소 back to the app (and its tab bar's 홈) in that place instead.
+      // From the menu's 새 라운드 the picker adds 취소 back to the app at the right end of the same line; 홈 stays.
       await page.getByRole('button', { name: '이 코스로 시작' }).tap();
       await page.getByRole('button', { name: '메뉴' }).first().tap();
       await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
       await page.locator('#new-round').tap();
       await expect(page.locator('#picker')).toBeVisible();
-      await expect(home).toBeHidden();
+      await expect(home).toBeVisible();
       await settled(page);
-      within1px(endOf(await spanOf(page, '#picker-cancel')), endOf(await spanOf(page, '.pk-search')), '취소 right edge');
-      // 취소 takes 홈's box, so the title keeps its place whichever of the two the picker shows.
       const cancel = await rect(page, '#picker-cancel');
-      within1px(cancel.y, box.y, '취소 top where 홈’s was');
-      within1px(cancel.height, box.height, '취소 as tall as 홈');
-      within1px(midY(cancel), midY(await rect(page, '#picker-title')), '취소 middle on the title’s');
+      within1px(cancel.x + cancel.width, width - 16, '취소 on the right inset');
+      within1px(midY(cancel), midY(box), '취소 on 홈’s line');
+      expect(Math.min(cancel.width, cancel.height)).toBeGreaterThanOrEqual(48);
     });
   });
 }
@@ -3860,7 +3885,9 @@ test('opens a past round read-only with its report, and deletes it only after as
   await pastItems(page).first().click();
   const dialog = page.locator('#past');
   await expect(dialog).toBeVisible();
-  await expect(page.locator('#past-title')).toHaveText(/^\d{4}년 \d{1,2}월 \d{1,2}일 라운드$/);
+  // Named by its day as 스코어카드 names the round (v35: the header's middle is 160px at 360); a round from another year
+  // says the year beside its course (tested on its own).
+  await expect(page.locator('#past-title')).toHaveText(/^\d{1,2}월 \d{1,2}일 라운드$/);
   await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
   await expect(dialog.locator('.nine-tbl')).toHaveCount(2);
   // Read-only: no links to holes, no par buttons and nothing to tap a stroke into.
@@ -4031,7 +4058,8 @@ test('leaves the past rounds alone while holes are tapped', async ({ page }) => 
   await startNewRound(page);
   await page.locator('#history-list li').first().evaluate((li) => li.setAttribute('data-mark', 'kept'));
   await parHole(page);
-  await menu(page, '이 홀 멀리건');
+  // 멀리건 counts on its own row since v36: the menu, then its +.
+  await menu(page);
   await page.getByRole('button', { name: '멀리건 하나 더하기' }).click();
   await closeMenu(page);
   await expect(page.locator('#history-list li[data-mark="kept"]')).toHaveCount(1);
@@ -5589,8 +5617,9 @@ test('코스 선택, 스코어카드 and the menu answer a press with their colo
   await press(page, '#edit-par', '#edit-par', '#card-view .sc-title h2');
   await page.locator('#edit-par').click();
   await menu(page, '새 라운드');
-  // Let go on a neighbour still on screen inside the sheet: outside it, the release would be a tap on the backdrop.
-  await press(page, '#menu-close', '#menu-close', '#mi-about .mi-t');
+  // Let go on a neighbour still on screen inside the sheet: outside it, the release would be a tap on the backdrop. Since
+  // v36 the × sits on the title's line, so the title is that neighbour.
+  await press(page, '#menu-close', '#menu-close', '#menu-title');
   // 새 라운드 시작 and 취소 share a row, so each lets go on the other: still on screen when the sheet scrolls. The menu is
   // taller than an iPhone's sheet since 말로 입력 (v21), and the question above the row can scroll out of it (merged v23).
   await press(page, '#mp-new [data-collapse]', '#mp-new [data-collapse]', '#new-round');
@@ -6314,7 +6343,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v34');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v36');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -6852,7 +6881,9 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
         await expect(undo, mode).toBeDisabled();
         await expect(undo, mode).toBeHidden();
         expect(await undo.evaluate((el) => getComputedStyle(el).visibility), mode).toBe('hidden');
-        expectAligned(midX(await box('#pen-undo .u-ico')), midX(await rect(page, `.club-${KEYS[mode][1]} .pill`)), `${mode}: 빼기's place under ${KEYS[mode][1]}`);
+        // Under the middle capsule in 기본; in 상세 (v36) under the last, after the three penalties.
+        const under = KEYS[mode][mode === '기본' ? 1 : 3];
+        expectAligned(midX(await box('#pen-undo .u-ico')), midX(await rect(page, `.club-${under} .pill`)), `${mode}: 빼기's place under ${under}`);
         // As tall as a penalty, so holding its column costs the card nothing (상세's 빼기 was 2px taller than its stakes).
         expectAligned((await box('#pen-undo')).height, (await rect(page, '#stake-ob')).height, `${mode}: 빼기 as tall as OB`);
       }
@@ -7241,4 +7272,472 @@ test('each glyph is see-through ink, one colour on both halves: 3:1 or more over
   expect(dead.alpha).toBeLessThan(live.alpha);
   expect(dead.half).not.toBe(live.half);
   expect(dead.ratio).toBeLessThan(live.ratio);
+});
+
+// ---------- v36: 기록's penalty row and the menu, polished ----------
+
+/** The colour the screen shows at one CSS pixel, read from a screenshot (v36): what is drawn there, whatever drew it. */
+async function pixelAt(page: Page, x: number, y: number) {
+  const png = await page.screenshot({ clip: { x: Math.floor(x), y: Math.floor(y), width: 1, height: 1 }, caret: 'initial' });
+  return page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(img, 0, 0);
+    return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
+  }, `data:image/png;base64,${png.toString('base64')}`);
+}
+
+/** The penalty row's buttons in document order, Tab's order, seen or not. */
+const penOrder = (page: Page) => page.locator('#pens button').evaluateAll((list) => list.map((b) => b.id));
+
+/** The menu as laid out: each group's heading and its rows (icon tile, title column, the title's and its line's size). */
+const menuLayout = (page: Page) => page.locator('#menu').evaluate((menu) => {
+  const box = (el: Element | null) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, width: r.width, height: r.height };
+  };
+  return [...menu.querySelectorAll('.mg')].map((g) => ({
+    heading: g.querySelector('.mg-h')?.textContent ?? null,
+    head: box(g.querySelector('.mg-h')),
+    rows: [...g.querySelectorAll('.mi')].map((row) => ({
+      title: row.querySelector('.mi-t b')!.textContent,
+      row: box(row)!,
+      icon: box(row.querySelector('.ic'))!,
+      text: box(row.querySelector('.mi-t'))!,
+      titleSize: getComputedStyle(row.querySelector('.mi-t b')!).fontSize,
+      lineSize: getComputedStyle(row.querySelector('.mi-t small')!).fontSize,
+      grid: row.querySelector('.ic svg')?.getAttribute('viewBox') ?? null,
+    })),
+  }));
+});
+
+for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
+  test.describe(`기록's penalty row and the menu on a ${width}×${height} phone (v36)`, () => {
+    // bypassCSP only because pixelAt reads a screenshot, and WebKit's screenshot adds a style of its own, which the
+    // page's CSP would refuse and report (as the v32 badge test).
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+    test('상세 stands OB, 벙커 and 해저드 together under the first three capsules; 빼기 comes in under 퍼터 and nothing moves', async ({ page }) => {
+      await open(page);
+      await page.getByRole('button', { name: '상세', exact: true }).click();
+      if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+      await atRest(page);
+      const caps = await Promise.all(KEYS.상세.map((k) => rect(page, `.club-${k} .pill`)));
+      const pens = ['#stake-ob', '#stake-bunker', '#stake-hazard'] as const;
+      // At rest one group: one under each of the first three capsules, no column held empty between them.
+      const before = await Promise.all(pens.map((s) => rect(page, s)));
+      before.forEach((b, j) => expectAligned(midX(b), midX(caps[j]), `${pens[j]} under ${KEYS.상세[j]}`));
+      await expect(page.locator('#pen-undo')).toBeHidden();
+      // Tab goes the way the eye does.
+      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'stake-hazard', 'pen-undo']);
+      // The first penalty brings 빼기 in under 퍼터, after the three, and none of them moves.
+      await tap(page, 'ob');
+      await atRest(page);
+      await expect(page.locator('#pen-undo')).toBeVisible();
+      await expect(page.locator('#pen-undo')).toHaveText('OB 빼기');
+      expectAligned(midX(await rect(page, '#pen-undo')), midX(caps[3]), '빼기 under 퍼터');
+      const after = await Promise.all(pens.map((s) => rect(page, s)));
+      after.forEach((b, j) => {
+        expectAligned(b.x, before[j].x, `${pens[j]}: x after the first penalty`);
+        expectAligned(b.y, before[j].y, `${pens[j]}: y after the first penalty`);
+      });
+      // 기본 keeps its row: OB and 해저드 under the outer capsules, 빼기 between them under 그린까지, in that order for Tab.
+      await page.getByRole('button', { name: '기본', exact: true }).click();
+      await atRest(page);
+      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'pen-undo', 'stake-hazard']);
+      expectAligned(midX(await rect(page, '#pen-undo')), midX(await rect(page, '.club-approach .pill')), '기본: 빼기 under 그린까지');
+    });
+
+    test('멀리건 is two taps from 기록: 메뉴, then + on its row, which names the hole; nothing for it on the card', async ({ page }) => {
+      await open(page);
+      await atRest(page);
+      await page.locator('#bar-menu').click();
+      await expect(page.locator('#menu')).toBeVisible();
+      await settled(page);
+      // In sight as the sheet opens, without scrolling it.
+      const sheet = await rect(page, '#menu');
+      const plus = await rect(page, '#mulligan-plus');
+      expect(plus.y, 'the + in sight').toBeGreaterThanOrEqual(sheet.y);
+      expect(plus.y + plus.height, 'the + in sight').toBeLessThanOrEqual(sheet.y + sheet.height);
+      await page.locator('#mulligan-plus').click();
+      await expect(page.locator('#mulligan-count')).toHaveText('1');
+      expect((await stored(page)).holes[0].mulligan).toBe(1);
+      await expect(page.locator('#mulligan-title')).toHaveText('1번 홀 멀리건');
+      await expect(page.locator('#mi-mulligan small')).toHaveText('타수에 넣지 않아요');
+      // The menu's rhythm: its −, count and + on the icon tile's middle, 48px targets, the + ending where the switches end.
+      const icon = await rect(page, '#mi-mulligan .ic');
+      for (const s of ['#mulligan-minus', '#mulligan-count', '#mulligan-plus']) expectAligned(midY(await rect(page, s)), midY(icon), `${s} on the row's line`);
+      for (const s of ['#mulligan-minus', '#mulligan-plus']) {
+        const b = await rect(page, s);
+        expect(Math.min(b.width, b.height), `${s}: a 48px target`).toBeGreaterThanOrEqual(48);
+      }
+      const sw = await rect(page, '#mi-big .sw');
+      const p = await rect(page, '#mulligan-plus');
+      expectAligned(p.x + p.width, sw.x + sw.width, 'the + ends where the switches end');
+      // − takes it back, and stops at 0.
+      await page.locator('#mulligan-minus').click();
+      await expect(page.locator('#mulligan-count')).toHaveText('0');
+      await expect(page.locator('#mulligan-minus')).toBeDisabled();
+      await page.locator('#menu-close').click();
+      await expect(page.locator('#menu')).toBeHidden();
+      await expect(page.locator('#entry')).not.toContainText('멀리건');
+    });
+
+    test('the menu stops on the bar: the bar stays in view with 메뉴 marked, and a tap on it goes on to the bar', async ({ page }) => {
+      await open(page);
+      await atRest(page);
+      const bar = await rect(page, '#views');
+      const edge = [bar.x + 3, bar.y + bar.height - 3] as const;   // the bar's own ground, left of its first column
+      const corner = [3, 3] as const;                               // the screen's top corner
+      const barGround = await pixelAt(page, ...edge);
+      const cornerGround = await pixelAt(page, ...corner);
+      await page.locator('#bar-menu').click();
+      await expect(page.locator('#menu')).toBeVisible();
+      await settled(page);
+      // The sheet's foot on the bar's top edge.
+      const sheet = await rect(page, '#menu');
+      expectAligned(sheet.y + sheet.height, bar.y, 'the sheet stops on the bar');
+      // The dim stops there too: the bar shows as it was, the screen above it dims.
+      expect(await pixelAt(page, ...edge), 'the bar under the open menu').toEqual(barGround);
+      expect(await pixelAt(page, ...corner), 'the screen above the bar dims').not.toEqual(cornerGround);
+      // 메뉴 marked as where the sheet came from, the view's own tab stepping aside for it, the bar whole.
+      await expect(page.locator('#bar-menu')).toHaveAttribute('aria-expanded', 'true');
+      const pill = (s: string) => page.locator(`${s} .ti`).evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(await pill('#bar-menu')).toBe(await token(page, '--turf'));
+      expect(await pill('#tab-entry')).toBe('rgba(0, 0, 0, 0)');
+      expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+      // A tap on 메뉴 closes it: the focus back on 메뉴, 기록's tab marked again.
+      const menuButton = await rect(page, '#bar-menu');
+      await page.mouse.click(midX(menuButton), midY(menuButton));
+      await expect(page.locator('#menu')).toBeHidden();
+      await expect(page.locator('#bar-menu')).toHaveAttribute('aria-expanded', 'false');
+      await expect(page.locator('#bar-menu')).toBeFocused();
+      await atRest(page);
+      expect(await pill('#tab-entry')).toBe(await token(page, '--turf'));
+      // A tap on a view under the open menu closes it and opens that view: one tap, as with the menu closed.
+      await page.locator('#bar-menu').click();
+      await expect(page.locator('#menu')).toBeVisible();
+      const card = await rect(page, '#tab-card');
+      await page.mouse.click(midX(card), midY(card));
+      await expect(page.locator('#menu')).toBeHidden();
+      await expect(page.locator('#card-view')).toBeVisible();
+      await expect(tab(page, '스코어카드')).toHaveAttribute('aria-selected', 'true');
+      // The × closes it too: on the title's line, ending where the rows end, named 닫기.
+      await page.locator('#bar-menu').click();
+      await settled(page);
+      const x = await rect(page, '#menu-close');
+      expectAligned(midY(x), midY(await rect(page, '#menu-title')), '× on the title\'s line');
+      const sw = await rect(page, '#mi-big .sw');
+      expectAligned(x.x + x.width, sw.x + sw.width, '× ends where the switches end');
+      expect(Math.min(x.width, x.height)).toBeGreaterThanOrEqual(44);
+      await expect(page.locator('#menu-close')).toHaveAccessibleName('닫기');
+      await page.locator('#menu-close').click();
+      await expect(page.locator('#menu')).toBeHidden();
+    });
+
+    test('the menu sorts its items by job: 라운드, 기록 보관 and 설정, then 앱 정보, in one icon family and one row rhythm', async ({ page }) => {
+      await open(page);
+      await page.locator('#bar-menu').click();
+      await expect(page.locator('#menu')).toBeVisible();
+      await settled(page);
+      const groups = await menuLayout(page);
+      expect(groups.map((g) => g.heading)).toEqual(['라운드', '기록 보관', '설정', null]);
+      expect(groups.map((g) => g.rows.map((r) => r.title))).toEqual([['1번 홀 멀리건', '새 라운드', '코스 바꾸기'], ['결과 보내기', '백업과 복원'], ['큰 글씨', '말로 입력'], ['앱 정보']]);
+      // Each group is a region its heading names, for screen readers.
+      for (const name of ['라운드', '기록 보관', '설정', '앱 정보']) await expect(page.locator('#menu').getByRole('region', { name, exact: true })).toHaveCount(1);
+      const rows = groups.flatMap((g) => g.rows);
+      for (const r of rows) {
+        expectAligned(r.icon.x, rows[0].icon.x, `${r.title}: icon tile on one edge`);
+        expect([r.icon.width, r.icon.height], `${r.title}: a 40px tile`).toEqual([40, 40]);
+        expect(r.grid, `${r.title}: the icon family's 24-unit grid`).toBe('0 0 24 24');
+        expectAligned(r.text.x, rows[0].text.x, `${r.title}: title on one edge`);
+        expect([r.titleSize, r.lineSize], `${r.title}: a title over its line`).toEqual(['17px', '13px']);
+        expect(r.row.height, `${r.title}: row height`).toBeGreaterThanOrEqual(64);
+      }
+      // The headings on the icons' edge, and one space between groups, before 앱 정보 too.
+      for (const g of groups) if (g.head) expectAligned(g.head.x, rows[0].icon.x, `${g.heading}: heading on the icons' edge`);
+      const gaps = groups.slice(1).map((g, i) => {
+        const last = groups[i].rows[groups[i].rows.length - 1].row;
+        return (g.head ?? g.rows[0].row).y - (last.y + last.height);
+      });
+      gaps.forEach((gap, i) => expectAligned(gap, gaps[0], `space before group ${i + 2}`));
+      expect(gaps[0], 'groups stand apart').toBeGreaterThanOrEqual(12);
+      // On a 390×844 phone the whole menu fits above the bar, 앱 정보 included; a shorter screen scrolls it.
+      if (height >= 800) expect(await page.locator('#menu').evaluate((el) => el.scrollHeight - el.clientHeight), 'the menu fits').toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+test.describe('the 상세 row and the menu at 360 in 큰 글씨 and with wider type (v36)', () => {
+  // bypassCSP only to add the widening style.
+  test.use({ viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+  test('keep their places and cut no word', async ({ page }) => {
+    await open(page);
+    const check = async (where: string) => {
+      await page.getByRole('button', { name: '상세', exact: true }).click();
+      if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+      await atRest(page);
+      const caps = await Promise.all(KEYS.상세.map((k) => rect(page, `.club-${k} .pill`)));
+      for (const [j, s] of ['#stake-ob', '#stake-bunker', '#stake-hazard'].entries()) {
+        expectAligned(midX(await rect(page, s)), midX(caps[j]), `${where}: ${s} under ${KEYS.상세[j]}`);
+        const label = await rect(page, `${s} .pen-lbl`);
+        expect(label.x, `${where}: ${s}'s name inside its column`).toBeGreaterThanOrEqual(caps[j].x - 0.5);
+        expect(label.x + label.width, `${where}: ${s}'s name inside its column`).toBeLessThanOrEqual(caps[j].x + caps[j].width + 0.5);
+      }
+      await page.getByRole('button', { name: '기본', exact: true }).click();
+      await page.locator('#bar-menu').click();
+      await expect(page.locator('#menu')).toBeVisible();
+      await settled(page);
+      for (const s of ['#mulligan-title', '#mi-mulligan small', '#menu .mg-h']) {
+        for (const el of await page.locator(s).all()) expect(await el.evaluate((e) => e.scrollWidth - e.clientWidth), `${where}: ${s} whole`).toBeLessThanOrEqual(0);
+      }
+      const icon = await rect(page, '#mi-mulligan .ic');
+      for (const s of ['#mulligan-minus', '#mulligan-count', '#mulligan-plus']) expectAligned(midY(await rect(page, s)), midY(icon), `${where}: ${s} on the row's line`);
+      const groups = await menuLayout(page);
+      const rows = groups.flatMap((g) => g.rows);
+      for (const r of rows) {
+        expectAligned(r.icon.x, rows[0].icon.x, `${where}: ${r.title}: icon tile on one edge`);
+        expectAligned(r.text.x, rows[0].text.x, `${where}: ${r.title}: title on one edge`);
+      }
+      for (const g of groups) if (g.head) expectAligned(g.head.x, rows[0].icon.x, `${where}: ${g.heading} on the icons' edge`);
+      await page.locator('#menu-close').click();
+      await expect(page.locator('#menu')).toBeHidden();
+    };
+    await setBig(page, true);
+    await check('큰 글씨');
+    await setBig(page, false);
+    await page.addStyleTag({ content: WIDER });
+    await check('wider type');
+  });
+});
+
+/* ---------- v35: 지난 라운드 열기 and 코스 선택 in stage 4's frame, and the drawing's leftovers from the v33 critique ---------- */
+
+/** A past round on Everis on `date`, kept (closed), with every hole played. */
+const keptRound = (date: string) => ({
+  version: 1, date, current: 17, closed: true,
+  holes: Array.from({ length: 18 }, () => ({ par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 })),
+  course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' },
+});
+
+for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
+  test.describe(`지난 라운드 열기 in 기록’s frame on a ${width}×${height} phone (v35)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('a past round opens under a deep header held at the top, its day on the top bar’s line and 닫기 a ghost on the right, over a paper sheet', async ({ page }) => {
+      await page.goto('/');
+      await seedAudit(page);
+      await atRest(page);
+      const line = midY(await rect(page, '.app > .home-link'));
+      const [deep, paper, onDark] = [await token(page, '--deep'), await token(page, '--paper'), await token(page, '--on-dark')];
+      await tab(page, '지난 라운드').tap();
+      await pastItems(page).first().tap();
+      await expect(page.locator('#past')).toBeVisible();
+      await settled(page);
+      // The header as 스코어카드's and 지난 라운드's: deep, the round's day white in the middle of the bar's line, the course under it.
+      expect(await page.locator('#past .sc-top').evaluate((el) => getComputedStyle(el).backgroundColor), 'the header').toBe(deep);
+      expect(await page.locator('#past-title').evaluate((el) => getComputedStyle(el).color), 'the title').toBe(onDark);
+      await expect(page.locator('#past-title')).toHaveText(/^\d{1,2}월 \d{1,2}일 라운드$/);
+      await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
+      const title = await rect(page, '#past .sc-title');
+      expectAligned(midY(title), line, 'title on the top bar’s line');
+      expectAligned(midX(title), width / 2, 'title centred');
+      // 닫기 in the right-hand action's place (파 수정's), a ghost on deep: white letters, no fill or shadow, a 48px target.
+      const close = await rect(page, '#past-close');
+      expectAligned(close.x + close.width, width - 16, '닫기 on the right inset');
+      expectAligned(midY(close), line, '닫기 on the line');
+      expect(Math.min(close.width, close.height), '닫기: a 48px target').toBeGreaterThanOrEqual(48);
+      expect(close.x, '닫기 clear of the title').toBeGreaterThanOrEqual(title.x + title.width - 0.5);
+      expect(await page.locator('#past-close').evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow, color: getComputedStyle(el).color })))
+        .toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', color: onDark });
+      // The round on a paper sheet with 24px top corners, right under the header, across the screen.
+      const look = await page.locator('#past > .sc-body').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { background: s.backgroundColor, left: s.borderTopLeftRadius, right: s.borderTopRightRadius };
+      });
+      expect(look, 'the sheet').toEqual({ background: paper, left: '24px', right: '24px' });
+      const head = await rect(page, '#past .sc-top');
+      const body = await rect(page, '#past > .sc-body');
+      expectAligned(body.y, head.y + head.height, 'the sheet right under the header');
+      expectAligned(body.x, 0, 'the sheet from the left edge');
+      expectAligned(body.width, width, 'the sheet across the screen');
+      // Held at the top while the round scrolls under it; nothing scrolls sideways.
+      await page.locator('#past').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await settled(page);
+      expectAligned((await rect(page, '#past .sc-title')).y, title.y, 'title held while scrolled');
+      expect(await page.locator('#past').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+    });
+  });
+}
+
+test('names a past round by its day as 스코어카드 does, the year joining its course when it is from another year (v35)', async ({ page }) => {
+  await open(page);
+  const year = await page.evaluate(() => new Date().getFullYear());
+  await page.evaluate(([key, list]) => localStorage.setItem(key as string, JSON.stringify(list)), [HISTORY_KEY, [
+    { id: 'this-year', endedAt: Date.parse(`${year}-01-01T18:00:00`), round: keptRound(`${year}-01-01`) },
+    { id: 'last-year', endedAt: Date.parse(`${year - 1}-06-14T18:00:00`), round: keptRound(`${year - 1}-06-14`) },
+  ]] as const);
+  await page.reload();
+  await showPast(page);
+  await pastItems(page).nth(0).click();
+  await expect(page.locator('#past-title')).toHaveText('1월 1일 라운드');
+  await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
+  await page.locator('#past-close').click();
+  await expect(page.locator('#past')).toBeHidden();
+  await pastItems(page).nth(1).click();
+  await expect(page.locator('#past-title')).toHaveText('6월 14일 라운드');
+  await expect(page.locator('#past-course')).toHaveText(`${year - 1}년, 에버리스 골프리조트 새별·레이크`);
+});
+
+for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]] as const) {
+  test.describe(`코스 선택 in the frame on a ${width}×${height} phone (v35)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('홈 and 취소 on the top bar’s line as on every view, the question its one title, the list and the nines whole', async ({ page }) => {
+      await page.goto('/');
+      await expect(page.locator('#picker')).toBeVisible();
+      await settled(page);
+      // 홈 in the box of the views' own 홈 under the picker: the top left, on the top bar's line, a 48px target, no fill.
+      const views = await rect(page, '.app > .home-link');
+      const home = await rect(page, '#picker .picker-home');
+      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(home[k], views[k], `홈 ${k} as on every view`);
+      expect(await page.locator('#picker .picker-home').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+      const line = midY(views);
+      const title = await rect(page, '#picker-title');
+      const text = await textBox(page, '#picker-title');
+      const size = await page.locator('#picker-title').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+      if (height >= 700) {
+        // A tall phone: the question a large title under the bar's line at the left inset, the app's name on the line.
+        expect(size).toBe(34);
+        expectAligned(text.x, 16, 'title on the inset');
+        expect(title.y, 'title under the bar’s line').toBeGreaterThanOrEqual(home.y + home.height - 0.5);
+        await expect(page.locator('#picker .pk-brand')).toBeVisible();
+        const brand = await textBox(page, '#picker .pk-brand');
+        expectAligned(midY(brand), line, 'the app’s name on the line');
+        expectAligned(midX(await rect(page, '#picker .pk-brand')), width / 2, 'the app’s name centred');
+      } else {
+        // Shorter: the question in the middle of the bar's line, as every view's title, at 22px.
+        expect(size).toBe(22);
+        expectAligned(midY(text), line, 'title on the line');
+        expectAligned(midX(text), width / 2, 'title centred');
+        expect(text.x, 'title clear of 홈').toBeGreaterThanOrEqual(home.x + home.width);
+        await expect(page.locator('#picker .pk-brand')).toBeHidden();
+      }
+      // The list keeps a row and a half, and the chosen course's sheet shows its nines whole.
+      expect((await rect(page, '#picker-list')).height, 'the list').toBeGreaterThanOrEqual(96);
+      expect(await page.locator('.pk-scroll').evaluate((el) => el.scrollHeight - el.clientHeight), 'the nines whole').toBeLessThanOrEqual(1);
+      // The question and 이 코스로 시작 lead: the title is the largest text on the screen.
+      const largest = await page.locator('#picker').evaluate((d) => Math.max(...[...d.querySelectorAll('*')].filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim()) && el.getBoundingClientRect().width).map((el) => parseFloat(getComputedStyle(el).fontSize))));
+      expect(largest).toBe(size);
+      // From the menu's 새 라운드: 취소 at the right inset on the same line, a ghost (no fill or shadow); 홈 stays at the left.
+      await page.getByRole('button', { name: '이 코스로 시작' }).tap();
+      await page.getByRole('button', { name: '메뉴' }).first().tap();
+      await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
+      await page.locator('#new-round').tap();
+      await expect(page.locator('#picker-cancel')).toBeVisible();
+      await expect(page.locator('#picker .picker-home')).toBeVisible();
+      await settled(page);
+      const cancel = await rect(page, '#picker-cancel');
+      expectAligned(cancel.x + cancel.width, width - 16, '취소 on the right inset');
+      expectAligned(midY(cancel), line, '취소 on the line');
+      expect(Math.min(cancel.width, cancel.height), '취소: a 48px target').toBeGreaterThanOrEqual(48);
+      expect(await page.locator('#picker-cancel').evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow })))
+        .toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none' });
+      if (height < 700) expect((await textBox(page, '#picker-title')).x + (await textBox(page, '#picker-title')).width, 'title clear of 취소').toBeLessThanOrEqual(cancel.x);
+      expect(await sideScroll(page)).toBe(0);
+    });
+  });
+}
+
+test.describe('코스 선택’s title with wider type at 360 (v35)', () => {
+  // bypassCSP only to add the widening style.
+  test.use({ viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+  test('stays on one line in the middle of the bar’s line, clear of 홈 and 취소', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: '메뉴' }).first().tap();
+    await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
+    await page.locator('#new-round').tap();
+    await expect(page.locator('#picker-cancel')).toBeVisible();
+    await page.addStyleTag({ content: WIDER });
+    await settled(page);
+    const text = await textBox(page, '#picker-title');
+    const home = await rect(page, '#picker .picker-home');
+    const cancel = await rect(page, '#picker-cancel');
+    expect(text.height, 'one line').toBeLessThan(22 * 1.6);
+    expect(text.x, 'clear of 홈').toBeGreaterThanOrEqual(home.x + home.width);
+    expect(text.x + text.width, 'clear of 취소').toBeLessThanOrEqual(cancel.x);
+    expectAligned(midY(text), midY(home), 'on the line');
+  });
+});
+
+/** The box of the text inside `selector` (its line boxes), not of the element round it. */
+const textBox = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const r = range.getBoundingClientRect();
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+});
+
+test('fades the water 새별 7 does not play over and keeps the water it carries in full colour, one shore line round both (v35)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await pickHole(page, 6);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await settled(page);
+  const [water, far, deep, rough] = [await token(page, '--water'), await token(page, '--water-far'), await token(page, '--deep'), await token(page, '--rough')];
+  const fill = (selector: string) => course.locator(selector).first().evaluate((el) => getComputedStyle(el).fill);
+  expect(await fill(':scope > .pond > .water-far')).toBe(far);
+  expect(await fill(':scope > .pond > .water')).toBe(water);
+  expect(await course.locator(':scope > .pond > .shore').first().evaluate((el) => ({ fill: getComputedStyle(el).fill, stroke: getComputedStyle(el).stroke }))).toEqual({ fill: 'none', stroke: deep });
+  // Quieter, not another colour: the far tint is the water's, nearer the rough.
+  const lum = (c: string) => {
+    const [r, g, b] = c.match(/\d+/g)!.map(Number).map((v) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  expect(ratio(far, rough)).toBeLessThan(ratio(water, rough));
+  expect(ratio(far, rough)).toBeGreaterThan(1.2);
+  const m = await drawingMakeup(page);
+  expect(m.paints.length, m.paints.join(' | ')).toBeLessThanOrEqual(10);
+});
+
+test('shows the green up close in a window where the band has room, clear of the hole, its markers and the credit: 새별 1 at 390×844, not at 375×667 (v35)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await settled(page);
+  const inset = course.locator(':scope > .inset');
+  await expect(inset).toHaveCount(1);
+  const box = (await inset.boundingBox())!;
+  const band = await visibleBand(page);
+  expect(box.y, 'under the chips').toBeGreaterThanOrEqual(band.y0 + 6 - 0.5);
+  expect(box.y + box.height, 'above the card').toBeLessThanOrEqual(band.y1 + 0.5);
+  expect(box.x).toBeGreaterThanOrEqual(band.x0 - 0.5);
+  expect(box.x + box.width).toBeLessThanOrEqual(band.x1 + 0.5);
+  const apart = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+    a.x + a.width <= b.x + 0.5 || b.x + b.width <= a.x + 0.5 || a.y + a.height <= b.y + 0.5 || b.y + b.height <= a.y + 0.5;
+  expect(apart(box, (await page.locator('#osm-credit').boundingBox())!), 'off the credit').toBe(true);
+  for (const sel of [':scope > .marker', ':scope > .green', ':scope > .green2', ':scope > .tee', ':scope > .tee2', ':scope > .bunker', ':scope > .flag']) {
+    for (const el of await course.locator(sel).all()) expect(apart(box, (await el.boundingBox())!), `off ${sel}`).toBe(true);
+  }
+  // The green at least twice the size it is drawn at, its pin and flag in the window too.
+  const big = (await inset.locator('.in-green').first().boundingBox())!;
+  const small = (await course.locator(':scope > .green').boundingBox())!;
+  expect(big.width).toBeGreaterThanOrEqual(2 * small.width - 1);
+  await expect(inset.locator('.in-flag')).toHaveCount(1);
+  // On a band without room (375×667's 59px), no window.
+  await page.setViewportSize({ width: 375, height: 667 });
+  await settled(page);
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await expect(course.locator('.inset')).toHaveCount(0);
 });

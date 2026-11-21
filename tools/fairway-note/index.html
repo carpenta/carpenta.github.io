@@ -257,121 +257,137 @@
             <span class="tab-label">지난 라운드</span>
           </button>
         </div>
-        <!-- 메뉴 opens the menu sheet over any view: not a tab, so the tab list keeps the three views -->
-        <button class="bar-menu" type="button" id="bar-menu" data-menu aria-haspopup="dialog">
+        <!-- 메뉴 opens the menu sheet over any view: not a tab, so the tab list keeps the three views. While the sheet is
+             open it stays in view, marked, and says it is expanded (v36). -->
+        <button class="bar-menu" type="button" id="bar-menu" data-menu aria-haspopup="dialog" aria-expanded="false">
           <span class="ti"><svg data-icon="menu-2"></svg></span>
           <span class="tab-label">메뉴</span>
         </button>
       </div>
     </nav>
 
+    <!-- The menu (v36): a sheet that rises from 메뉴 and stops on the bar, which stays in view with 메뉴 marked; its
+         items sorted by job under quiet headings: the round, keeping the record, settings, then the app. -->
     <dialog id="menu" class="sheet-dialog menu-sheet" aria-labelledby="menu-title">
       <div class="grab" aria-hidden="true"></div>
-      <div class="menu-head"><h2 id="menu-title">메뉴</h2></div>
-      <ul class="menu-list">
-        <li>
-          <button class="mi" type="button" id="mi-new" aria-expanded="false" aria-controls="mp-new">
-            <span class="ic"><svg data-icon="plus"></svg></span>
-            <span class="mi-t"><b>새 라운드</b><small><span id="new-sub"></span></small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-new" hidden>
-            <p id="new-question"></p>
-            <div class="row"><button type="button" class="btn primary" id="new-round">새 라운드 시작</button><button type="button" class="btn" data-collapse>취소</button></div>
-          </div>
-        </li>
-        <li>
-          <button class="mi" type="button" id="mi-course" aria-expanded="false" aria-controls="mp-course">
-            <span class="ic"><svg data-icon="flag-3"></svg></span>
-            <span class="mi-t"><b>코스 바꾸기</b><small><span id="course-name">에버리스 골프리조트 새별·레이크</span></small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-course" hidden>
-            <p>기록한 타수는 그대로 두고, 코스와 홀마다 Par를 고른 코스의 공식 값으로 바꿔요. 새 라운드로 시작하려면 위의 새 라운드를 쓰세요.</p>
-            <div class="row"><button type="button" class="btn primary" id="change-course">다른 코스 고르기</button></div>
-          </div>
-        </li>
-        <li>
-          <button class="mi" type="button" id="mi-send" aria-expanded="false" aria-controls="mp-send">
-            <span class="ic"><svg data-icon="send"></svg></span>
-            <span class="mi-t"><b>결과 보내기</b><small>이메일, 공유, CSV</small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-send" hidden>
-            <p id="send-note" class="muted"></p>
-            <div id="send-actions" class="row">
-              <a id="send-email" class="btn primary" href="mailto:">이메일로 보내기</a>
-              <button id="send-share" class="btn" type="button">공유하기</button>
-              <!-- For a spreadsheet, and as plain facts to paste into a note or any chat that analyses text -->
-              <button id="send-csv" class="btn" type="button">CSV 저장</button>
-              <button id="send-copy" class="btn" type="button">분석용 텍스트 복사</button>
+      <div class="menu-head"><h2 id="menu-title">메뉴</h2><button id="menu-close" class="menu-close" type="button" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button></div>
+      <section class="mg" aria-labelledby="mg-round">
+        <h3 class="mg-h" id="mg-round">라운드</h3>
+        <ul class="menu-list">
+          <!-- 멀리건 (v36): counted on its own row, two taps from 기록 (메뉴, then +); its title names the hole -->
+          <li>
+            <div class="mi mi-step" id="mi-mulligan" role="group" aria-labelledby="mulligan-title">
+              <span class="ic"><svg data-icon="rotate-clockwise"></svg></span>
+              <span class="mi-t"><b id="mulligan-title">이 홀 멀리건</b><small>타수에 넣지 않아요</small></span>
+              <span class="stepper">
+                <button id="mulligan-minus" class="step-sm" type="button" aria-label="멀리건 하나 빼기"><svg data-icon="minus" width="20" height="20"></svg></button>
+                <output id="mulligan-count" class="step-count" aria-labelledby="mulligan-title">0</output>
+                <button id="mulligan-plus" class="step-sm" type="button" aria-label="멀리건 하나 더하기"><svg data-icon="plus" width="20" height="20"></svg></button>
+              </span>
             </div>
-            <p id="send-status" class="muted small" role="status"></p>
-          </div>
-        </li>
-        <li>
-          <button class="mi" type="button" id="mi-backup" aria-expanded="false" aria-controls="mp-backup">
-            <span class="ic"><svg data-icon="download"></svg></span>
-            <span class="mi-t"><b>백업과 복원</b><small>기록을 파일로 옮겨요</small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-backup" hidden>
-            <!-- Filled by renderBackup(). -->
-            <section id="backup" class="backup"></section>
-          </div>
-        </li>
-        <li>
-          <button class="mi" type="button" id="mi-mulligan" aria-expanded="false" aria-controls="mp-mulligan">
-            <span class="ic"><svg data-icon="rotate-clockwise"></svg></span>
-            <span class="mi-t"><b>이 홀 멀리건</b><small><span id="mulligan-sub">표시만 하고 타수에 넣지 않아요</span></small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-mulligan" hidden>
-            <div class="mulligan">
-              <p class="mulligan-label"><b>멀리건</b><span>표시만 하고 타수에 넣지 않아요</span></p>
-              <button id="mulligan-minus" class="step-sm" type="button" aria-label="멀리건 하나 빼기">−</button>
-              <output id="mulligan-count" class="step-count" aria-label="멀리건">0</output>
-              <button id="mulligan-plus" class="step-sm plus" type="button" aria-label="멀리건 하나 더하기">+</button>
+          </li>
+          <li>
+            <button class="mi" type="button" id="mi-new" aria-expanded="false" aria-controls="mp-new">
+              <span class="ic"><svg data-icon="plus"></svg></span>
+              <span class="mi-t"><b>새 라운드</b><small><span id="new-sub"></span></small></span>
+              <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
+            </button>
+            <div class="mpanel" id="mp-new" hidden>
+              <p id="new-question"></p>
+              <div class="row"><button type="button" class="btn primary" id="new-round">새 라운드 시작</button><button type="button" class="btn" data-collapse>취소</button></div>
             </div>
-          </div>
-        </li>
-        <li>
-          <button class="mi tg" type="button" id="mi-big" role="switch" aria-checked="false">
-            <span class="ic"><svg data-icon="text-size"></svg></span>
-            <span class="mi-t"><b>큰 글씨</b><small>숫자와 글씨를 조금 더 크게</small></span>
-            <span class="sw" aria-hidden="true"></span>
-          </button>
-        </li>
-        <!-- 말로 입력 (v21): off until turned on; kept as `voice` in the prefs key -->
-        <li>
-          <button class="mi tg" type="button" id="mi-voice" role="switch" aria-checked="false">
-            <span class="ic"><svg data-icon="microphone"></svg></span>
-            <span class="mi-t"><b>말로 입력</b><small>한 홀을 한 줄로 말해서 기록해요</small></span>
-            <span class="sw" aria-hidden="true"></span>
-          </button>
-        </li>
-        <li>
-          <button class="mi" type="button" id="mi-about" aria-expanded="false" aria-controls="mp-about">
-            <span class="ic"><svg data-icon="info-circle"></svg></span>
-            <span class="mi-t"><b>앱 정보</b><small><span id="menu-version"></span></small></span>
-            <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
-          </button>
-          <div class="mpanel" id="mp-about" hidden>
-            <h3 class="ab-h">우리의 약속</h3>
-            <ul class="promise">
-              <li>계정, 광고, 구독이 없어요.</li>
-              <li>기록은 이 기기에만 저장돼요. 보내기를 누를 때만 밖으로 나가요.</li>
-              <li>신호가 없어도 기록할 수 있어요.</li>
-              <li>라운드 중에는 팝업을 띄우지 않아요.</li>
-            </ul>
-            <h3 class="ab-h">쓰는 법</h3>
-            <p class="muted">숫자를 길게 누르면 0부터 5 이상까지 바로 골라요. 홀 번호를 누르면 18홀이 한눈에 보여요.</p>
-            <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
-            <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 에버리스 골프리조트는 OpenStreetMap 지도 데이터(<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, ODbL, 새 창">© OpenStreetMap 기여자, ODbL</a>)로 실제 홀 모양을 그려요. 실제 배치는 공식 홀 안내를 보세요.</p>
-          </div>
-        </li>
-      </ul>
-      <button id="menu-close" class="menu-close" type="button">닫기</button>
+          </li>
+          <li>
+            <button class="mi" type="button" id="mi-course" aria-expanded="false" aria-controls="mp-course">
+              <span class="ic"><svg data-icon="flag-3"></svg></span>
+              <span class="mi-t"><b>코스 바꾸기</b><small><span id="course-name">에버리스 골프리조트 새별·레이크</span></small></span>
+              <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
+            </button>
+            <div class="mpanel" id="mp-course" hidden>
+              <p>기록한 타수는 그대로 두고, 코스와 홀마다 Par를 고른 코스의 공식 값으로 바꿔요. 새 라운드로 시작하려면 위의 새 라운드를 쓰세요.</p>
+              <div class="row"><button type="button" class="btn primary" id="change-course">다른 코스 고르기</button></div>
+            </div>
+          </li>
+        </ul>
+      </section>
+      <section class="mg" aria-labelledby="mg-keep">
+        <h3 class="mg-h" id="mg-keep">기록 보관</h3>
+        <ul class="menu-list">
+          <li>
+            <button class="mi" type="button" id="mi-send" aria-expanded="false" aria-controls="mp-send">
+              <span class="ic"><svg data-icon="send"></svg></span>
+              <span class="mi-t"><b>결과 보내기</b><small>이메일, 공유, CSV</small></span>
+              <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
+            </button>
+            <div class="mpanel" id="mp-send" hidden>
+              <p id="send-note" class="muted"></p>
+              <div id="send-actions" class="row">
+                <a id="send-email" class="btn primary" href="mailto:">이메일로 보내기</a>
+                <button id="send-share" class="btn" type="button">공유하기</button>
+                <!-- For a spreadsheet, and as plain facts to paste into a note or any chat that analyses text -->
+                <button id="send-csv" class="btn" type="button">CSV 저장</button>
+                <button id="send-copy" class="btn" type="button">분석용 텍스트 복사</button>
+              </div>
+              <p id="send-status" class="muted small" role="status"></p>
+            </div>
+          </li>
+          <li>
+            <button class="mi" type="button" id="mi-backup" aria-expanded="false" aria-controls="mp-backup">
+              <span class="ic"><svg data-icon="download"></svg></span>
+              <span class="mi-t"><b>백업과 복원</b><small>기록을 파일로 옮겨요</small></span>
+              <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
+            </button>
+            <div class="mpanel" id="mp-backup" hidden>
+              <!-- Filled by renderBackup(). -->
+              <section id="backup" class="backup"></section>
+            </div>
+          </li>
+        </ul>
+      </section>
+      <section class="mg" aria-labelledby="mg-set">
+        <h3 class="mg-h" id="mg-set">설정</h3>
+        <ul class="menu-list">
+          <li>
+            <button class="mi tg" type="button" id="mi-big" role="switch" aria-checked="false">
+              <span class="ic"><svg data-icon="text-size"></svg></span>
+              <span class="mi-t"><b>큰 글씨</b><small>숫자와 글씨를 조금 더 크게</small></span>
+              <span class="sw" aria-hidden="true"></span>
+            </button>
+          </li>
+          <!-- 말로 입력 (v21): off until turned on; kept as `voice` in the prefs key -->
+          <li>
+            <button class="mi tg" type="button" id="mi-voice" role="switch" aria-checked="false">
+              <span class="ic"><svg data-icon="microphone"></svg></span>
+              <span class="mi-t"><b>말로 입력</b><small>한 홀을 한 줄로 말해서 기록해요</small></span>
+              <span class="sw" aria-hidden="true"></span>
+            </button>
+          </li>
+        </ul>
+      </section>
+      <section class="mg" aria-label="앱 정보">
+        <ul class="menu-list">
+          <li>
+            <button class="mi" type="button" id="mi-about" aria-expanded="false" aria-controls="mp-about">
+              <span class="ic"><svg data-icon="info-circle"></svg></span>
+              <span class="mi-t"><b>앱 정보</b><small><span id="menu-version"></span></small></span>
+              <svg data-icon="chevron-right" class="chev" width="18" height="18"></svg>
+            </button>
+            <div class="mpanel" id="mp-about" hidden>
+              <h3 class="ab-h">우리의 약속</h3>
+              <ul class="promise">
+                <li>계정, 광고, 구독이 없어요.</li>
+                <li>기록은 이 기기에만 저장돼요. 보내기를 누를 때만 밖으로 나가요.</li>
+                <li>신호가 없어도 기록할 수 있어요.</li>
+                <li>라운드 중에는 팝업을 띄우지 않아요.</li>
+              </ul>
+              <h3 class="ab-h">쓰는 법</h3>
+              <p class="muted">숫자를 길게 누르면 0부터 5 이상까지 바로 골라요. 홀 번호를 누르면 18홀이 한눈에 보여요.</p>
+              <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
+              <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 에버리스 골프리조트는 OpenStreetMap 지도 데이터(<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, ODbL, 새 창">© OpenStreetMap 기여자, ODbL</a>)로 실제 홀 모양을 그려요. 실제 배치는 공식 홀 안내를 보세요.</p>
+            </div>
+          </li>
+        </ul>
+      </section>
     </dialog>
 
     <dialog id="summary" class="sheet-dialog sum-sheet" aria-labelledby="sum-title">
@@ -462,13 +478,15 @@
     </dialog>
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title" tabindex="-1" autofocus>
+      <!-- The first row as every view's (v35): 홈 at the top left, 취소 at the right, the app's name between them on a tall
+           screen; the question under it, or in the row's middle on a shorter one -->
       <div class="picker-head">
         <p class="pk-brand"><img src="./favicon.svg" alt="" width="20" height="20" /><span>Fairway Note</span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
-        <!-- The picker covers the tab bar's 홈, so it carries its own way back to the site (AGENTS.md) -->
-        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="18" height="18"></svg>홈</a>
-        <button id="picker-cancel" class="btn" type="button">취소</button>
+        <!-- The picker covers the views' 홈, so it carries its own way back to the site (AGENTS.md), in the same place -->
+        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="20" height="20"></svg><span>홈</span></a>
+        <button id="picker-cancel" class="head-btn" type="button">취소</button>
       </div>
       <label class="pk-search">
         <svg data-icon="search" width="20" height="20"></svg>

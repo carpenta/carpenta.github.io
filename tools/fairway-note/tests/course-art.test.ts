@@ -382,7 +382,8 @@ describe('the drawn course, a yardage book’s plan view (v31)', () => {
   // The critique of v31's first pass: the white pole was 2.1:1 on the light green, with nothing round it.
   it('edges the white pole in a dark line, so the pin reads on the light green and on the dark rough alike', () => {
     for (const svg of ALL) {
-      const m = /<path class="a-pole-edge" d="([^"]+)" stroke-width="([\d.]+)" stroke-linecap="round"\/><path class="a-pole" d="([^"]+)" stroke-width="([\d.]+)"/.exec(svg);
+      // A stroke only: the pole and its edge are lines, unfilled (v35: the default black fill was a false colour).
+      const m = /<path class="a-pole-edge" d="([^"]+)" fill="none" stroke-width="([\d.]+)" stroke-linecap="round"\/><path class="a-pole" d="([^"]+)" fill="none" stroke-width="([\d.]+)"/.exec(svg);
       expect(m).not.toBeNull();
       expect(m![1]).toBe(m![3]);
       // At least 0.7px of edge each side of the pole.
@@ -563,5 +564,33 @@ describe('the schematic fitted into the band 기록 shows (v33)', () => {
       const classes = [...new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(' ')))];
       expect(classes.filter((c) => !FLAT.includes(c))).toEqual([]);
     }
+  });
+
+  // v35 (the v33 critique): where the screen already gives the unit in metres (the chip says "381 m" and 홀 안내 says what
+  // the marks measure), a marker is its bare number, white with a deep halo, no pill; elsewhere "100 m" in its pill.
+  it('labels its markers with bare numbers where the screen gives the unit, and keeps the pill elsewhere (v35)', () => {
+    const band = BANDS[0][1];
+    const frame: CourseFrame = { width: 390, height: 844, bandTop: 106, bandBottom: 316, right: 374 };
+    const bare = bandShape(4, 0, band, 0, false, 380, [], { bare: true });
+    expect(bare.markers.map((m) => m.text)).toEqual(['100', '150']);
+    const svg = bandSvg(bare, frame);
+    expect([...svg.matchAll(/<text class="a-marker-num"[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(['100', '150']);
+    expect(svg).not.toContain('a-marker-label');
+    expect(svg).not.toMatch(/(fill|stroke)="(?!none")/);
+    for (const m of bare.markers) expect(m.label.x1 - m.label.x0).toBeLessThan(40);
+    expect(bandShape(4, 0, band, 0, false, 380, []).markers.map((m) => m.text)).toEqual(['100 m', '150 m']);
+    // Every bare label in the band, off the flag and off each other, as the pills are.
+    const problems: string[] = [];
+    for (const [size, b] of BANDS) for (const par of [4, 5] as const) for (const bend of [-1, 0, 1] as const) for (const index of [0, 3, 7, 12]) {
+      const s = bandShape(par, index, b, bend, false, par === 4 ? 380 : 505, [], { bare: true });
+      const labels: Box[] = [];
+      for (const mk of s.markers) {
+        if (!inside([mk.label.x0, mk.label.y0], b) || !inside([mk.label.x1, mk.label.y1], b)) problems.push(`${size} par ${par} ${bend} ${index}: ${mk.d} leaves the band`);
+        if (s.pin && hits(mk.label, flagBox(s.pin))) problems.push(`${size} par ${par} ${bend} ${index}: ${mk.d} on the flag`);
+        if (labels.some((l) => hits(l, mk.label))) problems.push(`${size} par ${par} ${bend} ${index}: ${mk.d} on another`);
+        labels.push(mk.label);
+      }
+    }
+    expect(problems).toEqual([]);
   });
 });

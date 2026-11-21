@@ -39,7 +39,7 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { bandShape, bandSvg, courseShape, courseSvg, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
+import { bandShape, bandSvg, courseShape, courseSvg, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
@@ -555,6 +555,8 @@ function drawCourse(): void {
   // The official length in metres, for the 100 m / 150 m markers.
   const first = info?.distances?.[0];
   const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
+  // v35: where the chip gives metres the markers are bare numbers; where it gives yards they keep "m" in their pill.
+  const bare = first?.unit !== 'yd';
   const nine = round.current < 9 ? course.front : course.back;
   const fitAt = band ? [band.x0, band.y0, band.x1, band.y1, ...[...band.keep, ...(band.credit ? [band.credit.text, band.credit.touch] : [])].flatMap((b) => [b.x0, b.y0, b.x1, b.y1])].map(Math.round) : [];
   const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length, info?.layout ?? '', osm ? `osm:${course.id}:${nine}` : '', ...fitAt].join(',');
@@ -569,9 +571,12 @@ function drawCourse(): void {
   });
   // 홀 안내 says what the 100 m and 150 m markers measure to, while the drawing shows them (v33).
   const marks = $('hi-marks');
+  // v35: bare numbers on the drawing, so the unit is said here once; a course in yards keeps "100 m" on its pills.
+  setText(marks, bare ? '그림의 100·150 표시는 그린 중앙까지의 거리(m)예요.' : '그림의 100 m·150 m 표시는 그린 중앙까지의 거리예요.');
   if (band && osm) {
     // Static markup from course-art.ts, built from the bundled OpenStreetMap outlines (numbers only).
-    const shape = osmShape(osm, round.current, band, length);
+    // v35: the markers as bare numbers (the chip and 홀 안내 give the unit) and the green up close where the band has room.
+    const shape = osmShape(osm, round.current, band, length, CREDIT_SIDES, { bare, inset: true });
     svg.innerHTML = osmSvg(shape, frame);
     mark('osm', shape, band);
     // The credit at the end the drawing chose (v33): the right end where water would lie behind it at the left.
@@ -582,7 +587,7 @@ function drawCourse(): void {
   const named = holeHazards(hole().par, info?.layout);
   if (band) {
     // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
-    const shape = bandShape(hole().par, round.current, band, bend, island, length, named);
+    const shape = bandShape(hole().par, round.current, band, bend, island, length, named, { bare });
     svg.innerHTML = bandSvg(shape, frame);
     mark('schematic', { tee: [shape.tee.x, shape.tee.y], green: [shape.green.cx, shape.green.cy], scale: shape.scale, line: shape.line }, band);
     marks.hidden = shape.markers.length === 0;
@@ -864,8 +869,9 @@ function bindNumPick(): void {
 }
 
 /**
- * The penalty row sits on the steppers' columns: OB under 드라이버, 해저드 under 퍼터, and in the middle 빼기 (기본) or
- * 벙커 (상세). In that order in the document too, so Tab goes left to right.
+ * The penalty row sits on the steppers' columns. 기본: OB under 드라이버, 빼기 under 그린까지, 해저드 under 퍼터. 상세
+ * (v36): OB, 벙커 and 해저드 together under the first three capsules and 빼기 under 퍼터, so the row reads as one group
+ * at rest and 빼기 comes in at its end. placeUndo() keeps the document in the row's order, so Tab goes left to right.
  */
 function buildPens(): void {
   const box = $('pens');
@@ -881,6 +887,18 @@ function buildPens(): void {
     if (pen && !pen.disabled) addPenalty(pen.dataset.pen as Pen);
   });
   $('pen-undo').addEventListener('click', undoPenalty);
+}
+
+/** 빼기 where the row shows it (v36): between OB and 해저드 in 기본, after 해저드 in 상세. Moved only when the mode changes. */
+function placeUndo(): void {
+  const undo = $('pen-undo');
+  const hazard = $('stake-hazard');
+  const last = mode === 'detail';
+  if (last ? undo.nextElementSibling === null : undo.nextElementSibling === hazard) return;
+  const focused = document.activeElement === undo;
+  if (last) $('pens').append(undo);
+  else hazard.before(undo);
+  if (focused) undo.focus();
 }
 
 /* ---------- undo: the last + or − or penalty can be taken back for four seconds ---------- */
@@ -1150,6 +1168,7 @@ function renderEntry(a: Analysis, changed?: string): void {
 
   // 기본 / 상세
   setAttr($('entry'), 'data-mode', mode);
+  placeUndo();
   // 상세 on a short screen shows Par and length under the hole number: fit them beside the badge.
   fitSwitcher();
   $('detail').hidden = mode !== 'detail';
@@ -1485,7 +1504,8 @@ function renderMenu(): void {
   setText($('mulligan-count'), String(cur.mulligan));
   $<HTMLButtonElement>('mulligan-minus').disabled = cur.mulligan === 0;
   $<HTMLButtonElement>('mulligan-plus').disabled = cur.mulligan >= MAX_COUNT;
-  setText($('mulligan-sub'), `${round.current + 1}번 홀 ${cur.mulligan}개, 타수에 넣지 않아요`);
+  // 멀리건 counts on its own row (v36): the title names the hole, the count sits between − and +.
+  setText($('mulligan-title'), `${round.current + 1}번 홀 멀리건`);
   setText($('menu-version'), VERSION_LABEL);
   setText($('about-version'), VERSION_LABEL);
   setText($('new-question'), newRoundQuestion(round));
@@ -1526,6 +1546,8 @@ function bindMenu(): void {
       renderMenu();
       openItem(null);
       menu.showModal();
+      // The sheet stops on the bar (v36), and 메뉴 there says it is open.
+      setAttr(button, 'aria-expanded', 'true');
     });
   }
   for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi[aria-controls]')) {
@@ -1547,12 +1569,24 @@ function bindMenu(): void {
     });
   }
   $('menu-close').addEventListener('click', () => menu.close());
-  // A tap on the dim backdrop, outside the sheet, closes it.
+  // A tap off the sheet closes it: on the dim backdrop, or (v36: the dim stops at the bar, which stays in view) on the bar,
+  // where a view's tab goes on to that view as with the menu closed, and 메뉴 only closes it.
   menu.addEventListener('click', (event) => {
     const r = menu.getBoundingClientRect();
-    if (event.target === menu && (event.clientY < r.top || event.clientY > r.bottom || event.clientX < r.left || event.clientX > r.right)) menu.close();
+    const { clientX: x, clientY: y } = event;
+    if (event.target !== menu || (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right)) return;
+    const under = (el: Element) => {
+      const b = el.getBoundingClientRect();
+      return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
+    };
+    const view = [...document.querySelectorAll<HTMLButtonElement>('#views .tab')].find(under);
+    menu.close();
+    view?.click();
   });
-  menu.addEventListener('close', () => menuOpener?.focus());
+  menu.addEventListener('close', () => {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-menu]')) setAttr(button, 'aria-expanded', 'false');
+    menuOpener?.focus();
+  });
   $('mulligan-plus').addEventListener('click', () => count('mulligan', 1));
   $('mulligan-minus').addEventListener('click', () => count('mulligan', -1));
   // The panel is the question; the course picker still lets the player go back.
