@@ -702,7 +702,8 @@ test('keeps the drawing to the open band, steps it back where the thumb shows th
   await page.setViewportSize({ width: 375, height: 553 });
   await settled(page);
   // The window's resize event redraws and re-clips the hole; under load it can land after the line above (v32).
-  await page.waitForFunction(() => document.getElementById('course')!.style.getPropertyValue('--art-bottom') === `${Math.round(document.getElementById('sheet')!.getBoundingClientRect().top)}px`);
+  // v39: the drawing ends where the band does, at the low hole switcher over the card (or the card, if higher).
+  await page.waitForFunction(() => document.getElementById('course')!.style.getPropertyValue('--art-bottom') === `${Math.round(Math.min(document.getElementById('sheet')!.getBoundingClientRect().top, document.querySelector('#entry .hole-nav')!.getBoundingClientRect().top))}px`);
   await expect(page.locator('.thumb')).toBeVisible();
   expect(Number(await paintOf(page, '#course', 'opacity'))).toBeLessThanOrEqual(0.45);
   const low = await rect(page, '#sheet');
@@ -2390,8 +2391,10 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
         expect(await sideScroll(page)).toBe(0);
         // v39: the tab bar is a floating island, 18px off the bottom edge and 62px tall; every control ends above it.
         const tabs = (await page.locator('#views').boundingBox())!;
-        expect(tabs.y + tabs.height).toBeCloseTo(height - 18, 0);
-        expect(tabs.height).toBeGreaterThanOrEqual(56);
+        // v39: the island floats 18px over the bottom, 10px on a short screen (under 700px tall) so 상세 fits.
+        expect(tabs.y + tabs.height).toBeCloseTo(height - (height < 700 ? 10 : 18), 0);
+        // 56px tall, 54 on a short screen (v39), its tabs' targets still 48px or more.
+        expect(tabs.height).toBeGreaterThanOrEqual(height < 700 ? 54 : 56);
         // OB and 해저드 are in 상세 only since v39.
         const pens = keys === KEYS.기본 ? [] : ['#stake-ob', '#stake-hazard'];
         for (const selector of ['#prev-hole', '#next-hole', ...pens, ...keys.flatMap((k) => [`.club-${k} .plus`, `.club-${k} .minus`])]) {

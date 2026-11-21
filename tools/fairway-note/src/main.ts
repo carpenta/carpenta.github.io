@@ -648,7 +648,10 @@ function drawCourse(): void {
   // v39: the painted course behind 스코어카드, 지난 라운드 and the menu too (the user's call), under their veil: the hole
   // 기록 last painted (its woodland and water, at its own scale), or this schematic painted where 기록 has painted none.
   const painted = $<HTMLCanvasElement>('course-paint').dataset.key;
-  if (view === 'entry' || !painted) paintGround(courseTerrain(full, groundSeed(course.id, nine, round.current)), key, frame);
+  // On 기록 itself this is the short screen with no band: the header's small picture shows the hole and the drawing steps
+  // back behind the header; painted at this scale it filled the screen with one huge green, so 기록 paints none there.
+  if (view === 'entry') paintGround(null, key, frame);
+  else if (!painted) paintGround(courseTerrain(full, groundSeed(course.id, nine, round.current)), key, frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */

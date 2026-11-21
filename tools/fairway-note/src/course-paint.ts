@@ -308,8 +308,9 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
     ctx.save();
     ctx.clip(p, 'evenodd');
     const wg = ctx.createLinearGradient(0, 0, 0, H);
-    wg.addColorStop(0, '#174b56');
-    wg.addColorStop(1, '#0d2f39');
+    // Deep enough to stand off the fairway (3:1 or more, the v31 promise; #174b56 measured 2.54:1 on 새별 7).
+    wg.addColorStop(0, '#0e3540');
+    wg.addColorStop(1, '#08232b');
     ctx.fillStyle = wg;
     ctx.fillRect(0, 0, W, H);
     const [c, x] = layer();

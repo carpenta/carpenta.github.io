@@ -1978,3 +1978,27 @@ body:has(#entry[hidden])::after {
 /* 홈 leaves with the title when 스코어카드 or 지난 라운드 has scrolled (it would float over the page), back at the top. */
 .home-link { transition: opacity .15s ease-out; }
 body.scrolled .home-link { opacity: 0; pointer-events: none; }
+/* Short screens (under 700px tall, v39): 상세 must fit with no scrolling, the capsules' halves kept at 48px. The frame
+   round the card gives the room: a smaller ring and switcher, a slimmer tab row, a lower and slimmer island. */
+@media (max-height: 699px) {
+  :root { --island: 54px; }
+  .tabbar { bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .app { padding-bottom: calc(var(--island) + 16px + env(safe-area-inset-bottom)); }
+  .view.sc { margin-bottom: calc(-1 * (var(--island) + 16px + env(safe-area-inset-bottom))); }
+  .hole-nav { margin: 2px var(--m) 14px; }
+  .nav-pill { height: 48px; grid-template-columns: 1fr 64px 1fr; }
+  .nav-stat { height: 48px; }
+  .nav-stat b { font-size: var(--t-m); bottom: calc(50% - 1px); }
+  .nav-stat span { bottom: calc(50% - 15px); }
+  .hole-nav .hole-h, .hole-nav .hole-title { width: 64px; height: 64px; }
+  .hole-nav .hole-h { margin: -8px 0; }
+  body .hole-nav #hole-title .hole-n { font-size: 26px; bottom: calc(50% - 1px); }
+  .hole-nav .hole-u { bottom: calc(50% - 15px); }
+  .sheet .modes { margin-bottom: 2px; }
+  .sheet .mode { height: 36px; }
+  .osm-credit { bottom: calc(100% + 14px + 48px + 6px + 6px); }
+}
+@media (max-height: 599px) {
+  .hole-nav { margin-bottom: 12px; }
+  .sheet .mode { height: 34px; }
+}

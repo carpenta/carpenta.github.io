@@ -92,6 +92,8 @@ describe('one design system (v30)', () => {
       // v39 adds two sizes from the user's mock-up, each in its one place: the hole number in the switcher's ring (32px,
       // fixed so 큰 글씨 cannot push it out of the 80px circle) and the floating island's tab labels (11px under the icon).
       .filter(({ selector, value }) => !(value === '32px' && /\.hole-nav (#hole-title )?\.hole-n$/.test(selector)))
+      // …and 26px in the smaller ring of a short screen (under 700px tall), so 상세 fits without scrolling.
+      .filter(({ selector, value }) => !(value === '26px' && /\.hole-nav #hole-title \.hole-n$/.test(selector)))
       .filter(({ selector, value }) => !(value === '11px' && selector === '.tab-label'))
       // The score badge laid out as the ring is (the user: too tight before): a 20px number, an 11px word under it, and
       // Ace, shown alone, at 15px.
