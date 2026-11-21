@@ -558,7 +558,7 @@ body.big .home-link { font-size: var(--t-m); }
 /* While a dialog is open the bar steps back (v32): the dim backdrop over the dark bar changed nothing there, so its
    labels and the chosen tab stayed as loud as the panel. */
 .bar { transition: opacity .16s ease-out; }
-body:has(dialog[open]:not(#menu)) .tabbar .bar { opacity: .4; }
+body:has(dialog[open]:not(#menu, #voice)) .tabbar .bar { opacity: .4; }   /* v39: 말로 입력 in the card is no dialog over the screen */
 @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
 /* The menu (v36) rises from 메뉴 and stops on the bar, which stays in view and in use: 메뉴 marked as where the sheet came
    from, the view's own tab stepping aside for it, and a tap on a view going on to it (main.ts). */
@@ -1973,6 +1973,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 /* No ground behind the title at all (the user: the gradient still looked odd): the title scrolls away with the page, so
    nothing ever passes under it and it needs none. */
 .sc-top { position: relative; background: none; }
+.past .sc-top { position: sticky; top: 0; z-index: 2; background: var(--deep); }   /* a past round's dialog keeps 닫기 in view, on its own opaque ground */
 /* On the scrolling screens the island stands clear of what scrolls under it (the user: they overlapped): a soft fade to
    the deep green behind the bar, no hard band; taps go through it. 기록 does not scroll there and keeps its open course. */
 body:has(#entry[hidden])::after {

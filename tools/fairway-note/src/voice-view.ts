@@ -50,7 +50,7 @@ export function bindVoice(page: VoicePage): void {
     const on = toggle.getAttribute('aria-checked') !== 'true';
     show(on);
     saveDisplay({ voice: on });
-    page.announce(on ? '말로 입력을 켰어요. 기록 화면의 다음 홀 옆에 있어요' : '말로 입력을 껐어요');
+    page.announce(on ? '말로 입력을 켰어요. 기록 카드의 음성 탭에 있어요' : '말로 입력을 껐어요');
   });
 
   /** Why nothing changed, under the field; the line is selected so the next dictation replaces it. */
