@@ -337,12 +337,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v29');
+  await expect(page.locator('#menu-version')).toHaveText('v30');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v29');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v30');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -3834,18 +3834,16 @@ test('an old saved round shows its approach shots under 그린까지, keeping th
   await expect(page.locator('#card-view')).not.toContainText('아이언');
 });
 
-test('the hole switcher and the entry card are 88% white glass over the course, blurred (v20)', async ({ page }) => {
+test('the hole switcher and the entry card are opaque white over the course, nothing blurred behind them (v30; glass since v20)', async ({ page }) => {
   await open(page);
+  const white = await token(page, '--white');
   for (const selector of ['#entry .switcher', '#sheet']) {
-    const [alpha, filter] = await page.locator(selector).evaluate((el) => {
+    const [background, filter] = await page.locator(selector).evaluate((el) => {
       const s = getComputedStyle(el);
-      const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
-      cv.fillStyle = s.backgroundColor;
-      cv.fillRect(0, 0, 1, 1);
-      return [cv.getImageData(0, 0, 1, 1).data[3] / 255, s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter')];
+      return [s.backgroundColor, s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter') || 'none'];
     });
-    expect(Math.abs(alpha - 0.88), `${selector} alpha ${alpha}`).toBeLessThanOrEqual(0.01);
-    expect(filter, selector).toContain('blur(12px)');
+    expect(background, selector).toBe(white);
+    expect(filter, selector).toBe('none');
   }
 });
 
@@ -4633,9 +4631,14 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       });
       // No whole-table button and no "홀 고르기" any more.
       await expect(page.locator('#scorecard button[data-nine], #scorecard .nt-go')).toHaveCount(0);
-      // The ring's halo is drawn inside its 80px box, so the box is the edge the eye sees.
-      const halo = await page.locator('#sh-ring').evaluate((el) => getComputedStyle(el).boxShadow);
-      expect(halo.split(/,(?![^(]*\))/).every((part) => part.includes('inset')), halo).toBe(true);
+      // The ring's halo is drawn inside its 80px box, so the box is the edge the eye sees (v30: an inset outline, no shadow).
+      const halo = await page.locator('#sh-ring').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset) };
+      });
+      expect(halo.shadow, 'no shadow').toBe('none');
+      expect(halo.width, 'a halo').toBeGreaterThan(0);
+      expect(halo.offset, 'drawn inside the box').toBeLessThanOrEqual(-halo.width);
       within1px((await spanOf(page, '#sh-ring')).x, tables[0].x, 'ring on the table edge');
       // 파 수정 moves nothing: the same columns, now stepping the par.
       await page.locator('#edit-par').tap();
@@ -4753,9 +4756,10 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       const bars = await page.locator('#lost-bars .bar, #lost-bars .bar i, #analysis .bar-track, #analysis .bar-fill').evaluateAll((list) => list.map((el) => ({
         h: el.getBoundingClientRect().height, r: getComputedStyle(el).borderTopLeftRadius,
       })));
+      // One rounding for both (v30: the full radius, so a 12px bar is a pill end to end).
       for (const b of bars) {
         expect(Math.abs(b.h - 12)).toBeLessThanOrEqual(0.5);
-        expect(b.r).toBe('6px');
+        expect(b.r).toBe('999px');
       }
       const pitch = async (selector: string) => {
         const rows = await spansOf(page, selector);
@@ -4895,8 +4899,14 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       within1px(endOf(close), inner.inRight, 'close on the inner right edge');
       const card = await spanOf(page, '#sum-card');
       expect(card.y - (close.y + close.height)).toBeGreaterThanOrEqual(24);
-      const halo = await page.locator('#sum-ring').evaluate((el) => getComputedStyle(el).boxShadow);
-      expect(halo.split(/,(?![^(]*\))/).every((part) => part.includes('inset')), halo).toBe(true);
+      // The ring's halo inside its box (v30: an inset outline, no shadow).
+      const halo = await page.locator('#sum-ring').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset) };
+      });
+      expect(halo.shadow, 'no shadow').toBe('none');
+      expect(halo.width, 'a halo').toBeGreaterThan(0);
+      expect(halo.offset, 'drawn inside the box').toBeLessThanOrEqual(-halo.width);
       within1px((await spanOf(page, '#sum-ring')).x, inner.inLeft, 'ring on the inner left edge');
       // A count of 0 steps back (its tone "none"), still 3:1; the others keep their tone.
       const marks = await page.locator('#sum-marks .m').evaluateAll((list) => list.map((el) => ({ n: el.textContent, tone: el.getAttribute('data-tone'), mark: el.getAttribute('data-mark') })));
@@ -5845,7 +5855,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v29');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v30');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -5980,4 +5990,218 @@ test('375×553 상세 never cuts the line under the hole number with …: the le
     });
     expect(fits, `hole ${index + 1}: ${await page.locator('#hole-sub').textContent()}`).toBe(true);
   }
+});
+
+/* ---------- v30: one design system (opaque surfaces, one rule for what is chosen, three radii, three shadows, six sizes) ---------- */
+
+/** The audit's mid-round state on Everis (seven holes, hole 7 in progress) and three past rounds, as the v28–v30 screenshots use. */
+async function seedAudit(page: Page) {
+  await page.evaluate(([roundKey, historyKey, prefsKey]) => {
+    const PARS = [4, 4, 5, 3, 4, 4, 3, 5, 4, 4, 3, 4, 4, 5, 5, 3, 4, 4];
+    const course = { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' };
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const round = (date: string, scores: Record<string, unknown>[], current: number) => {
+      const holes: Record<string, unknown>[] = PARS.map((par) => ({ par, driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0, mulligan: 0, bunker: 0 }));
+      scores.forEach((h, i) => (holes[i] = { ...holes[i], ...h }));
+      return { version: 1, date, current, holes, lastEdited: Date.now(), course } as Record<string, unknown>;
+    };
+    const today = new Date();
+    const mid = round(iso(today), [
+      { driver: 1, approach: 2, putts: 2, tags: { driver: ['fairway'] } },
+      { driver: 1, approach: 2, putts: 1, short: 1, tags: { approach: ['green', 'close'] } },
+      { driver: 1, approach: 3, putts: 2, ob: 1 },
+      { driver: 1, approach: 0, putts: 2 },
+      { driver: 2, approach: 1, putts: 3, ob: 1, short: 0 },
+      { driver: 1, approach: 2, putts: 2 },
+      { driver: 1, approach: 1, putts: 0, short: 0 },
+    ], 6);
+    const past = [0, 1, 2].map((k) => {
+      const d = new Date(today.getTime() - (k + 3) * 86400000);
+      const r = round(iso(d), PARS.map((par, i) => ({ driver: 1, approach: Math.max(0, par - 3) + ((i + k) % 3 === 0 ? 1 : 0), putts: (i + k) % 4 === 0 ? 3 : 2 })), 17);
+      r.closed = true;
+      return { id: `past-${k}`, endedAt: d.getTime() + 3600000, round: r };
+    });
+    localStorage.setItem(roundKey, JSON.stringify(mid));
+    localStorage.setItem(historyKey, JSON.stringify(past));
+    localStorage.setItem(prefsKey, JSON.stringify({ course: 'everis', front: 'saebyul', back: 'lake', coach: true, split: true, home: true }));
+  }, [STORAGE_KEY, HISTORY_KEY, PREFS_KEY] as const);
+  await page.reload();
+  await expect(page.locator('#entry')).toBeVisible();
+}
+
+/**
+ * What one screen shows, by the system's measures (the same function measured v29 for the v30 note): background
+ * colours as sRGB bytes (one colour written two ways counts once; anything see-through is listed), radii per corner,
+ * shadows by shape, type sizes of text, and what wears the accent. An element wholly under an open modal dialog and
+ * not in it is covered: the full-screen picker hides 기록 entirely.
+ */
+function styleInventory() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const bytes = (c: string) => {
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = '#000';
+    ctx.fillStyle = c;
+    ctx.fillRect(0, 0, 1, 1);
+    return [...ctx.getImageData(0, 0, 1, 1).data];
+  };
+  const probe = document.createElement('i');
+  probe.style.background = 'var(--action)';
+  document.body.append(probe);
+  const accentKey = bytes(getComputedStyle(probe).backgroundColor).join(' ');
+  probe.remove();
+  const modal = [...document.querySelectorAll('dialog[open]')].find((d) => d.matches(':modal'));
+  const cover = modal?.getBoundingClientRect();
+  const seen = { background: new Map<string, string[]>(), radius: new Map<string, string[]>(), shadow: new Map<string, string[]>(), fontSize: new Map<string, string[]>() };
+  const add = (m: Map<string, string[]>, k: string, d: string) => m.set(k, [...(m.get(k) ?? []), d]);
+  const desc = (el: Element) => el.tagName.toLowerCase() + (el.id ? `#${el.id}` : '') + (el.classList.length ? `.${[...el.classList].slice(0, 2).join('.')}` : '');
+  const translucent: string[] = [];
+  const accent: string[] = [];
+  for (const el of document.querySelectorAll('body *')) {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue;
+    if (el.closest('[hidden], .sr-only, svg, dialog:not([open])')) continue;
+    if (modal && cover && !modal.contains(el) && r.left >= cover.left - 0.5 && r.right <= cover.right + 0.5 && r.top >= cover.top - 0.5 && r.bottom <= cover.bottom + 0.5) continue;
+    const d = desc(el);
+    if ([...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim())) add(seen.fontSize, cs.fontSize, d);
+    if (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') {
+      const [r8, g8, b8, a8] = bytes(cs.backgroundColor);
+      if (a8 > 0) {
+        add(seen.background, `rgb(${r8} ${g8} ${b8}${a8 < 255 ? ` / ${(a8 / 255).toFixed(2)}` : ''})`, d);
+        if (a8 < 255) translucent.push(d);
+        if (`${r8} ${g8} ${b8} ${a8}` === accentKey) accent.push(d);
+      }
+    }
+    for (const corner of [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius]) {
+      if (corner !== '0px') add(seen.radius, corner, d);
+    }
+    if (cs.boxShadow !== 'none') add(seen.shadow, cs.boxShadow.replace(/(rgba?|color|oklab|oklch|lab|lch|hsla?)\([^)]*\)/g, 'c'), d);
+  }
+  const list = (m: Map<string, string[]>) => [...m.entries()].map(([v, l]) => `${v} (${[...new Set(l)].slice(0, 3).join(' ')})`);
+  return {
+    background: list(seen.background), radius: list(seen.radius), shadow: list(seen.shadow), fontSize: list(seen.fontSize),
+    translucent: [...new Set(translucent)], accent: [...new Set(accent)],
+  };
+}
+
+/** The audit's screens in its order, each reached from the one before. */
+const SYSTEM_SCREENS: [string, (page: Page) => Promise<unknown>][] = [
+  ['코스 선택', async (page) => { await page.goto('/'); await expect(page.locator('#picker')).toBeVisible(); }],
+  ['기록 기본', (page) => seedAudit(page)],
+  ['기록 상세', (page) => page.getByRole('button', { name: '상세', exact: true }).click()],
+  ['어프로치 패널', (page) => page.locator('#lbl-short').click()],
+  ['홀 목록', async (page) => {
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: '기본', exact: true }).click();
+    await page.locator('#hole-btn').click();
+  }],
+  ['메뉴', async (page) => { await page.keyboard.press('Escape'); await page.getByRole('button', { name: '메뉴' }).first().click(); }],
+  ['스코어카드', async (page) => { await page.locator('#menu-close').click(); await tab(page, '스코어카드').click(); }],
+  ['분석', (page) => page.getByRole('radio', { name: '분석', exact: true }).click()],
+  ['분석 끝', (page) => page.locator('#card-view').evaluate((el) => el.scrollTo(0, el.scrollHeight))],
+  ['요약', async (page) => {
+    await page.locator('#finish-round').click();
+    await page.getByRole('button', { name: '그대로 마치기' }).click();
+    await expect(page.locator('#summary')).toBeVisible();
+  }],
+  ['지난 라운드', async (page) => { await page.locator('#sum-close').click(); await tab(page, '지난 라운드').click(); }],
+];
+/** The primary action, the one thing on a screen that wears the accent. */
+const PRIMARY = ['#go-next', '#picker-start', '#sum-archive', '#finish-round', '#now-continue'];
+
+for (const [width, height] of [[390, 844], [375, 553]] as const) {
+  test.describe(`one design system on a ${width}×${height} phone (v30)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('every screen keeps to six opaque backgrounds, three radii, three shadows and five type sizes, and the accent marks only the primary action', async ({ page }) => {
+      const over: string[] = [];
+      for (const [name, go] of SYSTEM_SCREENS) {
+        await go(page);
+        await settled(page);
+        const found = await page.evaluate(styleInventory);
+        const limit = (what: string, values: string[], max: number) => {
+          if (values.length > max) over.push(`${name}: ${values.length} ${what} (≤ ${max}): ${values.join(' | ')}`);
+        };
+        limit('backgrounds', found.background, 6);
+        limit('radii', found.radius, 3);
+        limit('shadows', found.shadow, 3);
+        limit('type sizes', found.fontSize, 5);
+        if (found.translucent.length) over.push(`${name}: see-through ${found.translucent.join(' ')}`);
+        const stray = found.accent.filter((d) => !PRIMARY.some((id) => d.includes(id)));
+        if (stray.length) over.push(`${name}: the accent on ${stray.join(' ')}`);
+      }
+      expect(over).toEqual([]);
+    });
+  });
+}
+
+test('marks whatever is chosen one way: turf with white letters, no ring; on the dark picker inverted, white with turf letters (v30)', async ({ page }) => {
+  const chosen: string[] = [];
+  const check = async (selector: string, onDark = false) => {
+    const el = page.locator(selector).first();
+    await expect(el, selector).toBeVisible();
+    // Read at rest: chips and shot tabs ease their colour in.
+    await settled(page);
+    const look = await el.evaluate((node) => ({ background: getComputedStyle(node).backgroundColor, color: getComputedStyle(node).color, ring: getComputedStyle(node).boxShadow }));
+    const [fill, letters] = onDark ? [white, turf] : [turf, white];
+    chosen.push(`${selector}: ${look.background === fill && look.color === letters && look.ring === 'none' ? 'ok' : JSON.stringify(look)}`);
+  };
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  const turf = await token(page, '--turf');
+  const white = await token(page, '--on-dark');
+  // The region chips sit on the dark rough: the chosen one is the brightest there, its neighbours quiet.
+  await check(".picker .chip[aria-pressed='true']", true);
+  expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(white);
+  for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) await check(selector);
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await check(".mode[aria-pressed='true']");
+  await check("#tab-entry .ti");
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await page.locator('#split-tip').click();
+  await page.getByRole('button', { name: '페어웨이' }).click();
+  await check(".dir[aria-pressed='true']");
+  await page.locator(".tchip[data-tee='long']").click();
+  await check(".tchip[aria-pressed='true']");
+  await longPress(page, 'driver');
+  await check(".np-row button[aria-pressed='true']");
+  await page.keyboard.press('Escape');
+  // A second drive, so the panel shows its shot tabs; the first, the 페어웨이 one, chosen.
+  await tap(page, 'driver');
+  await page.locator('#lbl-driver').click();
+  await page.locator('.sp-shots button').first().click();
+  await check(".sp-shots button[aria-pressed='true']");
+  await check(".sp-chip[aria-pressed='true']");
+  await page.keyboard.press('Escape');
+  await showCard(page);
+  await check("#sc-pick-card[aria-checked='true']");
+  expect(chosen.filter((line) => !line.endsWith(': ok'))).toEqual([]);
+  // The tab's own letters turn white with its pill.
+  expect(await page.locator('#tab-card').evaluate((el) => getComputedStyle(el).color)).toBe(white);
+});
+
+test('paints each count over both halves of its capsule, whole, in 기본 and 상세 (v30: the halves are opaque now)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await tap(page, 'driver');
+  // Hit-testing follows paint order: with the row made hittable for a moment, the digit's lower part must be the
+  // topmost thing there, not the − half (before v30 the half's tint was see-through and painted over it unnoticed).
+  const onTop = (key: string) => page.evaluate((k) => {
+    const count = document.getElementById(`count-${k}`)!;
+    const row = count.parentElement!;
+    row.style.pointerEvents = 'auto';
+    const r = count.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom - 2);
+    row.style.pointerEvents = '';
+    return hit === count || hit === row ? 'count' : `${hit?.tagName.toLowerCase()}.${[...(hit?.classList ?? [])].join('.')}`;
+  }, key);
+  for (const key of KEYS.기본) expect(await onTop(key), `기본 ${key}`).toBe('count');
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await page.locator('#split-tip').click();
+  await settled(page);
+  for (const key of KEYS.상세) expect(await onTop(key), `상세 ${key}`).toBe('count');
 });
