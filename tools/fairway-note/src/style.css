@@ -835,7 +835,7 @@ button.mi:active { background: var(--fill-2); }
 .mpanel p + p { margin-top: 6px; }
 .mpanel .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .mpanel .row .btn { display: inline-grid; place-items: center; padding: 0 16px; text-decoration: none; color: inherit; }
-.mpanel .row .btn.primary { color: var(--on-action); }
+.mpanel .row .btn.primary { color: var(--on-glass); }   /* v39: white on the menu's glass (lime's ink there was 1.7:1) */
 .mpanel .small { margin: 8px 0 0; }
 .backup > h2 { display: none; }
 .backup .muted.small { margin: 0; }
@@ -1796,6 +1796,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .sc-body { background: transparent; }
 .sc::after { background: linear-gradient(transparent, #0f2118 85%); }
 .sheet-dialog, .hinfo { background: linear-gradient(180deg, #17301f, #0f2118); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+.sheet-dialog { --quiet: color-mix(in srgb, #f4f7f0 52%, transparent); }   /* zero counts on the dark sheet: the paper's --quiet was 2.6:1 */
 /* No outlines on the panels (the user: boxes with no border); tone and the glass alone set them apart. */
 .sc-sheet, .box { outline: 0; }
 #entry[data-mode='detail'] .pens .undo:disabled { display: none; }
@@ -1809,9 +1810,10 @@ body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .
   background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none;
   box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28);
 }
-body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active { background: rgb(255 255 255 / .18); }
+body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active:not(:disabled) { background: rgb(255 255 255 / .18); }   /* :not(:disabled) outranks the old lime press (2.3:1 under white type) */
 /* The course picker is still on paper: there the white type vanished (1.05:1), so its chosen ones keep ink on white with a turf edge. */
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--turf); }
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']):active { background: var(--fill-2); }
 body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
 /* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
    result, the direction pad. The capsules, the switcher and the tabs keep their round ends. */
@@ -1848,7 +1850,7 @@ dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px
 /* The round's score in the hole ring's style: solid deep green, a lime edge, a white number (no lime or red disc). */
 .sh-ring, .sh-ring[data-tone] { background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass); box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow); }
 .sh-ring[data-tone='under'] b { color: #ff9a8f; }
-.sc .m[data-tone='under'] { color: #ff9a8f; }   /* the table's under-par marks too: --red was 2.3:1 on the deep glass */
+:is(.sc, .sheet-dialog) .m[data-tone='under'] { color: #ff9a8f; }   /* the table's and the summary's under-par marks too: --red was 2.3–2.9:1 on the dark */
 .sh-ring[data-tone='par'] b { color: var(--lime); }
 .sc-hero { border-bottom-color: rgb(255 255 255 / .08); }
 /* 스코어카드 | 분석 as the card's tabs read: the chosen one white with a glowing lime underline. */
