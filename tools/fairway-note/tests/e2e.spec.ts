@@ -8246,6 +8246,9 @@ test('shows the green in place, no window up close: in the band, clear of the cr
     await expect(course).toHaveAttribute('data-art', 'osm');
     await settled(page);
     await expect(course.locator('.inset'), `${width}×${height}: no window`).toHaveCount(0);
+    // The resize redraws the hole; under load that can land after the lines above (as v32 found).
+    await expect.poll(async () => (await shapeBox(course.locator(':scope > .green'))).width, `${width}×${height}: redrawn`).toBeGreaterThan(0);
+    await atRest(page);
     const band = await visibleBand(page);
     const green = await shapeBox(course.locator(':scope > .green'));
     expect(green.y, `${width}×${height}: green under the chips`).toBeGreaterThanOrEqual(band.y0 - 0.5);
