@@ -460,9 +460,11 @@ describe('drawing a hole from OpenStreetMap in the band 기록 shows (v33)', () 
 
   it('is flat as the schematic is (v31): no gradient, pattern, mask, clip path or filter, nothing painted by url(), no grain', () => {
     // v35: the water beyond the play area (`water-far`) under one shore line (`shore`), the bare marker numbers, and the
-    // green's window with its own parts (`inset`, `in-*`), all flat fills from the palette.
+    // green's window with its own parts (`inset`, `in-*`), all flat fills from the palette. v39: the bare 100 and 150 sit
+    // on a small white pill (`a-marker-pill`) so they read over the painted ground; a flat fill too. (기록 draws no window
+    // since v39, `inset: false`; the option stays and is checked here as before.)
     const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'green2', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'tee2', 'a-pole-fill',
-      'water-far', 'shore', 'a-marker-num', 'inset', 'in-fairway', 'in-water', 'in-green', 'in-flag'];
+      'water-far', 'shore', 'a-marker-num', 'a-marker-pill', 'inset', 'in-fairway', 'in-water', 'in-green', 'in-flag'];
     for (const [i, h] of [[0, first], [2, holes.saebyul[2]!], [6, holes.saebyul[6]!]] as const) {
       const svg = osmSvg(osmShape(h, i, tall, 381, CREDIT_SIDES, { bare: true, inset: true }), frameOf(tall));
       expect(svg).not.toMatch(/<(linearGradient|radialGradient|pattern|mask|clipPath|filter|fe[A-Z])\b/);
