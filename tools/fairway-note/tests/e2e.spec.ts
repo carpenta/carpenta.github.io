@@ -1300,20 +1300,27 @@ async function expectThumbInstead(page: Page, where: string) {
   expect(await sideScroll(page), where).toBe(0);
 }
 
-// v39: the switcher left the top bar for the band's foot, so 기본's band at 360×640 grew to about 70px and is fitted;
-// 375×553 in 기본 (about 40px) and 상세 at 360×640 and 375×667 (about 10px, the taller card) still show the small drawing.
-test('shows the header’s small drawing instead of fitting a band under 50px: 375×553 in 기본, 360×640 and 375×667 in 상세; 360×640 기본 is fitted (v39)', async ({ page }) => {
+// v39: the switcher left the top bar for the band's foot and the island sits lower under 700px, so 기본's band is fitted
+// at 375×553 (about 85px) as at 360×640 (about 70px); 상세's taller card leaves under 50px at 360×640 and 375×667, which
+// show the small drawing, and on 375×553 상세 hides the chip row, picture and all (as since v23).
+test('shows the header’s small drawing instead of fitting a band under 50px: 360×640 and 375×667 in 상세; 375×553 and 360×640 기본 are fitted (v39)', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 553 });
   await open(page);
-  await expectThumbInstead(page, '375×553 기본');
-  await page.setViewportSize({ width: 360, height: 640 });
   await atRest(page);
   await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
   await expect(page.locator('#hole-thumb')).toBeHidden();
   await page.getByRole('button', { name: '상세', exact: true }).click();
   if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+  await atRest(page);
+  await expect(page.locator('#hole-info')).toBeHidden();
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  await page.setViewportSize({ width: 360, height: 640 });
+  await atRest(page);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+  await expect(page.locator('#hole-thumb')).toBeHidden();
+  await page.getByRole('button', { name: '상세', exact: true }).click();
   await expectThumbInstead(page, '360×640 상세');
-  // 375×667: 상세's band (47px) is under 50px, 기본's (59px) is fitted.
+  // 375×667: 상세's band is under 50px, 기본's is fitted.
   await page.setViewportSize({ width: 375, height: 667 });
   await expectThumbInstead(page, '375×667 상세');
   await page.getByRole('button', { name: '기본', exact: true }).click();
@@ -1327,10 +1334,12 @@ test('shows the header’s small drawing instead of fitting a band under 50px: 3
 // nothing in the row runs past fitMeta's 1px allowance (on holes 10–18 the length pill's text takes 1px of its right
 // padding; a stricter rule would flip with 1px text-width differences between platforms), clips with an ellipsis or
 // overlaps. v39: the round's progress moved to the top bar and Par and HCP to the low switcher, so the row is the small
-// drawing, the length and 홀 안내 on every hole; checked on 375×553 in 기본 (360×640's 기본 band is fitted since v39).
+// drawing, the length and 홀 안내 on every hole; checked on 375×667 in 상세, where the small drawing shows (기본's bands are
+// fitted since v39, and 375×553's 상세 hides the row).
 test('keeps the chip row whole beside the header’s small drawing as the round goes on, the progress in the top bar: nothing clipped past 1px or overlapping (v39)', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 553 });
+  await page.setViewportSize({ width: 375, height: 667 });
   await open(page);
+  await detailMode(page);
   const row = async (where: string) => {
     await atRest(page);
     await expect(page.locator('#hole-thumb'), where).toBeVisible();
@@ -8190,6 +8199,10 @@ test('fades the water 새별 7 does not play over and keeps the water it carries
   await expect(course).toHaveAttribute('data-art', 'osm');
   await settled(page);
   const [water, far, deep, rough] = [await token(page, '--water'), await token(page, '--water-far'), await token(page, '--deep'), await token(page, '--rough')];
+  // v39: once the ground is painted these shapes are clear over the paint (the painter draws one water); the flat drawing
+  // they make until then, and wherever the paint does not come, keeps v35's fade. Read with the paint set aside.
+  await expect(course).toHaveClass(/painted/);
+  await course.evaluate((el) => el.classList.remove('painted'));
   const fill = (selector: string) => course.locator(selector).first().evaluate((el) => getComputedStyle(el).fill);
   expect(await fill(':scope > .pond > .water-far')).toBe(far);
   expect(await fill(':scope > .pond > .water')).toBe(water);
@@ -8202,40 +8215,34 @@ test('fades the water 새별 7 does not play over and keeps the water it carries
   const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
   expect(ratio(far, rough)).toBeLessThan(ratio(water, rough));
   expect(ratio(far, rough)).toBeGreaterThan(1.2);
+  // Painted again, the drawing over the paint keeps to its ten paints.
+  await course.evaluate((el) => el.classList.add('painted'));
   const m = await drawingMakeup(page);
   expect(m.paints.length, m.paints.join(' | ')).toBeLessThanOrEqual(10);
 });
 
-test('shows the green up close in a window where the band has room, clear of the hole, its markers and the credit: 새별 1 at 390×844, not at 375×667 (v35)', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await open(page);
-  const course = page.locator('#course');
-  await expect(course).toHaveAttribute('data-art', 'osm');
-  await settled(page);
-  const inset = course.locator(':scope > .inset');
-  await expect(inset).toHaveCount(1);
-  const box = (await inset.boundingBox())!;
-  const band = await visibleBand(page);
-  expect(box.y, 'under the chips').toBeGreaterThanOrEqual(band.y0 + 6 - 0.5);
-  expect(box.y + box.height, 'above the card').toBeLessThanOrEqual(band.y1 + 0.5);
-  expect(box.x).toBeGreaterThanOrEqual(band.x0 - 0.5);
-  expect(box.x + box.width).toBeLessThanOrEqual(band.x1 + 0.5);
-  const apart = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
-    a.x + a.width <= b.x + 0.5 || b.x + b.width <= a.x + 0.5 || a.y + a.height <= b.y + 0.5 || b.y + b.height <= a.y + 0.5;
-  expect(apart(box, (await page.locator('#osm-credit').boundingBox())!), 'off the credit').toBe(true);
-  for (const sel of [':scope > .marker', ':scope > .green', ':scope > .green2', ':scope > .tee', ':scope > .tee2', ':scope > .bunker', ':scope > .flag']) {
-    for (const el of await course.locator(sel).all()) expect(apart(box, (await el.boundingBox())!), `off ${sel}`).toBe(true);
+// v39 (main.ts: "no green window; the painted hole is large enough to read the green in place"): v35's window with the
+// green up close is gone at every size; the green is read in place, in the band, clear of the credit and the chips.
+test('shows the green in place, no window up close: in the band, clear of the credit, at 390×844 and at 375×667 (v35 window gone in v39)', async ({ page }) => {
+  for (const [width, height] of [[390, 844], [375, 667]] as const) {
+    await page.setViewportSize({ width, height });
+    if (width === 390) await open(page);
+    const course = page.locator('#course');
+    await expect(course).toHaveAttribute('data-art', 'osm');
+    await settled(page);
+    await expect(course.locator('.inset'), `${width}×${height}: no window`).toHaveCount(0);
+    const band = await visibleBand(page);
+    const green = await shapeBox(course.locator(':scope > .green'));
+    expect(green.y, `${width}×${height}: green under the chips`).toBeGreaterThanOrEqual(band.y0 - 0.5);
+    expect(green.y + green.height, `${width}×${height}: green above the switcher`).toBeLessThanOrEqual(band.y1 + 0.5);
+    expect(green.x, `${width}×${height}: green in the band`).toBeGreaterThanOrEqual(band.x0 - 0.5);
+    expect(green.x + green.width, `${width}×${height}: green in the band`).toBeLessThanOrEqual(band.x1 + 0.5);
+    // Large enough to read in place: at least 16px across (v35's window drew it at twice its size where it was smaller).
+    expect(Math.max(green.width, green.height), `${width}×${height}: green size`).toBeGreaterThanOrEqual(16);
+    const credit = (await page.locator('#osm-credit').boundingBox())!;
+    const apart = credit.x + credit.width <= green.x + 0.5 || green.x + green.width <= credit.x + 0.5 || credit.y + credit.height <= green.y + 0.5 || green.y + green.height <= credit.y + 0.5;
+    expect(apart, `${width}×${height}: green off the credit`).toBe(true);
   }
-  // The green at least twice the size it is drawn at, its pin and flag in the window too.
-  const big = (await inset.locator('.in-green').first().boundingBox())!;
-  const small = (await course.locator(':scope > .green').boundingBox())!;
-  expect(big.width).toBeGreaterThanOrEqual(2 * small.width - 1);
-  await expect(inset.locator('.in-flag')).toHaveCount(1);
-  // On a band without room (375×667's 59px), no window.
-  await page.setViewportSize({ width: 375, height: 667 });
-  await settled(page);
-  await expect(course).toHaveAttribute('data-art', 'osm');
-  await expect(course.locator('.inset')).toHaveCount(0);
 });
 
 test('홈 opens 기록 from every view and from the picker mid-round, and never leaves the app (v37)', async ({ page }) => {
@@ -8264,4 +8271,115 @@ test('홈 opens 기록 from every view and from the picker mid-round, and never 
   await expect(count(page, 'driver')).toHaveText('1');
   expect(page.url()).not.toContain('carpenta.github.io/#');
   expect(new URL(page.url()).pathname).toBe('/');
+});
+
+/* ---------- v39: what the redesign added, held on its own ---------- */
+
+// v39 (DESIGN: "a sideways swipe over the hole also moves"): the band where the hole is drawn takes the swipe too, not
+// only the card.
+test('a sideways swipe over the drawn hole moves to the next or previous hole (v39)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await settled(page);
+  const band = await visibleBand(page);
+  const y = (band.y0 + band.y1) / 2;
+  const swipe = async (from: number, dx: number) => {
+    await page.mouse.move(from, y);
+    await page.mouse.down();
+    await page.mouse.move(from + dx / 2, y + 3, { steps: 4 });
+    await page.mouse.move(from + dx, y + 6, { steps: 4 });
+    await page.mouse.up();
+    await expect(page.locator('.ghost')).toHaveCount(0);
+  };
+  await swipe(300, -180);
+  await expect(page.locator('#hole-title')).toHaveText('2번 홀');
+  await swipe(90, 180);
+  await expect(page.locator('#hole-title')).toHaveText('1번 홀');
+  // Nothing was recorded by moving.
+  expect((await stored(page)).holes.slice(0, 2).every((h: Record<string, number>) => h.driver + h.approach + h.putts === 0)).toBe(true);
+});
+
+// v39 (the user: tap the length to see the other tees too): on a course that gives several tees the length chip opens a
+// list of every tee, its colour dot, name and length; where the course gives one length (에버리스) there is nothing to open.
+test('the length chip lists every tee with its name and length on 블랙스톤, and is not a button on 에버리스 (v39)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await expect(page.locator('#dist-btn')).toBeDisabled();
+  await page.locator('#dist-btn').click({ force: true });
+  await expect(page.locator('#tees-pop')).toBeHidden();
+  // A fresh start, so the picker comes up for the other course.
+  await page.evaluate(() => localStorage.clear());
+  await openCourse(page, '블랙스톤', '블랙스톤 제주');
+  const chip = page.locator('#dist-btn');
+  await expect(chip).toBeEnabled();
+  await expect(chip).toHaveAttribute('aria-expanded', 'false');
+  await expect(chip).toHaveAccessibleName(/티별 거리 보기$/);
+  await chip.click();
+  const pop = page.locator('#tees-pop');
+  await expect(pop).toBeVisible();
+  await expect(chip).toHaveAttribute('aria-expanded', 'true');
+  const rows = pop.locator('#tee-list li');
+  // 블랙스톤 제주 노스 1: five tees, each a dot, its name and its length in metres.
+  await expect(rows).toHaveCount(5);
+  expect(await rows.evaluateAll((list) => list.map((li) => `${li.querySelector('.tee-name')!.textContent} ${li.querySelector('b')!.textContent}`)))
+    .toEqual(['화이트 352 m', '블랙 417 m', '블루 399 m', '옐로 314 m', '레드 296 m']);
+  for (const dot of await rows.locator('.tee-dot').all()) expect((await dot.boundingBox())!.width).toBeGreaterThan(0);
+  // Under the chip row, inside the screen; Escape closes it and gives the focus back to the chip.
+  const [box, row] = [(await pop.boundingBox())!, await rect(page, '#hole-info')];
+  expect(box.y).toBeGreaterThanOrEqual(row.y + row.height);
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await page.keyboard.press('Escape');
+  await expect(pop).toBeHidden();
+  await expect(chip).toBeFocused();
+  await expect(chip).toHaveAttribute('aria-expanded', 'false');
+});
+
+// v39 (the user: "가운데 홀번호를 나타내는 원", "text 위치가 엉망임"): the hole number and 번 홀 stay inside the ring's circle,
+// one- and two-digit holes, at every phone width and in 큰 글씨.
+for (const [width, height] of [[360, 640], [375, 667], [390, 844]] as const) {
+  test(`keeps the ring's number and 번 홀 inside its circle at ${width}×${height}, in 큰 글씨 too (v39)`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await open(page);
+    for (const big of [false, true]) {
+      await setBig(page, big);
+      for (const hole of [0, 9, 17]) {
+        await seedHoles(page, {}, hole);
+        await atRest(page);
+        const where = `${big ? '큰 글씨 ' : ''}hole ${hole + 1}`;
+        await expect(page.locator('#hole-n')).toHaveText(String(hole + 1));
+        const inside = await page.evaluate(() => {
+          const ring = document.getElementById('hole-btn')!.getBoundingClientRect();
+          const [cx, cy, r] = [ring.x + ring.width / 2, ring.y + ring.height / 2, Math.min(ring.width, ring.height) / 2];
+          return ['#hole-n', '#hole-title .hole-u'].map((s) => {
+            // Each box is trimmed to its letters' cap height and baseline (text-box), so its corners are the ink's.
+            const b = document.querySelector(s)!.getBoundingClientRect();
+            return { s, clear: r - Math.max(...[[b.left, b.top], [b.right, b.top], [b.left, b.bottom], [b.right, b.bottom]].map(([x, y]) => Math.hypot(x - cx, y - cy))) };
+          });
+        });
+        for (const { s, clear } of inside) expect(clear, `${where}: ${s} inside the circle`).toBeGreaterThanOrEqual(0);
+        await expect(page.locator('#hole-title .hole-u')).toHaveText('번 홀');
+      }
+    }
+  });
+}
+
+// v39: the badge's number is white on map glass whatever the score (the triple's deep ink vanished there), lime at par,
+// a soft red under it; 3:1 or more on the painted course under it for every mark.
+test('the badge’s number stands 3:1 or more off the course under it for every mark (v39)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const marks: [string, Record<string, number>][] = [
+    ['eagle', { driver: 1, approach: 0, putts: 1 }], ['birdie', { driver: 1, approach: 1, putts: 1 }], ['par', { driver: 1, approach: 1, putts: 2 }],
+    ['bogey', { driver: 1, approach: 2, putts: 2 }], ['double', { driver: 1, approach: 3, putts: 2 }], ['triple', { driver: 1, approach: 4, putts: 2 }],
+    ['진행', { driver: 1, approach: 1, putts: 0 }], ['none', { driver: 0, approach: 0, putts: 0 }],
+  ];
+  const found: string[] = [];
+  for (const [mark, hole] of marks) {
+    await seedHoles(page, { 0: { par: 4, ...hole } }, 0);
+    await settled(page);
+    await atRest(page);
+    const [c] = await contrastOf(page, [{ sel: '#hole-strokes', min: 3, unders: ['paint'] }]);
+    if (c.ratio === null || c.ratio < 3) found.push(`${mark}: ${c.ratio?.toFixed(2)}`);
+  }
+  expect(found).toEqual([]);
 });
