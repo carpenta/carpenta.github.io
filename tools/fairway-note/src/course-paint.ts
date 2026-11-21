@@ -72,19 +72,24 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
   let seed = t.seed >>> 0 || 1;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 
-  /** A layer the size of the canvas, drawn in CSS pixels. */
-  const layer = (): [HTMLCanvasElement, Ctx] => {
-    const [c, x] = canvasOf(canvas.width, canvas.height);
-    x.setTransform(D, 0, 0, D, 0, 0);
+  /** A layer over the whole screen, drawn in CSS pixels at `s` device pixels each (the woodland, all soft, at 1). */
+  const layer = (s = D): [HTMLCanvasElement, Ctx] => {
+    const [c, x] = canvasOf(Math.round(W * s), Math.round(H * s));
+    x.setTransform(s, 0, 0, s, 0, 0);
     return [c, x];
   };
-  /** Puts a layer down as it is (device pixels to device pixels), moved by (dx, dy) CSS pixels. */
+  /** Device pixels per CSS pixel of a layer. */
+  const scaleOf = (c: HTMLCanvasElement) => c.width / W;
+  /** Puts a layer down over the whole of `dst`, scaled to it, moved by (dx, dy) CSS pixels. */
   const put = (dst: Ctx, src: HTMLCanvasElement, dx = 0, dy = 0) => {
+    const k = scaleOf(dst.canvas);
     dst.save();
     dst.setTransform(1, 0, 0, 1, 0, 0);
-    dst.drawImage(src, dx * D, dy * D);
+    dst.drawImage(src, dx * k, dy * k, dst.canvas.width, dst.canvas.height);
     dst.restore();
   };
+  /** The woodland's resolution: soft shapes, so one device pixel per CSS pixel is enough (a quarter of the work at 2×). */
+  const DW = Math.min(D, 1);
   const path = (pts: Pt[]) => {
     const p = new Path2D();
     pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
@@ -195,7 +200,7 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
     const v = (a: number, b: number) => lattice[Math.min(rows - 1, Math.max(0, b)) * cols + Math.min(cols - 1, Math.max(0, a))];
     return (v(i, j) * (1 - fx) + v(i + 1, j) * fx) * (1 - fy) + (v(i, j + 1) * (1 - fx) + v(i + 1, j + 1) * fx) * fy;
   };
-  const [seedC, sx] = layer();
+  const [seedC, sx] = layer(DW);
   sx.fillStyle = '#000';
   for (let y = -6; y < H + 6; y += 8) {
     for (let x = -6; x < W + 6; x += 8) {
@@ -221,7 +226,7 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
     }
   }
   // Merge the seeds: blur, then a soft threshold.
-  const canopy = blurred(seedC, 5 * D);
+  const canopy = blurred(seedC, 5 * DW);
   {
     const cx = canopy.getContext('2d', { willReadFrequently: true })!;
     const px = cx.getImageData(0, 0, canopy.width, canopy.height);
@@ -233,8 +238,9 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
   }
   /** A shape layer filled with one colour, moved by (dx, dy) CSS pixels and blurred by `blur` CSS pixels. */
   const tinted = (shape: HTMLCanvasElement, colour: string, dx = 0, dy = 0, blur = 0) => {
-    const [c, x] = canvasOf(canvas.width, canvas.height);
-    x.drawImage(blur ? blurred(shape, blur * D) : shape, dx * D, dy * D);
+    const k = scaleOf(shape);
+    const [c, x] = canvasOf(shape.width, shape.height);
+    x.drawImage(blur ? blurred(shape, blur * k) : shape, dx * k, dy * k);
     x.globalCompositeOperation = 'source-in';
     x.fillStyle = colour;
     x.fillRect(0, 0, c.width, c.height);
@@ -242,7 +248,7 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
   };
   put(ctx, tinted(canopy, 'rgb(3 12 6 / .6)', 5, 6, 5));
   {
-    const [mass, mx] = layer();
+    const [mass, mx] = layer(DW);
     put(mx, tinted(canopy, '#1b3823'));
     mx.globalCompositeOperation = 'source-atop';
     for (let i = 0; i < Math.round((W * H) / 6000); i++) {
@@ -261,13 +267,13 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
       const c = tinted(canopy, colour, 0, 0, blur);
       const x = c.getContext('2d')!;
       x.globalCompositeOperation = 'destination-out';
-      x.drawImage(canopy, dx * D, dy * D);
+      x.drawImage(canopy, dx * scaleOf(canopy), dy * scaleOf(canopy));
       return c;
     };
     put(mx, rim('rgb(110 155 92 / .32)', 5, 5, 4));
     put(mx, rim('rgb(4 14 8 / .45)', -5, -5, 4));
     // Crowns: finer merged blobs inside the masses, a little lighter, each with a soft shade below.
-    const [crownSeed, cs] = layer();
+    const [crownSeed, cs] = layer(DW);
     cs.fillStyle = '#000';
     for (let i = 0; i < Math.round((W * H) / 70); i++) {
       const x = rnd() * W;
@@ -277,7 +283,7 @@ export function paintTerrain(canvas: HTMLCanvasElement, t: Terrain, width: numbe
       cs.ellipse(x, y, r * 1.4, r, rnd() * Math.PI, 0, Math.PI * 2);
       cs.fill();
     }
-    const crowns = blurred(crownSeed, 2 * D);
+    const crowns = blurred(crownSeed, 2 * DW);
     {
       const cx = crowns.getContext('2d', { willReadFrequently: true })!;
       const px = cx.getImageData(0, 0, crowns.width, crowns.height);

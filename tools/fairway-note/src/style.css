@@ -1812,3 +1812,6 @@ body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass
 /* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
    result, the direction pad. The capsules, the switcher and the tabs keep their round ends. */
 #entry[data-mode='detail'] :is(.lbl-in, .tchip, .dir) { border-radius: var(--r-tile); }
+/* More room under the hole switcher: its ring hangs 10px below the pill, and in 상세 it nearly met the card (v39). */
+.hole-nav { margin-bottom: 24px; }
+.osm-credit { bottom: calc(100% + 24px + 60px + 6px + 6px); }
