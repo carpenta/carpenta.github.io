@@ -7539,7 +7539,8 @@ test.describe('the score badge at 4x (v32)', () => {
 test.describe('a club panel on a 375×553 phone (v32)', () => {
   test.use({ viewport: { width: 375, height: 553 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-  test('ends above 다음 홀 instead of covering its top', async ({ page }) => {
+  // v39: 다음 홀 is gone; the panel ends 8px above the floating island instead of covering it.
+  test('ends above the floating island instead of covering it', async ({ page }) => {
     await open(page);
     for (const [mode, key] of [['기본', 'approach'], ['상세', 'short']] as const) {
       await page.getByRole('button', { name: mode, exact: true }).tap();
@@ -7548,8 +7549,8 @@ test.describe('a club panel on a 375×553 phone (v32)', () => {
       await expect(page.locator('#shot-panel')).toBeVisible();
       await atRest(page);
       const panel = await rect(page, '#shot-panel');
-      const go = await rect(page, '#go-next');
-      expect(panel.y + panel.height, `${mode} ${key}`).toBeLessThanOrEqual(go.y - 8 + 0.5);
+      const island = await rect(page, '#views');
+      expect(panel.y + panel.height, `${mode} ${key}`).toBeLessThanOrEqual(island.y - 8 + 0.5);
       expect(panel.y, `${mode} ${key}: on screen`).toBeGreaterThanOrEqual(0);
       await page.keyboard.press('Escape');
       await expect(page.locator('#shot-panel')).toBeHidden();
