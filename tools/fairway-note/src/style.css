@@ -1680,7 +1680,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .round-head { grid-column: 2; grid-row: 1; justify-self: center; min-width: 0; max-width: 100%; display: grid; justify-items: center; gap: 3px; text-align: center; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
 .round-name { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--on-glass); font-size: var(--t-m); font-weight: var(--w-label); }
 .round-head .progress { margin: 0; height: auto; padding: 0; background: none; box-shadow: none; gap: 4px; }
-.round-head .prog { color: var(--on-glass-soft); }
+.round-head .prog { color: var(--on-glass); }   /* white: the soft 66% was 3.6:1 on the painted course's lightest spots under it */
 .round-head .prog.score { color: var(--on-glass); }
 .round-head .prog.under { color: #ff8f84; }
 .badge { width: 56px; height: 56px; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); outline: 0; box-shadow: var(--glass-drop); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
@@ -1745,7 +1745,9 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .club-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .club-lbl svg { width: 24px; height: 24px; color: var(--on-glass); }
 .lbl-in { padding: 0 10px 0 12px; gap: 4px; }
+@container (max-width: 80px) { .sheet .lbl-in { padding: 0 4px; } }   /* 상세's narrow columns keep v28's slim chip, so 어프로치 is whole */
 .count { color: var(--on-glass); }
+.count.zero { color: var(--on-capsule); }   /* a 0 in the + and −'s own ink: the paper's --quiet was 1.9:1 on the glass */
 /* OB, 벙커 and 해저드 in 상세 only (the user's call); what 기본 already counted still counts. */
 #entry[data-mode='basic'] .pens { display: none; }
 /* 말로 입력 opens from the 음성 tab; its own button and 다음 홀 are gone from 기록. */
@@ -1757,7 +1759,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .tab .ti, .bar-menu .ti { width: auto; height: 24px; background: none; }
 .tab[aria-selected='true'] .ti { background: none; }
 .tab svg, .bar-menu svg { width: 22px; height: 22px; stroke-width: 1.5; }
-.tab-label { font-size: 11px; }
+.tab-label { font-size: var(--t-s); }   /* 13px, the v39 floor for text (the mock-up's 11px was under it) */
 .tab[aria-selected='true'] { position: relative; color: var(--on-glass); }
 .tab[aria-selected='true']::after { content: ''; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 2px var(--lime-glow); }
 .hole-nav .switcher { width: 100%; }
@@ -1808,6 +1810,8 @@ body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .
   box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28);
 }
 body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active { background: rgb(255 255 255 / .18); }
+/* The course picker is still on paper: there the white type vanished (1.05:1), so its chosen ones keep ink on white with a turf edge. */
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--turf); }
 body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
 /* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
    result, the direction pad. The capsules, the switcher and the tabs keep their round ends. */
@@ -1844,6 +1848,7 @@ dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px
 /* The round's score in the hole ring's style: solid deep green, a lime edge, a white number (no lime or red disc). */
 .sh-ring, .sh-ring[data-tone] { background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass); box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow); }
 .sh-ring[data-tone='under'] b { color: #ff9a8f; }
+.sc .m[data-tone='under'] { color: #ff9a8f; }   /* the table's under-par marks too: --red was 2.3:1 on the deep glass */
 .sh-ring[data-tone='par'] b { color: var(--lime); }
 .sc-hero { border-bottom-color: rgb(255 255 255 / .08); }
 /* 스코어카드 | 분석 as the card's tabs read: the chosen one white with a glowing lime underline. */
@@ -1906,7 +1911,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 /* The score badge with air (the user: too tight): the bar's 60px slot, a 20px number and a wider gap to its word. */
 .badge { width: var(--badge); height: var(--badge); gap: 7px; }
 .badge #hole-strokes { font-size: 20px; }
-.badge .badge-name { font-size: 11px; letter-spacing: .02em; }
+.badge .badge-name { font-size: var(--t-s); letter-spacing: .02em; }   /* 13px, the v39 floor for text */
 .badge #hole-strokes, .badge .badge-name { text-box: trim-both cap alphabetic; line-height: 1; }
 .badge { gap: 6px; }
 /* The score badge laid out as the hole ring is (the user: align it like the hole number): the number's baseline on the
@@ -1996,6 +2001,8 @@ body.scrolled .home-link { opacity: 0; pointer-events: none; }
   .hole-nav .hole-u { bottom: calc(50% - 15px); }
   .sheet .modes { margin-bottom: 2px; }
   .sheet .mode { height: 36px; }
+  .sheet .mode::after { inset: auto 0 -2px; height: 48px; }   /* still a 48px touch area: down to the capsules, up into the card's top */
+  #entry[data-mode='basic'] .sheet { --sheet-pt: 16px; }   /* 기본's card top had 0–4px over the tabs, so the area was cut to 36–42px */
   .osm-credit { bottom: calc(100% + 14px + 48px + 6px + 6px); }
 }
 @media (max-height: 599px) {
