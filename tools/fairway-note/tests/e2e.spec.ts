@@ -2953,7 +2953,11 @@ function contrastIn(checks: Contrast[]) {
     let worst = Infinity;
     for (const base of bases) {
       for (let bg of grounds([base], layers.slice().reverse())) {
-        for (const layer of also ?? []) bg = over(rgba(getComputedStyle(document.querySelector(layer)!).backgroundColor), bg);
+        // A layer may be a pseudo-element ('.m::before', v39's glass square under a 트리플+ digit).
+        for (const layer of also ?? []) {
+          const [own, pseudo] = layer.split('::');
+          bg = over(rgba(getComputedStyle(document.querySelector(own)!, pseudo ? `::${pseudo}` : null).backgroundColor), bg);
+        }
         worst = Math.min(worst, ratio(over(rgba(getComputedStyle(el).color), bg), bg));
       }
     }
@@ -5481,14 +5485,16 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       });
       // No whole-table button and no "홀 고르기" any more.
       await expect(page.locator('#scorecard button[data-nine], #scorecard .nt-go')).toHaveCount(0);
-      // The ring's halo is drawn inside its 80px box, so the box is the edge the eye sees (v30: an inset outline, no shadow).
+      // v39: the score's ring is the hole ring's twin, a deep opaque disc with a 1.5px lime edge and its soft glow; v30's
+      // inset outline stays only as a faint line inside the box (v30–v38: the outline alone, no shadow).
       const halo = await page.locator('#sh-ring').evaluate((el) => {
         const s = getComputedStyle(el);
-        return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset) };
+        return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset), image: s.backgroundImage };
       });
-      expect(halo.shadow, 'no shadow').toBe('none');
-      expect(halo.width, 'a halo').toBeGreaterThan(0);
-      expect(halo.offset, 'drawn inside the box').toBeLessThanOrEqual(-halo.width);
+      expect(halo.shadow, 'the lime edge').toContain('rgb(196, 224, 79) 0px 0px 0px 1.5px');
+      expect(halo.shadow, 'its glow').toContain('0px 0px 10px 0px');
+      expect(halo.offset, 'any outline drawn inside the box').toBeLessThanOrEqual(-halo.width);
+      expect(halo.image, 'deep and opaque').toMatch(/^radial-gradient\((?!.*rgba)/);
       within1px((await spanOf(page, '#sh-ring')).x, tables[0].x, 'ring on the table edge');
       // 파 수정 moves nothing: the same columns, now stepping the par.
       await page.locator('#edit-par').tap();
@@ -5765,8 +5771,10 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       // Each digit against what is under it: the tile, or for 트리플+ the square it fills in its mark's colour.
       const tile = marks.flatMap((m, k) => (m.mark === 'triple' ? [] : [{ sel: `#sum-marks li:nth-child(${k + 1}) .m b`, min: 3 }]));
       for (const r of await contrastOf(page, tile)) expect(r.ratio!, r.sel).toBeGreaterThanOrEqual(3);
-      const [fill, digit] = await page.locator("#sum-marks .m[data-mark='triple']").evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el.querySelector('b')!).color]);
-      expect(await contrastBetween(page, digit, fill), '트리플+ digit on its square').toBeGreaterThanOrEqual(3);
+      // v39: the 트리플+ square is light glass (white 24%) on the tile, its digit white (v30–v38: filled in the mark's colour).
+      const triple = marks.findIndex((m) => m.mark === 'triple') + 1;
+      const [onSquare] = await contrastOf(page, [{ sel: `#sum-marks li:nth-child(${triple}) .m b`, min: 3, also: [`#sum-marks li:nth-child(${triple}) .m::before`] }]);
+      expect(onSquare.ratio!, '트리플+ digit on its square').toBeGreaterThanOrEqual(3);
       // The marks themselves, quiet or not, stand 3:1 off the tile.
       for (const r of await contrastOf(page, marks.map((_, k) => ({ sel: `#sum-marks li:nth-child(${k + 1}) .m`, min: 3 })))) expect(r.ratio!, `${r.sel} drawn`).toBeGreaterThanOrEqual(3);
     });
@@ -6145,8 +6153,11 @@ test('draws its UI icons from the vendored Tabler set at the 1.75 line, and ship
   // Every icon on the page has its shapes (no placeholder left empty), each at our line.
   const empty = await page.evaluate(() => [...document.querySelectorAll('svg[data-icon]')].filter((svg) => !svg.children.length).map((svg) => svg.getAttribute('data-icon')));
   expect(empty).toEqual([]);
-  const lines = await page.evaluate(() => [...new Set([...document.querySelectorAll('svg[data-icon]')].map((svg) => getComputedStyle(svg).strokeWidth))]);
+  // v39: the floating island's icons at the mock-up's lighter 1.5 line; every other at 1.75 (2.4 and 2.6 the capsules' marks).
+  const lines = await page.evaluate(() => [...new Set([...document.querySelectorAll('svg[data-icon]')].filter((svg) => !svg.closest('#views')).map((svg) => getComputedStyle(svg).strokeWidth))]);
   expect(lines.every((w) => ['1.75px', '2.6px', '2.4px'].includes(w)), lines.join(', ')).toBe(true);
+  const island = await page.evaluate(() => [...new Set([...document.querySelectorAll('#views svg[data-icon]')].map((svg) => getComputedStyle(svg).strokeWidth))]);
+  expect(island).toEqual(['1.5px']);
   // Each sits centred in its round button, tab or menu tile: its drawn shapes within 1px of the box's centre (measured:
   // flag-3 0.92px low, its pole hanging under the flag; every other within 0.5px).
   const offCentre = (selector: string) => page.evaluate((selector) => [...document.querySelectorAll<SVGSVGElement>(selector)]
@@ -6643,16 +6654,22 @@ for (const [width, height] of [[390, 844], [375, 553], [360, 640]]) {
       await tap(page, 'approach');
       await page.getByRole('button', { name: '상세', exact: true }).tap();
       await atRest(page);
+      await settled(page);
+      // v39: the card is glass over the painted course ('paint', as in the sunlight checks); 드라이버 and 퍼터 are icons,
+      // read as graphics (3:1), 세컨 and 어프로치 by name.
       const found = await contrastOf(page, [
-        { sel: '#split-tip dt', min: 4.5, unders: OVER_ART }, { sel: '#split-tip dd', min: 4.5, unders: OVER_ART },
-        ...['#lbl-driver .lbl-in', '#lbl-second .lbl-in', '#lbl-short .lbl-in', '#lbl-putts .lbl-in'].map((sel) => ({ sel, min: 4.5, unders: OVER_ART })),
-        { sel: '.club-short .from-basic', min: 4.5, unders: OVER_ART, also: ['.club-short .plus'] },
-        { sel: '.club-short .from-basic', min: 4.5, unders: OVER_ART, also: ['.club-short .minus'] },
+        { sel: '#split-tip dt', min: 4.5, unders: ['paint'] }, { sel: '#split-tip dd', min: 4.5, unders: ['paint'] },
+        ...['#lbl-second .lbl-in', '#lbl-short .lbl-in'].map((sel) => ({ sel, min: 4.5, unders: ['paint'] })),
+        { sel: '.club-short .from-basic', min: 4.5, unders: ['paint'], also: ['.club-short .plus'] },
+        { sel: '.club-short .from-basic', min: 4.5, unders: ['paint'], also: ['.club-short .minus'] },
       ]);
       for (const r of found) {
         expect(r.ratio, `${r.sel}: not found`).not.toBeNull();
         expect(r.size, r.sel).toBeGreaterThanOrEqual(13);
         expect(r.ratio!, r.sel).toBeGreaterThanOrEqual(r.min);
+      }
+      for (const r of await contrastOf(page, ['#lbl-driver .lbl-in > svg', '#lbl-putts .lbl-in > svg'].map((sel) => ({ sel, min: 3, unders: ['paint'] })))) {
+        expect(r.ratio!, r.sel).toBeGreaterThanOrEqual(3);
       }
       // 기본에서 기록 keeps clear of the + and − it sits between.
       await page.locator('#split-tip').tap();
@@ -6672,8 +6689,14 @@ for (const [width, height] of [[390, 844], [375, 553], [360, 640]]) {
       await atRest(page);
       expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
       expect(await sideScroll(page)).toBe(0);
-      for (const key of KEYS.상세) {
+      // v39: 세컨 and 어프로치 by name, whole; 드라이버 and 퍼터 as icons inside their chips.
+      for (const key of ['second', 'short']) {
         expect(await page.locator(`#name-${key}`).evaluate((el) => el.scrollWidth - el.clientWidth), `${key} name whole`).toBeLessThanOrEqual(0);
+      }
+      for (const key of ['driver', 'putts']) {
+        const [chip, icon] = [await rect(page, `#lbl-${key} .lbl-in`), await rect(page, `#lbl-${key} .lbl-in > svg`)];
+        expect(icon.x, `${key} icon inside its chip`).toBeGreaterThanOrEqual(chip.x);
+        expect(icon.x + icon.width, `${key} icon inside its chip`).toBeLessThanOrEqual(chip.x + chip.width);
       }
       await numberOf(page, 'short').tap();
       await expect(page.locator('#shot-panel')).toBeVisible();
