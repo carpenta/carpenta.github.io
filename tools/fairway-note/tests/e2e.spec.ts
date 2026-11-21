@@ -43,6 +43,14 @@ async function tap(page: Page, key: string, times = 1) {
 }
 
 const count = (page: Page, key: string) => page.locator(`#count-${key}`);
+/**
+ * A drawn shape's own box (getBoundingClientRect). v39: once the ground is painted the drawing's fills and strokes are
+ * clear, and Playwright's boundingBox would widen a shape by its invisible stroke.
+ */
+const shapeBox = (shape: ReturnType<Page['locator']>) => shape.first().evaluate((el) => {
+  const b = el.getBoundingClientRect();
+  return { x: b.x, y: b.y, width: b.width, height: b.height };
+});
 const tab = (page: Page, name: '기록' | '스코어카드' | '지난 라운드') => page.getByRole('tab', { name });
 // v39: 다음 홀 is gone ("다음 홀 이동 버튼은 필요 없음"); the switcher's › moves on (saying so when the hole is left
 // blank) and, on the last hole, finishes the round, as 다음 홀 did.
@@ -765,11 +773,20 @@ test('fits the drawn distance pills to their labels in the page font where the c
   await page.evaluate(() => localStorage.clear());
   await openCourse(page, '에코랜드', '에코랜드 골프클럽');
   await expect(page.locator('#hole-distance')).toContainText(' m');
-  const [white, deep] = [await token(page, '--on-dark'), await token(page, '--deep')];
+  // v39: over the painted ground the bare number sits on a small white pill (.a-marker-pill), deep green on white with
+  // no halo: it reads at 4.5:1 at least, and the number keeps inside its pill.
   const numbers = await markerNumbers(page);
   expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
-  for (const n of numbers) expect({ pills: n.pills, fill: n.fill, stroke: n.stroke, order: n.order.split(' ')[0] }, n.label!).toEqual({ pills: 0, fill: white, stroke: deep, order: 'stroke' });
-  for (const n of numbers) expect(n.halo, `${n.label}: halo`).toBeGreaterThanOrEqual(2);
+  for (const n of numbers) expect({ pills: n.pills, stroke: n.stroke }, n.label!).toEqual({ pills: 1, stroke: 'none' });
+  const onPill = await page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => {
+    const [t, r] = [g.querySelector('text')!, g.querySelector('rect.a-marker-pill')!];
+    const [tb, rb] = [t.getBoundingClientRect(), r.getBoundingClientRect()];
+    return { fill: getComputedStyle(t).fill, pill: getComputedStyle(r).fill, inside: tb.left >= rb.left && tb.right <= rb.right && tb.top >= rb.top - 0.5 && tb.bottom <= rb.bottom + 0.5 };
+  }));
+  for (const n of onPill) {
+    expect(await page.evaluate(ratioIn, [n.fill, n.pill] as [string, string])).toBeGreaterThanOrEqual(4.5);
+    expect(n.inside).toBe(true);
+  }
 });
 
 test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
@@ -826,8 +843,12 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(course.locator('.flag')).toHaveCount(1);
   // The back tee (the line's start, with its markers) in the putting green's colour, the other tees quieter in the
   // fairway's (v33 critique: a row of bright tees read as a ball's flight).
-  expect(await course.locator('.tee').evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--putting'));
-  expect(await course.locator('.tee2').first().evaluate((el) => getComputedStyle(el).fill)).toBe(await token(page, '--fairway'));
+  // v39: the ground, tees included, is painted on the canvas under the drawing; the drawing's own tees are then clear,
+  // there to be measured, so no tee is drawn twice.
+  await expect(course).toHaveClass(/painted/);
+  await expect(page.locator('#course-paint')).toBeVisible();
+  expect(await course.locator('.tee').evaluate((el) => getComputedStyle(el).fill)).toBe('rgba(0, 0, 0, 0)');
+  expect(await course.locator('.tee2').first().evaluate((el) => getComputedStyle(el).fill)).toBe('rgba(0, 0, 0, 0)');
   // The credit beside the drawing, legible on what is drawn behind it. Since v37 plain text, not a link (the user: a link
   // there was confusing, a tap near the card opening another site); the link stays in 홀 안내 and 앱 정보.
   const credit = page.locator('#osm-credit');
@@ -838,7 +859,15 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   expect(await credit.evaluate((el) => {
     const s = getComputedStyle(el);
     return { background: s.backgroundColor, border: s.borderTopWidth, radius: s.borderTopLeftRadius, shadow: s.boxShadow, padding: s.paddingLeft, size: s.fontSize, weight: s.fontWeight, colour: s.color };
-  })).toEqual({ background: 'rgba(0, 0, 0, 0)', border: '0px', radius: '0px', shadow: 'none', padding: '0px', size: '13px', weight: '400', colour: await token(page, '--on-dark-quiet') });
+    // v39: white at 62% with a soft dark text shadow, over the painted ground (expectCreditLegible checks it reads).
+  })).toEqual({ background: 'rgba(0, 0, 0, 0)', border: '0px', radius: '0px', shadow: 'none', padding: '0px', size: '13px', weight: '400', colour: await page.evaluate(() => {
+    const probe = document.createElement('i');
+    probe.style.color = 'rgb(255 255 255 / .62)';
+    document.body.append(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  }) });
   await expectCreditLegible(page, '새별 1');
   // Nothing to tap (v37): a tap on it does not go anywhere or open a window.
   expect((await credit.boundingBox())!.y + (await credit.boundingBox())!.height).toBeLessThanOrEqual((await page.locator('#sheet').boundingBox())!.y + 0.5);
@@ -867,7 +896,8 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await page.evaluate(() => document.fonts.ready);
   const numbers = await markerNumbers(page);
   expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
-  for (const n of numbers) expect(n.pills, n.label!).toBe(0);
+  // v39: each bare number on its small white pill (the one rect of the marker).
+  for (const n of numbers) expect(n.pills, n.label!).toBe(1);
   // Bundled: no request left the page, and nothing new was stored.
   expect(requests).toEqual([]);
   expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
@@ -924,7 +954,9 @@ for (const [width, height] of [[375, 667], [390, 844]]) {
     // The credit 6px above the card (alone on that line since v29 took the version off 기록). As text (v33) its left edge
     // is the card's content edge, where the first capsule starts (the pill stood on the card's outer edge, its text 8px in).
     expectAligned(credit.x, (await rect(page, '.club-driver .pill')).x, 'credit left = the first capsule\'s left');
-    expectAligned(credit.y + credit.height, sheet.y - 6, 'credit bottom 6px above the card');
+    // v39: the switcher sits low, between the hole and the card; the credit is at the band's foot, 12px above the pill
+    // (style.css: two 6px steps), clear of the ring that hangs 10px above it.
+    expectAligned(credit.y + credit.height, (await rect(page, '#entry .nav-pill')).y - 12, 'credit bottom 12px above the hole switcher');
     expect(credit.y).toBeGreaterThanOrEqual((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 4);
     // The axis (v33): across the band between the chips and the card, the back tee at the left and the greens' middle
     // level with it at the right.
@@ -1070,10 +1102,13 @@ type Band = { x0: number; y0: number; x1: number; y1: number };
  * The band as the page lays it out: from under the hole switcher and the score badge to the sheet's top edge, across the
  * sheet (v38: the chip row lies over it, its pills see-through; v33–v37 started it under the chips).
  */
+// v39: the band starts under the top bar (the course's name and the score badge; the switcher moved down) and ends at
+// the low hole switcher, which sits over the hole's foot between the hole and the card.
 const visibleBand = (page: Page) => page.evaluate((): Band => {
-  const bar = Math.max(document.querySelector('#entry .switcher')!.getBoundingClientRect().bottom, document.getElementById('badge')!.getBoundingClientRect().bottom);
+  const bar = Math.max(document.querySelector('#entry .round-head')!.getBoundingClientRect().bottom, document.getElementById('badge')!.getBoundingClientRect().bottom);
   const sheet = document.getElementById('sheet')!.getBoundingClientRect();
-  return { x0: sheet.left, y0: bar, x1: sheet.right, y1: sheet.top };
+  const nav = document.querySelector('#entry .hole-nav')!.getBoundingClientRect();
+  return { x0: sheet.left, y0: bar, x1: sheet.right, y1: Math.min(sheet.top, nav.top) };
 });
 
 /**
@@ -1264,10 +1299,16 @@ async function expectThumbInstead(page: Page, where: string) {
   expect(await sideScroll(page), where).toBe(0);
 }
 
-test('shows the header’s small drawing instead of fitting a band under 50px: 360×640 in 기본 and 상세, 375×667 in 상세 (v33)', async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 640 });
+// v39: the switcher left the top bar for the band's foot, so 기본's band at 360×640 grew to about 70px and is fitted;
+// 375×553 in 기본 (about 40px) and 상세 at 360×640 and 375×667 (about 10px, the taller card) still show the small drawing.
+test('shows the header’s small drawing instead of fitting a band under 50px: 375×553 in 기본, 360×640 and 375×667 in 상세; 360×640 기본 is fitted (v39)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 553 });
   await open(page);
-  await expectThumbInstead(page, '360×640 기본');
+  await expectThumbInstead(page, '375×553 기본');
+  await page.setViewportSize({ width: 360, height: 640 });
+  await atRest(page);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+  await expect(page.locator('#hole-thumb')).toBeHidden();
   await page.getByRole('button', { name: '상세', exact: true }).click();
   if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
   await expectThumbInstead(page, '360×640 상세');
@@ -1284,14 +1325,15 @@ test('shows the header’s small drawing instead of fitting a band under 50px: 3
 // The row beside the small drawing once the round's progress shows (v33): HDCP steps into 홀 안내 by fitMeta's rule, and
 // nothing in the row runs past fitMeta's 1px allowance (on holes 10–18 the length pill's text takes 1px of its right
 // padding; a stricter rule would flip with 1px text-width differences between platforms), clips with an ellipsis or
-// overlaps.
-test('keeps 360×640’s chip row whole beside the header’s small drawing once the progress pill shows: HDCP in 홀 안내, nothing clipped past 1px or overlapping (v33)', async ({ page }) => {
-  await page.setViewportSize({ width: 360, height: 640 });
+// overlaps. v39: the round's progress moved to the top bar and Par and HCP to the low switcher, so the row is the small
+// drawing, the length and 홀 안내 on every hole; checked on 375×553 in 기본 (360×640's 기본 band is fitted since v39).
+test('keeps the chip row whole beside the header’s small drawing as the round goes on, the progress in the top bar: nothing clipped past 1px or overlapping (v39)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 553 });
   await open(page);
   const row = async (where: string) => {
     await atRest(page);
     await expect(page.locator('#hole-thumb'), where).toBeVisible();
-    const parts = await page.evaluate(() => ['hole-thumb', 'meta', 'progress', 'info-btn']
+    const parts = await page.evaluate(() => ['hole-thumb', 'meta', 'info-btn']
       .map((id) => document.getElementById(id)!)
       .filter((el) => !el.hidden && getComputedStyle(el).display !== 'none')
       .map((el) => {
@@ -1319,10 +1361,11 @@ test('keeps 360×640’s chip row whole beside the header’s small drawing once
     await expect(page.locator('#hole-n')).toHaveText(String(n + 1));
     await expect(page.locator('#toast')).toBeHidden();
     const where = `hole ${n + 1} after ${n} played`;
-    expect(await row(where), where).toEqual(['hole-thumb', 'meta', 'progress', 'info-btn']);
-    await expect(page.locator('#hole-hdcp'), `${where}: HDCP out of the row`).toBeHidden();
-    await expect(page.locator('#hi-facts'), `${where}: HDCP in 홀 안내`).toContainText(/HDCP \d+/);
-    await expect(page.locator('#hole-par'), where).toBeVisible();
+    expect(await row(where), where).toEqual(['hole-thumb', 'meta', 'info-btn']);
+    await expect(page.locator('.round-head #progress'), `${where}: the progress in the top bar`).toBeVisible();
+    await expect(page.locator('#prog-n'), where).toHaveText(`${n}홀까지`);
+    await expect(page.locator('#nav-hcp'), `${where}: HCP on the switcher`).toHaveText(/^\d+$/);
+    await expect(page.locator('#nav-par'), where).toHaveText(/^[345]$/);
   }
 });
 
@@ -1340,7 +1383,7 @@ test('lays the hole across the band at one scale, tee at the left, and measures 
   expect(axis.green[0]).toBeGreaterThan(band.x0 + ((band.x1 - band.x0) * 3) / 4);
   expect(axis.green[1]).toBeLessThan(axis.tee[1] - 8);
   // The green near its real size: about 32 m along the line at the drawing's scale.
-  const green = (await course.locator('.green').boundingBox())!;
+  const green = await shapeBox(course.locator('.green'));
   expect(Math.abs(green.width - 32 * axis.scale)).toBeLessThanOrEqual(32 * axis.scale * 0.1);
   // Both markers, each its distance from the green's middle along the line of play.
   const markers = await course.locator('.marker circle').evaluateAll((list) => list.map((c) => ({ x: Number(c.getAttribute('cx')), y: Number(c.getAttribute('cy')), d: Number(c.closest('g')!.querySelector('text')!.textContent!.replace(' m', '')) })));

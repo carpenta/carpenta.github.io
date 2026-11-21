@@ -93,6 +93,9 @@ describe('one design system (v30)', () => {
       // fixed so 큰 글씨 cannot push it out of the 80px circle) and the floating island's tab labels (11px under the icon).
       .filter(({ selector, value }) => !(value === '32px' && /\.hole-nav (#hole-title )?\.hole-n$/.test(selector)))
       .filter(({ selector, value }) => !(value === '11px' && selector === '.tab-label'))
+      // The score badge laid out as the ring is (the user: too tight before): a 20px number, an 11px word under it, and
+      // Ace, shown alone, at 15px.
+      .filter(({ selector, value }) => !((value === '20px' && selector === '.badge #hole-strokes') || (value === '11px' && selector === '.badge .badge-name') || (value === '15px' && selector === '.badge.hio .badge-name')))
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
   });
@@ -111,12 +114,23 @@ describe('one design system (v30)', () => {
       .filter(({ value }) => !/gradient\(transparent/.test(value))
       .filter(({ value }) => /transparent\)|\/ \.?\d/.test(value) || [...clear].some((name) => value.includes(`var(${name})`)));
   };
-  // The white tint is light glass on the dark screens (a chosen control at 10%, pressed 18%, the scorecard's cells and
-  // triple's soft disc up to 24%); the lime tint marks the scorecard's current hole, faintly (8%). Pressed map glass 70%,
-  // and the paper screens' title bar, glass in the page's own tone (72%) that what scrolls passes under.
-  const isGlass = (value: string) => ['var(--map-glass)', 'var(--deep-glass)', 'rgb(10 24 16 / .7)', 'rgb(15 33 24 / .72)'].includes(value)
-    || (/^rgb\(255 255 255 \/ (\.\d+)\)$/.test(value) && Number(value.match(/\/ (\.\d+)/)![1]) <= 0.24)
-    || (/^rgb\(196 224 79 \/ (\.\d+)\)$/.test(value) && Number(value.match(/\/ (\.\d+)/)![1]) <= 0.1);
+  // Besides the two glass tokens, a see-through colour is one of three tints, alone or in a gradient: the dark green of
+  // the glass itself (each channel at most 40: the pressed map glass, the toast, the dialogs, the shades and veils of the
+  // screens that show the painted course), white as light glass on dark (a chosen control 10%, pressed 18%, the
+  // scorecard's cells and triple's soft disc, never past 24%), and lime for the scorecard's current hole (10% at most).
+  const tint = (rgb: string, alpha: number) => {
+    const [r, g, b] = rgb.split(' ').map(Number);
+    if (r === 255 && g === 255 && b === 255) return alpha <= 0.24;
+    if (r === 196 && g === 224 && b === 79) return alpha <= 0.1;
+    return Math.max(r, g, b) <= 40;
+  };
+  const isGlass = (value: string) => {
+    if (['var(--map-glass)', 'var(--deep-glass)'].includes(value)) return true;
+    const colours = [...value.matchAll(/rgb\((\d+ \d+ \d+) \/ (\.?\d+(?:\.\d+)?)\)/g)];
+    // Nothing else may colour it: no hex, named colour, token or mix beside the tints.
+    const rest = value.replace(/rgb\([^)]*\)/g, '').replace(/linear-gradient\(|\d+deg|\d+%|[,()\s]/g, '');
+    return colours.length > 0 && rest === '' && colours.every((m) => tint(m[1], Number(m[2])));
+  };
 
   it('paints a see-through surface from the glass tokens alone (v39)', () => {
     expect(css).toMatch(/--map-glass: rgb\(10 24 16 \/ \.5\);/);
