@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="골프 라운드에서 홀마다 드라이버·아이언·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
+    <meta name="description" content="골프 라운드에서 홀마다 드라이버·그린까지·퍼터 타수와 OB·해저드를 탭으로 세고, 스코어카드와 분석을 보는 스코어 노트." />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#213f2c" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'" />
@@ -74,9 +74,21 @@
         <div class="spacer"></div>
 
         <div class="sheet-wrap" id="sheet-wrap">
-          <span class="ver" id="app-version" aria-hidden="true"></span>
+          <!-- The credit for a hole drawn from OpenStreetMap (v27): a pill at the card's left end, shown with that
+               drawing only. A link to OSM's copyright page; the CSP is unchanged, as following a link is navigation. -->
+          <a class="osm-credit" id="osm-credit" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창" hidden>© OpenStreetMap</a>
           <section class="sheet" id="sheet" aria-labelledby="hole-title" data-mode="basic">
-            <div class="clubs" id="clubs"></div>
+            <!-- The capsules (main.ts builds them after the tip). 상세's one-time tip (v28) on what 세컨 and 어프로치 are sits over
+                 their middle, first in reading order; a tap on it, or a stroke on either, puts it away for good. -->
+            <div class="clubs" id="clubs">
+              <div class="split-tip" id="split-tip" role="note" aria-label="세컨과 어프로치" hidden>
+                <dl class="st-defs">
+                  <div><dt>세컨</dt><dd>그린을 향한 샷, 레이업 포함</dd></div>
+                  <div><dt>어프로치</dt><dd>그린 주변 짧은 샷, 벙커샷 포함</dd></div>
+                </dl>
+                <button type="button" class="st-close" id="split-tip-close" aria-label="세컨과 어프로치 설명 닫기"><svg data-icon="x" width="20" height="20"></svg></button>
+              </div>
+            </div>
 
             <!-- 상세: the tee shot's result, written as the first drive's tag -->
             <div class="detail" id="detail" hidden>
@@ -156,8 +168,16 @@
         <!-- 분석 (v26): where the strokes went, then the round's analysis -->
         <div class="sc-analysis" id="sc-analysis" hidden>
           <section class="box lost" aria-labelledby="lost-title">
-            <h3 id="lost-title">타수를 잃은 곳</h3>
+            <!-- The finding first (v29); how it is counted waits behind ⓘ, with the split holes' note (v28) -->
+            <div class="lost-head">
+              <h3 id="lost-title">타수를 잃은 곳</h3>
+              <button type="button" class="info-toggle" id="lost-how" aria-expanded="false" aria-controls="lost-how-box" aria-label="세는 방법"><svg data-icon="info-circle" width="20" height="20"></svg></button>
+            </div>
             <p id="lost-note" class="muted">홀을 기록하면 보여요.</p>
+            <div class="how-box" id="lost-how-box" hidden>
+              <p id="lost-method"></p>
+              <p id="lost-split" hidden></p>
+            </div>
             <ul class="lost-bars" id="lost-bars"></ul>
           </section>
 
@@ -347,7 +367,7 @@
             <h3 class="ab-h">쓰는 법</h3>
             <p class="muted">숫자를 길게 누르면 0부터 5 이상까지 바로 골라요. 홀 번호를 누르면 18홀이 한눈에 보여요.</p>
             <p class="muted">기록 화면을 왼쪽이나 오른쪽으로 밀면 홀이 바뀌고, Par는 스코어카드의 파 수정에서 바꿔요.</p>
-            <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 실제 배치는 공식 홀 안내를 보세요.</p>
+            <p class="muted ab-foot">Fairway Note <span id="about-version"></span>. 홀 그림은 직접 그린 안내용 그림이에요. 에버리스 골프리조트는 OpenStreetMap 지도 데이터(<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, ODbL, 새 창">© OpenStreetMap 기여자, ODbL</a>)로 실제 홀 모양을 그려요. 실제 배치는 공식 홀 안내를 보세요.</p>
           </div>
         </li>
       </ul>
@@ -372,11 +392,12 @@
             <span class="sum-badge" id="sum-badge"></span>
           </div>
         </div>
+        <!-- Where the round lost most, right under the score (v29): the summary's one finding, before the counts -->
+        <p class="sum-insight" id="sum-insight"></p>
         <ul class="sum-marks" id="sum-marks" aria-label="홀 결과"></ul>
         <dl class="sum-stats" id="sum-stats"></dl>
         <!-- Said once under the tiles while no tee result is recorded, instead of a 페어웨이 안착 tile with no value -->
         <p class="sum-hint" id="sum-hint" hidden>상세에서 티샷 방향을 고르면 페어웨이 안착이 보여요.</p>
-        <p class="sum-insight" id="sum-insight"></p>
         <p id="sum-status" class="muted small" role="status"></p>
       </div>
       <!-- Round buttons from the icon family (main.ts draws them): 공유 or 결과 복사, 이미지 저장 where the image cannot be
@@ -396,6 +417,7 @@
       <ul class="hi-notes" id="hole-notes" aria-label="홀 특징"></ul>
       <p class="hi-none" id="hi-none" hidden>적어 둔 특징이 없는 홀이에요.</p>
       <p class="hi-art" id="hi-art" hidden>그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.</p>
+      <p class="hi-osm" id="hi-osm" hidden>그림은 OpenStreetMap 지도 데이터로 그린 실제 홀 모양이에요. <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" aria-label="© OpenStreetMap 기여자, 새 창">© OpenStreetMap 기여자</a></p>
       <a class="hi-link" id="hole-guide" target="_blank" rel="noopener noreferrer" aria-label="공식 홀 안내, 새 창" hidden>공식 홀 안내 보기<svg data-icon="external-link" width="14" height="14"></svg></a>
     </dialog>
 
@@ -425,7 +447,7 @@
     <dialog id="shot-panel" class="shot-panel" aria-labelledby="sp-club sp-shot" tabindex="-1">
       <div class="sp-head">
         <span class="sp-ico" id="sp-ico" aria-hidden="true"></span>
-        <h2 class="sp-title"><span class="sp-club" id="sp-club"></span><span class="sp-shot" id="sp-shot"></span></h2>
+        <h2 class="sp-title"><span class="sp-club" id="sp-club"></span><span class="sp-shot" id="sp-shot"></span><span class="sp-help" id="sp-help" hidden></span></h2>
         <button type="button" class="sp-close" id="sp-close" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button>
       </div>
       <div class="sp-shots" id="sp-shots" role="group" aria-label="샷" hidden></div>
@@ -440,11 +462,11 @@
 
     <dialog id="picker" class="picker" aria-labelledby="picker-title" tabindex="-1" autofocus>
       <div class="picker-head">
-        <p class="pk-brand"><span>Fairway Note</span><span id="picker-version"></span></p>
+        <p class="pk-brand"><img src="./favicon.svg" alt="" width="20" height="20" /><span>Fairway Note</span></p>
         <h2 id="picker-title">어디서 치세요?</h2>
         <p class="pk-first" id="picker-first" hidden>가입 없이 바로, 기록은 이 폰에만</p>
         <!-- The picker covers the tab bar's 홈, so it carries its own way back to the site (AGENTS.md) -->
-        <a class="picker-home" href="../../">carpenta.github.io</a>
+        <a class="picker-home" href="../../" aria-label="홈, carpenta.github.io로 돌아가기"><svg data-icon="home" width="18" height="18"></svg>홈</a>
         <button id="picker-cancel" class="btn" type="button">취소</button>
       </div>
       <label class="pk-search">

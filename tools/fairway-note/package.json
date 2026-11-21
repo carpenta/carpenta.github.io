@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:webkit": "playwright test --config playwright.webkit.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "osm:holes": "node scripts/osm-holes.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

@@ -139,7 +139,9 @@ function renderTrends(box: HTMLElement, t: Trends): void {
   if (t.all) {
     items.push(['평균 타수', one(t.all.strokes), averageToPar(t.all.toPar)]);
     if (t.recent) items.push([`최근 ${t.recent.rounds}라운드`, one(t.recent.strokes), averageToPar(t.recent.toPar)]);
-    items.push(['라운드당 퍼트', `${one(t.all.putts)}개`, ''], ['그린 적중', `${Math.round(t.all.gir)}%`, ''], ['라운드당 OB', `${one(t.all.ob)}회`, '']);
+    items.push(['라운드당 퍼트', `${one(t.all.putts)}개`, ''], ['그린 적중', `${Math.round(t.all.gir)}%`, '']);
+    // No 0.0 OB line (v29): a tile of nothing.
+    if (t.all.ob) items.push(['라운드당 OB', `${one(t.all.ob)}회`, '']);
   }
   const note = !t.all
     ? '18홀을 모두 끝낸 라운드가 생기면 평균이 나와요.'

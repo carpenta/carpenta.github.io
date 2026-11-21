@@ -1,5 +1,5 @@
 import { analyze, finished, played, roundCourse, scoreName, scoreWord, strokes, teeTag, type Round, type ScoreName, type Totals } from './round';
-import { dateLabel } from './report';
+import { dateLabel, rateSub } from './report';
 
 /**
  * The round as a picture to share: a 1080×1350 PNG drawn on a canvas in the app's bundled font and no images, so it
@@ -67,7 +67,8 @@ export interface ScorecardNine {
 }
 
 export interface CardStat {
-  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best';
+  /** updown (v28): only on a round with an 어프로치 recorded in 상세, the last of the row. */
+  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best' | 'updown';
   label: string;
   value: string;
   sub: string;
@@ -97,7 +98,6 @@ export interface ShareCardContent {
 const toneOf = (d: number): Tone => (d < 0 ? 'under' : d === 0 ? 'par' : 'over');
 /** Score against par as the app's scorecard and summary read it: 이븐, +2, −1. */
 const toParText = (n: number) => (n === 0 ? '이븐' : n > 0 ? `+${n}` : `−${-n}`);
-const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 const one = (n: number) => (Math.round(n * 10) / 10).toFixed(1);
 
 /** One whole nine recorded and nothing on the other, as 라운드 마치기's check reads a 9-hole round. */
@@ -158,10 +158,14 @@ export function shareCardContent(round: Round): ShareCardContent {
     scorecard: nine === 'front' ? [nineCard(0)] : nine === 'back' ? [nineCard(9)] : [nineCard(0), nineCard(9)],
     stats: [
       { key: 'putts', label: '퍼트', value: String(t.putts), sub: t.holes ? `홀당 ${one(a.puttsPerHole)}` : '' },
-      { key: 'gir', label: '그린 적중', value: t.holes ? `${a.girHoles}/${t.holes}` : '–', sub: t.holes ? `${pct(a.girHoles, t.holes)}%` : '' },
-      { key: 'fairway', label: '페어웨이', value: drives ? `${hit}/${drives}` : '–', sub: drives ? `${pct(hit, drives)}%` : '기록 없음' },
+      { key: 'gir', label: '그린 적중', value: t.holes ? `${a.girHoles}/${t.holes}` : '–', sub: t.holes ? rateSub(a.girHoles, t.holes) : '' },
+      { key: 'fairway', label: '페어웨이', value: drives ? `${hit}/${drives}` : '–', sub: drives ? rateSub(hit, drives) : '기록 없음' },
       { key: 'penalty', label: '벌타', value: `OB ${t.ob}`, sub: `해저드 ${t.hazard}` },
       { key: 'best', label: '베스트 홀', value: a.best && best ? `${a.best.hole}번 홀` : '–', sub: a.best && best ? scoreWord(strokes(best), best.par) : '' },
+      // 업앤다운 (v28): one 어프로치 then one putt or none, out of the split holes with an 어프로치.
+      ...(a.split.upDown.chances
+        ? [{ key: 'updown' as const, label: '업앤다운', value: `${a.split.upDown.made}/${a.split.upDown.chances}`, sub: rateSub(a.split.upDown.made, a.split.upDown.chances) }]
+        : []),
     ],
   };
 }

@@ -29,10 +29,28 @@ describe('setting a value: "<club> <number>" (decision D1)', () => {
     expect(commands('퍼터2번')).toEqual([set('putts', 2)]);
   });
 
-  it('accepts 어프로치 and the other second-shot words for 아이언', () => {
-    for (const word of ['아이언', '어프로치', '어프로치샷', '어프로치 샷', '세컨샷', '세컨드 샷', '칩샷']) {
-      expect(commands(`${word} 둘`), word).toEqual([set('approach', 2)]);
-    }
+  it('reads 그린까지 and 아이언 as the middle count, and 세컨 and 어프로치 as its two parts (v28)', () => {
+    for (const word of ['그린까지', '아이언']) expect(commands(`${word} 둘`), word).toEqual([set('approach', 2)]);
+    for (const word of ['세컨', '세컨드', '세컨샷', '세컨드 샷']) expect(commands(`${word} 하나`), word).toEqual([set('second', 1)]);
+    for (const word of ['어프로치', '어프로치샷', '어프로치 샷', '칩샷']) expect(commands(`${word} 둘`), word).toEqual([set('short', 2)]);
+  });
+
+  it('reads 아이언 as the middle count only in a line without 세컨 or 어프로치: beside them it is the club they were hit with', () => {
+    expect(commands('드라이버 하나 세컨 하나 어프로치 하나 퍼터 둘')).toEqual([set('driver', 1), set('second', 1), set('short', 1), set('putts', 2)]);
+    expect(commands('세컨 아이언으로 쳤는데 어프로치 하나')).toEqual([add('second'), set('short', 1)]);
+    expect(commands('세컨은 아이언 하나')).toEqual([set('second', 1)]);
+    expect(commands('세컨 아이언으로 두 번')).toEqual([set('second', 2)]);
+    // Away from a part, 아이언 says nothing there, so its number is left over.
+    expect(parseLine('아이언 둘 어프로치 하나', 18)).toEqual({ ok: false, reason: 'unknown', word: '둘' });
+    // A club's number is never a count of its part.
+    expect(parseLine('세컨 7번 아이언으로', 18)).toEqual({ ok: false, reason: 'unknown', word: '7번' });
+    // Without a part in the line, 아이언 is the count as before.
+    expect(commands('드라이버 1번 아이언 2번 퍼터 2번')).toEqual([set('driver', 1), set('approach', 2), set('putts', 2)]);
+  });
+
+  it('takes 그린까지 and its parts one at a time: a line with both changes nothing and says why', () => {
+    expect(parseLine('그린까지 셋 어프로치 하나', 18)).toEqual({ ok: false, reason: 'mixed' });
+    expect(failureText({ reason: 'mixed' })).toBe('그린까지와 세컨·어프로치는 따로 말해 주세요. 바꾼 것은 없어요.');
   });
 
   it('accepts 티샷 and 드라이브 for 드라이버, and 퍼트, 퍼팅 and 펏 for 퍼터', () => {
@@ -140,7 +158,7 @@ describe('adding and taking off', () => {
 
   it('reads the longest word first: 오비 is OB, not 오 (5), and 세컨샷 is not 세 (3)', () => {
     expect(commands('퍼터 오비')).toEqual([add('putts'), add('ob')]);
-    expect(commands('드라이버 세컨샷 둘')).toEqual([add('driver'), set('approach', 2)]);
+    expect(commands('드라이버 세컨샷 둘')).toEqual([add('driver'), set('second', 2)]);
     expect(commands('퍼터 다섯')).toEqual([set('putts', 5)]);
   });
 });
@@ -254,7 +272,7 @@ describe('normalising what the keyboard sends', () => {
 describe('a generated corpus: every club word × number form × spacing', () => {
   it('reads each one as setting that value', () => {
     const clubs: [VoiceKey, string[]][] = [
-      ['driver', ['드라이버', '티샷']], ['approach', ['아이언', '어프로치', '세컨샷']], ['putts', ['퍼터', '퍼트']],
+      ['driver', ['드라이버', '티샷']], ['approach', ['아이언', '그린까지']], ['second', ['세컨', '세컨샷']], ['short', ['어프로치', '어프로치 샷']], ['putts', ['퍼터', '퍼트']],
       ['ob', ['OB', '오비']], ['hazard', ['해저드']], ['bunker', ['벙커']], ['mulligan', ['멀리건']],
     ];
     const numbers: [string, number][] = [

@@ -21,11 +21,16 @@ const shots = (h: Hole, driver: number, approach = 0, putts = 0): Hole => ({ ...
 
 describe('club detail panel layout', () => {
   it('lays out every chip of each club exactly once, in rows of three or two; an old-only detail is kept to read', () => {
+    // The middle count's one list has three panels since v28: 그린까지 (기본), and 세컨 and 어프로치 (상세).
+    const views = { driver: ['driver'], approach: ['approach', 'second', 'short'], putts: ['putts'] } as const;
     for (const key of TAGGED) {
-      const placed = PANEL_ROWS[key].flat();
+      const placed = new Set(views[key].flatMap((view) => PANEL_ROWS[view].flat()));
       expect([...placed, ...(LEGACY_TAGS[key] ?? [])].sort(), key).toEqual([...SHOT_TAGS[key]].sort());
-      expect(new Set(placed).size, key).toBe(placed.length);
-      for (const row of PANEL_ROWS[key]) expect([2, 3], `${key} ${row.join(' ')}`).toContain(row.length);
+      for (const view of views[key]) {
+        const chips = PANEL_ROWS[view].flat();
+        expect(new Set(chips).size, view).toBe(chips.length);
+        for (const row of PANEL_ROWS[view]) expect([2, 3], `${view} ${row.join(' ')}`).toContain(row.length);
+      }
     }
   });
 
