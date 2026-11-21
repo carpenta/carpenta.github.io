@@ -806,7 +806,8 @@ test('keeps the schematic, with no credit, on the Everis holes OpenStreetMap doe
   expect(await sideScroll(page)).toBe(0);
 });
 
-for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+// 360×640 has no band to fit since v33 (under 50px): the header's small drawing shows instead (tested below).
+for (const [width, height] of [[375, 667], [390, 844]]) {
   test(`lines up an OpenStreetMap hole and its credit within 1px at ${width}×${height} (v27)`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await open(page);
@@ -1032,7 +1033,7 @@ async function expectInSight(page: Page, where: string, counts: Record<string, n
   [band.x0, band.y0, band.x1, band.y1].forEach((v, i) => expectAligned(drawn[i], v, `${where}: band edge ${i}`));
 }
 
-for (const [width, height] of [[390, 844], [375, 667], [360, 640]]) {
+for (const [width, height] of [[390, 844], [375, 667]]) {
   test(`fits each hole into the band between the chips and the sheet: its tee, green, flag and named hazards in sight at ${width}×${height} (v33)`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     // Everis from OpenStreetMap: 새별 1 (v31 drew a bunker behind its greens under the Par chip) and 7 (an island green).
@@ -1105,7 +1106,7 @@ test('stands the © OpenStreetMap credit at the card’s right end where water w
   await expectCreditLegible(page, '레이크 2');
 });
 
-for (const [width, height] of [[390, 844], [375, 667], [360, 640]]) {
+for (const [width, height] of [[390, 844], [375, 667]]) {
   test(`keeps the © OpenStreetMap credit legible on every hole drawn from OpenStreetMap at ${width}×${height} (v33)`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await open(page);
@@ -1122,6 +1123,91 @@ for (const [width, height] of [[390, 844], [375, 667], [360, 640]]) {
     }
   });
 }
+
+/**
+ * A band too short to fit the hole (v33: under 50px, measured where the hole is drawn): the header's small drawing leads
+ * the chip row instead, as at 375×553, and the drawing behind steps back; no hole is fitted, so none is drawn from
+ * OpenStreetMap and no credit shows. The row still holds Par, length and HDCP whole, its ends on the card's edges.
+ */
+async function expectThumbInstead(page: Page, where: string) {
+  await atRest(page);
+  await expect(page.locator('#hole-thumb'), where).toBeVisible();
+  await expect(page.locator('#course'), where).toHaveAttribute('data-art', 'schematic');
+  expect(await page.locator('#course').getAttribute('data-band'), where).toBeNull();
+  await expect(page.locator('#osm-credit'), where).toBeHidden();
+  expect(Number(await paintOf(page, '#course', 'opacity')), where).toBeLessThanOrEqual(0.45);
+  const meta = await page.locator('#meta').evaluate((el) => ({ clipped: el.scrollWidth > el.clientWidth + 0.5, tight: el.classList.contains('tight') || el.classList.contains('tighter') }));
+  expect(meta, `${where}: Par, length and HDCP whole beside the small drawing`).toEqual({ clipped: false, tight: false });
+  await expect(page.locator('#hole-distance'), where).toBeVisible();
+  await expect(page.locator('#hole-hdcp'), where).toBeVisible();
+  const sheet = await rect(page, '#sheet');
+  expectAligned((await rect(page, '#hole-thumb')).x, sheet.x, `${where}: small drawing left = card left`);
+  const info = await rect(page, '#info-btn');
+  expectAligned(info.x + info.width, sheet.x + sheet.width, `${where}: 홀 안내 right = card right`);
+  expect(await sideScroll(page), where).toBe(0);
+}
+
+test('shows the header’s small drawing instead of fitting a band under 50px: 360×640 in 기본 and 상세, 375×667 in 상세 (v33)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await open(page);
+  await expectThumbInstead(page, '360×640 기본');
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+  await expectThumbInstead(page, '360×640 상세');
+  // 375×667: 상세's band (47px) is under 50px, 기본's (59px) is fitted.
+  await page.setViewportSize({ width: 375, height: 667 });
+  await expectThumbInstead(page, '375×667 상세');
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  await atRest(page);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+  await expect(page.locator('#hole-thumb')).toBeHidden();
+  await expect(page.locator('#osm-credit')).toBeVisible();
+});
+
+// The row beside the small drawing once the round's progress shows (v33): HDCP steps into 홀 안내 by fitMeta's rule, and
+// nothing in the row runs past fitMeta's 1px allowance (on holes 10–18 the length pill's text takes 1px of its right
+// padding; a stricter rule would flip with 1px text-width differences between platforms), clips with an ellipsis or
+// overlaps.
+test('keeps 360×640’s chip row whole beside the header’s small drawing once the progress pill shows: HDCP in 홀 안내, nothing clipped past 1px or overlapping (v33)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await open(page);
+  const row = async (where: string) => {
+    await atRest(page);
+    await expect(page.locator('#hole-thumb'), where).toBeVisible();
+    const parts = await page.evaluate(() => ['hole-thumb', 'meta', 'progress', 'info-btn']
+      .map((id) => document.getElementById(id)!)
+      .filter((el) => !el.hidden && getComputedStyle(el).display !== 'none')
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return { id: el.id, x0: r.left, x1: r.right, over: el.scrollWidth - el.clientWidth };
+      }));
+    for (const part of parts) expect(part.over, `${where}: ${part.id} past fitMeta's 1px`).toBeLessThanOrEqual(1);
+    for (let k = 1; k < parts.length; k++) expect(parts[k].x0, `${where}: ${parts[k].id} clear of ${parts[k - 1].id}`).toBeGreaterThanOrEqual(parts[k - 1].x1);
+    const sheet = await rect(page, '#sheet');
+    expect(parts[0].x0, `${where}: the row's left`).toBeGreaterThanOrEqual(sheet.x - 1);
+    expect(parts[parts.length - 1].x1, `${where}: the row's right`).toBeLessThanOrEqual(sheet.x + sheet.width + 1);
+    const ellipsis = await page.evaluate(() => [...document.querySelectorAll('#hole-info *')].filter((el) => getComputedStyle(el).textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1).length);
+    expect(ellipsis, `${where}: an ellipsis in the row`).toBe(0);
+    return parts.map((part) => part.id);
+  };
+  expect(await row('hole 1')).toEqual(['hole-thumb', 'meta', 'info-btn']);
+  await expect(page.locator('#hole-hdcp')).toBeVisible();
+  // A score on each hole, then on to the next, where the progress pill shows: one digit, then two on hole 11. (The first
+  // capsule is 티샷 on a par 3, so it is tapped by its place; moving on puts away the undo toast, which stands in the
+  // chip row's place for a few seconds after a tap.)
+  for (let n = 1; n <= 10; n++) {
+    await page.locator('.club-driver .plus').click();
+    await page.locator('.club-putts .plus').click();
+    await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+    await expect(page.locator('#hole-n')).toHaveText(String(n + 1));
+    await expect(page.locator('#toast')).toBeHidden();
+    const where = `hole ${n + 1} after ${n} played`;
+    expect(await row(where), where).toEqual(['hole-thumb', 'meta', 'progress', 'info-btn']);
+    await expect(page.locator('#hole-hdcp'), `${where}: HDCP out of the row`).toBeHidden();
+    await expect(page.locator('#hi-facts'), `${where}: HDCP in 홀 안내`).toContainText(/HDCP \d+/);
+    await expect(page.locator('#hole-par'), where).toBeVisible();
+  }
+});
 
 test('lays the hole across the band at one scale, tee at the left, and measures 100 m and 150 m to the green’s middle, as 홀 안내 says (v33)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
