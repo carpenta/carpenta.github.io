@@ -61,8 +61,20 @@ function tablerIcons(): Plugin {
   };
 }
 
+// `vite dev` only: it injects the CSS as inline <style> tags and reloads over a websocket, which the page's CSP
+// (style-src 'self', connect-src 'none') blocks, so the dev page showed unstyled. The built page keeps the CSP as written.
+export function devCsp(html: string): string {
+  return html.replace(/(<meta http-equiv="Content-Security-Policy" content=")([^"]*)/, (_whole, head: string, policy: string) =>
+    head + policy.replace("style-src 'self'", "style-src 'self' 'unsafe-inline'").replace("connect-src 'none'", "connect-src 'self' ws: wss:"),
+  );
+}
+
+function devServerCsp(): Plugin {
+  return { name: 'fairway-note-dev-csp', apply: 'serve', transformIndexHtml: devCsp };
+}
+
 export default defineConfig({
   base: './',
   build: { target: 'es2022' },
-  plugins: [tablerIcons(), fontLicence(), offlineServiceWorker()],
+  plugins: [tablerIcons(), fontLicence(), offlineServiceWorker(), devServerCsp()],
 });
