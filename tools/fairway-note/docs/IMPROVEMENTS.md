@@ -44,6 +44,7 @@ v37(6670db0, 배포된 판) 위 `claude/fairway-note-badge-layout-90cfe6` 브랜
 - `npm run dev`에서 스타일이 전혀 붙지 않던 원인: CSP의 `style-src 'self'`가 Vite가 넣는 인라인 `<style>`을, `connect-src 'none'`이 HMR 웹소켓을 막았습니다. dev 서버에서만 두 항목을 늦추는 플러그인(`devCsp`)을 넣었고, 빌드한 페이지의 CSP는 그대로입니다(`tests/dev-csp.test.ts`).
 - 확인: 단위 451, tsc, build, Chromium e2e 305 통과, WebKit e2e(아래). 바뀐 e2e: 띠 위쪽 기준을 칩 줄에서 홀 전환·배지 아래로, 반투명 칩은 그림을 가리지 않는 것으로(글자 원·작은 그림은 여전히 가림), "칩 사이에 그림이 없다"를 "칩 사이에 그림이 있고 홀 전환 옆에는 없다"로.
 - 남긴 것: 공유할 때 보내는 글(`reportText`)에 홀별 샷 태그와 [샷 세부](티샷 방향, 미스샷, 헛스윙)가 들어갑니다. 바꿀지는 사용자에게 묻습니다.
+- 설치와 스크립트 실행을 bun으로 바꿨습니다(사용자의 말: "테스트와 빌드 툴을 bun 으로 교체", 고른 범위: bun이 돌리고 Vite·Vitest·Playwright는 그대로). `package-lock.json` 대신 `bun.lock`, Playwright의 미리보기 서버도 `bun run`, CI의 이 도구 잡은 `oven-sh/setup-bun`(1.4.0)과 `bun install --frozen-lockfile`. 다른 패키지(site, folio, tabula)는 npm 그대로입니다.
 - 버전 v38.
 
 ## v37 (그림 위 © OpenStreetMap은 글자만, 홈은 앱 안으로) — 2026-11-22

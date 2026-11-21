@@ -26,11 +26,11 @@
 
 ```sh
 cd tools/fairway-note
-npm ci
-npm test -- --bail 1
-npx tsc --noEmit && npm run build
-CI=1 npx playwright test --workers=1 -x                                     # Chromium, 포트 4175
-CI=1 npx playwright test -c playwright.webkit.config.ts --workers=1 -x      # WebKit(iPhone), 포트 4185
+bun install --frozen-lockfile
+bun run test --bail 1
+bunx tsc --noEmit && bun run build
+CI=1 bunx playwright test --workers=1 -x                                     # Chromium, 포트 4175
+CI=1 bunx playwright test -c playwright.webkit.config.ts --workers=1 -x      # WebKit(iPhone), 포트 4185
 ```
 
 `CI=1`은 이미 떠 있는 다른 미리보기 서버를 재사용하지 않게 합니다. 같은 컴퓨터에서 여러 세션이 돌면 세션마다 포트를 다르게 하는 로컬 설정 파일(커밋하지 않음)을 씁니다.
@@ -52,7 +52,7 @@ CI=1 npx playwright test -c playwright.webkit.config.ts --workers=1 -x      # We
 
 - 골프존·골프장의 코스 약도(약관·저작권). 다른 앱의 이미지·아이콘·문구.
 - OpenStreetMap 자체를 고치는 일(공개 지도 편집)은 사용자가 따로 요청할 때만.
-- 런타임에 데이터를 받아 오는 것. OSM 데이터는 `npm run osm:holes`로 손으로 받아 `src/data/osm/`에 넣습니다(빌드·CI에서 받지 않음).
+- 런타임에 데이터를 받아 오는 것. OSM 데이터는 `bun run osm:holes`로 손으로 받아 `src/data/osm/`에 넣습니다(빌드·CI에서 받지 않음).
 
 ## 남은 일 (후보)
 

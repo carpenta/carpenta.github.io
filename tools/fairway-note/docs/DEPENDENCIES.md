@@ -37,4 +37,4 @@ A data source, kept apart from the official course data: nothing in `src/data/co
 
 ## Development-only tools
 
-Pinned in package-lock.json: TypeScript 7.0.2 (Apache-2.0), Vite 8.3.3 (MIT), Vitest 5.0.3 (MIT), Playwright 1.64.0 (Apache-2.0).
+Pinned in bun.lock (installed with bun since v38): TypeScript 7.0.2 (Apache-2.0), Vite 8.3.3 (MIT), Vitest 5.0.3 (MIT), Playwright 1.64.0 (Apache-2.0).
