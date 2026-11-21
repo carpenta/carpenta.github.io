@@ -656,10 +656,14 @@ function scrollHint(): void {
   const sheet = $('sheet');
   $('sheet-wrap').classList.toggle('more', !$('entry').hidden && sheet.scrollHeight - sheet.clientHeight - sheet.scrollTop > 4);
   // 스코어카드 and 지난 라운드 (v26): the same fade at their bottom edge while they can scroll further.
+  let scrolled = false;
   for (const id of ['card-view', 'hist-view']) {
     const v = $(id);
     v.classList.toggle('more', !v.hidden && v.scrollHeight - v.clientHeight - v.scrollTop > 4);
+    if (!v.hidden && v.scrollTop > 8) scrolled = true;
   }
+  // v39: their title scrolls away, and 홈 (fixed at the top left) goes with it rather than float over the page.
+  document.body.classList.toggle('scrolled', scrolled);
 }
 
 /* ---------- 기록: top bar, pills, badge, 상세, penalties ---------- */

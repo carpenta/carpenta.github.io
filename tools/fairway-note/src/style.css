@@ -1968,3 +1968,13 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 /* No ground behind the title at all (the user: the gradient still looked odd): the title scrolls away with the page, so
    nothing ever passes under it and it needs none. */
 .sc-top { position: relative; background: none; }
+/* On the scrolling screens the island stands clear of what scrolls under it (the user: they overlapped): a soft fade to
+   the deep green behind the bar, no hard band; taps go through it. 기록 does not scroll there and keeps its open course. */
+body:has(#entry[hidden])::after {
+  content: ''; position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; pointer-events: none;
+  height: calc(var(--island) + 64px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgb(10 22 15 / 0) 0%, rgb(10 22 15 / .72) 55%, rgb(10 22 15 / .86) 100%);
+}
+/* 홈 leaves with the title when 스코어카드 or 지난 라운드 has scrolled (it would float over the page), back at the top. */
+.home-link { transition: opacity .15s ease-out; }
+body.scrolled .home-link { opacity: 0; pointer-events: none; }
