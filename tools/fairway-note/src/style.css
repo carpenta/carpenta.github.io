@@ -1801,7 +1801,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
    styled as the entry card is, light glass with white type, set apart by a lime edge and a soft glow alone. */
 body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go, .next,
   .tchip[aria-pressed='true'], .dir[aria-pressed='true'], .club-lbl[aria-expanded='true'] .lbl-in, .edit.on,
-  .sc-switch button[aria-checked='true'], .picker-list .course[aria-pressed='true'], .pk-len button[aria-pressed='true'],
+  .picker-list .course[aria-pressed='true'], .pk-len button[aria-pressed='true'],
   .nine-pick button[aria-checked='true'], .np-row button[aria-pressed='true'], .sp-shots button[aria-pressed='true'],
   .sp-chip[aria-pressed='true'], .ct-col.cur .c-hole, .scell[aria-current='true'] .sc-no, .hole-nav .round.finish) {
   background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none;
@@ -1839,3 +1839,33 @@ body .hole-nav #hole-title .hole-n { font-size: 32px; }
   --backdrop-strong: rgb(4 12 8 / .72);
 }
 dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+
+/* v39 tidy-up of 스코어카드, 지난 라운드 and 메뉴 (the user: tidy them, the table too dense, the marks lost). */
+/* The round's score in the hole ring's style: solid deep green, a lime edge, a white number (no lime or red disc). */
+.sh-ring, .sh-ring[data-tone] { background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass); box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow); }
+.sh-ring[data-tone='under'] b { color: #ff9a8f; }
+.sh-ring[data-tone='par'] b { color: var(--lime); }
+.sc-hero { border-bottom-color: rgb(255 255 255 / .08); }
+/* 스코어카드 | 분석 as the card's tabs read: the chosen one white with a glowing lime underline. */
+.sc-switch { background: none; border-radius: 0; }
+body .sc-switch button, body .sc-switch button[aria-checked='true'] { background: none; box-shadow: none; color: var(--on-glass-soft); }
+body .sc-switch button[aria-checked='true'] { color: var(--on-glass); }
+.sc-switch button[aria-checked='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* 파 수정: a quiet glass button; while editing, the chosen glass with the lime edge (as every chosen control). */
+.edit { height: 40px; background: rgb(255 255 255 / .1); box-shadow: none; color: var(--on-glass); }
+/* The table: room to read, faint separators instead of a grid, the current hole in lime type. */
+.ct { background: rgb(255 255 255 / .04); }
+.ct::after { display: none; }
+.ct :is(.c-hole, .c-par, .c-score, .c-putt) { height: 32px; font-size: var(--t-m); }
+.ct .c-score { height: 52px; }
+.ct .c-hole { background: rgb(255 255 255 / .06); }
+.ct .c-par { border-bottom-color: rgb(255 255 255 / .06); }
+.ct .c-putt { border-top-color: rgb(255 255 255 / .06); }
+.ct-sum { background: rgb(255 255 255 / .05); }
+.ct-sum .c-hole { background: rgb(255 255 255 / .1); }
+.ct-col.cur { background-color: rgb(196 224 79 / .08); }
+body .ct-col.cur .c-hole { background: none; box-shadow: none; color: var(--lime); }
+.ct + .ct, .sc-nine + .sc-nine { margin-top: 20px; }
+/* The scorecard marks on the dark glass: outlines in white, the 트리플 square a soft fill with a white number. */
+.m[data-mark='triple']::before { background: rgb(255 255 255 / .24); }
+.m[data-mark='triple'] b { color: var(--on-glass); }
