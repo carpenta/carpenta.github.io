@@ -4643,17 +4643,30 @@ test('an old saved round shows its approach shots under 그린까지, keeping th
   await expect(page.locator('#card-view')).not.toContainText('아이언');
 });
 
-test('the hole switcher and the entry card are opaque white over the course, nothing blurred behind them (v30; glass since v20)', async ({ page }) => {
+// v39 (the user: "투명도 50% 까지도 허용", borderless glass): the switcher's pill and arrows are map glass, half see-through
+// with a light blur; the card is deep glass with a stronger blur; the ring is opaque ("투명도가 있으면 오히려 어색함") with
+// a 1.5px lime edge. None has an outline or a border (v30's opaque white is gone).
+test('the hole switcher is map glass round an opaque ring and the entry card deep glass, none outlined (v39; opaque white v30–v38)', async ({ page }) => {
   await open(page);
-  const white = await token(page, '--white');
-  for (const selector of ['#entry .switcher', '#sheet']) {
-    const [background, filter] = await page.locator(selector).evaluate((el) => {
-      const s = getComputedStyle(el);
-      return [s.backgroundColor, s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter') || 'none'];
-    });
-    expect(background, selector).toBe(white);
-    expect(filter, selector).toBe('none');
+  const look = (selector: string) => page.locator(selector).evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { bg: s.backgroundColor, image: s.backgroundImage, filter: s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter') || 'none', shadow: s.boxShadow, outline: s.outlineStyle, border: s.borderTopWidth };
+  });
+  for (const selector of ['#entry .nav-pill', '#prev-hole', '#next-hole']) {
+    const s = await look(selector);
+    expect(s.bg, selector).toBe('rgba(10, 24, 16, 0.5)');
+    expect(s.filter, selector).toBe('blur(4px) saturate(1.2)');
+    expect([s.outline, s.border], selector).toEqual(['none', '0px']);
   }
+  const ring = await look('#hole-btn');
+  // Opaque: every stop of its gradient is a solid colour.
+  expect(ring.image).toMatch(/^radial-gradient\(/);
+  expect(ring.image).not.toMatch(/rgba\(/);
+  expect(ring.shadow).toContain('rgb(196, 224, 79) 0px 0px 0px 1.5px');
+  const card = await look('#sheet');
+  expect(card.image).toBe('linear-gradient(rgba(14, 30, 21, 0.62), rgba(10, 22, 15, 0.74))');
+  expect(card.filter).toBe('blur(18px) saturate(1.4)');
+  expect([card.outline, card.border]).toEqual(['none', '0px']);
 });
 
 /* ---------- 클럽 상세 패널 (v18): a tap on a club's name above its capsule (v20) opens that club's shot details for this hole ---------- */
@@ -4992,9 +5005,9 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
   });
 }
 
-/* ---------- 말로 입력 (v21): one line for the keyboard's dictation, off until turned on in the menu ---------- */
+/* ---------- 말로 입력 (v21; v39: the card's 음성 tab, opened in place of the capsules) ---------- */
 
-/** Turns 말로 입력 on with its switch in the menu. */
+/** Turns the menu's 말로 입력 switch on (v39: still kept in the prefs key, though 음성 needs it no more). */
 async function voiceOn(page: Page) {
   await menu(page);
   await page.locator('#mi-voice').click();
@@ -5002,47 +5015,95 @@ async function voiceOn(page: Page) {
   await closeMenu(page);
 }
 
-/** Opens the sheet from 기록, writes the line as the keyboard's dictation would, and presses its 완료 (Enter). */
-async function say(page: Page, line: string) {
-  await page.locator('#voice-open').click();
+/** The 음성 tab opens 말로 입력 in the card, its field focused. */
+async function openVoice(page: Page) {
+  await page.locator('#mode-voice').click();
   await expect(page.locator('#voice')).toBeVisible();
   await expect(page.locator('#vc-line')).toBeFocused();
+}
+
+/** Opens 말로 입력 from the 음성 tab, writes the line as the keyboard's dictation would, and presses its 완료 (Enter). */
+async function say(page: Page, line: string) {
+  await openVoice(page);
   await page.locator('#vc-line').fill(line);
   await page.locator('#vc-line').press('Enter');
 }
 
 const prefsOf = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>, PREFS_KEY);
+/** The id of what has the focus, '' for the page itself. */
+const focusedId = (page: Page) => page.evaluate(() => (document.activeElement && document.activeElement !== document.body ? document.activeElement.id || document.activeElement.tagName : ''));
 
-test('말로 입력 is off by default: no button on 기록, its switch off, nothing about it saved', async ({ page }) => {
+// v39 (the user: "기본/상세/음성 으로 구성", "메뉴의 '말로 입력' 켜기 설정은 필요 없어짐"): 음성 is a tab of the card from the
+// start; v21–v38's opt-in button beside 다음 홀 is gone with 다음 홀.
+test('음성 is the card’s third tab from the start: 말로 입력 shows nowhere until it is chosen, and nothing about it is saved', async ({ page }) => {
   await open(page);
+  const voiceTab = page.locator('#mode-voice');
+  await expect(voiceTab).toBeVisible();
+  await expect(voiceTab).toHaveText('음성');
+  await expect(voiceTab).toHaveAttribute('aria-controls', 'voice');
+  await expect(page.locator('#voice')).toBeHidden();
   await expect(page.locator('#voice-open')).toBeHidden();
-  await expect(page.locator('#go-next')).toBeVisible();
+  await expect(page.locator('#go-next')).toBeHidden();
   await menu(page);
   await expect(page.getByRole('switch', { name: /말로 입력/ })).toHaveAttribute('aria-checked', 'false');
   await closeMenu(page);
   expect((await prefsOf(page)).voice).toBeUndefined();
-  await expect(page.locator('#voice')).toBeHidden();
 });
 
-test('turning 말로 입력 on shows its button beside 다음 홀, after a reload too; turning it off hides it and forgets it', async ({ page }) => {
+test('음성 shows 말로 입력 in the card in place of the capsules, no sheet over the screen; Escape, 기본 or 상세 put them back', async ({ page }) => {
+  await open(page);
+  const voice = page.locator('#voice');
+  await openVoice(page);
+  // In the card, not modal: no backdrop, no title or 닫기 of its own, and the island stays as it is.
+  expect(await voice.evaluate((d) => ({ inCard: d.closest('#sheet') !== null, modal: d.matches(':modal') }))).toEqual({ inCard: true, modal: false });
+  await expect(page.locator('#vc-close')).toBeHidden();
+  await expect(page.locator('#vc-title')).toBeHidden();
+  for (const part of ['#clubs', '#detail', '#pens']) await expect(page.locator(part)).toBeHidden();
+  await atRest(page);
+  expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+  // 음성 reads as the chosen tab: white with the lime underline, 기본 soft with none.
+  const underline = (selector: string) => page.locator(selector).evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el, '::before').display]);
+  expect(await underline('#mode-voice')).toEqual(['rgb(244, 247, 240)', 'block']);
+  expect(await underline('.sheet .mode[data-mode="basic"]')).toEqual(['rgba(244, 247, 240, 0.66)', 'none']);
+  // Escape puts the capsules back, in the mode it left.
+  await page.keyboard.press('Escape');
+  await expect(voice).toBeHidden();
+  await expect(page.locator('#clubs')).toBeVisible();
+  await expect(page.locator('#entry')).toHaveAttribute('data-mode', 'basic');
+  expect(await focusedId(page)).not.toBe('mode-voice');
+  // 상세 from 음성: 상세's rows; 기본 from 음성: 기본's.
+  await openVoice(page);
+  await modeTab(page, '상세').click();
+  await expect(voice).toBeHidden();
+  await expect(page.locator('#entry')).toHaveAttribute('data-mode', 'detail');
+  await expect(page.locator('#detail')).toBeVisible();
+  await openVoice(page);
+  await expect(page.locator('#detail')).toBeHidden();
+  await modeTab(page, '기본').click();
+  await expect(voice).toBeHidden();
+  await expect(page.locator('#entry')).toHaveAttribute('data-mode', 'basic');
+  await expect(page.locator('#clubs')).toBeVisible();
+});
+
+test('the menu’s 말로 입력 switch is still remembered, after a reload too, and forgotten when turned off', async ({ page }) => {
   await open(page);
   await voiceOn(page);
-  await expect(page.getByRole('button', { name: '말로 입력' })).toBeVisible();
-  await expect(page.locator('#announce')).toHaveText('말로 입력을 켰어요. 기록 화면의 다음 홀 옆에 있어요');
+  await expect(page.locator('#announce')).toHaveText('말로 입력을 켰어요. 기록 카드의 음성 탭에 있어요');
   expect((await prefsOf(page)).voice).toBe(true);
   await page.reload();
-  await expect(page.locator('#voice-open')).toBeVisible();
   await menu(page);
+  await expect(page.locator('#mi-voice')).toHaveAttribute('aria-checked', 'true');
   await page.locator('#mi-voice').click();
   await expect(page.locator('#mi-voice')).toHaveAttribute('aria-checked', 'false');
   await closeMenu(page);
-  await expect(page.locator('#voice-open')).toBeHidden();
   expect((await prefsOf(page)).voice).toBeUndefined();
+  // Either way 기록 shows no button of its own: 음성 is the way in.
+  await expect(page.locator('#voice-open')).toBeHidden();
+  await expect(page.locator('#mode-voice')).toBeVisible();
 });
 
 test('a spoken line sets the counts as taps do, its toast says what was set, and 되돌리기 takes the whole line back', async ({ page }) => {
   await open(page);
-  await voiceOn(page);
   await say(page, '드라이버 하나 아이언 둘 퍼터 두 번');
   await expect(page.locator('#voice')).toBeHidden();
   await expect(count(page, 'driver')).toHaveText('1');
@@ -5052,7 +5113,8 @@ test('a spoken line sets the counts as taps do, its toast says what was set, and
   await expect(page.locator('#hole-name')).toHaveText('+1');
   await expect(page.locator('#toast-msg')).toHaveText(`${LABEL.driver} 1 · ${LABEL.approach} 2 · ${LABEL.putts} 2`);
   await expect(page.locator('#announce')).toHaveText(`1번 홀 ${LABEL.driver} 1, ${LABEL.approach} 2, ${LABEL.putts} 2, 5타`);
-  await expect(page.locator('#voice-open')).toBeFocused();
+  // v39: the focus is let go, not given back to the 음성 tab, which showed a focus ring over the capsules (the user's report).
+  expect(await focusedId(page)).toBe('');
   expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, approach: 2, putts: 2 });
   await page.locator('#toast-undo').click();
   await expect(count(page, 'driver')).toHaveText('0');
@@ -5068,7 +5130,6 @@ test('a spoken line sets the counts as taps do, its toast says what was set, and
 
 test('a line that ends with 다음 홀 records the hole and moves on, and one 되돌리기 brings back both', async ({ page }) => {
   await open(page);
-  await voiceOn(page);
   await say(page, '드라이버 하나 아이언 하나 퍼터 둘 다음 홀');
   await expect(page.locator('#hole-title')).toHaveText('2번 홀');
   await expect(page.locator('#toast-msg')).toHaveText(`1번 홀 ${LABEL.driver} 1 · ${LABEL.approach} 1 · ${LABEL.putts} 2`);
@@ -5084,6 +5145,8 @@ test('a line that ends with 다음 홀 records the hole and moves on, and one �
 
 test('빼기 names the penalty it takes off: after an OB and then a 해저드 it reads 해저드, by taps and by a spoken line (v21)', async ({ page }) => {
   await open(page);
+  // v39: the penalties and 빼기 are in 상세.
+  await modeTab(page, '상세').click();
   const undo = page.locator('#pen-undo');
   // Two taps: OB, then 해저드.
   await tap(page, 'ob');
@@ -5103,7 +5166,6 @@ test('빼기 names the penalty it takes off: after an OB and then a 해저드 it
   await expect(undo).toHaveAccessibleName('OB 하나 빼기');
   // One spoken line on the next hole: OB, then 해저드, in the order said.
   await next(page).click();
-  await voiceOn(page);
   await say(page, 'OB 해저드');
   await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
   await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
@@ -5112,7 +5174,6 @@ test('빼기 names the penalty it takes off: after an OB and then a 해저드 it
 
 test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alone adds one, and 7번 홀 jumps there', async ({ page }) => {
   await open(page);
-  await voiceOn(page);
   await say(page, '드라이버');
   await expect(count(page, 'driver')).toHaveText('1');
   await expect(page.locator('#toast-msg')).toHaveText(`${LABEL.driver} +1`);
@@ -5120,13 +5181,13 @@ test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alo
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
   await expect(page.locator('#toast-msg')).toHaveText('OB +1 · 해저드 +1');
-  // They were added in the order said, as by two taps: the penalty row's 빼기 takes off the 해저드, then the OB.
+  // They were added in the order said, as by two taps: the penalty row's 빼기 (in 상세, v39) takes off the 해저드, then the OB.
+  await modeTab(page, '상세').click();
   await page.locator('#pen-undo').click();
   await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await say(page, '해저드');
   await say(page, '벙커에 빠졌어요');
-  await page.getByRole('button', { name: '상세', exact: true }).click();
   await expect(page.locator('#stake-bunker .pen-count')).toHaveText('1');
   // A bunker is noted only: one drive and two penalty strokes.
   await expect(page.locator('#hole-strokes')).toHaveText('3');
@@ -5137,7 +5198,6 @@ test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alo
 
 test('a line it cannot read says why, changes nothing, and stays to be said again', async ({ page }) => {
   await open(page);
-  await voiceOn(page);
   await tap(page, 'putts');
   const before = await stored(page);
   await say(page, '버디');
@@ -5154,10 +5214,10 @@ test('a line it cannot read says why, changes nothing, and stays to be said agai
   await page.locator('#vc-line').press('Enter');
   await expect(error).toHaveText('‘안’처럼 아니라는 말이 있어 바꾸지 않았어요.');
   expect(await stored(page)).toEqual(before);
-  // 닫기 drops the line: the sheet opens empty next time. Escape closes it too.
-  await page.locator('#vc-close').click();
+  // 기본 (v39: in place of 닫기) drops the line: 음성 opens empty next time. Escape closes it too.
+  await modeTab(page, '기본').click();
   await expect(page.locator('#voice')).toBeHidden();
-  await page.locator('#voice-open').click();
+  await openVoice(page);
   await expect(page.locator('#vc-line')).toHaveValue('');
   await expect(error).toBeHidden();
   await page.keyboard.press('Escape');
@@ -5165,16 +5225,14 @@ test('a line it cannot read says why, changes nothing, and stays to be said agai
   await expect(count(page, 'putts')).toHaveText('1');
 });
 
-test('되돌리기 said in the sheet takes back the change its toast offers, which waits while the sheet is open', async ({ page }) => {
+test('되돌리기 said in 음성 takes back the change its toast offers, which waits while 음성 is open', async ({ page }) => {
   await page.clock.install();
   await open(page);
-  await voiceOn(page);
   const toast = page.locator('#toast');
   await tap(page, 'driver');
   await expect(toast).toBeVisible();
   // Open for longer than the toast's four seconds: its 되돌리기 is still there to be said.
-  await page.locator('#voice-open').click();
-  await expect(page.locator('#vc-line')).toBeFocused();
+  await openVoice(page);
   await page.clock.fastForward(6000);
   await page.locator('#vc-line').fill('되돌리기');
   await page.locator('#vc-line').press('Enter');
@@ -5183,12 +5241,12 @@ test('되돌리기 said in the sheet takes back the change its toast offers, whi
   await expect(toast).toBeHidden();
   await say(page, '되돌리기');
   await expect(page.locator('#vc-error')).toHaveText('되돌릴 것이 없어요.');
-  await page.locator('#vc-close').click();
+  await page.keyboard.press('Escape');
   // Closed with nothing applied, the toast's four seconds start again.
   await tap(page, 'putts');
-  await page.locator('#voice-open').click();
+  await openVoice(page);
   await page.clock.fastForward(6000);
-  await page.locator('#vc-close').click();
+  await page.keyboard.press('Escape');
   await expect(toast).toBeVisible();
   await page.clock.fastForward(4100);
   await expect(toast).toBeHidden();
@@ -5241,68 +5299,52 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
   test.describe(`말로 입력 lined up on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('its button on 다음 홀’s row at the card’s inset, its sheet on the card’s edges above the keyboard, its toast over no button', async ({ page }) => {
+    // v39: in the card, under its tabs, on the card's 16px padding; the card keeps its foot and does not scroll.
+    test('음성 lays 말로 입력 on the card’s padding under its tabs, the card standing where it stood, its toast over no button', async ({ page }) => {
       await open(page);
-      await voiceOn(page);
-      // The top bar's highest edge (v32: the switcher's, the menu button it was measured from having moved into the bar).
-      const switcher = await spanOf(page, '#entry .switcher');
-      const badge = await spanOf(page, '#badge');
       for (const mode of ['기본', '상세'] as const) {
-        if (mode === '상세') await page.getByRole('button', { name: '상세', exact: true }).click();
+        await modeTab(page, mode).click();
+        await settled(page);
+        const before = await spanOf(page, '#sheet');
+        await openVoice(page);
         await settled(page);
         const card = await spanOf(page, '#sheet');
-        const mic = await spanOf(page, '#voice-open');
-        const go = await spanOf(page, '#go-next');
-        // As tall as 다음 홀 and round, on the card's left edge, on 다음 홀's centre line, 8px before it.
-        within1px(card.x, 16, `${mode}: the 16px inset`);
-        within1px(mic.height, go.height, `${mode}: button height`);
-        within1px(mic.width, mic.height, `${mode}: button round`);
-        within1px(mic.x, card.x, `${mode}: button on the card's left edge`);
-        within1px(mic.y + mic.height / 2, go.y + go.height / 2, `${mode}: button on 다음 홀's centre line`);
-        within1px(go.x - endOf(mic), 8, `${mode}: gap before 다음 홀`);
-        within1px(endOf(go), endOf(card), `${mode}: 다음 홀 keeps the card's right edge`);
-        expect(mic.y, `${mode}: button below the card`).toBeGreaterThanOrEqual(card.y + card.height);
+        const tabs = await spanOf(page, '.sheet .modes');
+        const sheet = await spanOf(page, '#voice');
+        within1px(card.y + card.height, before.y + before.height, `${mode}: the card's foot stays`);
+        within1px(sheet.x - card.x, 16, `${mode}: 말로 입력, left padding`);
+        within1px(endOf(card) - endOf(sheet), 16, `${mode}: 말로 입력, right padding`);
+        expect(sheet.y, `${mode}: under the tabs`).toBeGreaterThanOrEqual(tabs.y + tabs.height);
+        expect(sheet.y + sheet.height, `${mode}: inside the card`).toBeLessThanOrEqual(card.y + card.height);
+        const field = await spanOf(page, '.vc-field');
+        within1px(field.x, sheet.x, `${mode}: field, left edge`);
+        within1px(endOf(field), endOf(sheet), `${mode}: field, right edge`);
+        within1px(field.height, 52, `${mode}: field height`);
+        // 입력 sits 4px inside the field all round, so the two curves share a centre.
+        const enter = await spanOf(page, '#vc-go');
+        within1px(enter.height, 44, `${mode}: 입력 height`);
+        within1px(endOf(field) - endOf(enter), 4, `${mode}: 입력, right inset`);
+        within1px(enter.y - field.y, 4, `${mode}: 입력, top inset`);
+        for (const id of ['#vc-help', '#vc-example', '#vc-privacy']) within1px((await spanOf(page, id)).x, field.x, `${mode}: ${id} on the field edge`);
+        within1px(endOf(card) - endOf(await spanOf(page, '#vc-privacy')), 16, `${mode}: privacy note, right padding`);
+        expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight), `${mode}: the card does not scroll`).toBeLessThanOrEqual(1);
+        // A line it cannot read: the message under the field on its edge, all of it in the card, still no scrolling.
+        await page.locator('#vc-line').fill('버디');
+        await page.locator('#vc-line').press('Enter');
+        const error = await spanOf(page, '#vc-error');
+        within1px(error.x, field.x, `${mode}: message on the field edge`);
+        const grown = await spanOf(page, '#sheet');
+        expect(error.y + error.height, `${mode}: message in the card`).toBeLessThanOrEqual(grown.y + grown.height);
+        within1px(grown.y + grown.height, before.y + before.height, `${mode}: the card's foot stays with the message`);
+        expect(await page.locator('#sheet').evaluate((el) => el.scrollHeight - el.clientHeight), `${mode}: no scrolling with the message`).toBeLessThanOrEqual(1);
+        expect(await sideScroll(page)).toBe(0);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('#voice')).toBeHidden();
       }
-      expect(await sideScroll(page)).toBe(0);
 
-      // The sheet: from the top bar's first row, on the card's edges; inside, everything on the card's 16px padding.
-      await page.locator('#voice-open').click();
-      await expect(page.locator('#voice')).toBeVisible();
-      await settled(page);
-      const card = await spanOf(page, '#sheet');
-      const sheet = await spanOf(page, '#voice');
-      within1px(sheet.x, card.x, 'sheet left edge');
-      within1px(endOf(sheet), endOf(card), 'sheet right edge');
-      // From the top bar's highest edge, the badge's, so nothing of the bar peeks out above the sheet.
-      within1px(sheet.y, badge.y, 'sheet top on the badge top');
-      expect(sheet.y, 'sheet top no higher than the bar').toBeGreaterThanOrEqual(Math.min(switcher.y, badge.y) - 8);
-      const field = await spanOf(page, '.vc-field');
-      within1px(field.x - sheet.x, 16, 'field, left padding');
-      within1px(endOf(sheet) - endOf(field), 16, 'field, right padding');
-      within1px(field.height, 52, 'field height');
-      within1px((await spanOf(page, '#vc-title')).x, field.x, 'title on the field edge');
-      const close = await spanOf(page, '#vc-close');
-      within1px(endOf(close), endOf(field), 'close on the field edge');
-      within1px(close.y - sheet.y, 16, 'close on the top padding');
-      // 입력 sits 4px inside the field all round, so the two curves share a centre.
-      const enter = await spanOf(page, '#vc-go');
-      within1px(enter.height, 44, '입력 height');
-      within1px(endOf(field) - endOf(enter), 4, '입력, right inset');
-      within1px(enter.y - field.y, 4, '입력, top inset');
-      for (const id of ['#vc-help', '#vc-example', '#vc-privacy']) within1px((await spanOf(page, id)).x, field.x, `${id} on the field edge`);
-      within1px(endOf(sheet) - endOf(await spanOf(page, '#vc-privacy')), 16, 'privacy note, right padding');
-      // A keyboard takes the lower part of the screen: the field and the message under it stay in the top half.
-      await page.locator('#vc-line').fill('버디');
-      await page.locator('#vc-line').press('Enter');
-      const error = await spanOf(page, '#vc-error');
-      within1px(error.x, field.x, 'message on the field edge');
-      expect(error.y + error.height, 'message above a keyboard').toBeLessThanOrEqual(height / 2);
-      expect(await sideScroll(page)).toBe(0);
-      await page.locator('#vc-close').click();
-      await expect(page.locator('#voice')).toBeHidden();
-
-      // A long line's toast: at most two lines inside a tap's toast height, within the card, clear of every control on it.
-      await page.getByRole('button', { name: '기본', exact: true }).click();
+      // A long line's toast: at most two lines, as tall as a tap's and where a tap's shows (just under the chip row), clear
+      // of every control on 기록.
+      await modeTab(page, '기본').click();
       await tap(page, 'putts');
       await settled(page);
       const tapToast = await spanOf(page, '#toast');
@@ -5311,17 +5353,16 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await expect(page.locator('#toast-msg')).toHaveText(`1번 홀 ${LABEL.driver} 2 · ${LABEL.approach} 3 · ${LABEL.putts} 2 · OB 1 · 해저드 1`);
       await settled(page);
       const toast = await spanOf(page, '#toast');
-      const sheetNow = await spanOf(page, '#sheet');
       within1px(toast.height, tapToast.height, 'toast as tall as a tap’s');
       within1px(toast.y, tapToast.y, 'toast where a tap’s shows');
-      expect(toast.x, 'toast within the card, left').toBeGreaterThanOrEqual(sheetNow.x - 0.5);
-      expect(endOf(toast), 'toast within the card, right').toBeLessThanOrEqual(endOf(sheetNow) + 0.5);
+      expect(toast.x, 'toast inside the screen inset, left').toBeGreaterThanOrEqual(16 - 0.5);
+      expect(endOf(toast), 'toast inside the screen inset, right').toBeLessThanOrEqual(width - 16 + 0.5);
       const text = await page.locator('#toast-msg').evaluate((el) => ({ lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), clipped: el.scrollHeight > el.clientHeight + 1 }));
       expect(text.lines, 'toast lines').toBeLessThanOrEqual(2);
       expect(text.clipped, 'toast text clipped').toBe(false);
-      for (const control of await page.locator('#sheet button').all()) {
-        const b = await control.boundingBox();
-        if (!b) continue;
+      for (const control of await page.locator('#entry button:not(#toast-undo), .home-link').all()) {
+        if (!(await control.isVisible())) continue;
+        const b = (await control.boundingBox())!;
         const apart = b.x + b.width <= toast.x || endOf(toast) <= b.x || b.y + b.height <= toast.y || toast.y + toast.height <= b.y;
         expect(apart, await control.getAttribute('aria-label') ?? (await control.textContent()) ?? '').toBe(true);
       }
@@ -6575,7 +6616,6 @@ test('분석 adds 세컨 and 어프로치 under 그린까지 for the split holes
 
 test('말로 입력 sets 세컨 and 어프로치 by their own words and 그린까지 the whole count, never both in one line (v28)', async ({ page }) => {
   await open(page);
-  await voiceOn(page);
   await say(page, '드라이버 하나 세컨 하나 어프로치 둘 퍼터 하나');
   await expect(page.locator('#voice')).toBeHidden();
   expect((await stored(page)).holes[0]).toMatchObject({ driver: 1, approach: 3, short: 2, putts: 1 });
@@ -6587,10 +6627,10 @@ test('말로 입력 sets 세컨 and 어프로치 by their own words and 그린�
   await say(page, '그린까지 셋 어프로치 하나');
   await expect(page.locator('#vc-error')).toHaveText('그린까지와 세컨·어프로치는 따로 말해 주세요. 바꾼 것은 없어요.');
   expect((await stored(page)).holes[0]).toMatchObject({ approach: 2, short: 2 });
-  // In 상세 the sheet's example says the parts.
-  await page.locator('#vc-close').click();
+  // In 상세 the example says the parts (v39: 상세's tab closes 음성; 음성 opens it again from 상세).
   await detailMode(page);
-  await page.locator('#voice-open').click();
+  await expect(page.locator('#voice')).toBeHidden();
+  await openVoice(page);
   await expect(page.locator('#vc-example')).toHaveText('예: 드라이버 하나 세컨 하나 어프로치 하나 퍼터 둘 다음 홀');
 });
 
@@ -7737,7 +7777,8 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       const pill = (s: string) => page.locator(`${s} .ti`).evaluate((el) => getComputedStyle(el).backgroundColor);
       expect(await pill('#bar-menu')).toBe(await token(page, '--turf'));
       expect(await pill('#tab-entry')).toBe('rgba(0, 0, 0, 0)');
-      expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+      await atRest(page);
+  expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
       // A tap on 메뉴 closes it: the focus back on 메뉴, 기록's tab marked again.
       const menuButton = await rect(page, '#bar-menu');
       await page.mouse.click(midX(menuButton), midY(menuButton));
