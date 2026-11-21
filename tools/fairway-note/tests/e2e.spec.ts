@@ -1464,18 +1464,23 @@ test('does not save anything just by opening the page', async ({ page }) => {
   expect(await page.evaluate((key) => localStorage.getItem(key) !== null, STORAGE_KEY)).toBe(true);
 });
 
-test('moves between holes, stops at the ends and ends the round on the last hole', async ({ page }) => {
+// v39: 다음 홀 is gone; on the last hole the switcher's › turns into 라운드 마치기 (light glass with the lime edge) and
+// opens the same finish check.
+test('moves between holes, stops at the first, and › on the last hole finishes the round (v39)', async ({ page }) => {
   await open(page);
   await expect(page.locator('#prev-hole')).toBeDisabled();
+  await expect(page.locator('#next-hole')).toHaveAccessibleName('다음 홀로 이동');
   await page.locator('#next-hole').click();
   await page.locator('#prev-hole').click();
   await expect(page.locator('#hole-title')).toHaveText('1번 홀');
   await expect(page.locator('#badge')).toHaveAttribute('data-tone', 'none');
+  await expect(page.locator('#go-next')).toBeHidden();
   await showCard(page);
   await pickHole(page, 17);
-  await expect(page.locator('#next-hole')).toBeDisabled();
+  await expect(page.locator('#next-hole')).toBeEnabled();
+  await expect(page.locator('#next-hole')).toHaveAccessibleName('라운드 마치기');
+  await expect(page.locator('#next-hole')).toHaveClass(/finish/);
   await expect(page.getByRole('button', { name: '드라이버 하나 빼기' })).toBeDisabled();
-  await expect(next(page)).toHaveText('라운드 마치기');
   // Nothing recorded: a quick check first, then the summary.
   await next(page).click();
   await expect(page.locator('#check')).toBeVisible();
@@ -1539,7 +1544,10 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
+  // v39: a penalty is taken off in 상세, where it is entered.
+  await modeTab(page, '상세').click();
   await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await modeTab(page, '기본').click();
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   // Now 1 + 2 + 4 = 7 strokes: 트리플 보기 on this par 4 (Everis 새별 2).
   expect(par).toBe(4);
@@ -1561,15 +1569,19 @@ async function expectQuiet(page: Page, par: number) {
   await expect(page.locator('#badge')).toHaveAttribute('aria-label', `이 홀 아직 기록 전, Par ${par}`);
 }
 
-test('다음 홀 on a hole with nothing recorded says it is left blank, and 되돌리기 goes back to it', async ({ page }) => {
+test('› on a hole with nothing recorded says it is left blank under the chip row, and 되돌리기 goes back to it (v39)', async ({ page }) => {
   await open(page);
   await next(page).click();
   await expect(page.locator('#hole-title')).toHaveText('2번 홀');
   await expect(page.locator('#toast-msg')).toHaveText('1번 홀은 비워 두고 넘어가요');
   await expect(page.locator('#announce')).toContainText('1번 홀은 비워 두고 넘어가요');
-  // The long notice covers no button either (v20): the chip row's 홀 안내 steps aside under it. Every visible button
-  // (a box and not visibility: hidden, as Playwright counts it) is read in one go while the notice shows: four round
-  // trips a button outlasted the notice's 4 seconds on a busy WebKit (v29).
+  // v39 (the user's call): the notice sits 8px under the chip row, which stays in view (v20 had 홀 안내 step aside under
+  // it); polled, as the notice slides in. It still covers no button. Every visible button (a box and not visibility:
+  // hidden, as Playwright counts it) is read in one go while the notice shows: four round trips a button outlasted the
+  // notice's 4 seconds on a busy WebKit (v29).
+  await expect.poll(async () => Math.abs((await rect(page, '#toast')).y - ((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 8)), { timeout: 2000 }).toBeLessThanOrEqual(1);
+  await expect(page.locator('#hole-info')).toBeVisible();
+  await expect(page.locator('#info-btn')).toBeVisible();
   const covered = await page.evaluate(() => {
     const bar = document.getElementById('toast')!.getBoundingClientRect();
     return [...document.querySelectorAll<HTMLElement>('#entry button:not(#toast-undo)')]
@@ -1617,7 +1629,16 @@ test('uses three weights on 기록: values bold, labels medium in muted ink, hel
   const style = (selector: string) => page.locator(selector).first().evaluate((el) => { const s = getComputedStyle(el); return [s.fontWeight, s.color]; });
   expect((await style('#count-driver'))[0]).toBe('800');
   expect((await style('#hole-n'))[0]).toBe('800');
-  const muted = await token(page, '--muted');
+  // v39: the card is deep glass and retints its own tokens, its muted ink a soft white (66%); read it there.
+  const muted = await page.locator('#sheet').evaluate((sheet) => {
+    const probe = document.createElement('i');
+    probe.style.color = 'var(--muted)';
+    sheet.append(probe);
+    const colour = getComputedStyle(probe).color;
+    probe.remove();
+    return colour;
+  });
+  expect(muted).toBe('rgba(244, 247, 240, 0.66)');
   expect(await style('.club-lbl .club-name')).toEqual(['600', muted]);
   expect(await style('#stake-ob .pen-lbl')).toEqual(['600', muted]);
   expect((await style('#hole-par'))[0]).toBe('600');
@@ -1679,7 +1700,7 @@ async function longPressPen(page: Page, key: 'ob' | 'hazard' | 'bunker') {
   await page.mouse.up();
 }
 
-test('a long press on a penalty sets its count straight away in either mode, and a tap still adds one', async ({ page }) => {
+test('a long press on a penalty in 상세 sets its count straight away, and a tap still adds one (v39)', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: '상세', exact: true }).click();
   await tap(page, 'ob', 2);
@@ -1698,11 +1719,10 @@ test('a long press on a penalty sets its count straight away in either mode, and
   await expect(page.locator('#toast-msg')).toHaveText('OB 0으로');
   await expect(page.locator('#stake-ob')).toBeFocused();
   expect((await stored(page)).holes[0].ob).toBe(0);
-  // 벙커 in 상세, 해저드 in 기본; a short tap still adds one.
+  // 벙커 and 해저드 too (v39: penalties are in 상세 only, so v38's 해저드 in 기본 is gone); a short tap still adds one.
   await longPressPen(page, 'bunker');
   await expect(page.locator('#np-title')).toHaveText('벙커에 몇 번 들어갔나요?');
   await page.getByRole('button', { name: '3번', exact: true }).click();
-  await page.getByRole('button', { name: '기본', exact: true }).click();
   await longPressPen(page, 'hazard');
   await page.getByRole('button', { name: '1번', exact: true }).click();
   await tap(page, 'hazard');
@@ -1863,8 +1883,8 @@ test('a 9-hole round from the picker: one nine on every screen, saved and kept a
     if (k < 8) await next(page).click();
   }
   await expect(page.locator('#hole-title')).toHaveText('9번 홀');
-  await expect(page.locator('#next-hole')).toBeDisabled();
-  await expect(next(page)).toHaveText('라운드 마치기');
+  // v39: › stays and finishes the round on the last hole.
+  await expect(next(page)).toHaveAccessibleName('라운드 마치기');
   await page.locator('#hole-btn').click();
   await expect(page.locator('#strip-row .scell[data-jump]')).toHaveCount(9);
   await expect(page.locator('#strip-row .scell.sub')).toHaveText(['합계36']);
@@ -1980,7 +2000,7 @@ test('큰 글씨 keeps every target on 기록 at least 48px in both modes', asyn
     const grow = (v: string) => (after.content !== 'none' && after.position === 'absolute' ? Math.max(0, -parseFloat(v) || 0) : 0);
     return { w: r.width + grow(after.left) + grow(after.right), h: r.height + grow(after.top) + grow(after.bottom) };
   });
-  const selectors = ['#prev-hole', '#next-hole', '#hole-btn', '#info-btn', '.club-driver .plus', '.club-driver .minus', '.club-putts .plus', '#stake-ob', '#stake-hazard', 'button[data-mode="basic"]', 'button[data-mode="detail"]', '#go-next', '#tab-card'];
+  const selectors = ['#prev-hole', '#next-hole', '#hole-btn', '#info-btn', '.club-driver .plus', '.club-driver .minus', '.club-putts .plus', '#stake-ob', '#stake-hazard', 'button[data-mode="basic"]', 'button[data-mode="detail"]', '#mode-voice', '#tab-card'];
   for (const [width, height] of [[375, 667], [375, 553]]) {
     await page.setViewportSize({ width, height });
     for (const mode of ['기본', '상세']) {
@@ -1988,6 +2008,11 @@ test('큰 글씨 keeps every target on 기록 at least 48px in both modes', asyn
       for (const selector of selectors) {
         // 상세 on a short screen moves the header row aside (Par and length go under the hole number), 홀 안내 with it.
         if (selector === '#info-btn' && mode === '상세' && height < 600) {
+          await expect(page.locator(selector)).toBeHidden();
+          continue;
+        }
+        // v39: OB and 해저드 are in 상세 only (the user's call); in 기본 they are not on screen at all.
+        if (selector.startsWith('#stake-') && mode === '기본') {
           await expect(page.locator(selector)).toBeHidden();
           continue;
         }
@@ -2144,7 +2169,10 @@ test('takes the last tap back from the toast for four seconds, over no button', 
   await tap(page, 'ob');
   await expect(toast).toBeVisible();
   await expect(page.locator('#toast-msg')).toHaveText('OB +1');
-  // It sits on the chip row, over no button (v20: the club names became buttons): every control of 기록 is clear of it.
+  // v39 (the user's call): it sits 8px under the chip row, which stays in view; polled, as it slides in.
+  await expect.poll(async () => Math.abs((await rect(page, '#toast')).y - ((await rect(page, '#hole-info')).y + (await rect(page, '#hole-info')).height + 8)), { timeout: 2000 }).toBeLessThanOrEqual(1);
+  await expect(page.locator('#hole-info')).toBeVisible();
+  // Over no button (v20: the club names became buttons): every control of 기록 is clear of it.
   // Every visible button (a box and not visibility: hidden, as Playwright counts it) is read in one go while the toast
   // shows: four round trips a button outlasted its 4 seconds on a busy WebKit (v29).
   const covered = await page.evaluate(() => {
@@ -2196,7 +2224,7 @@ test('라운드 마치기 counts a chip-in on the last hole the way 다음 홀 d
   await tap(page, 'driver');
   await tap(page, 'approach');
   await expect(page.locator('#hole-name')).toHaveText('진행');
-  await expect(next(page)).toHaveText('라운드 마치기');
+  await expect(next(page)).toHaveAccessibleName('라운드 마치기');
   await next(page).click();
   await expect(page.locator('#check-list li')).toHaveText(['퍼트가 없는 홀 1개18번 홀. 칩인으로 끝났다면 그대로 두세요.']);
   await page.getByRole('button', { name: '그대로 마치기' }).click();
