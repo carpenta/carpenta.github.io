@@ -145,6 +145,12 @@ svg { display: block; }
    since v38 that is under the switcher, and the chip row's see-through pills lie over the drawing.
    The page under it is the same rough, so neither edge shows. */
 .course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(var(--art-top, 0px) 0 calc(100% - var(--art-bottom, 100%)) 0); }
+/* v39: on 기록 the ground is painted (course-paint.ts) on a canvas under the drawing, the whole screen, the hole as an
+   aerial view; the drawing then shows only its line marks, markers and flag, its own ground clear (still there to be
+   hit and measured). */
+.course-paint { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.course-paint[hidden] { display: none; }
+#course.painted :is(.a-rough-fill, .a-cut, .fairway, .a-sand, .a-tee-fill, .tee, .tee2, .green, .green2, .a-fringe, .water, .water-far, .shore) { fill: transparent; stroke: transparent; }
 
 .app {
   position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;

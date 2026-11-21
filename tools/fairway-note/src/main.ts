@@ -39,7 +39,7 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { bandShape, bandSvg, courseShape, courseSvg, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
+import { bandShape, bandSvg, bandTerrain, courseShape, courseSvg, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, osmTerrain, type ArtBand, type Box, type CourseFrame, type OsmHole, type Terrain } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
@@ -506,6 +506,38 @@ function artBand(): ArtBand {
   return band;
 }
 
+/** The painter (v39), loaded the first time 기록 paints a hole. */
+let painter: Promise<typeof import('./course-paint')> | null = null;
+
+/**
+ * The painted ground under the drawing (v39): painted again only when the hole or the screen changes (`key`). Until the
+ * new paint is ready the drawing keeps its own flat ground, so no frame shows the old hole's paint under the new hole;
+ * then the drawing's ground goes clear (`.painted`) over the paint. Null hides it (off 기록, or no band to fit).
+ */
+function paintGround(terrain: Terrain | null, key: string, frame: CourseFrame): void {
+  const canvas = $<HTMLCanvasElement>('course-paint');
+  const svg = $('course');
+  if (!terrain) {
+    canvas.hidden = true;
+    svg.classList.remove('painted');
+    delete canvas.dataset.key;
+    return;
+  }
+  if (canvas.dataset.key === key) return;
+  canvas.dataset.key = key;
+  svg.classList.remove('painted');
+  painter ??= import('./course-paint');
+  void painter.then(({ paintTerrain }) => {
+    if (canvas.dataset.key !== key) return;
+    paintTerrain(canvas, terrain, frame.width, frame.height, Math.min(2, window.devicePixelRatio || 1));
+    canvas.hidden = false;
+    svg.classList.add('painted');
+  });
+}
+
+/** The same hole paints the same woodland: a number from the course, the nine and the hole. */
+const groundSeed = (course: string | null, nine: string | null, hole: number) => [...`${course ?? ""}:${nine ?? ""}:${hole}`].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+
 function drawCourse(): void {
   const svg = document.getElementById('course')!;
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
@@ -585,8 +617,10 @@ function drawCourse(): void {
   if (band && osm) {
     // Static markup from course-art.ts, built from the bundled OpenStreetMap outlines (numbers only).
     // v35: the markers as bare numbers (the chip and 홀 안내 give the unit) and the green up close where the band has room.
-    const shape = osmShape(osm, round.current, band, length, CREDIT_SIDES, { bare, inset: true });
+    // v39: no green window; the painted hole is large enough to read the green in place.
+    const shape = osmShape(osm, round.current, band, length, CREDIT_SIDES, { bare, inset: false });
     svg.innerHTML = osmSvg(shape, frame);
+    paintGround(osmTerrain(shape, groundSeed(course.id, nine, round.current)), key, frame);
     mark('osm', shape, band);
     // The credit at the end the drawing chose (v33): the right end where water would lie behind it at the left.
     credit.classList.toggle('end', shape.credit?.side === 'end');
@@ -598,10 +632,12 @@ function drawCourse(): void {
     // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
     const shape = bandShape(hole().par, round.current, band, bend, island, length, named, { bare });
     svg.innerHTML = bandSvg(shape, frame);
+    paintGround(bandTerrain(shape, groundSeed(course.id, nine, round.current)), key, frame);
     mark('schematic', { tee: [shape.tee.x, shape.tee.y], green: [shape.green.cx, shape.green.cy], scale: shape.scale, line: shape.line }, band);
     marks.hidden = shape.markers.length === 0;
     return;
   }
+  paintGround(null, key, frame);
   for (const name of ['tee', 'green', 'scale', 'line', 'band']) delete svg.dataset[name];
   svg.dataset.art = 'schematic';
   marks.hidden = true;

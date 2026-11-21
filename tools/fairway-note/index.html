@@ -17,7 +17,9 @@
     <title>Fairway Note</title>
   </head>
   <body>
-    <!-- Our own drawing of the current hole fills the screen behind everything. -->
+    <!-- Our own drawing of the current hole fills the screen behind everything: on 기록 (v39) the painted ground, with
+         the drawing's line, markers and flag over it. -->
+    <canvas class="course-paint" id="course-paint" aria-hidden="true" hidden></canvas>
     <svg class="course-art" id="course" aria-hidden="true" focusable="false"></svg>
 
     <div class="app">
