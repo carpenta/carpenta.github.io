@@ -18,7 +18,7 @@
   --paper: #f2f5ec;
   --white: #fbfcf8;     /* card surfaces */
   /* ---------- Mixed ---------- */
-  --muted: color-mix(in oklab, var(--ink) 74%, var(--white));      /* labels: 4.5:1 on white, tint and pill */
+  --muted: color-mix(in oklab, var(--ink) 78%, var(--white));      /* labels: 7:1 on white, paper and --fill, for sunlight (v32) */
   --quiet: color-mix(in oklab, var(--ink) 64%, var(--white));      /* zero counts, unplayed marks: big, 3:1 (on the glass card too) */
   --line: color-mix(in oklab, var(--fairway) 26%, var(--white));
   --line-strong: color-mix(in oklab, var(--ink) 34%, var(--white));
@@ -38,7 +38,7 @@
   --on-dark-2: color-mix(in oklab, var(--white) 86%, var(--putting));
   --on-dark-soft: color-mix(in srgb, var(--on-dark) 84%, transparent);
   --on-dark-line: color-mix(in srgb, var(--on-dark) 55%, transparent);
-  --tab-ink: color-mix(in oklab, var(--white) 66%, var(--deep));   /* 4.5:1 on --deep */
+  --tab-ink: color-mix(in oklab, var(--white) 70%, var(--deep));   /* 7:1 on --deep (v32) */
   --tab-on: var(--on-dark);
   /* Surfaces (v30): opaque, so cards and controls stand apart from the drawing in sunlight. Three neutral levels on light:
      the page (--paper), a card or raised control (--white) and a resting control or track (--fill); --fill-2 is the
@@ -134,7 +134,8 @@ svg { display: block; }
 .view { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 
 /* ---------- top bar: light controls floating on the course ---------- */
-/* Menu, hole switcher and the score badge, the side columns equal: the switcher sits in the screen's centre. */
+/* The hole switcher and the score badge, the side columns equal: the switcher sits in the screen's centre. The left
+   column stays open since 메뉴 moved into the bar (v32). */
 .top {
   flex: none; position: relative; padding: max(8px, env(safe-area-inset-top)) var(--m) 0;
   display: grid; grid-template-columns: var(--badge) minmax(0, 1fr) var(--badge); grid-template-rows: var(--bar-row); grid-auto-rows: auto;
@@ -152,7 +153,6 @@ svg { display: block; }
   background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
 }
 .round:active { background: var(--fill-2); }
-.menu { grid-column: 1; grid-row: 1; }
 /* Bounded by its column, so whatever the font (Linux and Android draw Hangul and digits wider) it stays centred and
    never reaches the badge: the arrows keep their size, the hole number stays whole, and only the words beside it and
    the Par line under it shorten (v18). */
@@ -177,7 +177,9 @@ svg { display: block; }
 /* The tick bar: every hole of the round, always in view inside the hole button (v9; a skipped hole is a sand tick). */
 /* As wide as the hole number: a wider switcher would run into the badge on short screens. */
 .ticks { align-self: stretch; display: flex; gap: 1px; height: 4px; margin-top: 4px; }
-.ticks i { flex: 1 1 0; min-width: 2px; border-radius: var(--r-full); background: var(--fill-2); }
+/* 1.5px at least (v32): 18 of them and their gaps come to 44px, so in 큰 글씨 at 360 the bar is no wider than "5번" and
+   the button hugs the word as at the normal size (2px made it 53px and left 8px of air before ⌄). */
+.ticks i { flex: 1 1 0; min-width: 1.5px; border-radius: var(--r-full); background: var(--fill-2); }
 .ticks i[data-t='done'] { background: var(--turf); }
 .ticks i[data-t='miss'] { background: var(--miss); }
 .ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--deep); }
@@ -247,28 +249,42 @@ svg { display: block; }
 .sheet-wrap.more::after { opacity: 1; }
 
 /* The score badge (v15): in the top bar's right slot, 60px on the inset and the bar's centre line, never over the card.
-   Before the first tap a quiet light ring shows the hole's par (the goal); then the score and its scorecard mark. */
+   One disc (v32): the white ring round it went, so a mark inside it is no longer a circle in a circle in a circle; a
+   hairline keeps its edge on the rough. Before the first tap it is a quiet deep disc with the hole's par (the goal); then
+   the score and its scorecard mark, deep, turf at par and red under it. */
 .badge {
   grid-column: 3; grid-row: 1; justify-self: end; align-self: center; position: relative; z-index: 3;
-  width: var(--badge); height: var(--badge); border: 3px solid var(--white); border-radius: var(--r-full);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: var(--badge); height: var(--badge); border-radius: var(--r-full);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-float);
+  outline: 1px solid var(--outline-on-art); outline-offset: -1px;
 }
 .badge[data-tone='under'] { background: var(--red); }
 .badge[data-tone='par'] { background: var(--turf); }
-.badge-name { font-size: var(--t-s); font-weight: var(--w-label); line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
-.badge[data-tone='none'] { background: var(--white); border: 2px solid var(--line); color: var(--ink); }
-.badge[data-tone='none'] .badge-name { order: -1; color: var(--muted); }
+.badge-name { font-size: var(--t-s); font-weight: var(--w-label); line-height: 1; letter-spacing: -.02em; white-space: nowrap; text-box: trim-both cap alphabetic; }
+/* "Par" over the hole's par (the words are trimmed to their capitals below, so the two sit on the disc's middle). */
+.badge[data-tone='none'] .badge-name { order: -1; color: var(--on-dark-soft); }
 /* A hole in one (v29): the word is the number, so 홀인원 shows alone on the centre line, where the ring is widest. */
 .badge.hio .bmark { display: none; }
 .badge.hio .badge-name { font-size: var(--t-m); font-weight: var(--w-value); }
 body.big .badge.hio .badge-name { font-size: var(--t-l); }
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
-.bmark { width: 34px; height: 30px; }
+/* 36px marks (v32, 30 inside the old ring): an eagle's inner circle clears its number by 4px instead of touching it. With
+   no mark (in progress, par) the box is the number's own height, so the number and its word sit on the disc's middle. */
+.bmark { width: 36px; height: 36px; }
+.bmark:is([data-mark='none'], [data-mark='par']) { height: auto; }
+/* Centred by ink, not by line boxes (v32: 보기 had sat 1px low, 큰 글씨's word with it, measured from the pixels). The
+   number and the word are both trimmed to their capitals and baseline, so each box is its ink in either engine. What is
+   left is how far a mark's ink starts inside its box: 3px for ○, □ and ■, 2px for the doubled ◎ and ⧈, and the bare
+   number's 1px; the word takes that much room under it. */
+.badge:has(.bmark:not([data-mark='none'], [data-mark='par'])) { gap: 3px; }
+.badge:not([data-tone='none']) .badge-name { padding-bottom: 1px; }
+.badge:has(.bmark:is([data-mark='birdie'], [data-mark='bogey'], [data-mark='triple'])) .badge-name { padding-bottom: 3px; }
+.badge:has(.bmark:is([data-mark='eagle'], [data-mark='double'])) .badge-name { padding-bottom: 2px; }
 .bmark b { position: relative; font-size: var(--t-xl); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
 .bmark.two b { font-size: var(--t-l); }
-.bm { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; overflow: visible; }
+.bm { position: absolute; inset: 0; margin: auto; width: 36px; height: 36px; overflow: visible; }
 .bm * { fill: none; stroke: currentColor; stroke-width: 2; vector-effect: non-scaling-stroke; }
 /* Triple bogey or worse: the square is filled and the number turns dark on it. */
 .bm .fill { fill: currentColor; }
@@ -283,7 +299,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 .badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
 .badge.celebrate .bm * { stroke-dasharray: 1.02; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
 .badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
-.badge.celebrate::after { content: ''; position: absolute; inset: -3px; border: 6px solid var(--glow); border-radius: var(--r-full); animation: ring .7s ease-out both; }
+.badge.celebrate::after { content: ''; position: absolute; inset: 0; border: 6px solid var(--glow); border-radius: var(--r-full); animation: ring .7s ease-out both; }
 /* The scorecard's smaller marks keep their CSS rings. */
 .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
@@ -338,10 +354,13 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 #entry[data-mode='detail'] .minus .cue { bottom: calc(var(--glyph-inset) + var(--glyph) / 2 - 6.5px); }
 @keyframes cue-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes cue-down { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(8px); } }
-/* The midline, with the count on it: a hairline either side of the digits, so the number reads as the value. Above both
-   halves (v30): the − half comes after it and is opaque now, so it would hide the digits' lower half. */
-.num-row { position: absolute; z-index: 1; left: 12px; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
-.num-row::before, .num-row::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
+/* The midline, with the count on it. Above both halves (v30): the − half comes after it and is opaque now, so it would
+   hide the digits' lower half. The split is one line from the capsule's edge to the other, broken by the count (v32):
+   the two tones alone are 1.2:1 and fade in sun, and the short hairlines of before, 12px in from each edge, read as
+   ticks cutting the number. --quiet, so it is 3:1 or more against both halves. */
+.num-row { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 1px; background: var(--quiet); }
+.club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 .pill-ico { display: none; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
    the 8px it needs, so fonts that draw taller digits than the Mac's (Linux, Android) still keep it clear. 1.38 turns
@@ -355,7 +374,6 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 .from-basic { display: none; font-size: var(--t-s); font-weight: var(--w-label); line-height: 15px; color: var(--muted); text-align: center; white-space: nowrap; }
 .club-short.unsplit .from-basic { display: block; }
 .club-short.unsplit .count { display: none; }
-.club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 
 /* 상세's one-time tip (v28): what 세컨 and 어프로치 are, over the four capsules' middle where the counts sit, so it never
    moves the card (375×553 has no row to spare). Dark like the coach mark, but opaque (design critique: the 94% glass let
@@ -424,7 +442,8 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 #entry[data-mode='detail'] .pens .pen[data-pen='bunker'] { grid-column: 3; }
 #entry[data-mode='detail'] .pens .pen[data-pen='hazard'] { grid-column: 4; }
 #entry[data-mode='detail'] .pen { width: 100%; max-width: 72px; gap: 2px; }
-#entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; }
+/* The penalties' 2px between icon and word (v32): 빼기 kept 4px, so the card grew 2px when the first penalty came. */
+#entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; gap: 2px; }
 .pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); }
 .pen:active:not(:disabled) .pen-icon { background: var(--fill-2); }
 .pen.on .pen-icon { background: var(--sand-tint); outline: 2px solid var(--sand); outline-offset: -2px; }
@@ -439,7 +458,11 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
   font-size: var(--t-s); font-weight: var(--w-label); line-height: 16px; color: var(--turf); white-space: nowrap;
 }
 .undo .u-ico { width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
-.undo:active .u-ico { background: var(--fill-2); }
+.undo:active:not(:disabled) .u-ico { background: var(--fill-2); }
+/* With nothing to take off, 빼기 keeps its box but not its look (v32): nothing appears or moves when the first penalty
+   comes, and the busiest card carries no dead control (shown disabled, its − under the capsule's − was one more thing to
+   read and a tap away from the wrong undo). */
+.undo:disabled { visibility: hidden; }
 
 /* 기본 / 상세 */
 .modes { display: flex; width: fit-content; margin: 12px auto 0; border-radius: var(--r-full); background: var(--fill); }
@@ -474,24 +497,43 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
   padding: 0 max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
   background: var(--deep); display: flex; justify-content: center;
 }
-/* 스코어카드 · 기록 · 지난 라운드, with 기록 in the centre; the way home at the left, balanced by an empty column. */
-/* Four equal, labelled columns: 홈 (the link back to the site), then the three tabs. */
+/* The one navigation (v32): 스코어카드 · 기록 · 지난 라운드 · 메뉴, the ☰ that sat at each view's top left folded in under
+   the thumb, four equal columns. Only the app's own places: the way back to the site left the bar for the top left. */
 .bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; align-items: center; }
-.tabs { grid-column: 2 / 5; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
-.tab { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
-.tab .ti { width: 56px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; }
+.tabs { grid-column: 1 / 4; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
+.tab, .bar-menu { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
+.tab .ti, .bar-menu .ti { width: 56px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; }
 .tab[aria-selected='true'] .ti { background: var(--turf); }
-.tab svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.tab svg, .bar-menu svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .tab-label { font-size: var(--t-s); white-space: nowrap; }
 .tab[aria-selected='true'] { color: var(--tab-on); }
-/* The way back to the site: quiet, at the tab bar's left, in both views and on every screen width.
-   The top right belongs to the score badge. */
-.home-link { grid-column: 1; height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); text-decoration: none; }
-.home-link .ti { width: 56px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; }
-.home-link:active .ti { background: var(--deep-press); }
+.bar-menu { grid-column: 4; }
+.bar-menu:active .ti { background: var(--deep-press); }
+/* 홈 (v32): the link back to the site at the top left of every view, on the top bar's line, in its open left slot
+   (AGENTS.md: visible at every width). Quiet, as on the site's other tool: soft white and no fill, over 기록's course and
+   the paper views' deep header alike. Out of the bar, where it sat among the views and a tap there left the round. */
+.home-link {
+  position: absolute; z-index: 3; top: max(8px, env(safe-area-inset-top)); left: var(--m); height: var(--bar-row); min-width: 48px;
+  display: inline-flex; align-items: center; gap: 4px; padding-right: 8px;
+  color: var(--on-dark-soft); font-size: var(--t-s); font-weight: var(--w-label); text-decoration: none; white-space: nowrap;
+}
+.home-link svg { width: 20px; height: 20px; }
+.home-link:active { color: var(--on-dark); }
+body.big .home-link { font-size: var(--t-m); }
+/* 기록's 상세 on a short screen starts its top bar 4px down, not 8. */
+@media (max-height: 599px) { .app:has(> #entry:not([hidden])[data-mode='detail']) > .home-link { top: max(4px, env(safe-area-inset-top)); } }
+/* While a dialog is open the bar steps back (v32): the dim backdrop over the dark bar changed nothing there, so its
+   labels and the chosen tab stayed as loud as the panel. */
+.bar { transition: opacity .16s ease-out; }
+body:has(dialog[open]) .tabbar .bar { opacity: .4; }
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
 
 /* ---------- 스코어카드 ---------- */
-.sc { background: var(--paper); overflow-y: auto; scrollbar-width: none; }
+/* 기록's frame (v32): the header on deep, held at the top, and the page a paper sheet under it with 24px top corners, as
+   기록's card sits on the course. Deep, the bar's colour: dark top and bottom on every screen, and no seventh colour on
+   a screen of six (the rough would have been one). */
+.sc { background: var(--deep); overflow-y: auto; scrollbar-width: none; }
+.sc-body { flex: 1 0 auto; display: flex; flex-direction: column; padding-top: 16px; background: var(--paper); border-radius: var(--r-card) var(--r-card) 0 0; }
 .sc::-webkit-scrollbar { display: none; }
 /* More below (v26): with no scrollbar, a soft fade over the bottom edge of 스코어카드 and 지난 라운드 says so while they
    can scroll further, as on 기록's card (main.ts's scrollHint). Sticky at the view's bottom and pulled up by its own
@@ -501,28 +543,36 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
   background: linear-gradient(transparent, var(--paper) 85%); pointer-events: none; opacity: 0;
 }
 .sc.more::after { opacity: 1; }
-/* The same first row as 기록's top bar: the menu button in the same place on every tab, the title in the centre,
-   the right-hand action (파 수정) on the same inset as 기록's version. */
+/* The same first row as 기록's top bar: the title in the centre on the hole switcher's line, the right-hand action
+   (파 수정) on the inset where 기록 has its badge. */
 .sc-top {
+  position: sticky; top: 0; z-index: 2;
   flex: none; display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; grid-template-rows: var(--bar-row);
-  column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 10px;
+  column-gap: 8px; align-items: center; padding: max(8px, env(safe-area-inset-top)) var(--m) 8px;
+  background: var(--deep); color: var(--on-dark);
 }
-.sc-top > .menu { justify-self: start; }
-.sc-top > .edit { justify-self: end; }
-.sc-title { text-align: center; min-width: 0; }
+.sc-top > .edit { grid-column: 3; justify-self: end; }
+.sc-title { grid-column: 2; text-align: center; min-width: 0; }
 .edit {
   height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); background: var(--white); box-shadow: var(--sh-float);
   font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
 }
 .edit.on { background: var(--turf); color: var(--on-dark); }
+/* On the deep header (v32) 파 수정 is a ghost: no fill or shadow, a soft white ring and white letters, so the round's
+   score under it stays the loudest thing on the page (a white floating pill had outshone the ring, while 기록 keeps a
+   quiet badge in the same slot). While editing it inverts to white with turf letters, as chosen things do on dark. */
+.sc-top .edit { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+.sc-top .edit.on { background: var(--white); color: var(--turf); outline: none; }
+.sc-top .edit:not(.on):active { background-color: var(--deep-press); }
+.sc-top .edit.on:active { background-color: var(--fill); }
 /* Under the tables while 파 수정 is on (v23), on the tables' edges. */
 .edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-help); text-wrap: pretty; }
 .sc-title h2 { font-size: var(--t-l); font-weight: var(--w-label); }
-.sc-title p { font-size: var(--t-s); color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-title p { font-size: var(--t-s); color: var(--on-dark-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 스코어카드 | 분석 (v26): the picker's 18홀 | 9홀 at the cards' width under the title row, the chosen half a white pill on
    the tint. 44px tall with 3px padding, so the radii are concentric (22 outside, 19 inside), each half reaching 48px to
    the touch; 12px from the title row (its 10px and 2px) and from the card under it. */
-.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 2px var(--m) 12px; border-radius: var(--r-full); background: var(--fill); }
+.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 0 var(--m) 12px; border-radius: var(--r-full); background: var(--fill); }
 .sc-switch button { position: relative; min-width: 0; height: 44px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
 .sc-switch button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
 .sc-switch button[aria-checked='true'] { background: var(--turf); color: var(--on-dark); }
@@ -574,6 +624,9 @@ body.big .legend { --lg-col: 100px; }
 .save-line { margin: 0 calc(var(--m) + 6px) 24px; font-size: var(--t-s); text-align: center; }
 .box h4, .past h4 { font-size: var(--t-m); font-weight: var(--w-label); margin: 16px 0 8px; }
 #lost-note { text-wrap: pretty; }
+/* 분석's one finding (v32): its largest line, in ink, so the page leads with where the strokes went; the headline of
+   라운드 분석 below only repeats the scorecard's score and steps down to 17. */
+#lost-note.finding { margin-top: 2px; font-size: var(--t-xl); font-weight: var(--w-label); line-height: 1.3; color: var(--ink); }
 /* One bar for both charts (v23): 12px with a 6px radius, the fill too, on --off (white on a past round's paper), rows
    8px apart, values bold; the same label, bar and value columns, so both charts' bars start and end together (v17). */
 .lost-bars { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
@@ -592,13 +645,16 @@ body.big .legend { --lg-col: 100px; }
 
 .muted { color: var(--muted); }
 .small { font-size: var(--t-s); margin-bottom: 8px; }
-.headline { font-size: var(--t-xl); font-weight: var(--w-value); }
+.headline { font-size: var(--t-l); font-weight: var(--w-value); }
 .headline .muted { font-size: var(--t-m); font-weight: var(--w-help); }
 /* Tiles (v23, the summary's grammar): a label, then one value on one line with its qualifier small beside it. */
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
 .metrics.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
 .metrics div { background: var(--paper); border-radius: var(--r-tile); padding: 8px 12px; min-width: 0; }
-.metrics:not(.three) > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* An odd count leads with its first tile across the card and pairs the rest (v32): the last one stretched across had read
+   as the most important (분석's 벌타, 요약's 업앤다운), and left in its column it read as a gap where something was missing.
+   The first is the lead anyway; a lone tile spans as before. */
+.metrics:not(.three):has(> div:last-child:nth-child(odd)) > div:first-child { grid-column: 1 / -1; }
 .metrics dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 .metrics dd { margin: 0; font-size: var(--t-l); font-weight: var(--w-value); white-space: nowrap; }
 .metrics small { margin-left: 4px; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); }
@@ -643,6 +699,10 @@ body.big .legend { --lg-col: 100px; }
 .spark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--t-s); font-weight: var(--w-label); }
 .spark-line { display: block; width: 100%; height: 32px; overflow: visible; }
 .spark-line polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+/* A dot on each round (v32), so two or three rounds read as rounds and not as a stroke of the pen: a round cap on a path
+   of no length, which stays round however the line is stretched. The first and last days under its ends. */
+.spark-line .spark-dot { fill: none; stroke: var(--turf); stroke-width: 7; stroke-linecap: round; }
+.spark-dates { grid-column: 2; display: flex; justify-content: space-between; gap: 8px; font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); }
 .history-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
 .history-list li + li { border-top: 1px solid var(--line); }
 .history-list:empty { display: none; }
@@ -713,7 +773,6 @@ html.past-open { overflow: hidden; }
 .menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: var(--sh-sheet); }
 .menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0 8px; }
 .menu-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); }
-.menu-head span { font-size: var(--t-s); color: var(--muted); }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li + li { border-top: 1px solid var(--line); }
 .mi { width: calc(100% + 8px); margin-inline: -4px; min-height: 64px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: var(--r-tile); }
@@ -779,7 +838,7 @@ html.past-open { overflow: hidden; }
     width: 100%; max-width: none; height: 48px; margin: 0; flex-direction: column; justify-content: center; gap: 0; padding: 0 4px; border-radius: var(--r-tile); background: var(--fill);
   }
   #entry[data-mode='detail'] .undo { background: var(--fill); }
-  #entry[data-mode='detail'] .undo:active { background: var(--fill-2); }
+  #entry[data-mode='detail'] .undo:active:not(:disabled) { background: var(--fill-2); }
   #entry[data-mode='detail'] .pen.on { background: var(--sand-tint); outline: 2px solid var(--sand); outline-offset: -2px; }
   #entry[data-mode='detail'] .pen-icon, #entry[data-mode='detail'] .pen.on .pen-icon, #entry[data-mode='detail'] .undo .u-ico { width: 100%; height: 24px; background: transparent; box-shadow: none; }
   /* About 20px, 24px in 큰 글씨 (v31): the posts and the sand stay readable and grow with the names. */
@@ -984,7 +1043,7 @@ html.past-open { overflow: hidden; }
 /* One value per tile, on one line (v23); an odd last tile spans the row. */
 .sum-stats { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .sum-stats div { padding: 7px 12px; border-radius: var(--r-tile); background: var(--paper); min-width: 0; }
-.sum-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.sum-stats:has(> div:last-child:nth-child(odd)) > div:first-child { grid-column: 1 / -1; }
 .sum-stats dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 .sum-stats dd { margin: 3px 0 0; font-size: var(--t-l); font-weight: var(--w-value); white-space: nowrap; }
 .sum-stats dd small { font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); margin-left: 4px; }
@@ -1338,13 +1397,15 @@ body.big .info-chip { font-size: var(--t-m); }
 .steps .kebab { display: inline-block; width: 1.1em; height: 1.1em; margin-inline: -0.2em; vertical-align: -0.2em; }
 .nc-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
-/* ---------- the long-press coach mark: once, on hole 1 of the first round (centred on the midline's count row) ---------- */
+/* ---------- the long-press coach mark: once, on hole 1 of the first round, on the capsules' midline ----------
+   Over the capsule row, not inside the middle capsule (v32): the capsule clips what it holds, and cut the line to
+   "를 길게 누르면 바…". Centred on the card like 상세's tip, where the counts sit; 기본 only, as before. */
 .coach {
-  position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  position: absolute; z-index: 2; left: 50%; top: calc(var(--lbl-h) + var(--pill-h) / 2); transform: translate(-50%, -50%); pointer-events: none;
   display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: var(--r-full);
   background: var(--deep); color: var(--on-dark); font-size: var(--t-m); font-weight: var(--w-label); box-shadow: var(--sh-raise);
 }
-.coach[hidden] { display: none; }
+.coach[hidden], #entry[data-mode='detail'] .coach { display: none; }
 /* The counts are all 0 under it; hidden so they do not peek out. */
 .clubs.coached .count { visibility: hidden; }
 @media (max-height: 599px) { #entry[data-mode='detail'] .ticks { display: none; } }

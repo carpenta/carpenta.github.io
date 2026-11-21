@@ -104,10 +104,18 @@ function item(e: Entry): HTMLLIElement {
   );
 }
 
-/** Strokes of the latest full rounds as a small line, oldest on the left; its values are in the label. */
-function sparkline(series: number[]): HTMLElement {
-  const min = Math.min(...series);
-  const max = Math.max(...series);
+/**
+ * Strokes of the latest full rounds as a small line, oldest on the left; its values are in the label. A dot on each round
+ * and the first and last days under its ends (v32), so it reads as rounds over days and not as a stroke of the pen.
+ */
+function sparkline(series: number[], dates: string[]): HTMLElement {
+  // At least ten strokes from bottom to top (v32), centred on the rounds: 82 then 83 had filled the whole height and
+  // read as a steep climb.
+  const lo = Math.min(...series);
+  const hi = Math.max(...series);
+  const span = Math.max(hi - lo, 10);
+  const min = (lo + hi - span) / 2;
+  const max = min + span;
   const width = 100;
   const height = 32;
   const pad = 3;
@@ -122,9 +130,18 @@ function sparkline(series: number[]): HTMLElement {
   line.setAttribute('points', series.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' '));
   line.setAttribute('vector-effect', 'non-scaling-stroke');
   svg.append(line);
+  for (const [i, v] of series.entries()) {
+    const dot = document.createElementNS(SVG, 'path');
+    dot.setAttribute('class', 'spark-dot');
+    dot.setAttribute('d', `M${x(i).toFixed(2)} ${y(v).toFixed(2)}h0`);
+    dot.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(dot);
+  }
+  const day = (d: string | undefined) => (d ? dateLabel(d).replace(/^\d+년 /, '') : '');
   return h('div', { class: 'spark', role: 'img', 'aria-label': `최근 ${series.length}라운드 타수: ${series.join(', ')}` },
     h('span', { class: 'spark-cap' }, `최근 ${series.length}라운드 타수`),
-    h('div', { class: 'spark-row' }, h('span', {}, String(series[0])), svg, h('span', {}, String(series[series.length - 1]))),
+    h('div', { class: 'spark-row' }, h('span', {}, String(series[0])), svg, h('span', {}, String(series[series.length - 1])),
+      h('div', { class: 'spark-dates', 'aria-hidden': 'true' }, h('span', {}, day(dates[0])), h('span', {}, day(dates[dates.length - 1])))),
   );
 }
 
@@ -147,7 +164,7 @@ function renderTrends(box: HTMLElement, t: Trends): void {
     ? '18홀을 모두 끝낸 라운드가 생기면 평균이 나와요.'
     : t.full < t.rounds ? '평균은 18홀을 모두 끝낸 라운드로 내요.' : '';
   box.replaceChildren(h('dl', { class: 'metrics' }, ...items.map(([k, v, small]) => h('div', {}, h('dt', {}, k), h('dd', {}, v, small ? h('small', {}, small) : null)))));
-  if (t.series.length >= 2) box.append(sparkline(t.series));
+  if (t.series.length >= 2) box.append(sparkline(t.series, t.dates));
   if (note) box.append(h('p', { class: 'muted small trend-note' }, note));
 }
 

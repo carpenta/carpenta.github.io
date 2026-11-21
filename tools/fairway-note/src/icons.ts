@@ -38,15 +38,22 @@ const GOLF = {
   bunker: '<path class="ic-sand" d="M3.6 13.6c-.4-3 1.6-5.6 4.4-5.6 2 0 2.9 1.4 4.6 1.4s2.6-1.9 4.9-1.9c2.4 0 3.6 1.8 3.3 4.4-.4 3.6-4 5.6-8.6 5.6-4.3 0-8.3-1.2-8.6-3.9z"/>',
 } as const;
 
+/** Ours as well (v32): the penalty row's 빼기 as an arrow turning back, centred on the grid. The capsule's − above it in
+ * the same column had looked like the same action; the vendored Tabler set has no undo arrow. */
+const OWN = {
+  undo: '<path d="M9.75 5.75 6.25 9.25l3.5 3.5"/><path d="M6.25 9.25h7a4.5 4.5 0 0 1 0 9H8"/>',
+} as const;
+
 /** The UI icons the scripts draw, each a Tabler file read at build time (DESIGN.md's Icons table). Where a shot went, in
- * the club panel (v18): up for 김, down for 짧음, out to the side for 좌 and 우, two for 많이. */
+ * the club panel (v18): up for 길게, down for 짧게, out to the side for 좌 and 우, two for 많이. */
 const TABLER = {
   chevUp: chevronUp, chevDown: chevronDown, chevLeft: chevronLeft, chevRight: chevronRight, chevLeft2: chevronsLeft, chevRight2: chevronsRight,
   plus, minus, share, download, copy, mail,
 };
 
-const PATHS: Record<keyof typeof GOLF | keyof typeof TABLER, string> = {
+const PATHS: Record<keyof typeof GOLF | keyof typeof OWN | keyof typeof TABLER, string> = {
   ...GOLF,
+  ...OWN,
   ...(Object.fromEntries(Object.entries(TABLER).map(([name, svg]) => [name, tablerInner(svg)])) as Record<keyof typeof TABLER, string>),
 };
 

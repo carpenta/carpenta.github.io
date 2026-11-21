@@ -80,13 +80,16 @@ const MODE_OF: Partial<Record<Club, 'basic' | 'detail'>> = { approach: 'basic', 
 // The capsules' + and − (Tabler since v25), a little bolder than the family's line so the halves read at a glance.
 const PLUS = icon('plus', 24, '', 2.4);
 const MINUS = icon('minus', 24, '', 2.4);
+/** 빼기 in the penalty row (v32): an arrow turning back, not the capsule's −. */
+const UNDO = icon('undo', 24);
 /** The badge's scorecard mark in a 40×40 box. pathLength 1 lets a birdie or better draw itself. */
 const SHAPES: Record<Mark, string> = {
   none: '',
   par: '',
   birdie: '<circle cx="20" cy="20" r="17" pathLength="1"/>',
   eagle: '<circle cx="20" cy="20" r="14" pathLength="1"/><circle cx="20" cy="20" r="19" pathLength="1"/>',
-  bogey: '<rect x="4" y="4" width="32" height="32" rx="2" pathLength="1"/>',
+  // As wide as the birdie's circle (v32: 34, it was 32), as on a paper card where ○ and □ are one size.
+  bogey: '<rect x="3" y="3" width="34" height="34" rx="2" pathLength="1"/>',
   double: '<rect x="6.5" y="6.5" width="27" height="27" rx="1" pathLength="1"/><rect x="2" y="2" width="36" height="36" rx="2" pathLength="1"/>',
   // Triple bogey or worse: a filled square, so a big number stands out on the card.
   triple: '<rect class="fill" x="3" y="3" width="34" height="34" rx="3" pathLength="1"/>',
@@ -194,6 +197,8 @@ const TAB_ID: Record<View, string> = { card: 'tab-card', entry: 'tab-entry', his
 const PANEL_ID: Record<View, string> = { card: 'card-view', entry: 'entry', hist: 'hist-view' };
 /** Kept in memory: a reload opens 기록. */
 let view: View = 'entry';
+const THEME = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+const THEME_ROUGH = THEME?.content ?? '';
 
 function show(next: View, focusTab = false): void {
   // With no round yet (one was just kept), 기록 and 스코어카드 open the course picker over 지난 라운드.
@@ -212,6 +217,9 @@ function show(next: View, focusTab = false): void {
   if (changed) hideToast();
   if (changed && view !== 'entry') $(PANEL_ID[view]).scrollTop = 0;
   if (view === 'hist') renderNow();
+  // The browser's bar takes the colour at the top of the view (v32): the course's rough on 기록 (the page's own value),
+  // the deep header of 스코어카드 and 지난 라운드 elsewhere.
+  THEME?.setAttribute('content', view === 'entry' ? THEME_ROUGH : getComputedStyle($('views')).backgroundColor);
   // 기록's header was fitted while hidden (nothing measures there) if its hole changed elsewhere: fit it now (v25).
   if (view === 'entry') fitNotes();
   drawCourse();
@@ -582,11 +590,12 @@ function buildClubs(): void {
     minus.innerHTML = `<span>${MINUS}</span><i class="cue" aria-hidden="true" hidden>−1</i>`;
     // The count on the midline, between the halves. The digit is for the eye; screen readers read the club with it ("드라이버 2").
     const num = h('span', { class: 'num-row' }, h('span', { class: 'count', id: `count-${key}`, 'aria-hidden': 'true' }, '0'), h('span', { class: 'sr-only', id: `count-label-${key}` }, `${label} 0`));
-    // The long-press coach mark sits over the middle count (screen readers get it from #lp-hint).
+    // The long-press coach mark sits on the capsules' midline over the row (screen readers get it from #lp-hint). Not
+    // inside the middle capsule any more (v32): the capsule clips what it holds and cut the line short.
     if (key === 'approach') {
       const coach = h('span', { class: 'coach', id: 'coach', 'aria-hidden': 'true', hidden: '' }, '숫자를 길게 누르면 바로 골라요');
       coach.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="3" fill="currentColor"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".6"/></svg>');
-      num.append(coach);
+      box.append(coach);
     }
     // A hole entered in 기본 has no split yet (v28): 어프로치 says so quietly where its 0 would be, until it is split.
     if (key === 'short') num.append(h('span', { class: 'from-basic', 'aria-hidden': 'true' }, '기본에서', h('br'), '기록'));
@@ -821,7 +830,7 @@ function buildPens(): void {
       h('span', { class: 'pen-icon' }, h('span', { class: 'pen-count zero' }, '0')), h('span', { class: 'pen-lbl' }, LABELS[key]));
     pen.querySelector('.pen-icon')!.insertAdjacentHTML('afterbegin', PEN_ICONS[key]);
     box.append(pen);
-    if (key === 'bunker') box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', hidden: '' }));
+    if (key === 'bunker') box.append(h('button', { type: 'button', class: 'undo', id: 'pen-undo', disabled: '' }));
   }
   box.addEventListener('click', (event) => {
     const pen = (event.target as HTMLElement).closest<HTMLButtonElement>('button.pen');
@@ -1127,17 +1136,18 @@ function renderEntry(a: Analysis, changed?: string): void {
     pen.disabled = n >= MAX_COUNT;
     setAttr(pen, 'aria-label', `${LABELS[key]} 하나 더하기${n ? ` (지금 ${n})` : ''}`);
   }
+  // 빼기 holds its column (v32): disabled and out of sight until there is a penalty to take off (CSS keeps its box), so
+  // nothing appears or moves when one comes; then named for the one it takes, with an arrow turning back.
   const target = undoTarget();
-  const undo = $('pen-undo');
-  undo.hidden = target === null;
-  if (target) {
-    if (undo.dataset.key !== target) {
-      undo.dataset.key = target;
-      // Static icon markup and a fixed label.
-      undo.innerHTML = `<span class="u-ico">${MINUS}</span><span>${LABELS[target]} 빼기</span>`;
-    }
-    setAttr(undo, 'aria-label', `${LABELS[target]} 하나 빼기`);
+  const undo = $<HTMLButtonElement>('pen-undo');
+  undo.disabled = target === null;
+  const undoKey = target ?? 'none';
+  if (undo.dataset.key !== undoKey) {
+    undo.dataset.key = undoKey;
+    // Static icon markup and a fixed label.
+    undo.innerHTML = `<span class="u-ico">${UNDO}</span><span>${target ? `${LABELS[target]} 빼기` : '빼기'}</span>`;
   }
+  setAttr(undo, 'aria-label', target ? `${LABELS[target]} 하나 빼기` : '벌타 하나 빼기');
   setText($('go-next'), i === lastHole() ? '라운드 마치기' : '다음 홀');
 }
 
@@ -1217,8 +1227,10 @@ function totalLine(a: Analysis): HTMLElement {
 }
 
 function renderCard(a: Analysis): void {
-  const course = roundCourse(round);
-  setText($('sc-sub'), `${course.name} ${dateLabel(round.date).replace(/^\d+년 /, '')}`);
+  // The header says which round this is, as 기록's says which hole (v32): the day as the title, the course under it. The
+  // view's own name is on its tab and on the 스코어카드 | 분석 switch, and on 분석 the title no longer reads 스코어카드.
+  setText($('sc-title-h'), `${dateLabel(round.date).replace(/^\d+년 /, '')} 라운드`);
+  setText($('sc-sub'), roundLabel(round));
   $('sc-sheet').classList.toggle('editing', editPar);
   const edit = $('edit-par');
   setText(edit, editPar ? '완료' : '파 수정');
@@ -1263,6 +1275,8 @@ function renderCard(a: Analysis): void {
     : a.worstAreas.length
       ? `${a.worstAreas.map((k) => AREA_LABELS[k]).join(', ')}에서 ${a.worstAreas.length > 1 ? '각각 ' : ''}${lostBy}타 잃었어요.`
       : '기준보다 잃은 타수가 없어요.');
+  // 분석's one finding is its largest line (v32); until three holes are in, the line is a quiet note.
+  $('lost-note').classList.toggle('finding', !waiting);
   $('lost-how').hidden = waiting;
   // Back under three holes (a hole cleared), the ⓘ goes and its box closes with it.
   if (waiting) {
