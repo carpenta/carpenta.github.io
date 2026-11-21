@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import data from '../src/data/osm/everis.json';
 import mapping from '../src/data/osm/everis-holes.json';
 import { COURSES } from '../src/courses';
-import { osmShape, osmSvg, orientedHole, type ArtBand, type Box, type CourseFrame, type OsmHole } from '../src/course-art';
+import { FIT_BAND, osmShape, osmSvg, orientedHole, type ArtBand, type Box, type CourseFrame, type OsmHole } from '../src/course-art';
 import { inRing, lineLength, orienter, playLine, pointFromEnd, projector, ringCentroid, segmentDistance, simplifyLine, simplifyRing, type Pt } from '../src/osm-geo';
 import { osmHoleAt, osmLoading } from '../src/osm-holes';
 import type { RoundCourse } from '../src/round';
@@ -220,8 +220,6 @@ const BANDS: [string, ArtBand][] = [
   ['390×844 상세', { x0: 16, y0: 106, x1: 374, y1: 278, keep: [], credit: credit(278, 14) }],
   ['390×664 기본', { x0: 16, y0: 106, x1: 374, y1: 162, keep: [], credit: credit(162, 14) }],
   ['375×667 기본', { x0: 16, y0: 106, x1: 359, y1: 165, keep: [], credit: credit(165, 14) }],
-  ['375×667 상세', { x0: 16, y0: 106, x1: 359, y1: 153, keep: [], credit: credit(153, 14) }],
-  ['360×640 기본', { x0: 16, y0: 106, x1: 344, y1: 138, keep: [], credit: credit(138, 4) }],
 ];
 const frameOf = (b: ArtBand): CourseFrame => ({ width: b.x1 + 16, height: 844, bandTop: b.y0, bandBottom: b.y1, right: b.x1 });
 const inside = ([x, y]: Pt, b: Box, tol = 0.5) => x >= b.x0 - tol && x <= b.x1 + tol && y >= b.y0 - tol && y <= b.y1 + tol;
@@ -257,6 +255,14 @@ const wetIn = (water: Pt[][][], b: Box) => {
 
 describe('drawing a hole from OpenStreetMap in the band 기록 shows (v32)', () => {
   const tall = BANDS[0][1];
+
+  // Shorter bands show the header's small drawing instead (main.ts), as the design critique asked: 360×640's 32px band
+  // and 375×667 상세's 47px one, where half the greens came out under 15px and no distance marker fitted.
+  it('fits only bands of 50px or more: the measured bands here are, 360×640’s and 375×667 상세’s are not', () => {
+    expect(FIT_BAND).toBe(50);
+    for (const [size, band] of BANDS) expect(band.y1 - band.y0, size).toBeGreaterThanOrEqual(FIT_BAND);
+    for (const [size, height] of [['360×640 기본', 32], ['375×667 상세', 47]] as const) expect(height, size).toBeLessThan(FIT_BAND);
+  });
   const first = holes.saebyul[0]!;
 
   it('lays the hole across the band: the back tee at the left, the greens’ middle at the right on one line, one scale', () => {

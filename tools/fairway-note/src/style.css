@@ -1295,9 +1295,11 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 /* A small picture of the hole leads the row where a short screen leaves no band for the drawn hole (v15). */
 .thumb { display: none; flex: none; width: 40px; height: 28px; border-radius: var(--r-tile); overflow: hidden; box-shadow: var(--sh-float); outline: 1px solid var(--outline-on-art); outline-offset: -1px; }
 .thumb svg { display: block; }
-/* Where the thumb shows the hole, the drawing behind the header is a sliver that never reads as one: it steps back (v31),
-   so the green and water there are not louder than the chips on them. */
-@media (max-height: 599px) { .thumb { display: block; } .course-art { opacity: .4; } }
+/* It shows where the band under the chips is too short to fit the hole (v32: under 50px as drawCourse measures it, which
+   sets .short-band; v15–v31: a screen under 600px tall). The drawing behind the header is then a sliver that never reads
+   as one: it steps back (v31), so the green and water there are not louder than the chips on them. */
+#entry.short-band .thumb { display: block; }
+.course-art.short-band { opacity: .4; }
 .meta.tight .mt-hd, .meta.tighter .mt-len { display: none; }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */

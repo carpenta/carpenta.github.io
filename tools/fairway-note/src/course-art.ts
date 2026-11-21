@@ -701,9 +701,9 @@ export interface Credit { text: Box; touch: Box }
 export type CreditSide = 'start' | 'end';
 /**
  * The credit's ends, in the order tried (v32): at the left, else at the right where water would lie behind it at the
- * left. Over Everis's 25 holes at six measured bands, after moving the hole within its room, the left alone kept water
- * from behind the credit in 147 cases of 150 and the right alone in 141; either end as needed, in 149 (새별 7 in 상세 at
- * 390×844 keeps a sliver, 0.1% of its line box, at either end).
+ * left. Over Everis's 25 holes at the four measured bands it stands in (50px and up), after moving the hole within its
+ * room, the left alone kept water from behind the credit in 97 cases of 100 and the right alone in 94; either end as
+ * needed, in 99 (새별 7 in 상세 at 390×844 keeps a sliver, 0.1% of its line box, at either end).
  */
 export const CREDIT_SIDES: CreditSide[] = ['start', 'end'];
 
@@ -716,10 +716,12 @@ export const CREDIT_SIDES: CreditSide[] = ['start', 'end'];
 export interface ArtBand extends Box { keep: Box[]; credit?: Credit }
 
 /**
- * The shortest band a hole is fitted into (v32): the © OpenStreetMap link's 20px pill, 6px under it and 4px over it. A
- * shorter one, on a short screen where the header's small picture leads, keeps v31's drawing behind the header.
+ * The shortest band a hole is fitted into (v32): 50px. Below it the room under the chips is under 42px tall, half of
+ * Everis's OpenStreetMap greens come out under about 15px across and almost no distance marker fits (1 hole of 25 at a
+ * 47px band, 7 at 56px, 12 at 59px), as the design critique found at 360×640's 32px band. A shorter band (360×640,
+ * 375×667's 상세, 375×553) shows the header's small picture instead, with v31's drawing stepped back behind the header.
  */
-export const FIT_BAND = 30;
+export const FIT_BAND = 50;
 
 /** A 100 m or 150 m marker on the line of play, with its distance pill above or below the dot (v32). */
 export interface Marker { x: number; y: number; d: number; label: Box }

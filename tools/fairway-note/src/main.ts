@@ -511,6 +511,14 @@ function drawCourse(): void {
     frame.teeY = go.top + go.height / 2 - 1.5;
     const open = artBand();
     fit = open.y1 - open.y0 >= FIT_BAND;
+    // Under FIT_BAND the header's small picture shows the hole instead and the drawing steps back (v32: by the band
+    // measured here, not the screen's height). The picture sits in the chip row at the chips' height, so showing it leaves
+    // the band as it was; the row is fitted again round it.
+    if ($('entry').classList.contains('short-band') === fit) {
+      $('entry').classList.toggle('short-band', !fit);
+      svg.classList.toggle('short-band', !fit);
+      fitNotes();
+    }
     // Everis's holes from OpenStreetMap (v27), in a band with room for the drawing and its credit.
     if (fit) {
       // A course's outlines load the first time it is drawn: the drawing waits for them rather than flash the schematic.
