@@ -640,7 +640,9 @@ function markerSvg(m: { x: number; y: number; d: number; label?: Box; text?: str
   const dot = `<circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`;
   if (m.label && m.text === String(m.d)) {
     // The baseline half the figures' height (13px Pretendard's 9.4px) under the room's middle.
-    return `<g class="marker">${dot}<text class="a-marker-num" x="${f((m.label.x0 + m.label.x1) / 2)}" y="${f((m.label.y0 + m.label.y1) / 2 + 4.7)}" text-anchor="middle">${m.text}</text></g>`;
+    // v39: on a small white pill (the room the label was fitted into), as the painted hole's marks read.
+    const pill = `<rect class="a-marker-pill" x="${f(m.label.x0)}" y="${f(m.label.y0)}" width="${f(m.label.x1 - m.label.x0)}" height="${f(m.label.y1 - m.label.y0)}" rx="${f((m.label.y1 - m.label.y0) / 2)}"/>`;
+    return `<g class="marker">${dot}${pill}<text class="a-marker-num" x="${f((m.label.x0 + m.label.x1) / 2)}" y="${f((m.label.y0 + m.label.y1) / 2 + 4.7)}" text-anchor="middle">${m.text}</text></g>`;
   }
   const w = markerWidth(m.d);
   const at = m.label ?? { x0: m.x + 10, y0: m.y - 11, x1: m.x + 10 + w, y1: m.y + 11 };

@@ -1765,3 +1765,50 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 @container (max-width: 103px) { .sheet .lbl-in > svg { display: block; } }
 /* The OpenStreetMap credit at the band's foot, over the low switcher (6px above it), not under it (v39). */
 .osm-credit { bottom: calc(100% + 14px + 60px + 6px + 6px); }
+/* The 100 and 150 marks (v39): a white dot with a deep centre and the number on a small white pill. */
+#course .a-marker-pill { fill: #fbfcf8; }
+#course .marker .a-marker-num { fill: #163021; stroke: none; }
+#course .a-marker { fill: #fbfcf8; stroke: #1d3524; stroke-width: 3px; }
+/* 상세's 세컨 and 어프로치 both swing the iron: there the name says which, in place of the icon (v39). */
+:is(.club-second, .club-short) .club-name { position: static; width: auto; height: auto; overflow: hidden; clip-path: none; color: var(--on-glass); }
+:is(.club-second, .club-short) .lbl-in > svg { display: none; }
+@container (max-width: 103px) { .sheet :is(.club-second, .club-short) .lbl-in > svg { display: none; } }
+/* The paper screens run on under the floating island (v39), their foot padded so the last row scrolls clear of it. */
+.view.sc { margin-bottom: calc(-1 * (var(--island) + 26px + env(safe-area-inset-bottom))); }
+.sc-body { padding-bottom: calc(var(--island) + 34px + env(safe-area-inset-bottom)); }
+/* 홀 안내 at the chip row's right end, as the mock-up has it (the progress pill that pinned it moved to the bar). */
+#hole-info .info-chip { margin-left: auto; }
+/* 상세's OB, 벙커 and 해저드 (and 빼기) spread evenly across the card, not held under three of the four capsules. */
+#entry[data-mode='detail'] .pens { display: flex; justify-content: space-evenly; }
+#entry[data-mode='detail'] .pens > * { flex: 0 0 72px; }
+
+/* The other screens on the same system (v39): deep ground, dark glass panels with no outlines, white type, lime for
+   what is chosen and for the primary action. Their own tokens retinted, so their layouts and tables stay as they were. */
+.sc, .sheet-dialog, .hinfo {
+  --white: rgb(255 255 255 / .06); --paper: rgb(255 255 255 / .04);
+  --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --off-ink: rgb(255 255 255 / .35);
+  --line: rgb(255 255 255 / .12); --fill: rgb(255 255 255 / .07); --fill-2: rgb(255 255 255 / .13); --fill-press: rgb(255 255 255 / .2);
+  --turf: var(--lime); color: var(--on-glass);
+}
+.sc { background: radial-gradient(120% 55% at 50% 0%, #1f3d2a 0%, #0f2118 70%); }
+.sc-body { background: transparent; }
+.sc::after { background: linear-gradient(transparent, #0f2118 85%); }
+.sheet-dialog, .hinfo { background: linear-gradient(180deg, #17301f, #0f2118); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+/* No outlines on the panels (the user: boxes with no border); tone and the glass alone set them apart. */
+.sc-sheet, .box { outline: 0; }
+#entry[data-mode='detail'] .pens .undo:disabled { display: none; }
+/* No lime slabs (the user could not bear the bright green buttons): every primary action and every chosen control is
+   styled as the entry card is, light glass with white type, set apart by a lime edge and a soft glow alone. */
+body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go, .next,
+  .tchip[aria-pressed='true'], .dir[aria-pressed='true'], .club-lbl[aria-expanded='true'] .lbl-in, .edit.on,
+  .sc-switch button[aria-checked='true'], .picker-list .course[aria-pressed='true'], .pk-len button[aria-pressed='true'],
+  .nine-pick button[aria-checked='true'], .np-row button[aria-pressed='true'], .sp-shots button[aria-pressed='true'],
+  .sp-chip[aria-pressed='true'], .ct-col.cur .c-hole, .scell[aria-current='true'] .sc-no, .hole-nav .round.finish) {
+  background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28);
+}
+body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active { background: rgb(255 255 255 / .18); }
+body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
+/* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
+   result, the direction pad. The capsules, the switcher and the tabs keep their round ends. */
+#entry[data-mode='detail'] :is(.lbl-in, .tchip, .dir) { border-radius: var(--r-tile); }
