@@ -7102,7 +7102,13 @@ test('marks whatever is chosen one way: light glass with a lime edge and glow, t
   await expectLook(".picker .chip[aria-pressed='true']", { background: white, color: turf, ring: 'none' });
   expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(white);
   for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
-    await expectLook(selector, { background: paper, color: ink, ring: `${turf} 0px 0px 0px 1.5px inset` });
+    // The turf edge an inset outline (v30's rule for rings), no shadow.
+    await expectLook(selector, { background: paper, color: ink, ring: 'none' });
+    // (1.5px as written; a browser snaps an outline to whole device pixels, so 1px at 1x.)
+    const edge = await page.locator(selector).first().evaluate((el) => ({ colour: getComputedStyle(el).outlineColor, width: parseFloat(getComputedStyle(el).outlineWidth), offset: parseFloat(getComputedStyle(el).outlineOffset) }));
+    expect(edge.colour, selector).toBe(turf);
+    expect(edge.width, selector).toBeGreaterThanOrEqual(1);
+    expect(edge.offset, `${selector}: inside its box`).toBeLessThanOrEqual(-edge.width);
   }
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await tabMark(".sheet .mode[aria-pressed='true']", '::before');

@@ -1813,7 +1813,7 @@ body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .
 }
 body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active:not(:disabled) { background: rgb(255 255 255 / .18); }   /* :not(:disabled) outranks the old lime press (2.3:1 under white type) */
 /* The course picker is still on paper: there the white type vanished (1.05:1), so its chosen ones keep ink on white with a turf edge. */
-body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--turf); }
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: none; outline: 1.5px solid var(--turf); outline-offset: -1.5px; }
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']):active { background: var(--fill-2); }
 body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
 /* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
