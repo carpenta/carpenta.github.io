@@ -1879,3 +1879,24 @@ body .ct-col.cur .c-hole { background: none; box-shadow: none; color: var(--lime
    lime, no outline or glow; it finishes the round, so it stays clear of the card but does not shout. */
 .sc-finish { border-radius: var(--r-tile); background: rgb(255 255 255 / .08); outline: none; box-shadow: none; color: var(--lime); }
 .sc-finish:active { background-color: rgb(255 255 255 / .14); color: var(--lime); }
+/* The painted course behind the other screens too (v39, the user's call): their ground a dark veil over it, so the
+   panels' glass shows the course through and the type keeps its contrast; the menu's sheet glass over it as well. */
+.sc { background: linear-gradient(180deg, rgb(10 22 15 / .7) 0%, rgb(10 22 15 / .84) 60%, rgb(10 22 15 / .9) 100%); }
+.sheet-dialog { background: rgb(13 28 20 / .82); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+/* Off 기록 the painted course alone shows behind the veil: the drawing's flag, marks and outlines are 기록's. */
+body:has(#entry[hidden]) #course { visibility: hidden; }
+/* 지난 라운드's empty state: the history line icon, soft white on a small glass circle (v39). */
+.he-icon { width: 56px; height: 56px; border-radius: var(--r-full); display: grid; place-items: center; background: rgb(255 255 255 / .07); color: var(--on-glass-soft); }
+/* The flag on the hole (the user: its red jumped out): an off-white cloth with a faint edge, as the white marks round it. */
+.a-flag, #course .flag { fill: #eeeae0; stroke: rgb(20 40 28 / .35); stroke-width: .75px; }
+/* The menu as a centred modal (the user: as a sheet it covered the screen oddly): a card in the middle of the screen,
+   the whole screen dimmed behind it, scrolling inside where a screen is short; it fades in rather than rising. */
+.menu-sheet {
+  margin: auto; width: min(360px, calc(100vw - 32px)); max-height: min(660px, calc(100dvh - 64px));
+  border-radius: var(--r-card); padding: 14px 16px 16px;
+}
+#menu::backdrop { background: var(--backdrop-strong); }
+#menu .grab { display: none; }
+.menu-sheet[open] { animation: fn-menu-pop .18s ease-out; }
+@keyframes fn-menu-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-sheet[open] { animation: none; } }

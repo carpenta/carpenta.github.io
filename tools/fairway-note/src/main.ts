@@ -39,7 +39,7 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { bandShape, bandSvg, bandTerrain, courseShape, courseSvg, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, osmTerrain, type ArtBand, type Box, type CourseFrame, type OsmHole, type Terrain } from './course-art';
+import { bandShape, bandSvg, bandTerrain, courseShape, courseSvg, courseTerrain, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, osmTerrain, type ArtBand, type Box, type CourseFrame, type OsmHole, type Terrain } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
@@ -639,12 +639,16 @@ function drawCourse(): void {
     marks.hidden = shape.markers.length === 0;
     return;
   }
-  paintGround(null, key, frame);
   for (const name of ['tee', 'green', 'scale', 'line', 'band']) delete svg.dataset[name];
   svg.dataset.art = 'schematic';
   marks.hidden = true;
   // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
-  svg.innerHTML = courseSvg(courseShape(hole().par, round.current, frame, bend, island, length, named), frame);
+  const full = courseShape(hole().par, round.current, frame, bend, island, length, named);
+  svg.innerHTML = courseSvg(full, frame);
+  // v39: the painted course behind 스코어카드, 지난 라운드 and the menu too (the user's call), under their veil: the hole
+  // 기록 last painted (its woodland and water, at its own scale), or this schematic painted where 기록 has painted none.
+  const painted = $<HTMLCanvasElement>('course-paint').dataset.key;
+  if (view === 'entry' || !painted) paintGround(courseTerrain(full, groundSeed(course.id, nine, round.current)), key, frame);
 }
 
 /** The white fade at the sheet's foot when more of it is below. */

@@ -1630,6 +1630,24 @@ export function bandTerrain(s: BandShape, seed: number): Terrain {
   };
 }
 
+/** The full-screen schematic's outlines (off 기록, and 기록 on a screen with no band): painted behind the other screens. */
+export function courseTerrain(s: CourseShape, seed: number): Terrain {
+  const g = s.green;
+  const w = s.tee.width;
+  const tee: Pt[] = [[s.tee.x - w / 2, s.tee.y - w / 3], [s.tee.x + w / 2, s.tee.y - w / 3], [s.tee.x + w / 2, s.tee.y + w / 3], [s.tee.x - w / 2, s.tee.y + w / 3]];
+  const water: Pt[][][] = s.hazards.filter((h) => h.kind === 'water').map((h) => [ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)]);
+  if (s.water) water.push([ringAround(g.cx, g.cy, g.rx * 1.78, g.ry * 1.78, g.outline)]);
+  return {
+    greens: [ringAround(g.cx, g.cy, g.rx, g.ry, g.outline)],
+    tees: [tee],
+    fairways: s.fairway ? [s.fairway] : [],
+    bunkers: s.hazards.filter((h) => h.kind === 'bunker').map((h) => ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)),
+    water,
+    line: [[s.tee.x, s.tee.y], [g.cx, g.cy]],
+    seed,
+  };
+}
+
 export function osmSvg(traced: OsmShape, frame: CourseFrame): string {
   const { width: W, height: H } = frame;
   // OSM's outlines are traced with few points: their corners are cut (twice for the small greens and tee boxes, once for
