@@ -45,10 +45,12 @@ describe('one design system (v30)', () => {
     .flatMap(({ selector, body }) => [...body.matchAll(new RegExp(`(?:^|;)\\s*(${property.source})\\s*:\\s*([^;]+)`, 'g'))]
       .map((m) => ({ selector, property: m[1], value: m[2].trim().replace(/\s*!important$/, '') })));
 
-  it('rounds corners with three radii only: full, card and tile', () => {
+  // v39 adds one named exception: the scorecard table's 6px corners (the user: "표의 round 를 줄여줘").
+  it('rounds corners with three radii only: full, card and tile, and the scorecard table\'s 6px (v39)', () => {
     expect(css).toMatch(/--r-full: 999px; --r-card: 24px; --r-tile: 12px;/);
     const corner = /^(var\(--r-(full|card|tile)\)|0|inherit)$/;
     const off = declared(/border(?:-(?:top|bottom)-(?:left|right))?-radius/)
+      .filter(({ selector, value }) => !(selector === '.ct' && value === '6px'))
       .filter(({ value }) => !value.split(/\s+/).every((part) => corner.test(part)))
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
@@ -109,7 +111,12 @@ describe('one design system (v30)', () => {
       .filter(({ value }) => !/gradient\(transparent/.test(value))
       .filter(({ value }) => /transparent\)|\/ \.?\d/.test(value) || [...clear].some((name) => value.includes(`var(${name})`)));
   };
-  const GLASS = ['var(--map-glass)', 'var(--deep-glass)', 'rgb(255 255 255 / .1)', 'rgb(255 255 255 / .18)', 'rgb(10 24 16 / .7)'];
+  // The white tint is light glass on the dark screens (a chosen control at 10%, pressed 18%, the scorecard's cells and
+  // triple's soft disc up to 24%); the lime tint marks the scorecard's current hole, faintly (8%). Pressed map glass 70%,
+  // and the paper screens' title bar, glass in the page's own tone (72%) that what scrolls passes under.
+  const isGlass = (value: string) => ['var(--map-glass)', 'var(--deep-glass)', 'rgb(10 24 16 / .7)', 'rgb(15 33 24 / .72)'].includes(value)
+    || (/^rgb\(255 255 255 \/ (\.\d+)\)$/.test(value) && Number(value.match(/\/ (\.\d+)/)![1]) <= 0.24)
+    || (/^rgb\(196 224 79 \/ (\.\d+)\)$/.test(value) && Number(value.match(/\/ (\.\d+)/)![1]) <= 0.1);
 
   it('paints a see-through surface from the glass tokens alone (v39)', () => {
     expect(css).toMatch(/--map-glass: rgb\(10 24 16 \/ \.5\);/);
@@ -119,7 +126,7 @@ describe('one design system (v30)', () => {
     // v38's rule for the chip pills is still in the file, overridden by the map glass on #hole-info (the e2e checks the
     // computed glass); it is the one old value allowed to remain.
     const off = seeThrough()
-      .filter(({ selector, value }) => !GLASS.includes(value) && !(value === 'var(--chip-on-art)' && selector.startsWith('.meta, .progress')))
+      .filter(({ selector, value }) => !isGlass(value) && !(value === 'var(--chip-on-art)' && selector.startsWith('.meta, .progress')))
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
   });
