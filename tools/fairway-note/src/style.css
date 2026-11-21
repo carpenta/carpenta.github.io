@@ -54,6 +54,12 @@
   --turf-press: color-mix(in oklab, var(--turf) 80%, var(--ink));   /* a chosen control while pressed */
   /* Still see-through, and never a fill: the thumbnail's outline, the badge's glow, the dialogs' backdrops, the shadows. */
   --outline-on-art: color-mix(in srgb, var(--white) 35%, transparent);
+  /* The capsule's strokes (v34): see-through ink, so one colour takes the tone of the half under it and of the pressed
+     fill. The + and − at 60%: 3:1 or more on both halves and on the pressed fill (3.5:1 at worst, there; 55% would be
+     3.1:1). The split line and a − at 0 at 35%, about 2:1: the line is decorative, as the two tones mark the split, and
+     the disabled − reads fainter than a live one. Strokes, never a fill. */
+  --on-capsule: color-mix(in srgb, var(--ink) 60%, transparent);
+  --on-capsule-soft: color-mix(in srgb, var(--ink) 35%, transparent);
   --glow: color-mix(in srgb, var(--white) 75%, transparent);
   --backdrop-light: color-mix(in srgb, var(--deep) 22%, transparent);
   --backdrop: color-mix(in srgb, var(--deep) 36%, transparent);
@@ -84,11 +90,14 @@
   --badge: 60px;                   /* the score badge in the top bar's right slot (v15) */
   /* Three weights on 기록 and the shared chrome (v15): values bold, labels medium, helper text regular. */
   --w-value: 800; --w-label: 600; --w-help: 400;
-  /* 기본 sizes (screens 600px and taller). Each capsule's halves carry a round glyph --glyph wide, --glyph-inset in
-     from the capsule's ends; the count on the midline keeps clear of both (v20). The club's name above is a 44px button. */
+  /* 기본 sizes (screens 600px and taller). Each capsule's halves keep a --glyph square --glyph-inset in from the
+     capsule's ends, with the + or − drawn --mark wide in its middle, straight on the capsule (v34: no disc behind it);
+     the count on the midline keeps clear of both squares (v20). The club's name above is a 44px button. */
   --sheet-pt: 8px;
   --glyph: 36px;
   --glyph-inset: 8px;
+  --mark: 24px;
+  --mark-line: 2.4;                /* the glyph's line in its 24-unit grid: 2px or more as drawn, in every mode (v34) */
   --lbl-h: 44px;
   /* The pills take what the screen leaves: 100dvh less --pill-base and the notes row, within these bounds. */
   --pill-base: 442px; --pill-min: 150px; --pill-max: 204px; --notes-h: 0px;
@@ -335,24 +344,26 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
   position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
   display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: var(--r-full);
 }
-/* A half: a button from the capsule's end to its midline, its round glyph at the outer end; pressed, the whole half tints. */
+/* A half: a button from the capsule's end to its midline, its glyph at the outer end; pressed, the whole half tints. */
 .step { position: relative; display: grid; justify-items: center; width: 100%; min-height: 0; transition: background-color .12s ease-out; }
-/* Two tones, so the split reads at a glance (v21): the top half lighter, the bottom a shade deeper, both translucent
-   over the card; the half that was hit fills, and at 0 the bottom half rests light. */
+/* Two tones, so the split reads at a glance (v21): the top half lighter, the bottom a shade deeper; the half that was hit
+   fills, and at 0 the bottom half rests light. */
 .step.plus { align-items: start; padding-top: var(--glyph-inset); background: var(--fill); }
 .step.minus { align-items: end; padding-bottom: var(--glyph-inset); background: var(--fill-2); }
 .step.minus:disabled { background: var(--fill); }
 .step:focus-visible { outline: 3px solid var(--sand); outline-offset: -3px; }
-.step span {
-  width: var(--glyph); height: var(--glyph); border-radius: var(--r-full); background: var(--white); color: var(--ink);
-  display: grid; place-items: center; outline: 1px solid var(--line); outline-offset: -1px; transition: transform .12s ease-out;
-}
-.step span svg { width: 56%; height: 56%; }
+/* The + and − are drawn straight on the capsule (v34): no white disc, ring or shadow behind them, so each reads as part
+   of its half and the half as the button. The square keeps its place, so the count and its clearance do not move; the
+   glyph is see-through ink, --mark wide, its line 2px or more as drawn: in 기본 under half the count's size, in 상세 the
+   count leads by weight. 큰 글씨 draws it larger with the count. Pressed, the half fills (the glyph no longer shrinks:
+   bare, it moved under a pixel). */
+.step span { width: var(--glyph); height: var(--glyph); display: grid; place-items: center; color: var(--on-capsule); }
+.step span svg { width: var(--mark); height: var(--mark); stroke-width: var(--mark-line); }
 .step:active:not(:disabled) { background: var(--fill-press); }
-.step:active:not(:disabled) span { transform: scale(.94); }
-.step:disabled span { background: var(--fill); color: var(--off-ink); outline-width: 1.5px; outline-offset: -1.5px; }
+/* At 0 the − is disabled: its half rests light and its glyph turns the disabled ink, still 3:1 on it. */
+.step:disabled span { color: var(--on-capsule-soft); }
 /* +1 or −1 beside the glyph for a moment after a tap, drifting outward (main.ts shows and hides it). */
-.cue { position: absolute; left: calc(50% + var(--glyph) / 2 + 3px); font-size: var(--t-s); font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
+.cue { position: absolute; left: calc(50% + var(--mark) / 2 + 4px); font-size: var(--t-s); font-weight: var(--w-value); font-style: normal; line-height: 1; pointer-events: none; }
 .plus .cue { top: var(--glyph-inset); color: var(--turf); animation: cue-up .6s ease-out both; }
 .minus .cue { bottom: var(--glyph-inset); color: var(--muted); animation: cue-down .6s ease-out both; }
 /* 상세's narrower capsules (v28): beside the glyph's middle, where the capsule is still wide enough to show it whole. */
@@ -363,9 +374,11 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 /* The midline, with the count on it. Above both halves (v30): the − half comes after it and is opaque now, so it would
    hide the digits' lower half. The split is one line from the capsule's edge to the other, broken by the count (v32):
    the two tones alone are 1.2:1 and fade in sun, and the short hairlines of before, 12px in from each edge, read as
-   ticks cutting the number. --quiet, so it is 3:1 or more against both halves. */
+   ticks cutting the number. Since v34 in the soft see-through ink (about 2:1 on either half), so it blends into the
+   capsule: the user found the solid line too hard, and the two tones already mark the split. */
 .num-row { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
-.num-row::before, .num-row::after { content: ''; flex: 1; height: 1px; background: var(--quiet); }
+/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. */
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px solid var(--on-capsule-soft); }
 .club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 .pill-ico { display: none; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
@@ -402,7 +415,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 @media (prefers-reduced-motion: reduce) { .split-tip { animation: none; } }
 
 /* 상세: the capsules shrink, then one tee line, one row of five directions and the penalty line. */
-#entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --t-count: 24px; --pill-fixed: 140px; --pen: 48px; }
+#entry[data-mode='detail'] { --glyph: 32px; --glyph-inset: 6px; --mark: 18px; --mark-line: 3; --t-count: 24px; --pill-fixed: 140px; --pen: 48px; }
 #entry[data-mode='detail'] .sheet { padding-top: 6px; padding-bottom: 6px; }
 @media (min-height: 660px) { #entry[data-mode='detail'] { --t-count: 30px; --pill-fixed: 144px; } }
 .detail { margin-top: 8px; }
@@ -817,7 +830,7 @@ html.past-open { overflow: hidden; }
 /* Short screens (iPhone SE Safari, 375×553). */
 @media (max-height: 599px) {
   :root {
-    --sheet-pt: 4px; --glyph: 32px; --glyph-inset: 6px; --t-count: 40px;
+    --sheet-pt: 4px; --glyph: 32px; --glyph-inset: 6px; --mark: 20px; --mark-line: 2.6; --t-count: 40px;
     --pill-base: 420px; --pill-min: 120px; --pill-max: 176px;
     --pen: 48px; --next-h: 48px; --next-m: 8px;
   }
@@ -826,7 +839,7 @@ html.past-open { overflow: hidden; }
   .sheet { --sheet-pb: 8px; }
   /* 상세 on a short screen: the chip row steps aside so the 벌타 row and the toggle fit. The club names stay, the way to
      the shot details (v20): the capsules give them the room, each half still 48px or more. */
-  #entry[data-mode='detail'] { --pill-fixed: 100px; --t-count: 22px; --glyph: 28px; --glyph-inset: 5px; }
+  #entry[data-mode='detail'] { --pill-fixed: 100px; --t-count: 22px; --glyph: 28px; --glyph-inset: 5px; --mark: 16px; --mark-line: 3; }
   #entry[data-mode='detail'] .detail { margin-top: 4px; }
   #entry[data-mode='detail'] .tee-line { height: 44px; }
   #entry[data-mode='detail'] .pad { margin-top: 6px; }
@@ -1307,7 +1320,9 @@ button.scell:active { background: var(--fill); }
 .mpanel .ab-foot { margin-top: 12px; }
 
 /* ---------- 큰 글씨: about 1.15 times ---------- */
-body.big { --t-count: 64px; --pill-base: 452px; }
+body.big { --t-count: 64px; --pill-base: 452px; --mark: 28px; }
+/* The capsule's + and − grow with the counts (v34 critique: they stayed small beside a 64px count), inside their squares. */
+body.big #entry[data-mode='detail'] { --mark: 20px; }
 body.big .hole-n { font-size: calc(var(--t-2xl) * 1.18); }
 body.big .hole-u { font-size: calc(var(--t-l) * 1.18); }
 body.big #hole-title.two .hole-n { font-size: calc(var(--t-2xl) * .94); }
@@ -1330,7 +1345,8 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 @media (max-height: 599px) {
   /* Short screens: bigger letters, the same heights. The pills keep their full height, so the counts stay as large as
      with 큰 글씨 off; the toggle gives the 2px the taller 벌타 labels take (v18). */
-  body.big { --t-count: 44px; --pill-base: 420px; }
+  body.big { --t-count: 44px; --pill-base: 420px; --mark: 24px; --mark-line: 2.4; }
+  body.big #entry[data-mode='detail'] { --mark: 18px; }
   body.big .chip { height: 28px; }
   body.big .modes { margin-top: 12px; }
 }
@@ -1490,7 +1506,7 @@ body.big .sp-chip { font-size: var(--t-l); }
 body.big .sp-shots button { font-size: calc(var(--t-l) * 1.18); }
 @media (prefers-reduced-motion: reduce) {
   .shot-panel[open], .shot-panel[open]::backdrop { animation: none; }
-  .lbl-dot, .lbl-in, .step, .step span, .sp-chip, .sp-shots button { transition: none; }
+  .lbl-dot, .lbl-in, .step, .sp-chip, .sp-shots button { transition: none; }
   .cue { animation: none; }
 }
 
