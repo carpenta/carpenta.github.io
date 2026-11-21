@@ -86,7 +86,7 @@
   .card { position: absolute; top: 456px; left: 12px; right: 12px; height: 290px; border-radius: 26px; padding: 0 14px 12px; display: grid; grid-template-rows: 44px 32px 1fr; gap: 8px; }
   /* The sheet's handle (pull up for 상세) and its tabs, as the reference's sheet: the chosen one white, a lime underline. */
   .handle { position: absolute; top: 446px; left: 50%; translate: -50% 0; width: 40px; height: 4px; border-radius: 999px; background: rgb(255 255 255 / .55); }
-  .modes { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; margin: 0 -14px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: stretch; margin: 0 -14px; }
   .mode { position: relative; display: grid; place-items: center; font-size: 15px; font-weight: 600; color: var(--on-glass-soft); }
   .mode.on { color: var(--on-glass); }
   .mode.on::after { content: ''; position: absolute; bottom: 6px; width: 22px; height: 2px; border-radius: 2px; background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
@@ -118,6 +118,9 @@
   
   .dark .name { color: var(--on-glass); }
   .name i { font-style: normal; font-size: 10px; opacity: .7; }
+  /* The clubs as icons (the user's call), the app's own driver, iron and putter; the names stay as labels. */
+  .name svg.club { width: 26px; height: 26px; stroke-width: 1.75; }
+  .name { min-width: 64px; justify-content: center; }
   .cap { position: relative; border-radius: 999px; overflow: hidden; display: grid; grid-template-rows: 1fr 1fr; }
   
   .dark .cap { padding: 0; background: none; }
@@ -168,8 +171,12 @@
     </div>
     <span class="handle" aria-hidden="true"></span>
     <div class="card">
-      <div class="modes" role="tablist"><span class="mode on" role="tab" aria-selected="true">기본</span><span class="mode" role="tab" aria-selected="false">상세</span></div>
-      <div class="names"><span class="name">드라이버 <i>▾</i></span><span class="name">그린까지 <i>▾</i></span><span class="name">퍼터 <i>▾</i></span></div>
+      <div class="modes" role="tablist"><span class="mode on" role="tab" aria-selected="true">기본</span><span class="mode" role="tab" aria-selected="false">상세</span><span class="mode" role="tab" aria-selected="false">음성</span></div>
+      <div class="names">
+        <span class="name" role="button" aria-label="드라이버"><svg class="i club" viewBox="0 0 24 24"><path d="M17.2 3 14 11.4"/><path d="M13.6 11c-3.7-.6-8.2.7-9 3.7-.7 2.5 1.2 4.4 4.7 4.6 3.5.2 6.4-1 7-3.1.4-1.6-.7-3.8-2.7-5.2z" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+        <span class="name" role="button" aria-label="그린까지"><svg class="i club" viewBox="0 0 24 24"><path d="M16.8 3 15.4 10.4"/><path d="M14.6 9.9l1.8.6c.6 3.2.4 6.4-.6 8.4-.8 1.6-3.5 2.1-8.2 1.6-1.9-.2-2.7-1.6-2-2.9l1-2c.4-.8 1.3-1.2 2.2-1 2.7.5 4.5-.4 5.8-4.7z" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+        <span class="name" role="button" aria-label="퍼터"><svg class="i club" viewBox="0 0 24 24"><path d="M15.4 3 13.8 15.4"/><rect x="4.5" y="15.4" width="14.5" height="4.6" rx="1.8" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+      </div>
       <div class="caps">
         <div class="cap"><div class="up">+</div><div class="dn">−</div><div class="mid"><b>1</b></div></div>
         <div class="cap"><div class="up">+</div><div class="dn">−</div><div class="mid"><b>2</b></div></div>
