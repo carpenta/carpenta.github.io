@@ -337,12 +337,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v33');
+  await expect(page.locator('#menu-version')).toHaveText('v34');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v33');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v34');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -2684,7 +2684,8 @@ test('labels are large and dark enough to read in sunlight, and a disabled minus
   const look = (selector: string) => page.locator(selector).evaluate((el) => ({ color: getComputedStyle(el).color, background: getComputedStyle(el).backgroundColor, opacity: getComputedStyle(el).opacity }));
   const on = await look('.club-driver .minus span');
   const off = await look('.club-approach .minus span');
-  expect(on.background).not.toBe(off.background);
+  // Since v34 the glyph has no disc of its own: a disabled − shows in its half's tone and its glyph's colour.
+  expect(await page.locator('.club-driver .minus').evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(await page.locator('.club-approach .minus').evaluate((el) => getComputedStyle(el).backgroundColor));
   expect(on.color).not.toBe(off.color);
   expect(off.opacity).toBe('1');
 });
@@ -6313,7 +6314,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v33');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v34');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -6930,10 +6931,11 @@ test('the bar steps back while a panel is open over 기록, and comes back when 
   }
 });
 
-test('each capsule’s split is one line across its midline, edge to edge, 3:1 against both halves, broken by the count (v32)', async ({ page }) => {
+test('each capsule’s split is one see-through line across its midline, edge to edge, lighter than the glyphs, broken by the count (v32, v34)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page);
   const halves = [await token(page, '--fill'), await token(page, '--fill-2')];
+  const glyph = await page.locator('.club-driver .plus svg').evaluate((el) => getComputedStyle(el).color);
   for (const mode of ['기본', '상세'] as const) {
     await page.getByRole('button', { name: mode, exact: true }).click();
     if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
@@ -6947,10 +6949,17 @@ test('each capsule’s split is one line across its midline, edge to edge, 3:1 a
       expectAligned(row.x + row.width, pill.x + pill.width, `${where}: line to the right edge`);
       expectAligned(midY(row), midY(pill), `${where}: on the midline`);
       const line = await page.locator(`.club-${key} .num-row`).evaluate((el) => ({
-        content: getComputedStyle(el, '::before').content, colour: getComputedStyle(el, '::before').backgroundColor, gap: parseFloat(getComputedStyle(el).columnGap),
+        content: getComputedStyle(el, '::before').content, colour: getComputedStyle(el, '::before').borderTopColor,
+        width: getComputedStyle(el, '::before').borderTopWidth, gap: parseFloat(getComputedStyle(el).columnGap),
       }));
       expect(line.content, where).not.toBe('none');
-      for (const half of halves) expect(await contrastBetween(page, line.colour, half), `${where} on ${half}`).toBeGreaterThanOrEqual(3);
+      expect(line.width, `${where}: a hairline`).toBe('1px');
+      // See-through ink since v34 (the user: the line and the glyphs blend into the capsule): it takes each half's tone,
+      // lighter than the glyphs. Decorative, as the two tones mark the split, so under 3:1, but still seen on both.
+      const [ours, theirs] = [await overPaint(page, line.colour, halves[0]), await overPaint(page, glyph, halves[0])];
+      expect(ours.alpha, `${where}: see-through`).toBeLessThan(1);
+      expect(ours.alpha, `${where}: lighter than the glyphs`).toBeLessThan(theirs.alpha);
+      for (const half of halves) expect(await contrastBetween(page, (await overPaint(page, line.colour, half)).seen, half), `${where} on ${half}`).toBeGreaterThanOrEqual(1.5);
       expect(line.gap, `${where}: the count clear of the line`).toBeGreaterThanOrEqual(4);
     }
   }
@@ -7090,4 +7099,146 @@ test('큰 글씨 at 360: the hole button hugs "5번" as it does at the normal si
   await setBig(page, true);
   const big = await gap();
   expect(big - normal, `큰 글씨 ${big.toFixed(1)}px against ${normal.toFixed(1)}px`).toBeLessThanOrEqual(1);
+});
+
+/* ---------- v34: the capsules' + and − drawn on the capsule body, no disc behind them ---------- */
+
+/** One club's + and − as laid out and painted: each glyph's box and stroke, and what is drawn behind it. */
+const glyphsOf = (page: Page, key: string) => page.evaluate((k) => (['plus', 'minus'] as const).map((half) => {
+  const step = document.querySelector(`.club-${k} .${half}`)!;
+  const span = step.querySelector('span')!;
+  const svg = span.querySelector('svg')!;
+  const r = svg.getBoundingClientRect();
+  const behind = [span, svg].map((el) => {
+    const s = getComputedStyle(el);
+    return [s.backgroundColor, s.borderTopWidth, s.borderTopStyle === 'none' ? 'none' : s.borderTopStyle, s.outlineStyle === 'none' ? '0px' : s.outlineWidth, s.boxShadow].join(' ');
+  });
+  return { half, x: r.x, y: r.y, width: r.width, height: r.height, stroke: getComputedStyle(svg).strokeWidth, behind };
+}), key);
+const NOTHING_BEHIND = ['rgba(0, 0, 0, 0) 0px none 0px none', 'rgba(0, 0, 0, 0) 0px none 0px none'];
+
+for (const [width, height, big] of [[390, 844, false], [375, 553, false], [360, 640, false], [390, 844, true]] as const) {
+  test.describe(`capsule glyphs on a ${width}×${height} phone${big ? ' in 큰 글씨' : ''} (v34)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('+ and − sit on the capsule body: nothing behind them, centred on its axis, placed alike in each half, one size and stroke throughout, 8px clear of the count', async ({ page }) => {
+      await open(page);
+      if (big) await setBig(page, true);
+      // A stroke on every club, so each count shows and each − is live.
+      for (const key of KEYS.기본) await tap(page, key);
+      for (const mode of ['기본', '상세'] as const) {
+        await page.getByRole('button', { name: mode, exact: true }).click();
+        if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+        // 상세 splits the middle count: one 세컨 and one 어프로치 too, so neither shows 기본에서 기록.
+        if (mode === '상세') for (const key of ['second', 'short']) await tap(page, key);
+        await atRest(page);
+        const first = (await glyphsOf(page, KEYS[mode][0]))[0];
+        for (const key of KEYS[mode]) {
+          const where = `${mode} ${key}`;
+          const [plus, minus] = await glyphsOf(page, key);
+          const pill = await rect(page, `.club-${key} .pill`);
+          for (const g of [plus, minus]) {
+            expect(g.behind, `${where} ${g.half}: nothing behind the glyph`).toEqual(NOTHING_BEHIND);
+            expectAligned(g.x + g.width / 2, midX(pill), `${where} ${g.half}: on the capsule's axis`);
+            expectAligned(g.width, first.width, `${where} ${g.half}: one width`);
+            expectAligned(g.height, first.height, `${where} ${g.half}: one height`);
+            expect(g.stroke, `${where} ${g.half}: one stroke`).toBe(first.stroke);
+          }
+          // The same distance from the capsule's end in each half.
+          expectAligned(plus.y - pill.y, pill.y + pill.height - (minus.y + minus.height), `${where}: + and − placed alike`);
+          const n = await rect(page, `#count-${key}`);
+          expect(n.y - (plus.y + plus.height), `${where}: count clear of +`).toBeGreaterThanOrEqual(8);
+          expect(minus.y - (n.y + n.height), `${where}: count clear of −`).toBeGreaterThanOrEqual(8);
+        }
+      }
+    });
+  });
+}
+
+test('the glyphs keep a 2px line or more in every mode and grow with 큰 글씨 (v34 critique)', async ({ page }) => {
+  // The rendered line: the stroke in the icon's 24-unit grid times the glyph's size over 24.
+  const line = (key: string) => page.locator(`.club-${key} .plus svg`).evaluate((svg) => {
+    const r = svg.getBoundingClientRect();
+    return { width: r.width, px: parseFloat(getComputedStyle(svg).strokeWidth) * r.width / 24 };
+  });
+  const sizes: Record<string, number> = {};
+  await open(page);
+  for (const [width, height] of [[390, 844], [375, 553]] as const) {
+    await page.setViewportSize({ width, height });
+    for (const big of [false, true]) {
+      await setBig(page, big);
+      for (const mode of ['기본', '상세'] as const) {
+        await page.getByRole('button', { name: mode, exact: true }).click();
+        if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+        await atRest(page);
+        const g = await line(KEYS[mode][0]);
+        const where = `${width}×${height} ${mode}${big ? ' 큰 글씨' : ''}`;
+        expect(g.px, `${where}: line ${g.px.toFixed(2)}px`).toBeGreaterThanOrEqual(2);
+        sizes[where] = g.width;
+      }
+    }
+    for (const mode of ['기본', '상세']) {
+      expect(sizes[`${width}×${height} ${mode} 큰 글씨`], `${width}×${height} ${mode}: 큰 글씨 draws larger glyphs`).toBeGreaterThan(sizes[`${width}×${height} ${mode}`] + 1);
+    }
+  }
+});
+
+/** A colour as painted over another (`seen`, opaque) and its own alpha: the capsule's strokes are see-through ink (v34). */
+const overPaint = (page: Page, top: string, under: string) => page.evaluate(([t, u]) => {
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  cv.clearRect(0, 0, 1, 1);
+  cv.fillStyle = t;
+  cv.fillRect(0, 0, 1, 1);
+  const alpha = cv.getImageData(0, 0, 1, 1).data[3] / 255;
+  cv.clearRect(0, 0, 1, 1);
+  cv.fillStyle = u;
+  cv.fillRect(0, 0, 1, 1);
+  cv.fillStyle = t;
+  cv.fillRect(0, 0, 1, 1);
+  return { seen: `rgb(${[...cv.getImageData(0, 0, 1, 1).data].slice(0, 3).join(', ')})`, alpha };
+}, [top, under] as const);
+
+test('each glyph is see-through ink, one colour on both halves: 3:1 or more over its half at rest and pressed, and − at 0 fainter (v34)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await tap(page, 'driver');
+  await atRest(page);
+  const paint = async (half: string) => {
+    const p = await page.evaluate((h) => {
+      const step = document.querySelector(h)!;
+      return { glyph: getComputedStyle(step.querySelector('svg')!).color, half: getComputedStyle(step).backgroundColor };
+    }, half);
+    const seen = await overPaint(page, p.glyph, p.half);
+    return { ...p, ...seen, ratio: await contrastBetween(page, seen.seen, p.half) };
+  };
+  // One see-through colour for + and −, so each takes the tone of the half it sits on (the user: blended, not solid ink).
+  const plus = await paint('.club-driver .plus');
+  const minus = await paint('.club-driver .minus');
+  expect(minus.glyph, '+ and − one colour').toBe(plus.glyph);
+  expect(plus.alpha, 'see-through').toBeLessThan(1);
+  expect(plus.alpha, 'still ink, not a ghost').toBeGreaterThanOrEqual(0.5);
+  for (const half of ['.club-driver .plus', '.club-driver .minus', '.club-approach .plus']) {
+    const rest = await paint(half);
+    expect(rest.ratio, `${half} at rest`).toBeGreaterThanOrEqual(3);
+    const box = await rect(page, half);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await atRest(page);
+    const pressed = await paint(half);
+    expect(pressed.half, `${half} fills while pressed`).not.toBe(rest.half);
+    expect(pressed.glyph, `${half}: the same colour, now over the pressed fill`).toBe(rest.glyph);
+    expect(pressed.ratio, `${half} pressed`).toBeGreaterThanOrEqual(3);
+    // Let go off the capsule, so the press counts nothing.
+    await page.mouse.move(4, 4, { steps: 4 });
+    await page.mouse.up();
+    await atRest(page);
+  }
+  // At 0 the − is disabled: its glyph fainter and its half lighter, so it reads weaker than a live one.
+  await expect(page.locator('.club-approach .minus')).toBeDisabled();
+  const live = await paint('.club-driver .minus');
+  const dead = await paint('.club-approach .minus');
+  expect(dead.glyph).not.toBe(live.glyph);
+  expect(dead.alpha).toBeLessThan(live.alpha);
+  expect(dead.half).not.toBe(live.half);
+  expect(dead.ratio).toBeLessThan(live.ratio);
 });
