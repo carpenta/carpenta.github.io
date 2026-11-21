@@ -522,6 +522,8 @@ const drawingMakeup = (page: Page) => page.evaluate(() => {
   const svg = document.getElementById('course')!;
   const paints = new Set<string>();
   for (const el of svg.querySelectorAll('path, rect, ellipse, circle, use, polygon, line')) {
+    // An outline written once in <defs> (v33) is never rendered, only its <use> copies: its default black is no colour.
+    if (el.closest('defs')) continue;
     const s = getComputedStyle(el);
     if (s.fill && s.fill !== 'none') paints.add(s.fill);
     if (s.stroke && s.stroke !== 'none') paints.add(s.stroke);
@@ -654,14 +656,32 @@ const markerFits = (page: Page) => page.evaluate(() => [...document.querySelecto
   pill: Number(g.querySelector('rect')!.getAttribute('width')),
 })));
 
-test('fits the drawn distance pills to their labels in the page font, with room on each side (v24)', async ({ page }) => {
+/** Each drawn marker's label (v35): its text, whether it sits in a pill, and how the text is painted. */
+const markerNumbers = (page: Page) => page.evaluate(() => [...document.querySelectorAll('#course .marker')].map((g) => {
+  const t = g.querySelector('text')!;
+  const s = getComputedStyle(t);
+  return { label: t.textContent, pills: g.querySelectorAll('rect').length, fill: s.fill, stroke: s.stroke, halo: parseFloat(s.strokeWidth), order: s.paintOrder };
+}));
+
+test('fits the drawn distance pills to their labels in the page font where the course gives yards, and writes bare numbers where it gives metres (v24, v35)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  // The schematic on 에코랜드 와일드 1 (342 m) shows 100 m and 150 m in a tall band (v27: Everis is drawn from OpenStreetMap).
-  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  // 렉스필드 레이크 1 is 359 yd: the chip gives yards, so the markers (in metres) keep their unit, in a pill that fits it.
+  await openCourse(page, '렉스필드', '렉스필드 컨트리클럽');
   await page.evaluate(() => document.fonts.ready);
+  await expect(page.locator('#hole-distance')).toContainText('yd');
   const fit = await markerFits(page);
   expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
   for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
+  // The schematic on 에코랜드 와일드 1 (342 m) shows them in a tall band (v27: Everis is drawn from OpenStreetMap). Its chip
+  // gives metres, so since v35 each is its bare number (the v33 critique), white in a deep halo that reads on any ground.
+  await page.evaluate(() => localStorage.clear());
+  await openCourse(page, '에코랜드', '에코랜드 골프클럽');
+  await expect(page.locator('#hole-distance')).toContainText(' m');
+  const [white, deep] = [await token(page, '--on-dark'), await token(page, '--deep')];
+  const numbers = await markerNumbers(page);
+  expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
+  for (const n of numbers) expect({ pills: n.pills, fill: n.fill, stroke: n.stroke, order: n.order.split(' ')[0] }, n.label!).toEqual({ pills: 0, fill: white, stroke: deep, order: 'stroke' });
+  for (const n of numbers) expect(n.halo, `${n.label}: halo`).toBeGreaterThanOrEqual(2);
 });
 
 test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
@@ -757,14 +777,14 @@ test('draws an Everis hole from OpenStreetMap, with a © OpenStreetMap link besi
   await expect(course).toHaveAttribute('data-art', 'osm');
   expect(await course.locator('.green').getAttribute('d')).not.toBe(green);
   await expect(credit).toBeVisible();
-  // The whole of a long hole in the band (v33): 새별 3 (par 5) shows its 100 m and 150 m pills, which fit their labels
-  // as the schematic's do.
+  // The whole of a long hole in the band (v33): 새별 3 (par 5) shows its 100 m and 150 m markers, as the schematic does:
+  // since v35 their bare numbers, Everis giving its lengths in metres.
   await page.getByRole('button', { name: '다음 홀로 이동' }).click();
   await expect(page.locator('#hole-n')).toHaveText('3');
   await page.evaluate(() => document.fonts.ready);
-  const fit = await markerFits(page);
-  expect(fit.map((f) => f.label)).toEqual(['100 m', '150 m']);
-  for (const f of fit) expect((f.pill - f.text) / 2, `${f.label}: room each side`).toBeGreaterThanOrEqual(6);
+  const numbers = await markerNumbers(page);
+  expect(numbers.map((n) => n.label)).toEqual(['100', '150']);
+  for (const n of numbers) expect(n.pills, n.label!).toBe(0);
   // Bundled: no request left the page, and nothing new was stored.
   expect(requests).toEqual([]);
   expect(await page.evaluate(() => ({ keys: Object.keys(localStorage).sort(), sessionStorage: sessionStorage.length, cookies: document.cookie })))
@@ -1247,7 +1267,8 @@ test('lays the hole across the band at one scale, tee at the left, and measures 
   }
   await page.locator('#info-btn').click();
   await expect(page.locator('#hi-marks')).toBeVisible();
-  await expect(page.locator('#hi-marks')).toHaveText('그림의 100 m·150 m 표시는 그린 중앙까지의 거리예요.');
+  // v35: the markers are bare numbers where the chip gives metres, so 홀 안내 names the unit.
+  await expect(page.locator('#hi-marks')).toHaveText('그림의 100·150 표시는 그린 중앙까지의 거리(m)예요.');
   await page.keyboard.press('Escape');
 });
 
@@ -3610,43 +3631,43 @@ for (const [width, height] of [[360, 640], [375, 553]]) {
   test.describe(`the first course picker on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-    test('links back to the site, the only way out of the full-screen picker, on the title’s line', async ({ page }) => {
+    test('links back to the site, the only way out of the full-screen picker, at the top left where every view has it (v35)', async ({ page }) => {
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
       // The modal picker covers the tab bar and its 홈, so it carries its own link back (AGENTS.md: at every width).
       const home = page.locator('#picker a[href="../../"]');
       await expect(home).toHaveCount(1);
       await expect(home).toBeVisible();
-      // A quiet 홈 chip since v29, named in full for screen readers.
+      // Named in full for screen readers.
       await expect(home).toHaveText('홈');
       await expect(home).toHaveAttribute('aria-label', /carpenta\.github\.io/);
       await settled(page);
       const box = (await home.boundingBox())!;
-      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(48);
       expect(Math.min(box.x, box.y)).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(box.y + box.height).toBeLessThanOrEqual(height);
       expect(await sideScroll(page)).toBe(0);
-      // A glass chip like 취소 (v29), its middle on the title's middle and its right edge on the header's inner edge,
-      // where 취소 goes in the other modes. A filled chip lines up by its middle, not by its small text's baseline.
-      within1px(midY(box), midY(await rect(page, '#picker-title')), 'middle on the title’s');
-      within1px(endOf(box), endOf(await spanOf(page, '.pk-search')), 'right edge');
+      // Since v35 in stage 4's place (it was a glass chip on the title's line, v29–v34): the box of the views' own 홈 under
+      // the picker, at the top left on the top bar's line, quiet, with no fill.
+      const views = await rect(page, '.app > .home-link');
+      within1px(box.x, views.x, 'left, as on every view');
+      within1px(midY(box), midY(views), 'on the top bar’s line');
+      expect(await home.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
       const size = await home.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
       expect(size).toBeGreaterThanOrEqual(13);
-      // From the menu's 새 라운드 the picker has 취소 back to the app (and its tab bar's 홈) in that place instead.
+      // From the menu's 새 라운드 the picker adds 취소 back to the app at the right end of the same line; 홈 stays.
       await page.getByRole('button', { name: '이 코스로 시작' }).tap();
       await page.getByRole('button', { name: '메뉴' }).first().tap();
       await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
       await page.locator('#new-round').tap();
       await expect(page.locator('#picker')).toBeVisible();
-      await expect(home).toBeHidden();
+      await expect(home).toBeVisible();
       await settled(page);
-      within1px(endOf(await spanOf(page, '#picker-cancel')), endOf(await spanOf(page, '.pk-search')), '취소 right edge');
-      // 취소 takes 홈's box, so the title keeps its place whichever of the two the picker shows.
       const cancel = await rect(page, '#picker-cancel');
-      within1px(cancel.y, box.y, '취소 top where 홈’s was');
-      within1px(cancel.height, box.height, '취소 as tall as 홈');
-      within1px(midY(cancel), midY(await rect(page, '#picker-title')), '취소 middle on the title’s');
+      within1px(cancel.x + cancel.width, width - 16, '취소 on the right inset');
+      within1px(midY(cancel), midY(box), '취소 on 홈’s line');
+      expect(Math.min(cancel.width, cancel.height)).toBeGreaterThanOrEqual(48);
     });
   });
 }
@@ -3864,7 +3885,9 @@ test('opens a past round read-only with its report, and deletes it only after as
   await pastItems(page).first().click();
   const dialog = page.locator('#past');
   await expect(dialog).toBeVisible();
-  await expect(page.locator('#past-title')).toHaveText(/^\d{4}년 \d{1,2}월 \d{1,2}일 라운드$/);
+  // Named by its day as 스코어카드 names the round (v35: the header's middle is 160px at 360); a round from another year
+  // says the year beside its course (tested on its own).
+  await expect(page.locator('#past-title')).toHaveText(/^\d{1,2}월 \d{1,2}일 라운드$/);
   await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
   await expect(dialog.locator('.nine-tbl')).toHaveCount(2);
   // Read-only: no links to holes, no par buttons and nothing to tap a stroke into.
@@ -7296,7 +7319,9 @@ const menuLayout = (page: Page) => page.locator('#menu').evaluate((menu) => {
 
 for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
   test.describe(`기록's penalty row and the menu on a ${width}×${height} phone (v36)`, () => {
-    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    // bypassCSP only because pixelAt reads a screenshot, and WebKit's screenshot adds a style of its own, which the
+    // page's CSP would refuse and report (as the v32 badge test).
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
 
     test('상세 stands OB, 벙커 and 해저드 together under the first three capsules; 빼기 comes in under 퍼터 and nothing moves', async ({ page }) => {
       await open(page);
@@ -7491,4 +7516,228 @@ test.describe('the 상세 row and the menu at 360 in 큰 글씨 and with wider t
     await page.addStyleTag({ content: WIDER });
     await check('wider type');
   });
+});
+
+/* ---------- v35: 지난 라운드 열기 and 코스 선택 in stage 4's frame, and the drawing's leftovers from the v33 critique ---------- */
+
+/** A past round on Everis on `date`, kept (closed), with every hole played. */
+const keptRound = (date: string) => ({
+  version: 1, date, current: 17, closed: true,
+  holes: Array.from({ length: 18 }, () => ({ par: 4, driver: 1, approach: 1, putts: 2, ob: 0, mulligan: 0 })),
+  course: { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' },
+});
+
+for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
+  test.describe(`지난 라운드 열기 in 기록’s frame on a ${width}×${height} phone (v35)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('a past round opens under a deep header held at the top, its day on the top bar’s line and 닫기 a ghost on the right, over a paper sheet', async ({ page }) => {
+      await page.goto('/');
+      await seedAudit(page);
+      await atRest(page);
+      const line = midY(await rect(page, '.app > .home-link'));
+      const [deep, paper, onDark] = [await token(page, '--deep'), await token(page, '--paper'), await token(page, '--on-dark')];
+      await tab(page, '지난 라운드').tap();
+      await pastItems(page).first().tap();
+      await expect(page.locator('#past')).toBeVisible();
+      await settled(page);
+      // The header as 스코어카드's and 지난 라운드's: deep, the round's day white in the middle of the bar's line, the course under it.
+      expect(await page.locator('#past .sc-top').evaluate((el) => getComputedStyle(el).backgroundColor), 'the header').toBe(deep);
+      expect(await page.locator('#past-title').evaluate((el) => getComputedStyle(el).color), 'the title').toBe(onDark);
+      await expect(page.locator('#past-title')).toHaveText(/^\d{1,2}월 \d{1,2}일 라운드$/);
+      await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
+      const title = await rect(page, '#past .sc-title');
+      expectAligned(midY(title), line, 'title on the top bar’s line');
+      expectAligned(midX(title), width / 2, 'title centred');
+      // 닫기 in the right-hand action's place (파 수정's), a ghost on deep: white letters, no fill or shadow, a 48px target.
+      const close = await rect(page, '#past-close');
+      expectAligned(close.x + close.width, width - 16, '닫기 on the right inset');
+      expectAligned(midY(close), line, '닫기 on the line');
+      expect(Math.min(close.width, close.height), '닫기: a 48px target').toBeGreaterThanOrEqual(48);
+      expect(close.x, '닫기 clear of the title').toBeGreaterThanOrEqual(title.x + title.width - 0.5);
+      expect(await page.locator('#past-close').evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow, color: getComputedStyle(el).color })))
+        .toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none', color: onDark });
+      // The round on a paper sheet with 24px top corners, right under the header, across the screen.
+      const look = await page.locator('#past > .sc-body').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { background: s.backgroundColor, left: s.borderTopLeftRadius, right: s.borderTopRightRadius };
+      });
+      expect(look, 'the sheet').toEqual({ background: paper, left: '24px', right: '24px' });
+      const head = await rect(page, '#past .sc-top');
+      const body = await rect(page, '#past > .sc-body');
+      expectAligned(body.y, head.y + head.height, 'the sheet right under the header');
+      expectAligned(body.x, 0, 'the sheet from the left edge');
+      expectAligned(body.width, width, 'the sheet across the screen');
+      // Held at the top while the round scrolls under it; nothing scrolls sideways.
+      await page.locator('#past').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await settled(page);
+      expectAligned((await rect(page, '#past .sc-title')).y, title.y, 'title held while scrolled');
+      expect(await page.locator('#past').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
+    });
+  });
+}
+
+test('names a past round by its day as 스코어카드 does, the year joining its course when it is from another year (v35)', async ({ page }) => {
+  await open(page);
+  const year = await page.evaluate(() => new Date().getFullYear());
+  await page.evaluate(([key, list]) => localStorage.setItem(key as string, JSON.stringify(list)), [HISTORY_KEY, [
+    { id: 'this-year', endedAt: Date.parse(`${year}-01-01T18:00:00`), round: keptRound(`${year}-01-01`) },
+    { id: 'last-year', endedAt: Date.parse(`${year - 1}-06-14T18:00:00`), round: keptRound(`${year - 1}-06-14`) },
+  ]] as const);
+  await page.reload();
+  await showPast(page);
+  await pastItems(page).nth(0).click();
+  await expect(page.locator('#past-title')).toHaveText('1월 1일 라운드');
+  await expect(page.locator('#past-course')).toHaveText('에버리스 골프리조트 새별·레이크');
+  await page.locator('#past-close').click();
+  await expect(page.locator('#past')).toBeHidden();
+  await pastItems(page).nth(1).click();
+  await expect(page.locator('#past-title')).toHaveText('6월 14일 라운드');
+  await expect(page.locator('#past-course')).toHaveText(`${year - 1}년, 에버리스 골프리조트 새별·레이크`);
+});
+
+for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]] as const) {
+  test.describe(`코스 선택 in the frame on a ${width}×${height} phone (v35)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    test('홈 and 취소 on the top bar’s line as on every view, the question its one title, the list and the nines whole', async ({ page }) => {
+      await page.goto('/');
+      await expect(page.locator('#picker')).toBeVisible();
+      await settled(page);
+      // 홈 in the box of the views' own 홈 under the picker: the top left, on the top bar's line, a 48px target, no fill.
+      const views = await rect(page, '.app > .home-link');
+      const home = await rect(page, '#picker .picker-home');
+      for (const k of ['x', 'y', 'width', 'height'] as const) expectAligned(home[k], views[k], `홈 ${k} as on every view`);
+      expect(await page.locator('#picker .picker-home').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+      const line = midY(views);
+      const title = await rect(page, '#picker-title');
+      const text = await textBox(page, '#picker-title');
+      const size = await page.locator('#picker-title').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+      if (height >= 700) {
+        // A tall phone: the question a large title under the bar's line at the left inset, the app's name on the line.
+        expect(size).toBe(34);
+        expectAligned(text.x, 16, 'title on the inset');
+        expect(title.y, 'title under the bar’s line').toBeGreaterThanOrEqual(home.y + home.height - 0.5);
+        await expect(page.locator('#picker .pk-brand')).toBeVisible();
+        const brand = await textBox(page, '#picker .pk-brand');
+        expectAligned(midY(brand), line, 'the app’s name on the line');
+        expectAligned(midX(await rect(page, '#picker .pk-brand')), width / 2, 'the app’s name centred');
+      } else {
+        // Shorter: the question in the middle of the bar's line, as every view's title, at 22px.
+        expect(size).toBe(22);
+        expectAligned(midY(text), line, 'title on the line');
+        expectAligned(midX(text), width / 2, 'title centred');
+        expect(text.x, 'title clear of 홈').toBeGreaterThanOrEqual(home.x + home.width);
+        await expect(page.locator('#picker .pk-brand')).toBeHidden();
+      }
+      // The list keeps a row and a half, and the chosen course's sheet shows its nines whole.
+      expect((await rect(page, '#picker-list')).height, 'the list').toBeGreaterThanOrEqual(96);
+      expect(await page.locator('.pk-scroll').evaluate((el) => el.scrollHeight - el.clientHeight), 'the nines whole').toBeLessThanOrEqual(1);
+      // The question and 이 코스로 시작 lead: the title is the largest text on the screen.
+      const largest = await page.locator('#picker').evaluate((d) => Math.max(...[...d.querySelectorAll('*')].filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim()) && el.getBoundingClientRect().width).map((el) => parseFloat(getComputedStyle(el).fontSize))));
+      expect(largest).toBe(size);
+      // From the menu's 새 라운드: 취소 at the right inset on the same line, a ghost (no fill or shadow); 홈 stays at the left.
+      await page.getByRole('button', { name: '이 코스로 시작' }).tap();
+      await page.getByRole('button', { name: '메뉴' }).first().tap();
+      await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
+      await page.locator('#new-round').tap();
+      await expect(page.locator('#picker-cancel')).toBeVisible();
+      await expect(page.locator('#picker .picker-home')).toBeVisible();
+      await settled(page);
+      const cancel = await rect(page, '#picker-cancel');
+      expectAligned(cancel.x + cancel.width, width - 16, '취소 on the right inset');
+      expectAligned(midY(cancel), line, '취소 on the line');
+      expect(Math.min(cancel.width, cancel.height), '취소: a 48px target').toBeGreaterThanOrEqual(48);
+      expect(await page.locator('#picker-cancel').evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow })))
+        .toEqual({ background: 'rgba(0, 0, 0, 0)', shadow: 'none' });
+      if (height < 700) expect((await textBox(page, '#picker-title')).x + (await textBox(page, '#picker-title')).width, 'title clear of 취소').toBeLessThanOrEqual(cancel.x);
+      expect(await sideScroll(page)).toBe(0);
+    });
+  });
+}
+
+test.describe('코스 선택’s title with wider type at 360 (v35)', () => {
+  // bypassCSP only to add the widening style.
+  test.use({ viewport: { width: 360, height: 640 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+  test('stays on one line in the middle of the bar’s line, clear of 홈 and 취소', async ({ page }) => {
+    await open(page);
+    await page.getByRole('button', { name: '메뉴' }).first().tap();
+    await page.locator('#menu .mi', { hasText: '새 라운드' }).tap();
+    await page.locator('#new-round').tap();
+    await expect(page.locator('#picker-cancel')).toBeVisible();
+    await page.addStyleTag({ content: WIDER });
+    await settled(page);
+    const text = await textBox(page, '#picker-title');
+    const home = await rect(page, '#picker .picker-home');
+    const cancel = await rect(page, '#picker-cancel');
+    expect(text.height, 'one line').toBeLessThan(22 * 1.6);
+    expect(text.x, 'clear of 홈').toBeGreaterThanOrEqual(home.x + home.width);
+    expect(text.x + text.width, 'clear of 취소').toBeLessThanOrEqual(cancel.x);
+    expectAligned(midY(text), midY(home), 'on the line');
+  });
+});
+
+/** The box of the text inside `selector` (its line boxes), not of the element round it. */
+const textBox = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const r = range.getBoundingClientRect();
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+});
+
+test('fades the water 새별 7 does not play over and keeps the water it carries in full colour, one shore line round both (v35)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  await pickHole(page, 6);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await settled(page);
+  const [water, far, deep, rough] = [await token(page, '--water'), await token(page, '--water-far'), await token(page, '--deep'), await token(page, '--rough')];
+  const fill = (selector: string) => course.locator(selector).first().evaluate((el) => getComputedStyle(el).fill);
+  expect(await fill(':scope > .pond > .water-far')).toBe(far);
+  expect(await fill(':scope > .pond > .water')).toBe(water);
+  expect(await course.locator(':scope > .pond > .shore').first().evaluate((el) => ({ fill: getComputedStyle(el).fill, stroke: getComputedStyle(el).stroke }))).toEqual({ fill: 'none', stroke: deep });
+  // Quieter, not another colour: the far tint is the water's, nearer the rough.
+  const lum = (c: string) => {
+    const [r, g, b] = c.match(/\d+/g)!.map(Number).map((v) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  expect(ratio(far, rough)).toBeLessThan(ratio(water, rough));
+  expect(ratio(far, rough)).toBeGreaterThan(1.2);
+  const m = await drawingMakeup(page);
+  expect(m.paints.length, m.paints.join(' | ')).toBeLessThanOrEqual(10);
+});
+
+test('shows the green up close in a window where the band has room, clear of the hole, its markers and the credit: 새별 1 at 390×844, not at 375×667 (v35)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await settled(page);
+  const inset = course.locator(':scope > .inset');
+  await expect(inset).toHaveCount(1);
+  const box = (await inset.boundingBox())!;
+  const band = await visibleBand(page);
+  expect(box.y, 'under the chips').toBeGreaterThanOrEqual(band.y0 + 6 - 0.5);
+  expect(box.y + box.height, 'above the card').toBeLessThanOrEqual(band.y1 + 0.5);
+  expect(box.x).toBeGreaterThanOrEqual(band.x0 - 0.5);
+  expect(box.x + box.width).toBeLessThanOrEqual(band.x1 + 0.5);
+  const apart = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+    a.x + a.width <= b.x + 0.5 || b.x + b.width <= a.x + 0.5 || a.y + a.height <= b.y + 0.5 || b.y + b.height <= a.y + 0.5;
+  expect(apart(box, (await page.locator('#osm-credit').boundingBox())!), 'off the credit').toBe(true);
+  for (const sel of [':scope > .marker', ':scope > .green', ':scope > .green2', ':scope > .tee', ':scope > .tee2', ':scope > .bunker', ':scope > .flag']) {
+    for (const el of await course.locator(sel).all()) expect(apart(box, (await el.boundingBox())!), `off ${sel}`).toBe(true);
+  }
+  // The green at least twice the size it is drawn at, its pin and flag in the window too.
+  const big = (await inset.locator('.in-green').first().boundingBox())!;
+  const small = (await course.locator(':scope > .green').boundingBox())!;
+  expect(big.width).toBeGreaterThanOrEqual(2 * small.width - 1);
+  await expect(inset.locator('.in-flag')).toHaveCount(1);
+  // On a band without room (375×667's 59px), no window.
+  await page.setViewportSize({ width: 375, height: 667 });
+  await settled(page);
+  await expect(course).toHaveAttribute('data-art', 'osm');
+  await expect(course.locator('.inset')).toHaveCount(0);
 });

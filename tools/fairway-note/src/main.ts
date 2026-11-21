@@ -39,7 +39,7 @@ import {
   type Tagged,
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
-import { bandShape, bandSvg, courseShape, courseSvg, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
+import { bandShape, bandSvg, courseShape, courseSvg, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type ArtBand, type Box, type CourseFrame, type OsmHole } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
@@ -555,6 +555,8 @@ function drawCourse(): void {
   // The official length in metres, for the 100 m / 150 m markers.
   const first = info?.distances?.[0];
   const length = first ? Math.round(first.unit === 'yd' ? first.length * 0.9144 : first.length) : null;
+  // v35: where the chip gives metres the markers are bare numbers; where it gives yards they keep "m" in their pill.
+  const bare = first?.unit !== 'yd';
   const nine = round.current < 9 ? course.front : course.back;
   const fitAt = band ? [band.x0, band.y0, band.x1, band.y1, ...[...band.keep, ...(band.credit ? [band.credit.text, band.credit.touch] : [])].flatMap((b) => [b.x0, b.y0, b.x1, b.y1])].map(Math.round) : [];
   const key = [frame.width, frame.height, Math.round(frame.bandTop), Math.round(frame.bandBottom), Math.round(frame.right), Math.round(frame.teeY ?? 0), hole().par, round.current, bend, island, length, info?.layout ?? '', osm ? `osm:${course.id}:${nine}` : '', ...fitAt].join(',');
@@ -569,9 +571,12 @@ function drawCourse(): void {
   });
   // 홀 안내 says what the 100 m and 150 m markers measure to, while the drawing shows them (v33).
   const marks = $('hi-marks');
+  // v35: bare numbers on the drawing, so the unit is said here once; a course in yards keeps "100 m" on its pills.
+  setText(marks, bare ? '그림의 100·150 표시는 그린 중앙까지의 거리(m)예요.' : '그림의 100 m·150 m 표시는 그린 중앙까지의 거리예요.');
   if (band && osm) {
     // Static markup from course-art.ts, built from the bundled OpenStreetMap outlines (numbers only).
-    const shape = osmShape(osm, round.current, band, length);
+    // v35: the markers as bare numbers (the chip and 홀 안내 give the unit) and the green up close where the band has room.
+    const shape = osmShape(osm, round.current, band, length, CREDIT_SIDES, { bare, inset: true });
     svg.innerHTML = osmSvg(shape, frame);
     mark('osm', shape, band);
     // The credit at the end the drawing chose (v33): the right end where water would lie behind it at the left.
@@ -582,7 +587,7 @@ function drawCourse(): void {
   const named = holeHazards(hole().par, info?.layout);
   if (band) {
     // Static markup from course-art.ts, built from numbers only. Bunkers and water only where the hole's note names them (v22).
-    const shape = bandShape(hole().par, round.current, band, bend, island, length, named);
+    const shape = bandShape(hole().par, round.current, band, bend, island, length, named, { bare });
     svg.innerHTML = bandSvg(shape, frame);
     mark('schematic', { tee: [shape.tee.x, shape.tee.y], green: [shape.green.cx, shape.green.cy], scale: shape.scale, line: shape.line }, band);
     marks.hidden = shape.markers.length === 0;
