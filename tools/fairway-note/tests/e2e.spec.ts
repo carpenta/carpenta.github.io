@@ -27,14 +27,26 @@ async function openCourse(page: Page, query: string, name: string) {
   await expect(page.locator('#picker')).toBeHidden();
 }
 
-/** One tap per stroke on a club's + or on a penalty. */
+const PENALTY = ['ob', 'hazard', 'bunker'];
+const modeTab = (page: Page, name: '기본' | '상세') => page.getByRole('button', { name, exact: true });
+
+/**
+ * One tap per stroke on a club's + or on a penalty. v39: OB, 벙커 and 해저드 are entered in 상세 only (the user: "ob
+ * 해저드 벙커는 상세에서만 입력하면 됨"), so from 기본 a penalty is entered as a player would: 상세, the taps, back to 기본.
+ * What 기본 counted before keeps counting (checked on its own below).
+ */
 async function tap(page: Page, key: string, times = 1) {
+  const fromBasic = PENALTY.includes(key) && (await page.locator('#entry').getAttribute('data-mode')) === 'basic';
+  if (fromBasic) await modeTab(page, '상세').click();
   for (let i = 0; i < times; i++) await page.getByRole('button', { name: `${LABEL[key]} 하나 더하기` }).click();
+  if (fromBasic) await modeTab(page, '기본').click();
 }
 
 const count = (page: Page, key: string) => page.locator(`#count-${key}`);
 const tab = (page: Page, name: '기록' | '스코어카드' | '지난 라운드') => page.getByRole('tab', { name });
-const next = (page: Page) => page.locator('#go-next');
+// v39: 다음 홀 is gone ("다음 홀 이동 버튼은 필요 없음"); the switcher's › moves on (saying so when the hole is left
+// blank) and, on the last hole, finishes the round, as 다음 홀 did.
+const next = (page: Page) => page.locator('#next-hole');
 const sideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 const stored = (page: Page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
 /** A palette token (style.css) as the browser computes it, to compare with an element's computed colour (v19). */
@@ -120,7 +132,7 @@ test('counts each club with one tap and totals the round without network or othe
   await expect(count(page, 'driver')).toHaveText('1');
   await expect(count(page, 'putts')).toHaveText('2');
   await expect(page.locator('#hole-strokes')).toHaveText('4');
-  await expect(page.locator('#hole-name')).toHaveText('파');
+  await expect(page.locator('#hole-name')).toHaveText('Par');
   await expect(page.locator('#prog-n')).toHaveText('1홀까지');
   await expect(page.locator('#prog-p')).toHaveText('파 대비 이븐');
 
@@ -132,8 +144,8 @@ test('counts each club with one tap and totals the round without network or othe
   await tap(page, 'putts', 3);
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   await expect(page.locator('#hole-strokes')).toHaveText('6');
-  // The 60px badge says 더블, as the scorecard's marks do; its spoken name keeps the whole word.
-  await expect(page.locator('#hole-name')).toHaveText('더블');
+  // v39: the badge says the score against par (+2), as a card writes it; its spoken name keeps the whole word.
+  await expect(page.locator('#hole-name')).toHaveText('+2');
   await expect(page.locator('#badge')).toHaveAttribute('aria-label', '이 홀 6타 더블 보기');
   const [word, ring] = [(await page.locator('#hole-name').boundingBox())!, (await page.locator('#badge').boundingBox())!];
   expect(word.width).toBeLessThanOrEqual(ring.width - 12);
@@ -143,7 +155,7 @@ test('counts each club with one tap and totals the round without network or othe
   await tap(page, 'driver');
   await tap(page, 'approach', 2);
   await tap(page, 'putts');
-  await expect(page.locator('#hole-name')).toHaveText('버디');
+  await expect(page.locator('#hole-name')).toHaveText('−1');
   await expect(page.locator('#prog-n')).toHaveText('3홀까지');
   await expect(page.locator('#prog-p')).toHaveText('파 대비 +1');
   await expect(page.locator('#prog-p')).not.toHaveClass(/under/);
@@ -162,7 +174,7 @@ test('counts each club with one tap and totals the round without network or othe
   expect(await page.evaluate(async () => (await indexedDB.databases()).length)).toBe(0);
 });
 
-test('shows the hole score in the badge with its scorecard mark, red under par, and marks a birdie once', async ({ page }) => {
+test('shows the hole score in the badge on map glass, its mark kept but not drawn (v39), red under par, and marks a birdie once', async ({ page }) => {
   await open(page);
   const mark = page.locator('#bmark');
   const shape = page.locator('#bm');
@@ -176,17 +188,21 @@ test('shows the hole score in the badge with its scorecard mark, red under par, 
   await tap(page, 'approach');
   await expect(mark).toHaveAttribute('data-mark', 'bogey');
   await expect(shape.locator('rect')).toHaveCount(1);
-  await expect(page.locator('#hole-name')).toHaveText('보기');
+  await expect(page.locator('#hole-name')).toHaveText('+1');
   for (let i = 0; i < 2; i++) await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await expect(page.locator('#hole-strokes')).toHaveText('3');
   await expect(mark).toHaveAttribute('data-mark', 'birdie');
   await expect(shape.locator('circle')).toHaveCount(1);
   await expect(badge).toHaveClass(/celebrate/);
-  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(await token(page, '--red'));
+  // v39: the badge stays map glass whatever the score, and no scorecard mark rings the number (the user: "숫자에 Border
+  // 를 억지스럽게 씌우지 말아줘"); under par the number turns a light red.
+  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(10, 24, 16, 0.5)');
+  expect(await page.locator('#hole-strokes').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 154, 143)');
+  await expect(shape).toBeHidden();
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   await expect(mark).toHaveAttribute('data-mark', 'eagle');
   await expect(shape.locator('circle')).toHaveCount(2);
-  await expect(page.locator('#hole-name')).toHaveText('이글');
+  await expect(page.locator('#hole-name')).toHaveText('−2');
   await expect(badge).toHaveAttribute('aria-label', '이 홀 2타 이글');
   // Back to par and under again: the moment plays again.
   await tap(page, 'putts', 2);
@@ -196,9 +212,31 @@ test('shows the hole score in the badge with its scorecard mark, red under par, 
   await expect(badge).toHaveClass(/celebrate/);
 });
 
+// v39: the user, "ob 해저드 벙커는 상세에서만 입력하면 됨": 기본 shows the three capsules alone, 상세 the penalties.
+test('enters OB, 벙커 and 해저드 in 상세 only, and what 기본 counted still counts (v39)', async ({ page }) => {
+  await open(page);
+  await expect(page.locator('#entry')).toHaveAttribute('data-mode', 'basic');
+  await expect(page.locator('#pens')).toBeHidden();
+  for (const name of ['OB', '벙커', '해저드']) await expect(page.getByRole('button', { name: `${name} 하나 더하기` })).toHaveCount(0);
+  await detailMode(page);
+  await expect(page.locator('#pens')).toBeVisible();
+  for (const name of ['OB', '벙커', '해저드']) await expect(page.getByRole('button', { name: `${name} 하나 더하기` })).toBeVisible();
+  // A penalty from an older round (or put in before v39) keeps counting in 기본, and 상세 can take it off.
+  await tap(page, 'driver');
+  await tap(page, 'ob');
+  await modeTab(page, '기본').click();
+  await expect(page.locator('#pens')).toBeHidden();
+  await expect(page.locator('#hole-strokes')).toHaveText('2');
+  await modeTab(page, '상세').click();
+  await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await expect(page.locator('#hole-strokes')).toHaveText('1');
+});
+
 test('adds a penalty stroke for each OB or hazard and takes the last one off with 빼기', async ({ page }) => {
   await open(page);
   await expect(page.getByRole('button', { name: 'OB 하나 빼기' })).toHaveCount(0);
+  // v39: penalties are entered in 상세 (the test above); the rest of the round is the same there.
+  await detailMode(page);
   await tap(page, 'driver');
   await tap(page, 'ob');
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
@@ -337,13 +375,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v38');
+  await expect(page.locator('#menu-version')).toHaveText('v39');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v38');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v39');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -401,7 +439,7 @@ test('changes pars in 파 수정 on the scorecard, one tap per step from 3 to 5'
   expect((await stored(page)).holes[0].par).toBe(3);
   await showEntry(page);
   await expect(page.locator('#hole-par')).toHaveText('Par 3');
-  await expect(page.locator('#hole-name')).toHaveText('파');
+  await expect(page.locator('#hole-name')).toHaveText('Par');
 });
 
 test('moves the round to another course from the menu, keeping its strokes', async ({ page }) => {
@@ -454,7 +492,13 @@ test('draws the hole behind the screen by its par, new for each hole', async ({ 
   // card hid it).
   for (const index of [0, 1, 3]) {
     await pickHole(page, index);
-    const tee = (await course.locator('.tee').boundingBox())!;
+    // v39: once painted, the drawing's tee is clear (the canvas paints it) and its 1px stroke transparent; its shape is
+    // measured (getBoundingClientRect), not the box Playwright widens by that invisible stroke.
+    await expect(course).toHaveClass(/painted/);
+    const tee = await course.locator('.tee').evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      return { x: b.x, y: b.y, width: b.width, height: b.height };
+    });
     const chips = await rect(page, '#hole-info');
     const sheet = await rect(page, '#sheet');
     expect(tee.y, `hole ${index + 1}`).toBeGreaterThanOrEqual(chips.y + chips.height);
@@ -592,17 +636,59 @@ test('keeps the drawing to the open band, steps it back where the thumb shows th
   await open(page);
   await settled(page);
   const sheet = await rect(page, '#sheet');
-  const go = await rect(page, '#go-next');
-  expect(await drawnAt(page, 195, sheet.y - 24), 'the open band').toBe(true);
-  expect(await drawnAt(page, 195, (sheet.y + sheet.height + go.y) / 2), 'between the sheet and 다음 홀').toBe(false);
+  // v39: the band ends at the low hole switcher (it sits over the hole's foot), and 다음 홀 is gone. The drawing's marks
+  // stay in the band; the painted ground under them runs the whole screen, behind the glass (the user: the picture runs
+  // to the screen's edges and shows through the glass).
+  const chips = await rect(page, '#hole-info');
+  const nav = await rect(page, '#entry .hole-nav');
+  expect(await drawnAt(page, 195, (chips.y + chips.height + nav.y) / 2), 'the open band').toBe(true);
+  expect(await drawnAt(page, 195, nav.y + nav.height / 2), 'under the hole switcher').toBe(false);
+  expect(await drawnAt(page, 195, sheet.y + sheet.height / 2), 'under the sheet').toBe(false);
   expect(await drawnAt(page, (sheet.x + sheet.width + 390) / 2, sheet.y + 80), 'beside the sheet').toBe(false);
+  const paint = page.locator('#course-paint');
+  await expect(paint).toBeVisible();
+  expect(await paint.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
   expect(Number(await paintOf(page, '#course', 'opacity'))).toBe(1);
   // 새별 7: water round an island green, and a fairway. The shore reads on the fairway (water on it was 1.26:1), the
   // pole on the green (white on it was 2.1:1).
   await pickHole(page, 6);
   await settled(page);
-  expect(await edgeOf(page, ['#course .water', 'stroke'], ['#course .fairway', 'fill']), 'shore on fairway').toBeGreaterThanOrEqual(3);
-  expect(await edgeOf(page, ['#course .a-pole-edge', 'stroke'], ['#course .green', 'fill']), 'pole on green').toBeGreaterThanOrEqual(3);
+  // v39: the ground is painted on the canvas and the drawing's own water, fairway and green are clear over it, so the
+  // colours are read from the paint: the middle of the water against the middle of the fairway, and the pole's edge
+  // against the putting surface, each the median of the canvas pixels well inside the shape (6px from its edge).
+  await expect(page.locator('#course')).toHaveClass(/painted/);
+  const painted = (sel: string) => page.evaluate((s) => {
+    const canvas = document.getElementById('course-paint') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d')!;
+    const k = canvas.width / canvas.getBoundingClientRect().width;
+    const px: number[][] = [];
+    // Every shape of the kind (a hole may have several ponds), on screen only.
+    for (const hit of document.querySelectorAll(`#course ${s}`)) {
+      // OpenStreetMap's fairway is a <use> of a shape in <defs>: its geometry is the shape's, its place the <use>'s.
+      const shape = (hit instanceof SVGUseElement ? document.querySelector(hit.href.baseVal) : hit) as SVGGeometryElement;
+      const placed = hit as SVGGraphicsElement;
+      const inv = placed.getScreenCTM()!.inverse();
+      const svg = placed.ownerSVGElement!;
+      const b = placed.getBoundingClientRect();
+      const inside = (x: number, y: number) => {
+        const p = svg.createSVGPoint();
+        p.x = x; p.y = y;
+        return shape.isPointInFill(p.matrixTransform(inv));
+      };
+      for (let y = Math.max(6, b.top + 6); y < Math.min(innerHeight - 6, b.bottom - 6); y += 3) {
+        for (let x = Math.max(6, b.left + 6); x < Math.min(innerWidth - 6, b.right - 6); x += 3) {
+          if (![[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6]].every(([dx, dy]) => inside(x + dx, y + dy))) continue;
+          px.push([...ctx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data].slice(0, 3));
+        }
+      }
+    }
+    const med = (i: number) => px.map((c) => c[i]).sort((a, z) => a - z)[Math.floor(px.length / 2)];
+    return { n: px.length, css: `rgb(${med(0)} ${med(1)} ${med(2)})` };
+  }, sel);
+  const [pond, fairway, green] = [await painted('.water'), await painted('.fairway'), await painted('.green')];
+  expect(Math.min(pond.n, fairway.n, green.n), `pixels sampled: water ${pond.n}, fairway ${fairway.n}, green ${green.n}`).toBeGreaterThan(20);
+  expect(await page.evaluate(ratioIn, [pond.css, fairway.css] as [string, string]), 'water on fairway').toBeGreaterThanOrEqual(3);
+  expect(await page.evaluate(ratioIn, [await paintOf(page, '#course .a-pole-edge', 'stroke'), green.css] as [string, string]), 'pole on green').toBeGreaterThanOrEqual(3);
   // 375×553: the band is a sliver under the header and the thumb shows the hole, so the drawing steps back behind the
   // chips (at full strength the green and water there were louder than the controls on them).
   await page.setViewportSize({ width: 375, height: 553 });
@@ -4746,7 +4832,7 @@ test('a spoken line sets the counts as taps do, its toast says what was set, and
   await expect(count(page, 'approach')).toHaveText('2');
   await expect(count(page, 'putts')).toHaveText('2');
   await expect(page.locator('#hole-strokes')).toHaveText('5');
-  await expect(page.locator('#hole-name')).toHaveText('보기');
+  await expect(page.locator('#hole-name')).toHaveText('+1');
   await expect(page.locator('#toast-msg')).toHaveText(`${LABEL.driver} 1 · ${LABEL.approach} 2 · ${LABEL.putts} 2`);
   await expect(page.locator('#announce')).toHaveText(`1번 홀 ${LABEL.driver} 1, ${LABEL.approach} 2, ${LABEL.putts} 2, 5타`);
   await expect(page.locator('#voice-open')).toBeFocused();
@@ -6358,7 +6444,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v38');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v39');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -6437,16 +6523,16 @@ async function seedTee(page: Page) {
 test.describe('the badge and the hole line on small phones (v29)', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
-  test('says two syllables at most, numbers past 더블 and 홀인원 alone, every word clear of the ring, with 큰 글씨 too', async ({ page }) => {
+  test('says Ace, Par or the score against par (v39), every word clear of the ring, with 큰 글씨 too', async ({ page }) => {
     await open(page);
     // The widest word of each kind: before the first tap, mid-hole, a hole in one, under and over par past the words,
-    // two syllables, and a two-digit count.
+    // v39: Ace and Par in golf's words, every other score against par (the user: long English words broke the badge).
     const cases: [string, Record<string, number>][] = [
       ['Par', { driver: 0, approach: 0, putts: 0 }],
       ['진행', { driver: 1, approach: 1, putts: 0 }],
-      ['홀인원', { driver: 0, approach: 0, putts: 1 }],
+      ['Ace', { driver: 0, approach: 0, putts: 1 }],
       ['−3', { par: 5, driver: 1, approach: 0, putts: 1 }],
-      ['더블', { driver: 1, approach: 3, putts: 2 }],
+      ['+2', { driver: 1, approach: 3, putts: 2 }],
       ['+3', { driver: 1, approach: 4, putts: 2 }],
       ['+6', { driver: 1, approach: 7, putts: 2 }],
     ];
@@ -7044,7 +7130,7 @@ test.describe('the score badge at 4x (v32)', () => {
   test('the score badge is one disc: no ring round it, its number, mark and word centred on it, in 큰 글씨 too', async ({ page }) => {
     await open(page);
     const states: [string, Record<string, number>][] = [
-      ['Par', {}], ['진행', { driver: 1, approach: 2 }], ['보기', { driver: 1, approach: 2, putts: 2 }], ['버디', { driver: 1, approach: 1, putts: 1 }],
+      ['Par', {}], ['진행', { driver: 1, approach: 2 }], ['+1', { driver: 1, approach: 2, putts: 2 }], ['−1', { driver: 1, approach: 1, putts: 1 }],
     ];
     for (const big of [false, true]) {
       if (big) await setBig(page, true);

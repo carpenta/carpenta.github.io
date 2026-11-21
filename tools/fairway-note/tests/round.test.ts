@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, badgeWord, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, scoreWord, strokes, totals, type Hole, type Round } from '../src/round';
+import { COURSE_PARS, DEFAULT_COURSE, courseLabel, roundCourse, STALE_MS, analyze, bump, emptyHole, finished, formatToPar, gir, isStale, localDate, newRound, played, scoreName, scoreWord, strokes, totals, type Hole, type Round } from '../src/round';
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, mulligan = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan, bunker: 0 });
 
@@ -92,17 +92,8 @@ describe('hole', () => {
     expect([0, 3, -2].map(formatToPar)).toEqual(['E', '+3', '-2']);
   });
 
-  // v39: the badge's word is golf's own English (the user: "해당 용어는 영어 원문으로 표시"); the badge's spoken name
-  // keeps the Korean below. Past Double, and under Eagle, the number against par.
-  it('words the badge in English (v39): Ace, Eagle, Birdie, Par, Bogey, Double, then +n or −n', () => {
-    expect(badgeWord(1, 3)).toBe('Ace');
-    expect(badgeWord(1, 5)).toBe('Ace');
-    expect([2, 3, 4, 5, 6].map((s) => badgeWord(s, 4))).toEqual(['Eagle', 'Birdie', 'Par', 'Bogey', 'Double']);
-    expect(badgeWord(7, 4)).toBe('+3');
-    expect(badgeWord(10, 4)).toBe('+6');
-    expect(badgeWord(2, 5)).toBe('−3');
-  });
-
+  // v39: the badge shows badgeWord (Ace, Par or the score against par; tests/cleanup.test.ts); the badge's spoken name
+  // keeps the whole Korean word.
   it('words a hole score as golfers say it, for the badge\'s spoken name', () => {
     expect(scoreWord(1, 3)).toBe('홀인원');
     expect(scoreWord(1, 4)).toBe('홀인원');
