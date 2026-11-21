@@ -1869,3 +1869,5 @@ body .ct-col.cur .c-hole { background: none; box-shadow: none; color: var(--lime
 /* The scorecard marks on the dark glass: outlines in white, the 트리플 square a soft fill with a white number. */
 .m[data-mark='triple']::before { background: rgb(255 255 255 / .24); }
 .m[data-mark='triple'] b { color: var(--on-glass); }
+/* The scorecard table's corners small (the user: less round), a table inside the rounder panel. */
+.ct { border-radius: 6px; }
