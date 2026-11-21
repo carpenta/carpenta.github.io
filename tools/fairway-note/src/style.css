@@ -453,13 +453,14 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
 .pen { position: relative; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .pen[data-pen='bunker'] .pen-icon { color: var(--ink); }
 /* 상세 (v28): four capsules on one grid, 드라이버 (티샷 on a par 3) · 세컨 · 어프로치 · 퍼터, 8px apart (the pad's and
-   the tee chips' gap), and the penalty row on the same four columns: OB under 드라이버, 빼기 under 세컨 while there is a
-   penalty to take off (as in 기본, under the middle), 벙커 under 어프로치 and 해저드 under 퍼터. */
+   the tee chips' gap), and the penalty row on the same four columns. Since v36 OB, 벙커 and 해저드 stand together under
+   the first three, so the row reads as one group at rest, and 빼기 comes in under 퍼터, at the row's end, when there is a
+   penalty to take off: nothing moves (v28–v35 held 세컨's column empty for it, which set OB apart). */
 #entry[data-mode='detail'] .clubs, #entry[data-mode='detail'] .pens { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 8px; }
 #entry[data-mode='detail'] .club[data-only='basic'], #entry:not([data-mode='detail']) .club[data-only='detail'] { display: none; }
-#entry[data-mode='detail'] .pens .undo { grid-column: 2; }
-#entry[data-mode='detail'] .pens .pen[data-pen='bunker'] { grid-column: 3; }
-#entry[data-mode='detail'] .pens .pen[data-pen='hazard'] { grid-column: 4; }
+#entry[data-mode='detail'] .pens .pen[data-pen='bunker'] { grid-column: 2; }
+#entry[data-mode='detail'] .pens .pen[data-pen='hazard'] { grid-column: 3; }
+#entry[data-mode='detail'] .pens .undo { grid-column: 4; }
 #entry[data-mode='detail'] .pen { width: 100%; max-width: 72px; gap: 2px; }
 /* The penalties' 2px between icon and word (v32): 빼기 kept 4px, so the card grew 2px when the first penalty came. */
 #entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; gap: 2px; }
@@ -544,8 +545,14 @@ body.big .home-link { font-size: var(--t-m); }
 /* While a dialog is open the bar steps back (v32): the dim backdrop over the dark bar changed nothing there, so its
    labels and the chosen tab stayed as loud as the panel. */
 .bar { transition: opacity .16s ease-out; }
-body:has(dialog[open]) .tabbar .bar { opacity: .4; }
+body:has(dialog[open]:not(#menu)) .tabbar .bar { opacity: .4; }
 @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+/* The menu (v36) rises from 메뉴 and stops on the bar, which stays in view and in use: 메뉴 marked as where the sheet came
+   from, the view's own tab stepping aside for it, and a tap on a view going on to it (main.ts). */
+body:has(#menu[open]) .bar-menu { color: var(--tab-on); }
+body:has(#menu[open]) .bar-menu .ti { background: var(--turf); }
+body:has(#menu[open]) .tab[aria-selected='true'] { color: var(--tab-ink); }
+body:has(#menu[open]) .tab[aria-selected='true'] .ti { background: transparent; }
 
 /* ---------- 스코어카드 ---------- */
 /* 기록's frame (v32): the header on deep, held at the top, and the page a paper sheet under it with 24px top corners, as
@@ -788,14 +795,25 @@ html.past-open { overflow: hidden; }
 .sheet-dialog::backdrop { background: var(--backdrop-strong); }
 .grab { width: 40px; height: 5px; border-radius: var(--r-full); background: var(--fill); margin: 0 auto 12px; }
 .sheet-dialog h2 { font-size: var(--t-l); font-weight: var(--w-label); }
-/* The menu: one list, each item opening its own panel. */
-.menu-sheet { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 88dvh; box-shadow: var(--sh-sheet); }
-.menu-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 0 8px; }
+/* The menu (v36): it rises from 메뉴 and stops on the bar's top edge, the dim stopping there too, so the bar stays in view
+   with 메뉴 marked as where the sheet came from; its items sorted by job (the round, keeping the record, settings, then
+   the app) under quiet headings, every row the same icon tile, title and line. Each item still opens its own panel. */
+.menu-sheet {
+  /* As tall as the screen above the bar allows, less a dimmed strip at the top (a tap there closes it): the whole menu
+     fits a 390×844 phone, and a short screen scrolls it. */
+  margin-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
+  max-height: calc(100dvh - var(--tabbar) - env(safe-area-inset-bottom) - max(48px, 7dvh, env(safe-area-inset-top) + 8px));
+  padding: 10px 16px 16px; box-shadow: var(--sh-sheet);
+}
+#menu::backdrop { background: linear-gradient(to top, transparent calc(var(--tabbar) + env(safe-area-inset-bottom)), var(--backdrop-strong) 0); }
+.menu-head { display: flex; align-items: center; justify-content: space-between; padding: 0 0 8px; }
 .menu-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); }
+.mg + .mg { margin-top: 16px; }
+.mg-h { font-size: var(--t-s); font-weight: var(--w-label); line-height: 16px; color: var(--muted); padding-bottom: 4px; }
 .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-list li + li { border-top: 1px solid var(--line); }
 .mi { width: calc(100% + 8px); margin-inline: -4px; min-height: 64px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; column-gap: 12px; align-items: center; padding: 8px 4px; text-align: left; border-radius: var(--r-tile); }
-.mi:active { background: var(--fill-2); }
+button.mi:active { background: var(--fill-2); }
 .mi .ic { width: 40px; height: 40px; border-radius: var(--r-tile); background: var(--fill); display: grid; place-items: center; color: var(--turf); }
 .mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-t { min-width: 0; }
@@ -811,13 +829,17 @@ html.past-open { overflow: hidden; }
 .mpanel .small { margin: 8px 0 0; }
 .backup > h2 { display: none; }
 .backup .muted.small { margin: 0; }
-.mulligan { display: grid; grid-template-columns: minmax(0, 1fr) 48px 36px 48px; align-items: center; gap: 8px; margin: 4px 0 0; }
-.mulligan-label b { display: block; font-size: var(--t-m); font-weight: var(--w-label); }
-.mulligan-label span { display: block; font-size: var(--t-s); color: var(--muted); }
-.step-sm { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-xl); font-weight: var(--w-label); }
-.step-sm:disabled { background: var(--fill); color: var(--off-ink); }
-.step-count { text-align: center; font-size: var(--t-xl); font-weight: var(--w-value); }
-.menu-close { margin-top: 18px; width: 100%; height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
+/* 멀리건 on its own row (v36): −, the count and + at the row's end, where the switches end, two taps from 기록. */
+.mi.mi-step { grid-template-columns: 40px minmax(0, 1fr) auto; }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.step-sm { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); color: var(--turf); display: grid; place-items: center; }
+.step-sm svg { width: 20px; height: 20px; }
+.step-sm:active:not(:disabled) { background: var(--fill-2); }
+.step-sm:disabled { color: var(--off-ink); }
+.step-count { min-width: 24px; text-align: center; font-size: var(--t-l); font-weight: var(--w-value); }
+/* The ×, on the title's line and ending where the rows end (v36: 닫기 at the sheet's foot came down onto the bar). */
+.menu-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
+.menu-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
@@ -1123,6 +1145,10 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .strip[open]::backdrop, .hinfo[open]::backdrop, .numpick[open]::backdrop, .sheet-dialog[open]::backdrop { animation: fn-fade .16s ease-out; }
 .strip[open], .hinfo[open], .numpick[open], .picker[open] { animation: fn-rise .16s ease-out; }
 .sheet-dialog[open] { animation: fn-sheet .22s cubic-bezier(.2, .8, .2, 1); }
+/* The menu grows up out of the bar (v36): shown from its foot upward, so it never slides over the bar it stops on. Before
+   the reduced-motion rules below, which take it away. */
+@keyframes fn-menu { from { clip-path: inset(30% 0 0 0); } }
+.menu-sheet[open] { animation: fn-menu .2s cubic-bezier(.2, .8, .2, 1); }
 .picker:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .strip[open], .hinfo[open], .numpick[open], .picker[open], .sheet-dialog[open],

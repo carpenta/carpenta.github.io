@@ -864,8 +864,9 @@ function bindNumPick(): void {
 }
 
 /**
- * The penalty row sits on the steppers' columns: OB under 드라이버, 해저드 under 퍼터, and in the middle 빼기 (기본) or
- * 벙커 (상세). In that order in the document too, so Tab goes left to right.
+ * The penalty row sits on the steppers' columns. 기본: OB under 드라이버, 빼기 under 그린까지, 해저드 under 퍼터. 상세
+ * (v36): OB, 벙커 and 해저드 together under the first three capsules and 빼기 under 퍼터, so the row reads as one group
+ * at rest and 빼기 comes in at its end. placeUndo() keeps the document in the row's order, so Tab goes left to right.
  */
 function buildPens(): void {
   const box = $('pens');
@@ -881,6 +882,18 @@ function buildPens(): void {
     if (pen && !pen.disabled) addPenalty(pen.dataset.pen as Pen);
   });
   $('pen-undo').addEventListener('click', undoPenalty);
+}
+
+/** 빼기 where the row shows it (v36): between OB and 해저드 in 기본, after 해저드 in 상세. Moved only when the mode changes. */
+function placeUndo(): void {
+  const undo = $('pen-undo');
+  const hazard = $('stake-hazard');
+  const last = mode === 'detail';
+  if (last ? undo.nextElementSibling === null : undo.nextElementSibling === hazard) return;
+  const focused = document.activeElement === undo;
+  if (last) $('pens').append(undo);
+  else hazard.before(undo);
+  if (focused) undo.focus();
 }
 
 /* ---------- undo: the last + or − or penalty can be taken back for four seconds ---------- */
@@ -1150,6 +1163,7 @@ function renderEntry(a: Analysis, changed?: string): void {
 
   // 기본 / 상세
   setAttr($('entry'), 'data-mode', mode);
+  placeUndo();
   // 상세 on a short screen shows Par and length under the hole number: fit them beside the badge.
   fitSwitcher();
   $('detail').hidden = mode !== 'detail';
@@ -1485,7 +1499,8 @@ function renderMenu(): void {
   setText($('mulligan-count'), String(cur.mulligan));
   $<HTMLButtonElement>('mulligan-minus').disabled = cur.mulligan === 0;
   $<HTMLButtonElement>('mulligan-plus').disabled = cur.mulligan >= MAX_COUNT;
-  setText($('mulligan-sub'), `${round.current + 1}번 홀 ${cur.mulligan}개, 타수에 넣지 않아요`);
+  // 멀리건 counts on its own row (v36): the title names the hole, the count sits between − and +.
+  setText($('mulligan-title'), `${round.current + 1}번 홀 멀리건`);
   setText($('menu-version'), VERSION_LABEL);
   setText($('about-version'), VERSION_LABEL);
   setText($('new-question'), newRoundQuestion(round));
@@ -1526,6 +1541,8 @@ function bindMenu(): void {
       renderMenu();
       openItem(null);
       menu.showModal();
+      // The sheet stops on the bar (v36), and 메뉴 there says it is open.
+      setAttr(button, 'aria-expanded', 'true');
     });
   }
   for (const item of document.querySelectorAll<HTMLButtonElement>('#menu .mi[aria-controls]')) {
@@ -1547,12 +1564,24 @@ function bindMenu(): void {
     });
   }
   $('menu-close').addEventListener('click', () => menu.close());
-  // A tap on the dim backdrop, outside the sheet, closes it.
+  // A tap off the sheet closes it: on the dim backdrop, or (v36: the dim stops at the bar, which stays in view) on the bar,
+  // where a view's tab goes on to that view as with the menu closed, and 메뉴 only closes it.
   menu.addEventListener('click', (event) => {
     const r = menu.getBoundingClientRect();
-    if (event.target === menu && (event.clientY < r.top || event.clientY > r.bottom || event.clientX < r.left || event.clientX > r.right)) menu.close();
+    const { clientX: x, clientY: y } = event;
+    if (event.target !== menu || (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right)) return;
+    const under = (el: Element) => {
+      const b = el.getBoundingClientRect();
+      return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
+    };
+    const view = [...document.querySelectorAll<HTMLButtonElement>('#views .tab')].find(under);
+    menu.close();
+    view?.click();
   });
-  menu.addEventListener('close', () => menuOpener?.focus());
+  menu.addEventListener('close', () => {
+    for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-menu]')) setAttr(button, 'aria-expanded', 'false');
+    menuOpener?.focus();
+  });
   $('mulligan-plus').addEventListener('click', () => count('mulligan', 1));
   $('mulligan-minus').addEventListener('click', () => count('mulligan', -1));
   // The panel is the question; the course picker still lets the player go back.
