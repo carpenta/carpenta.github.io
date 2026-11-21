@@ -59,9 +59,9 @@ describe('rates (v29)', () => {
 });
 
 describe('the score badge (v29; English terms since v39)', () => {
-  it('names Eagle to Double in golf\'s own English words and the rest as the score against par, as a scorecard reads it', () => {
-    expect([badgeWord(1, 3), badgeWord(1, 5), badgeWord(2, 5), badgeWord(3, 5), badgeWord(3, 4), badgeWord(4, 4), badgeWord(5, 4)]).toEqual(['Ace', 'Ace', '−3', 'Eagle', 'Birdie', 'Par', 'Bogey']);
-    expect([badgeWord(6, 4), badgeWord(7, 4), badgeWord(8, 4), badgeWord(9, 4), badgeWord(10, 3)]).toEqual(['Double', '+3', '+4', '+5', '+7']);
+  it('says Ace and Par in words and every other score against par, as a scorecard reads it (v39: long words broke the badge)', () => {
+    expect([badgeWord(1, 3), badgeWord(1, 5), badgeWord(2, 5), badgeWord(3, 5), badgeWord(3, 4), badgeWord(4, 4), badgeWord(5, 4)]).toEqual(['Ace', 'Ace', '−3', '−2', '−1', 'Par', '+1']);
+    expect([badgeWord(6, 4), badgeWord(7, 4), badgeWord(8, 4), badgeWord(9, 4), badgeWord(10, 3)]).toEqual(['+2', '+3', '+4', '+5', '+7']);
   });
 
   it('never says more than six letters under the number, so the word fits the ring with 큰 글씨 too', () => {
