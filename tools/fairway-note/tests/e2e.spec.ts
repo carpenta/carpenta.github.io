@@ -697,9 +697,11 @@ test('keeps the drawing to the open band, steps it back where the thumb shows th
   expect(Math.min(pond.n, fairway.n, green.n), `pixels sampled: water ${pond.n}, fairway ${fairway.n}, green ${green.n}`).toBeGreaterThan(20);
   expect(await page.evaluate(ratioIn, [pond.css, fairway.css] as [string, string]), 'water on fairway').toBeGreaterThanOrEqual(3);
   expect(await page.evaluate(ratioIn, [await paintOf(page, '#course .a-pole-edge', 'stroke'), green.css] as [string, string]), 'pole on green').toBeGreaterThanOrEqual(3);
-  // 375×553: the band is a sliver under the header and the thumb shows the hole, so the drawing steps back behind the
-  // chips (at full strength the green and water there were louder than the controls on them).
-  await page.setViewportSize({ width: 375, height: 553 });
+  // 375×667 in 상세 (v39: 기본's bands are fitted down to 375×553 now the switcher sits low): the band is a sliver under the
+  // header and the thumb shows the hole, so the drawing steps back behind the chips (at full strength the green and water
+  // there were louder than the controls on them).
+  await page.setViewportSize({ width: 375, height: 667 });
+  await detailMode(page);
   await settled(page);
   // The window's resize event redraws and re-clips the hole; under load it can land after the line above (v32).
   // v39: the drawing ends where the band does, at the low hole switcher over the card (or the card, if higher).
@@ -933,9 +935,11 @@ test('keeps the schematic, with no credit, on the Everis holes OpenStreetMap doe
     if (art === 'osm') await expect(credit).toBeVisible();
     else await expect(credit).toBeHidden();
   }
-  // A short screen (375×553) has no open band for the drawing and its credit: the schematic, as before.
-  await page.setViewportSize({ width: 375, height: 553 });
+  // A band with no room for the drawing and its credit (v39: 375×667 in 상세; 기본's bands are fitted down to 375×553 now
+  // the switcher sits low): the schematic, as before.
+  await page.setViewportSize({ width: 375, height: 667 });
   await pickHole(page, 0);
+  await detailMode(page);
   await expect(course).toHaveAttribute('data-art', 'schematic');
   await expect(credit).toBeHidden();
   await expect(page.locator('#hole-thumb')).toBeVisible();
@@ -7494,7 +7498,17 @@ test('분석 leads with its finding: the line saying where the strokes went is t
     .filter((el) => el.id !== 'lost-note' && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim()) && el.getClientRects().length)
     .map((el) => parseFloat(getComputedStyle(el).fontSize))));
   expect(finding).toBeGreaterThan(largest);
-  expect(await page.locator('#lost-note').evaluate((el) => getComputedStyle(el).color)).toBe(await token(page, '--ink'));
+  // In the page's full ink: v39 retints the paper screens' --ink to white on the glass, so it is read inside the pane.
+  const ink = await page.locator('#sc-analysis').evaluate((pane) => {
+    const probe = document.createElement('i');
+    probe.style.color = 'var(--ink)';
+    pane.append(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  });
+  expect(ink).toBe('rgb(244, 247, 240)');
+  expect(await page.locator('#lost-note').evaluate((el) => getComputedStyle(el).color)).toBe(ink);
 });
 
 test.describe('the score badge at 4x (v32)', () => {
