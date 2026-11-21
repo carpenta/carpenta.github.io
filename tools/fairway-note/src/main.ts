@@ -1058,6 +1058,8 @@ function bindDetail(): void {
   });
   for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
     button.addEventListener('click', () => {
+      // v39: 기본 or 상세 while 말로 입력 shows in the card puts the capsules back.
+      if ($<HTMLDialogElement>('voice').open) $('vc-close').click();
       mode = button.dataset.mode as typeof mode;
       render();
       $('sheet').scrollTop = 0;

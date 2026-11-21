@@ -92,8 +92,16 @@ export function bindVoice(page: VoicePage): void {
     used = false;
     shown = true;
     page.opened();
-    dialog.showModal();
+    // v39: in the card, in place of the capsules (the user: 음성 changes the card's content, no sheet over the screen).
+    dialog.show();
     line.focus();
+  });
+  // Not modal now, so Escape is ours to handle.
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      shut();
+    }
   });
   // The keyboard's 완료 (enterkeyhint="done") and the 입력 button both submit; nothing is ever sent anywhere.
   $('vc-form').addEventListener('submit', (event) => {

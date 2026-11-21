@@ -1924,3 +1924,32 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 #badge #hole-strokes { color: var(--on-glass); }
 #badge[data-tone='par'] #hole-strokes { color: var(--lime); }
 #badge[data-tone='under'] #hole-strokes { color: #ff9a8f; }
+/* 상세's lower rows (the user: too much space, align them): tighter rows, and OB · 벙커 · 해저드 on the pad's own lines,
+   OB under its far-left button, 벙커 under 페어웨이, 해저드 under its far-right button (the 72px buttons hang 12px past
+   the pad's 48px ends, so the row reaches 12px past the content edge each side). */
+#entry[data-mode='detail'] .detail { margin-top: 4px; }
+#entry[data-mode='detail'] .pad { margin-top: 6px; }
+#entry[data-mode='detail'] .pens { display: flex; justify-content: space-between; margin: 8px -12px 0; }
+#entry[data-mode='detail'] .pens > * { flex: 0 0 72px; }
+
+/* 말로 입력 in the card (v39): 음성 changes the card's content, the capsules and 상세's rows step aside meanwhile, and the
+   음성 tab is the chosen one. Not a sheet over the screen: no backdrop, no rise. */
+.sheet .vc-inline { position: static; inset: auto; margin: 2px 0 0; width: auto; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; animation: none; }
+.sheet .vc-inline .vc-head h2 { font-size: var(--t-m); }
+#entry:has(#voice[open]) :is(.clubs, .detail, .pens) { display: none; }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true'] { color: var(--on-glass-soft); }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']::before { display: none; }
+#entry:has(#voice[open]) #mode-voice { color: var(--on-glass); }
+#entry:has(#voice[open]) #mode-voice::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* As a tab, 말로 입력 has no title row or ×: the tabs switch it (its title still names the field for screen readers). */
+.sheet .vc-inline .vc-head { display: none; }
+.sheet .vc-inline .vc-field { margin-top: 6px; }
+/* The club's shot-detail panel on the same glass (the user: its style differed): deep glass, white type, its chips the
+   card's light glass, the chosen one with the lime edge (as every chosen control), tile corners as 상세's controls. */
+.shot-panel {
+  --white: rgb(255 255 255 / .06); --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
+  --line: rgb(255 255 255 / .12); --fill: rgb(255 255 255 / .08); --fill-2: rgb(255 255 255 / .14); --off-ink: rgb(255 255 255 / .35);
+  background: linear-gradient(180deg, #17301f, #0f2118); color: var(--on-glass);
+  box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
+}
+.shot-panel :is(.sp-chip, .sp-shots button) { border-radius: var(--r-tile); }

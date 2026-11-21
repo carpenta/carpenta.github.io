@@ -99,8 +99,26 @@
             <div class="modes" role="group" aria-label="입력 방식">
               <button class="mode" type="button" data-mode="basic" aria-pressed="true">기본</button>
               <button class="mode" type="button" data-mode="detail" aria-pressed="false">상세</button>
-              <button class="mode" type="button" id="mode-voice" aria-haspopup="dialog">음성</button>
+              <button class="mode" type="button" id="mode-voice" aria-controls="voice" aria-pressed="false">음성</button>
             </div>
+            <!-- 말로 입력 (v21), in the card since v39: 음성 changes the card's content to it (no sheet over the screen); the
+                 capsules step aside while it is open, and 기본 or 상세 puts them back. -->
+            <dialog id="voice" class="vc-sheet vc-inline" aria-labelledby="vc-title" aria-describedby="vc-help vc-privacy">
+              <form class="vc-form" id="vc-form" novalidate>
+                <div class="vc-head">
+                  <h2 id="vc-title">말로 입력</h2>
+                  <button type="button" class="vc-close" id="vc-close" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button>
+                </div>
+                <div class="vc-field">
+                  <input class="vc-line" id="vc-line" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-labelledby="vc-title" aria-describedby="vc-error vc-help vc-example" />
+                  <button type="submit" class="vc-go" id="vc-go">입력</button>
+                </div>
+                <p class="vc-error" id="vc-error" role="alert" hidden></p>
+                <p class="vc-help" id="vc-help">키보드의 받아쓰기(마이크)를 쓰세요.</p>
+                <p class="vc-ex" id="vc-example"></p>
+                <p class="vc-privacy" id="vc-privacy">받아쓰기는 키보드가 하고, 이 앱은 글자만 받아요. iPhone은 기기 안에서 처리하고, Android는 키보드에 따라 음성을 서버로 보낼 수 있어요.</p>
+              </form>
+            </dialog>
             <!-- The capsules (main.ts builds them after the tip). 상세's one-time tip (v28) on what 세컨 and 어프로치 are sits over
                  their middle, first in reading order; a tap on it, or a stroke on either, puts it away for good. -->
             <div class="clubs" id="clubs">
@@ -555,23 +573,6 @@
 
     <!-- 말로 입력 (v21): one line for the keyboard's dictation, read on the device by src/voice-commands.ts. A plain
          text field (not search, whose dictation can go to a search engine); the line is never stored or sent. -->
-    <dialog id="voice" class="vc-sheet" aria-labelledby="vc-title" aria-describedby="vc-help vc-privacy">
-      <form class="vc-form" id="vc-form" novalidate>
-        <div class="vc-head">
-          <h2 id="vc-title">말로 입력</h2>
-          <button type="button" class="vc-close" id="vc-close" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button>
-        </div>
-        <div class="vc-field">
-          <input class="vc-line" id="vc-line" type="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-labelledby="vc-title" aria-describedby="vc-error vc-help vc-example" />
-          <button type="submit" class="vc-go" id="vc-go">입력</button>
-        </div>
-        <p class="vc-error" id="vc-error" role="alert" hidden></p>
-        <p class="vc-help" id="vc-help">키보드의 받아쓰기(마이크)를 쓰세요.</p>
-        <p class="vc-ex" id="vc-example"></p>
-        <p class="vc-privacy" id="vc-privacy">받아쓰기는 키보드가 하고, 이 앱은 글자만 받아요. iPhone은 기기 안에서 처리하고, Android는 키보드에 따라 음성을 서버로 보낼 수 있어요.</p>
-      </form>
-    </dialog>
-
     <p id="announce" class="sr-only" aria-live="polite"></p>
     <script type="module" src="/src/main.ts"></script>
   </body>
