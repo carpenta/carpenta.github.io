@@ -250,10 +250,12 @@ export interface CourseShape {
 // Per-hole variety without inventing features: where the pin stands and the outline of the green.
 const PIN = [[0.3, -0.1], [-0.32, 0.05], [0.12, -0.2], [0.36, 0.1], [-0.3, -0.12], [0.24, 0.12], [-0.2, -0.1], [0.3, 0.05], [-0.26, -0.15],
   [0.2, 0.1], [-0.34, 0], [0.28, -0.12], [-0.14, 0.12], [0.32, -0.05], [-0.22, 0.1], [0.3, -0.1], [-0.3, 0.06], [0.16, -0.1]];
-const GREENS = [[1, 0.92, 1.06, 0.95, 1.02, 0.9, 1.04, 0.97], [0.95, 1.05, 0.92, 1.04, 0.97, 1.06, 0.9, 1.02], [1.04, 0.9, 1.02, 0.96, 1.07, 0.93, 0.98, 1.03]];
+// Outline factors at eight points round each shape, varying slowly so it stays rounded (v31): v22's tables pulled every
+// other point in, which drew ponds and bunkers as pointed leaves and greens as lemons. A green swells a little to one side.
+const GREENS = [[1, 1.02, 1.03, 1.01, 0.98, 0.96, 0.97, 0.99], [0.97, 0.96, 0.98, 1.01, 1.03, 1.03, 1.01, 0.99], [1.03, 1.01, 0.97, 0.94, 0.97, 1.01, 1.03, 1.04]];
 // A bunker is a kidney or a bean, one side pulled in; a pond is rounder.
-const BUNKER_RIMS = [[1, 0.9, 1.04, 0.8, 1, 0.94, 1.06, 0.88], [0.96, 1.05, 0.86, 1, 1.04, 0.82, 0.98, 1.02], [1.05, 0.84, 0.97, 1.03, 0.9, 1.02, 0.85, 1]];
-const POND_RIMS = [[1, 0.94, 1.04, 0.9, 1.02, 0.96, 1.05, 0.92], [0.96, 1.04, 0.92, 1.03, 0.95, 1.05, 0.93, 1]];
+const BUNKER_RIMS = [[1.02, 1, 0.86, 1, 1.03, 1.02, 1, 1.01], [0.98, 1.02, 1.03, 1, 0.98, 0.99, 0.84, 0.97], [1, 0.88, 1, 1.03, 1.02, 1, 1, 1.01]];
+const POND_RIMS = [[0.98, 1, 1.02, 1.02, 1, 0.97, 0.96, 0.97], [1.01, 0.99, 0.97, 0.98, 1.01, 1.03, 1.03, 1.02]];
 
 /** The open band from which the approach shows: the green near its top, then the fairway with distance markers. */
 export const ROOMY_BAND = 110;
@@ -561,39 +563,49 @@ function smooth(pts: [number, number][]): string {
   return `${d}Z`;
 }
 
-/** A hazard's outline, `scale` times its size, moved by (dx, dy). */
-function blob(h: HazardShape, scale = 1, dx = 0, dy = 0): string {
+/** A hazard's outline. */
+function blob(h: HazardShape): string {
   const a = (h.angle * Math.PI) / 180;
   return smooth(h.outline.map((r, j): [number, number] => {
     const t = (j / h.outline.length) * Math.PI * 2;
-    const x = Math.cos(t) * h.rx * r * scale;
-    const y = Math.sin(t) * h.ry * r * scale;
-    return [h.cx + dx + x * Math.cos(a) - y * Math.sin(a), h.cy + dy + x * Math.sin(a) + y * Math.cos(a)];
+    const x = Math.cos(t) * h.rx * r;
+    const y = Math.sin(t) * h.ry * r;
+    return [h.cx + x * Math.cos(a) - y * Math.sin(a), h.cy + x * Math.sin(a) + y * Math.cos(a)];
   }));
 }
 
-/** A short bright arc through three points, toward the top left where the light comes from. */
-function arc(at: (deg: number) => [number, number], from: number, to: number): string {
-  const [p0, p1, p2] = [at(from), at((from + to) / 2), at(to)];
-  return `M${f(p0[0])} ${f(p0[1])}Q${f(2 * p1[0] - (p0[0] + p2[0]) / 2)} ${f(2 * p1[1] - (p0[1] + p2[1]) / 2)} ${f(p2[0])} ${f(p2[1])}`;
-}
-
-/** A bunker: the shaded face under its lip at the top left, the sand set a little down and right inside it, and its grain. */
+/** A bunker (v31): its sand, flat, as a yardage book draws it (v22 gave it a shaded lip, a lit fill and grain). */
 function bunkerSvg(h: HazardShape): string {
-  const inner = blob(h, 0.9, h.ry * 0.05, h.ry * 0.07);
-  return `<g class="bunker"><path class="a-sand-lip" d="${blob(h)}"/><path class="a-sand" d="${inner}" fill="url(#course-sand)"/><path d="${inner}" fill="url(#course-sandgrain)"/></g>`;
+  return `<g class="bunker"><path class="a-sand" d="${blob(h)}"/></g>`;
 }
 
-/** A pond: deep in the middle, a bank round it and a glint toward the light. */
+/** A pond (v31): its water, flat, with its shore drawn as a dark line so it reads on the fairway too (v22 gave it depth and a glint). */
 function pondSvg(h: HazardShape): string {
-  const a = (h.angle * Math.PI) / 180;
-  const at = (d: number): [number, number] => {
-    const t = ((d - h.angle) * Math.PI) / 180;
-    const x = Math.cos(t) * h.rx * 0.66;
-    const y = Math.sin(t) * h.ry * 0.66;
-    return [h.cx + x * Math.cos(a) - y * Math.sin(a), h.cy + x * Math.sin(a) + y * Math.cos(a)];
-  };
-  return `<g class="pond"><path class="water" d="${blob(h)}" fill="url(#course-depth)" stroke-width="2.5"/><path class="a-water-glint" d="${arc(at, 200, 250)}" fill="none" stroke-width="1.6" stroke-linecap="round"/></g>`;
+  return `<g class="pond"><path class="water" d="${blob(h)}" stroke-width="2"/></g>`;
+}
+
+/**
+ * The pin (v31), on the schematic and OpenStreetMap's alike: the cup, a white pole in a dark edge (white alone was 2.1:1 on
+ * the green) and a red pennant, flat.
+ */
+function pinSvg(pin: { x: number; y: number; pole: number }): string {
+  const fw = flagWidth(pin.pole);
+  const fh = Math.max(10, pin.pole * 0.34);
+  const top = pin.y - pin.pole;
+  const x = pin.x;
+  const pole = `M${f(x)} ${f(pin.y)}V${f(top)}`;
+  return `<ellipse class="a-cup" cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9"/>`
+    + `<path class="a-pole-edge" d="${pole}" stroke-width="3.8" stroke-linecap="round"/>`
+    + `<path class="a-pole" d="${pole}" stroke-width="2.2" stroke-linecap="round"/>`
+    + `<path class="flag" d="M${f(x + 1)} ${f(top)}l${f(fw)} ${f(fh * 0.42)}l${f(-fw)} ${f(fh * 0.42)}z"/>`;
+}
+
+/** A 100 m or 150 m marker: a white dot on the line of play and its distance in a dark pill beside it. */
+function markerSvg(m: { x: number; y: number; d: number }): string {
+  const w = markerWidth(m.d);
+  return `<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`
+    + `<rect x="${f(m.x + 10)}" y="${f(m.y - 11)}" width="${w}" height="22" rx="11" class="a-marker-label"/>`
+    + `<text x="${f(m.x + 10 + w / 2)}" y="${f(m.y + 4.5)}" text-anchor="middle">${m.d} m</text></g>`;
 }
 
 /**
@@ -622,108 +634,33 @@ export function holeThumb(par: Par, bend: Bend, island: boolean): string {
 }
 
 /**
- * The gradients and patterns every drawn hole shares, the schematic and OpenStreetMap's alike (v22, v27): rough, mowing
- * stripes turned to the line of play (`angle`), the lit fairway, the domed green and its shade, the vignette, the header's
- * shade and the tee box.
- */
-function sharedDefs(angle: number, W: number, H: number): string[] {
-  return [
-    // Two-tone rough, a vignette and a shade under the header.
-    '<radialGradient id="course-rough" cx="50%" cy="46%" r="78%"><stop class="a-rough-hi" offset="0"/><stop class="a-rough" offset="0.62"/><stop class="a-rough-lo" offset="1"/></radialGradient>',
-    // Mowing stripes across the line of play, light to dark over 4px instead of at one edge, and a fainter pass along it:
-    // both in one tile, so the fairway takes one fill for them.
-    '<linearGradient id="course-mowfade"><stop class="a-mow-light" offset="0"/><stop class="a-mow-light" offset=".4"/><stop class="a-mow-dark" offset=".5"/><stop class="a-mow-dark" offset=".9"/><stop class="a-mow-light" offset="1"/></linearGradient>',
-    '<linearGradient id="course-mowfade2" x1="0" y1="0" x2="0" y2="1"><stop class="a-mow2-light" offset="0"/><stop class="a-mow2-light" offset=".42"/><stop class="a-mow2-dark" offset=".5"/><stop class="a-mow2-dark" offset=".92"/><stop class="a-mow2-light" offset="1"/></linearGradient>',
-    `<pattern id="course-mow" width="44" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(angle)})"><rect width="44" height="72" fill="url(#course-mowfade)"/><rect width="44" height="72" fill="url(#course-mowfade2)"/></pattern>`,
-    // The fairway itself lit toward the top left and shaded toward the bottom right.
-    `<linearGradient id="course-fwfill" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${W}" y2="${H}"><stop class="a-fw-lit" offset="0"/><stop class="a-fw" offset=".5"/><stop class="a-fw-shade" offset="1"/></linearGradient>`,
-    '<radialGradient id="course-dome" cx="40%" cy="34%" r="72%"><stop class="a-green-hi" offset="0"/><stop class="a-green" offset="0.7"/><stop class="a-green-lo" offset="1"/></radialGradient>',
-    // The raised green's soft shade, falling down and right of it.
-    '<radialGradient id="course-gshadow" cx="50%" cy="50%" r="50%"><stop class="a-gshadow" offset=".78"/><stop class="a-dark-0" offset="1"/></radialGradient>',
-    '<radialGradient id="course-vignette" cx="50%" cy="50%" r="75%"><stop class="a-dark-0" offset="0.62"/><stop class="a-vignette" offset="1"/></radialGradient>',
-    '<linearGradient id="course-shade" x1="0" y1="0" x2="0" y2="1"><stop class="a-shade" offset="0"/><stop class="a-dark-0" offset=".22"/></linearGradient>',
-    '<linearGradient id="course-teebox" x1="0" y1="0" x2="0" y2="1"><stop class="a-tee-hi" offset="0"/><stop class="a-tee-lo" offset="1"/></linearGradient>',
-    // Faint mowing bands on the green, across the line of play (rings read as contours).
-    `<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${f(angle + 90)})"><rect class="a-green-stripe" width="7" height="14"/></pattern>`,
-  ];
-}
-/** Water: deep in the middle, shallow at the bank. */
-const DEPTH = '<radialGradient id="course-depth" cx="46%" cy="44%" r="60%"><stop class="a-water-deep" offset="0"/><stop class="a-water" offset=".6"/><stop class="a-water-shallow" offset="1"/></radialGradient>';
-/** Sand: shaded under the lip at the top left, lit toward the bottom right. Its finer grain is the page's sand tile. */
-const SAND = '<linearGradient id="course-sand" x1="0" y1="0" x2="1" y2="1"><stop class="a-sand-lo" offset="0"/><stop class="a-sand-mid" offset=".45"/><stop class="a-sand-hi" offset="1"/></linearGradient>';
-
-/**
- * The SVG content for the course behind the screen. Decorative and built from numbers only. Lit from the top left: highlights
- * up and left, shades down and right (v22). The textures are felt more than seen, so the card and chips stay in front.
+ * The SVG content for the course behind the screen (v31): a yardage book's plan view in flat fills from the palette. The
+ * rough, the fairway in its first cut, the hazards a note names, the green in its fringe, the pin, the 100 m and 150 m
+ * markers and the tee, from the ground up. No light and no texture (v22's stripes, dome, depth, glints, grain, vignette):
+ * since v30 nothing over it is see-through, and a diagram reads as one. Decorative and built from numbers only.
  */
 export function courseSvg(shape: CourseShape, frame: CourseFrame): string {
   const { width: W, height: H } = frame;
   const { green: g, pin, tee, fairway } = shape;
-  const bunkers = shape.hazards.filter((h) => h.kind === 'bunker');
-  const ponds = shape.hazards.filter((h) => h.kind === 'water');
-  const out: string[] = ['<defs>', ...sharedDefs(shape.angle, W, H)];
-  if (shape.water || ponds.length) out.push(DEPTH);
-  if (shape.water) {
-    // An island green's water fades in over 30px below the top of the open band, under the chips.
-    out.push(`<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset="1" stop-color="white"/></linearGradient>`);
-    out.push(`<mask id="course-wmask"><rect width="${W}" height="${H}" fill="url(#course-wfade)"/></mask>`);
-  }
-  if (bunkers.length) out.push(SAND);
-  out.push('</defs>', `<rect width="${W}" height="${H}" fill="url(#course-rough)"/>`);
+  const out: string[] = [`<rect class="a-rough-fill" width="${W}" height="${H}"/>`];
   if (fairway) {
     const d = smooth(fairway);
-    // A soft shade where the taller rough meets it, the rough's darker edge, the first cut, the fairway in its light, then
-    // its stripes.
-    out.push(`<path class="a-edge-soft" d="${d}" fill="none" stroke-width="34" stroke-linejoin="round"/>`);
-    out.push(`<path class="a-edge" d="${d}" fill="none" stroke-width="20" stroke-linejoin="round"/>`);
-    out.push(`<path class="a-cut" d="${d}" fill="none" stroke-width="10" stroke-linejoin="round"/>`);
-    out.push(`<path class="fairway" d="${d}" fill="url(#course-fwfill)"/><path d="${d}" fill="url(#course-mow)"/>`);
+    out.push(`<path class="a-cut" d="${d}" fill="none" stroke-width="8" stroke-linejoin="round"/>`, `<path class="fairway" d="${d}"/>`);
   }
-  // A fine grain over the rough and the fairway: the page's noise tile (src/grain.ts), made once, no SVG filter. Under the
-  // vignette and the header's shade, it also keeps their dark gradients from banding.
-  out.push(`<rect width="${W}" height="${H}" fill="url(#course-grain)"/>`);
-  for (const h of bunkers) out.push(bunkerSvg(h));
-  for (const h of ponds) out.push(pondSvg(h));
-  const ring = (s: number, dx = 0, dy = 0) => g.outline.map((r, j): [number, number] => {
+  for (const h of shape.hazards) if (h.kind === 'bunker') out.push(bunkerSvg(h));
+  for (const h of shape.hazards) if (h.kind === 'water') out.push(pondSvg(h));
+  const ring = (s: number) => g.outline.map((r, j): [number, number] => {
     const a = (j / g.outline.length) * Math.PI * 2;
-    return [g.cx + dx + Math.cos(a) * g.rx * r * s, g.cy + dy + Math.sin(a) * g.ry * r * s];
+    return [g.cx + Math.cos(a) * g.rx * r * s, g.cy + Math.sin(a) * g.ry * r * s];
   });
-  if (shape.water) {
-    const along = (d: number): [number, number] => [g.cx + Math.cos((d * Math.PI) / 180) * g.rx * 1.58, g.cy + Math.sin((d * Math.PI) / 180) * g.ry * 1.58];
-    out.push(`<g mask="url(#course-wmask)"><path class="water" d="${smooth(ring(1.78))}" fill="url(#course-depth)" stroke-width="2.5"/>`);
-    out.push(`<path class="a-water-glint" d="${arc(along, 200, 250)}" fill="none" stroke-width="2" stroke-linecap="round"/></g>`);
-  }
-  // The green: its soft shade, the fringe, the collar, a softly domed surface and faint mowing bands.
-  out.push(`<path class="a-green-shadow" d="${smooth(ring(1.3, 3, 5))}" fill="url(#course-gshadow)"/>`);
-  out.push(`<path class="a-fringe" d="${smooth(ring(1.17))}" stroke-width="1.5"/>`);
-  out.push(`<path class="a-collar" d="${smooth(ring(1.08))}"/>`);
-  out.push(`<path class="green" d="${smooth(ring(1))}" fill="url(#course-dome)"/>`);
-  out.push(`<path d="${smooth(ring(1))}" fill="url(#course-gmow)"/>`);
-  if (pin) {
-    // The pole's shadow, the cup, the pole and a flag that waves.
-    const fw = flagWidth(pin.pole);
-    const fh = Math.max(10, pin.pole * 0.34);
-    const top = pin.y - pin.pole;
-    const x = pin.x;
-    out.push(`<path d="M${f(x)} ${f(pin.y)}l${f(pin.pole * 0.6)} ${f(pin.pole * 0.22)}" class="a-shadow-line" stroke-width="3" stroke-linecap="round"/>`);
-    out.push(`<ellipse class="a-cup" cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9"/>`);
-    out.push(`<path class="a-pole" d="M${f(x)} ${f(pin.y)}V${f(top)}" stroke-width="2.2" stroke-linecap="round"/>`);
-    out.push(`<path class="flag" d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.7)} ${f(top + fh * 0.2)} ${f(x + fw)} ${f(top + fh * 0.42)}C${f(x + fw * 0.66)} ${f(top + fh * 0.62)} ${f(x + fw * 0.34)} ${f(top + fh * 0.66)} ${f(x + 1)} ${f(top + fh * 0.84)}Z"/>`);
-    out.push(`<path d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.55)} ${f(top + fh * 0.1)} ${f(x + fw * 0.62)} ${f(top + fh * 0.3)}L${f(x + 1)} ${f(top + fh * 0.5)}Z" class="a-flag-shade"/>`);
-  }
-  for (const m of shape.markers) {
-    const w = markerWidth(m.d);
-    out.push(`<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`);
-    out.push(`<rect x="${f(m.x + 10)}" y="${f(m.y - 11)}" width="${w}" height="22" rx="11" class="a-marker-label"/>`);
-    out.push(`<text x="${f(m.x + 10 + w / 2)}" y="${f(m.y + 4.5)}" text-anchor="middle">${m.d} m</text></g>`);
-  }
-  // A bevelled tee box with two markers.
-  out.push(`<rect x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 9)}" width="${f(tee.width)}" height="24" rx="10" class="a-tee-edge"/>`);
-  out.push(`<rect class="tee" x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 12)}" width="${f(tee.width)}" height="24" rx="10" fill="url(#course-teebox)"/>`);
-  for (const dx of [-0.3, 0.3]) {
-    out.push(`<ellipse cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y + 1.5)}" rx="4.5" ry="1.8" class="a-shadow"/><circle cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y - 3)}" r="4.2" class="a-pole-fill"/>`);
-  }
-  out.push(`<rect width="${W}" height="${H}" fill="url(#course-vignette)"/><rect width="${W}" height="${H}" fill="url(#course-shade)"/>`);
+  // An island green stands in its water.
+  if (shape.water) out.push(`<g class="pond"><path class="water" d="${smooth(ring(1.78))}" stroke-width="2"/></g>`);
+  out.push(`<path class="a-fringe" d="${smooth(ring(1.1))}"/>`, `<path class="green" d="${smooth(ring(1))}"/>`);
+  if (pin) out.push(pinSvg(pin));
+  for (const m of shape.markers) out.push(markerSvg(m));
+  // The tee box and its two markers.
+  out.push(`<rect class="tee" x="${f(tee.x - tee.width / 2)}" y="${f(tee.y - 12)}" width="${f(tee.width)}" height="24" rx="10"/>`);
+  for (const dx of [-0.3, 0.3]) out.push(`<circle cx="${f(tee.x + tee.width * dx)}" cy="${f(tee.y - 3)}" r="4.2" class="a-pole-fill"/>`);
   return out.join('');
 }
 
@@ -885,11 +822,10 @@ export function osmShape(hole: OsmHole, index: number, frame: CourseFrame, lengt
   };
 }
 
-/** The transform drawing an outline `scale` times its size about its middle, moved by (dx, dy): a green's fringe and shade,
- * a bunker's sand. */
-function about(pts: Pt[], scale: number, dx = 0, dy = 0): string {
+/** The transform drawing an outline `scale` times its size about its middle: a green's fringe. */
+function about(pts: Pt[], scale: number): string {
   const [cx, cy] = ringCentroid(pts);
-  return `matrix(${scale} 0 0 ${scale} ${f(cx * (1 - scale) + dx)} ${f(cy * (1 - scale) + dy)})`;
+  return `matrix(${scale} 0 0 ${scale} ${f(cx * (1 - scale))} ${f(cy * (1 - scale))})`;
 }
 
 /** Closed outlines through screen points as one path (rings after the first are islands): already rounded (chaikin), so
@@ -920,8 +856,8 @@ function chaikin(pts: Pt[], times: number): Pt[] {
 }
 
 /**
- * The SVG content for a hole from OpenStreetMap (v27), in the schematic's look (v22): its palette classes, light from the
- * top left, grain tile and mowing stripes, on the real outlines. Decorative and built from numbers only.
+ * The SVG content for a hole from OpenStreetMap (v27), in the schematic's flat plan view (v31) on the real outlines.
+ * Decorative and built from numbers only.
  */
 export function osmSvg(traced: OsmShape, frame: CourseFrame): string {
   const { width: W, height: H } = frame;
@@ -935,79 +871,27 @@ export function osmSvg(traced: OsmShape, frame: CourseFrame): string {
     bunkers: traced.bunkers.map((b) => chaikin(b, 1)),
     water: traced.water.map((w) => w.map((r) => chaikin(r, 1))),
   };
-  // Each outline is written once, bare, in <defs>; its layers are <use> copies, moved and scaled where a layer is (a green's
-  // shade, fringe and collar, a bunker's sand), so a hole's markup stays near the schematic's size.
-  const out: string[] = ['<defs>', ...sharedDefs(-90, W, H)];
-  if (shape.water.length) out.push(DEPTH);
-  if (shape.bunkers.length) out.push(SAND);
+  // A fairway's and a green's outline is written once, bare, in <defs>: its cut and its fringe are <use> copies of it.
+  const out: string[] = ['<defs>'];
   shape.fairways.forEach((fw, j) => out.push(`<path id="osm-f${j}" d="${poly([fw])}"/>`));
-  shape.bunkers.forEach((b, j) => out.push(`<path id="osm-b${j}" d="${poly([b])}"/>`));
   shape.greens.forEach((g, j) => out.push(`<path id="osm-g${j}" d="${poly([g])}"/>`));
-  shape.water.forEach((rings, j) => {
-    // Each pond's glint stays on its water.
-    out.push(`<path id="osm-w${j}" d="${poly(rings)}"/><clipPath id="osm-wc${j}"><use href="#osm-w${j}" clip-rule="evenodd"/></clipPath>`);
-  });
-  out.push('</defs>', `<rect width="${W}" height="${H}" fill="url(#course-rough)"/>`);
-  // Every fairway's soft shade, the rough's darker edge and the first cut, then the fairways in their light and stripes.
-  for (const [cls, width] of [['a-edge-soft', 34], ['a-edge', 20], ['a-cut', 10]] as const) {
-    shape.fairways.forEach((_, j) => out.push(`<use href="#osm-f${j}" class="${cls}" fill="none" stroke-width="${width}" stroke-linejoin="round"/>`));
-  }
-  shape.fairways.forEach((_, j) => out.push(`<use href="#osm-f${j}" class="fairway" fill="url(#course-fwfill)"/><use href="#osm-f${j}" fill="url(#course-mow)"/>`));
-  // The page's grain tile over the rough and fairways (src/grain.ts).
-  out.push(`<rect width="${W}" height="${H}" fill="url(#course-grain)"/>`);
-  shape.bunkers.forEach((b, j) => {
-    // The shaded face under the lip, the sand set a little down and right inside it, and its grain.
-    const [, , bw, bh] = boxOf(b);
-    const r = Math.min(bw, bh) / 2;
-    const sand = about(b, 0.9, r * 0.05, r * 0.07);
-    out.push(`<g class="bunker"><use href="#osm-b${j}" class="a-sand-lip"/><use href="#osm-b${j}" class="a-sand" fill="url(#course-sand)" transform="${sand}"/><use href="#osm-b${j}" fill="url(#course-sandgrain)" transform="${sand}"/></g>`);
-  });
-  shape.water.forEach((rings, j) => {
-    // Deep in the middle, a bank round it (and round any island), and a glint toward the light.
-    const [x, y, w, h] = boxOf(rings[0]);
-    const at = (deg: number): Pt => [x + w / 2 + Math.cos((deg * Math.PI) / 180) * w * 0.33, y + h / 2 + Math.sin((deg * Math.PI) / 180) * h * 0.33];
-    out.push(`<g class="pond"><use href="#osm-w${j}" class="water" fill="url(#course-depth)" fill-rule="evenodd" stroke-width="2.5"/><path class="a-water-glint" d="${arc(at, 200, 250)}" fill="none" stroke-width="1.6" stroke-linecap="round" clip-path="url(#osm-wc${j})"/></g>`);
-  });
-  // The greens, layer by layer so neither's shade or fringe falls on the other: soft shades, fringes, collars, then the
-  // domed surfaces with faint mowing bands. The flag's green is the one called "green"; the fringe's line stays 1.5px.
-  shape.greens.forEach((g, j) => out.push(`<use href="#osm-g${j}" class="a-green-shadow" fill="url(#course-gshadow)" transform="${about(g, 1.3, 3, 5)}"/>`));
-  shape.greens.forEach((g, j) => out.push(`<use href="#osm-g${j}" class="a-fringe" stroke-width="${f(1.5 / 1.17)}" transform="${about(g, 1.17)}"/>`));
-  shape.greens.forEach((g, j) => out.push(`<use href="#osm-g${j}" class="a-collar" transform="${about(g, 1.08)}"/>`));
-  shape.greens.forEach((g, j) => {
-    out.push(`<path class="${j === shape.flagged ? 'green' : 'green2'}" d="${poly([g])}" fill="url(#course-dome)"/><use href="#osm-g${j}" fill="url(#course-gmow)"/>`);
-  });
-  const { pin } = shape;
-  if (pin) {
-    // The pole's shadow, the cup, the pole and a flag that waves (as the schematic's).
-    const fw = flagWidth(pin.pole);
-    const fh = Math.max(10, pin.pole * 0.34);
-    const top = pin.y - pin.pole;
-    const x = pin.x;
-    out.push(`<path d="M${f(x)} ${f(pin.y)}l${f(pin.pole * 0.6)} ${f(pin.pole * 0.22)}" class="a-shadow-line" stroke-width="3" stroke-linecap="round"/>`);
-    out.push(`<ellipse class="a-cup" cx="${f(x)}" cy="${f(pin.y)}" rx="3.6" ry="1.9"/>`);
-    out.push(`<path class="a-pole" d="M${f(x)} ${f(pin.y)}V${f(top)}" stroke-width="2.2" stroke-linecap="round"/>`);
-    out.push(`<path class="flag" d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.7)} ${f(top + fh * 0.2)} ${f(x + fw)} ${f(top + fh * 0.42)}C${f(x + fw * 0.66)} ${f(top + fh * 0.62)} ${f(x + fw * 0.34)} ${f(top + fh * 0.66)} ${f(x + 1)} ${f(top + fh * 0.84)}Z"/>`);
-    out.push(`<path d="M${f(x + 1)} ${f(top)}C${f(x + fw * 0.4)} ${f(top - 2.5)} ${f(x + fw * 0.55)} ${f(top + fh * 0.1)} ${f(x + fw * 0.62)} ${f(top + fh * 0.3)}L${f(x + 1)} ${f(top + fh * 0.5)}Z" class="a-flag-shade"/>`);
-  }
-  for (const m of shape.markers) {
-    const w = markerWidth(m.d);
-    out.push(`<g class="marker"><circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`);
-    out.push(`<rect x="${f(m.x + 10)}" y="${f(m.y - 11)}" width="${w}" height="22" rx="11" class="a-marker-label"/>`);
-    out.push(`<text x="${f(m.x + 10 + w / 2)}" y="${f(m.y + 4.5)}" text-anchor="middle">${m.d} m</text></g>`);
-  }
-  // The tee boxes, bevelled as the schematic's; the back tee (the line's start) carries its two markers when wide enough.
-  shape.tees.forEach((t, j) => {
-    const d = poly([t]);
-    out.push(`<path class="a-tee-edge" d="${d}" transform="translate(0 2.5)"/><path class="${j === shape.back ? 'tee' : 'tee2'}" d="${d}" fill="url(#course-teebox)"/>`);
-  });
+  out.push('</defs>', `<rect class="a-rough-fill" width="${W}" height="${H}"/>`);
+  shape.fairways.forEach((_, j) => out.push(`<use href="#osm-f${j}" class="a-cut" fill="none" stroke-width="8" stroke-linejoin="round"/>`));
+  shape.fairways.forEach((_, j) => out.push(`<use href="#osm-f${j}" class="fairway"/>`));
+  shape.bunkers.forEach((b) => out.push(`<g class="bunker"><path class="a-sand" d="${poly([b])}"/></g>`));
+  // Each pond with its shore, and any island in it left open.
+  shape.water.forEach((rings) => out.push(`<g class="pond"><path class="water" d="${poly(rings)}" fill-rule="evenodd" stroke-width="2"/></g>`));
+  // The greens in their fringes; the flag's green is the one called "green".
+  shape.greens.forEach((g, j) => out.push(`<use href="#osm-g${j}" class="a-fringe" transform="${about(g, 1.1)}"/>`));
+  shape.greens.forEach((g, j) => out.push(`<path class="${j === shape.flagged ? 'green' : 'green2'}" d="${poly([g])}"/>`));
+  if (shape.pin) out.push(pinSvg(shape.pin));
+  for (const m of shape.markers) out.push(markerSvg(m));
+  // The tee boxes; the back tee (the line's start) carries its two markers when wide enough.
+  shape.tees.forEach((t, j) => out.push(`<path class="${j === shape.back ? 'tee' : 'tee2'}" d="${poly([t])}"/>`));
   const [tx, ty, tw, th] = boxOf(shape.tees[shape.back]);
   if (tw >= 18) {
     const r = Math.min(4.2, th * 0.2);
-    for (const dx of [-0.3, 0.3]) {
-      const x = tx + tw / 2 + tw * dx;
-      out.push(`<ellipse cx="${f(x)}" cy="${f(ty + th / 2 + r * 0.4)}" rx="${f(r * 1.07)}" ry="${f(r * 0.43)}" class="a-shadow"/><circle cx="${f(x)}" cy="${f(ty + th / 2 - r * 0.7)}" r="${f(r)}" class="a-pole-fill"/>`);
-    }
+    for (const dx of [-0.3, 0.3]) out.push(`<circle cx="${f(tx + tw / 2 + tw * dx)}" cy="${f(ty + th / 2 - r * 0.7)}" r="${f(r)}" class="a-pole-fill"/>`);
   }
-  out.push(`<rect width="${W}" height="${H}" fill="url(#course-vignette)"/><rect width="${W}" height="${H}" fill="url(#course-shade)"/>`);
   return out.join('');
 }

@@ -318,6 +318,18 @@ describe('drawing a hole from OpenStreetMap (v27)', () => {
     expect(svg).not.toMatch(/<filter|fill="#|stroke="#|rgb\(|NaN|Infinity/);
   });
 
+  it('is flat as the schematic is (v31): no gradient, pattern, mask, clip path or filter, nothing painted by url(), no grain', () => {
+    const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'green2', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'tee2', 'a-pole-fill'];
+    for (const [i, h] of [[0, first], [2, holes.saebyul[2]!], [6, holes.saebyul[6]!]] as const) {
+      const svg = osmSvg(osmShape(h, i, frame, null), frame);
+      expect(svg).not.toMatch(/<(linearGradient|radialGradient|pattern|mask|clipPath|filter|fe[A-Z])\b/);
+      expect(svg).not.toMatch(/url\(#|\smask=|clip-path=|filter=/);
+      expect(svg).not.toContain('grain');
+      const classes = [...new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(' ')))];
+      expect(classes.filter((c) => !FLAT.includes(c)), `새별 ${i + 1}`).toEqual([]);
+    }
+  });
+
   it('keeps an island as a hole in its water', () => {
     // 새별 7: the greens stand on an island, the inner ring of the pond.
     const island = holes.saebyul[6]!;

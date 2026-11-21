@@ -337,12 +337,12 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v30');
+  await expect(page.locator('#menu-version')).toHaveText('v31');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every item is a 48px button that opens its own panel and closes the one open before.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v30');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v31');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -463,7 +463,8 @@ function offGreen(): string[] {
   const box = svg.querySelector<SVGGraphicsElement>('.flag')?.getBBox();
   const pt = svg.createSVGPoint();
   const found: string[] = [];
-  for (const edge of svg.querySelectorAll<SVGPathElement>('.bunker .a-sand-lip, .pond .water')) {
+  // v31: a bunker is its sand alone (the lip went with the drawing's light).
+  for (const edge of svg.querySelectorAll<SVGPathElement>('.bunker .a-sand, .pond .water')) {
     const what = edge.closest('g')!.getAttribute('class');
     const len = edge.getTotalLength();
     for (let i = 0; i < 64; i++) {
@@ -484,13 +485,14 @@ for (const [width, height] of [[390, 844], [375, 667]]) {
     await openCourse(page, '라온', '라온 골프클럽');
     const course = page.locator('#course');
     await expect(course).toHaveAttribute('data-art', 'schematic');
-    // 스톤 2 ("약한 오르막, 짧은 파4, 좌우 숲") names neither: nothing drawn, and 홀 안내 says nothing about the drawing.
+    // 스톤 2 ("약한 오르막, 짧은 파4, 좌우 숲") names neither: nothing drawn, and 홀 안내 says only that the drawing is
+    // approximate (v31: a schematic hole always says so).
     await pickHole(page, 1);
     await expect(course.locator('.bunker')).toHaveCount(0);
     await expect(course.locator('.water')).toHaveCount(0);
     await page.locator('#info-btn').click();
     await expect(page.locator('#hole-pop')).toBeVisible();
-    await expect(page.locator('#hi-art')).toBeHidden();
+    await expect(page.locator('#hi-art')).toHaveText('그림은 Par와 거리로 그린 대략적인 모양이에요.');
     await page.keyboard.press('Escape');
     // 스톤 4 ("내리막, 그린 주변 벙커 3개"): three bunkers round the par 3 green.
     await pickHole(page, 3);
@@ -499,7 +501,7 @@ for (const [width, height] of [[390, 844], [375, 667]]) {
     expect(await page.evaluate(offGreen)).toEqual([]);
     await page.locator('#info-btn').click();
     await expect(page.locator('#hi-art')).toBeVisible();
-    await expect(page.locator('#hi-art')).toHaveText('그림의 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.');
+    await expect(page.locator('#hi-art')).toHaveText('그림은 Par와 거리로 그린 대략적인 모양이에요. 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.');
     await page.keyboard.press('Escape');
     // 스톤 7 ("내리막, 그린 앞 우측 벙커, 좌측 해저드"): the bunker only. A plain 해저드 can be dry, so it is not drawn as water.
     await pickHole(page, 6);
@@ -510,28 +512,132 @@ for (const [width, height] of [[390, 844], [375, 667]]) {
   });
 }
 
-test('grains the drawn course from noise tiles made once on a canvas, with no SVG filter (v22)', async ({ page }) => {
+/** What the drawn hole is made of (v31): its effect elements and the distinct paints its shapes are filled and stroked with. */
+const drawingMakeup = (page: Page) => page.evaluate(() => {
+  const svg = document.getElementById('course')!;
+  const paints = new Set<string>();
+  for (const el of svg.querySelectorAll('path, rect, ellipse, circle, use, polygon, line')) {
+    const s = getComputedStyle(el);
+    if (s.fill && s.fill !== 'none') paints.add(s.fill);
+    if (s.stroke && s.stroke !== 'none') paints.add(s.stroke);
+  }
+  return {
+    effects: svg.querySelectorAll('linearGradient, radialGradient, pattern, mask, clipPath, filter').length,
+    url: [...svg.querySelectorAll('*')].filter((el) => /url\(/.test(`${el.getAttribute('fill') ?? ''}${el.getAttribute('stroke') ?? ''}${el.getAttribute('mask') ?? ''}${el.getAttribute('clip-path') ?? ''}`)).length,
+    paints: [...paints],
+  };
+});
+
+test('draws each hole as a yardage book does, a flat plan view: no gradient, pattern, mask, clip or filter, at most 10 paints, no grain (v31)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const check = async (where: string) => {
+    await settled(page);
+    const m = await drawingMakeup(page);
+    expect(m.effects, `${where}: effects`).toBe(0);
+    expect(m.url, `${where}: painted by url()`).toBe(0);
+    expect(m.paints.length, `${where}: ${m.paints.join(' | ')}`).toBeLessThanOrEqual(10);
+  };
+  // OpenStreetMap: 새별 1, and 새별 7's island green.
+  await open(page);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'osm');
+  await check('새별 1');
+  await pickHole(page, 6);
+  await check('새별 7');
+  // The schematic: 라온 스톤 4, its par 3 green ringed by three bunkers (a fresh start, so the picker comes first).
+  await page.evaluate(() => localStorage.clear());
+  await openCourse(page, '라온', '라온 골프클럽');
+  await pickHole(page, 3);
+  await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
+  await check('라온 스톤 4');
+  // The grain went with the texture: no tile, no pattern on the page.
+  await expect(page.locator('pattern, .grain-defs, #grain-turf')).toHaveCount(0);
+});
+
+/** In the page: WCAG contrast between two CSS colours, any syntax (palette mixes too), normalised by a one-pixel canvas. */
+function ratioIn([a, b]: [string, string]): number {
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const rgb = (css: string) => {
+    cv.clearRect(0, 0, 1, 1);
+    cv.fillStyle = '#000';
+    cv.fillStyle = css;
+    cv.fillRect(0, 0, 1, 1);
+    return [...cv.getImageData(0, 0, 1, 1).data].slice(0, 3);
+  };
+  const lum = (c: number[]) => {
+    const f = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  };
+  const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+type Paint = 'fill' | 'stroke' | 'backgroundColor' | 'opacity';
+const paintOf = (page: Page, sel: string, prop: Paint) => page.locator(sel).first().evaluate((el, p) => getComputedStyle(el)[p as Paint], prop);
+const edgeOf = async (page: Page, [a, pa]: [string, Paint], [b, pb]: [string, Paint]) => page.evaluate(ratioIn, [await paintOf(page, a, pa), await paintOf(page, b, pb)] as [string, string]);
+/** Whether the drawn course is what the eye meets at a point of the screen (a clip takes it out of hit testing too). */
+const drawnAt = (page: Page, x: number, y: number) => page.evaluate(([px, py]) => document.elementsFromPoint(px, py).some((el) => el.closest('#course') !== null), [x, y]);
+
+test('keeps the drawing to the open band, steps it back where the thumb shows the hole, and edges its pond and pin (v31 critique)', async ({ page }) => {
+  // Below the sheet's top edge the card covers the hole; what showed beside it and above 다음 홀 (a tee, a pond's edge,
+  // a strip of water) read as a glitch once the drawing lost v22's darkened edges.
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page);
-  const tile = (id: string) => page.evaluate((id) => document.getElementById(id)!.getAttribute('href'), id);
-  // Made just after the first frame.
-  await expect.poll(() => tile('grain-turf')).toMatch(/^data:image\/png;base64,/);
-  const turf = await tile('grain-turf');
-  expect(await tile('grain-sand')).toMatch(/^data:image\/png;base64,/);
-  // Pixel for pixel on this screen: the tile's CSS size (its pattern's) times the device scale.
-  const [width, css, scale] = await page.evaluate(async (src) => {
-    const img = new Image();
-    img.src = src!;
-    await img.decode();
-    return [img.naturalWidth, Number(document.getElementById('course-grain')!.getAttribute('width')), Math.min(3, Math.max(1, Math.round(devicePixelRatio)))];
-  }, turf);
-  expect(width).toBe(css * scale);
-  // WebKit runs SVG filters on the CPU: the drawing has none.
-  expect(await page.evaluate(() => document.querySelectorAll('#course filter').length)).toBe(0);
-  await expect(page.locator('#course rect[fill="url(#course-grain)"]')).toHaveCount(1);
-  // Made once: the next hole draws with the same tile.
-  await next(page).click();
-  expect(await tile('grain-turf')).toBe(turf);
+  await settled(page);
+  const sheet = await rect(page, '#sheet');
+  const go = await rect(page, '#go-next');
+  expect(await drawnAt(page, 195, sheet.y - 24), 'the open band').toBe(true);
+  expect(await drawnAt(page, 195, (sheet.y + sheet.height + go.y) / 2), 'between the sheet and 다음 홀').toBe(false);
+  expect(await drawnAt(page, (sheet.x + sheet.width + 390) / 2, sheet.y + 80), 'beside the sheet').toBe(false);
+  expect(Number(await paintOf(page, '#course', 'opacity'))).toBe(1);
+  // 새별 7: water round an island green, and a fairway. The shore reads on the fairway (water on it was 1.26:1), the
+  // pole on the green (white on it was 2.1:1).
+  await pickHole(page, 6);
+  await settled(page);
+  expect(await edgeOf(page, ['#course .water', 'stroke'], ['#course .fairway', 'fill']), 'shore on fairway').toBeGreaterThanOrEqual(3);
+  expect(await edgeOf(page, ['#course .a-pole-edge', 'stroke'], ['#course .green', 'fill']), 'pole on green').toBeGreaterThanOrEqual(3);
+  // 375×553: the band is a sliver under the header and the thumb shows the hole, so the drawing steps back behind the
+  // chips (at full strength the green and water there were louder than the controls on them).
+  await page.setViewportSize({ width: 375, height: 553 });
+  await settled(page);
+  await expect(page.locator('.thumb')).toBeVisible();
+  expect(Number(await paintOf(page, '#course', 'opacity'))).toBeLessThanOrEqual(0.45);
+  const low = await rect(page, '#sheet');
+  expect(await drawnAt(page, (low.x + low.width + 375) / 2, low.y + 60), 'beside the sheet, short').toBe(false);
+});
+
+test('draws the penalties as golf objects in the icon family: a white post on grass, a red post at water, sand from above (v31)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const [white, red, sand] = [await token(page, '--white'), await token(page, '--red'), await token(page, '--sand')];
+  for (const big of [false, true]) {
+    if (big) {
+      await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) ?? '{}'), big: true })), PREFS_KEY);
+      await page.reload();
+      await expect(page.locator('body')).toHaveClass(/big/);
+    }
+    await page.getByRole('button', { name: '상세', exact: true }).click();
+    if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+    await settled(page);
+    for (const [id, part, paint] of [['stake-ob', '.stake-ob', white], ['stake-hazard', '.stake-hazard', red], ['stake-bunker', '.ic-sand', sand]] as const) {
+      const svg = page.locator(`#${id} .pen-icon svg`);
+      await expect(svg, id).toHaveAttribute('viewBox', '0 0 24 24');
+      await expect(svg, id).toHaveAttribute('stroke-width', '1.75');
+      const box = (await svg.boundingBox())!;
+      // The glyphs grow with the text (v31 critique: 큰 글씨 grew the labels and left the glyphs).
+      expect(Math.min(box.width, box.height), `${id}${big ? ' 큰 글씨' : ''}`).toBeGreaterThanOrEqual(big ? 28 : 24);
+      expect(await svg.locator(part).evaluate((el) => getComputedStyle(el).fill), id).toBe(paint);
+    }
+    // The white post reads as a solid, not an empty outline: its shaded side stands off the button (it was 1.1:1).
+    expect(await edgeOf(page, ['#stake-ob .stake-ob-side', 'fill'], ['#stake-ob .pen-icon', 'backgroundColor']), 'OB side').toBeGreaterThanOrEqual(3);
+    // On a short screen 상세's tiles keep the glyphs at 20px at least, 24px in 큰 글씨.
+    await page.setViewportSize({ width: 375, height: 553 });
+    await settled(page);
+    for (const id of ['stake-ob', 'stake-hazard', 'stake-bunker']) {
+      const box = (await page.locator(`#${id} .pen-icon svg`).boundingBox())!;
+      expect(Math.min(box.width, box.height), `${id} short${big ? ' 큰 글씨' : ''}`).toBeGreaterThanOrEqual(big ? 24 : 20);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: '기본', exact: true }).click();
+  }
 });
 
 /** Each drawn distance pill's label (SVG text in the page font) and the room the pill gives it. */
@@ -2206,7 +2312,7 @@ const contrastOf = (page: Page, checks: Contrast[]) => page.evaluate(contrastIn,
  * What a chip, a label or the glass card (v20) can sit on over the drawn course: its darkest edge to the sunlit fairway, and
  * the sand and water a hole note names, up to sunlit sand (v22). Palette tokens.
  */
-const OVER_ART = ['--deep', '--art-rough-lo', '--rough', '--art-rough-hi', '--fairway', '--putting', '--sun', '--water', '--sand', '--art-sand-hi'];
+const OVER_ART = ['--deep', '--rough', '--art-cut', '--fairway', '--putting', '--water', '--sand'];
 
 test('labels are large and dark enough to read in sunlight, and a disabled minus is not just faded', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
@@ -2239,7 +2345,7 @@ for (const [width, height] of [[390, 844], [375, 553]]) {
     test('every key text stands out from what is under it: 4.5:1, and 3:1 for the big numbers', async ({ page }) => {
       const found: { where: string; sel: string; min: number; ratio: number | null }[] = [];
       const check = async (where: string, checks: Contrast[]) => { for (const r of await contrastOf(page, checks)) found.push({ where, ...r }); };
-      const PICKER = ['--art-rough-hi', '--rough', '--art-rough-lo'];
+      const PICKER = ['--rough'];
       await page.goto('/');
       await expect(page.locator('#picker')).toBeVisible();
       await settled(page);
@@ -5108,7 +5214,7 @@ async function press(page: Page, selector: string, text: string | null, away: st
   await settled(page);
   expect(await bg(), `${selector} let go`).toBe(rest);
 }
-const ROUGH = ['--art-rough-hi', '--rough', '--art-rough-lo'];
+const ROUGH = ['--rough'];   // the picker's rough, flat since v31
 
 test('코스 선택, 스코어카드 and the menu answer a press with their colour, keep their text readable, and let go (v23)', async ({ page }) => {
   test.setTimeout(90_000);
@@ -5855,7 +5961,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v30');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v31');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {

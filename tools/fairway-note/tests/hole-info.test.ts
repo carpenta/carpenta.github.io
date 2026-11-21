@@ -166,25 +166,20 @@ describe('drawn course behind the screen', () => {
     expect(p3.green.rx).toBeGreaterThan(p4.green.rx);
   });
 
-  it('fades an island green\'s water in below the chips, and on a tall band sets the green low enough for its water', () => {
+  it('draws an island green\'s water flat round it, and on a tall band sets the green low enough for its water', () => {
+    // v31: no fade under the chips any more; since v30 the chips are opaque, so nothing shows through them.
     const svg = courseSvg(courseShape(3, 6, frame, 0, true), frame);
-    expect(svg).toMatch(new RegExp(`<linearGradient id="course-wfade" gradientUnits="userSpaceOnUse" x1="0" y1="${frame.bandTop}" x2="0" y2="${frame.bandTop + 30}">`));
-    expect(svg).toMatch(/<g mask="url\(#course-wmask\)"><path class="water"/);
+    expect(svg).toMatch(/<g class="pond"><path class="water" d="[^"]+" stroke-width="2"\/><\/g>/);
+    expect(svg).not.toMatch(/mask|Gradient/);
     const tall: CourseFrame = { ...frame, bandTop: 100, bandBottom: 320 };
     const g = courseShape(3, 6, tall, 0, true).green;
     expect(g.cy - g.ry * 1.78).toBeGreaterThanOrEqual(tall.bandTop + 6 - 0.5);
   });
 
-  it('mows the green in faint bands across the line of play, not rings that read as contours', () => {
-    const s = courseShape(4, 0, frame, 0);
-    const svg = courseSvg(s, frame);
-    expect(svg).toContain(`<pattern id="course-gmow" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(${(s.angle + 90).toFixed(1)})">`);
-    expect(svg).toMatch(/patternTransform="rotate\([^)]*\)"><rect class="a-green-stripe" width="7" height="14"\/><\/pattern>/);
-    expect(svg).toMatch(/fill="url\(#course-gmow\)"\/>/);
-    expect(svg).not.toContain('stroke-opacity=".12"');
-    // Faint: the band is white at a few percent (the palette in style.css, v19).
-    const css = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
-    expect(Number(/--art-green-stripe: color-mix\(in srgb, var\(--white\) (\d+)%, transparent\)/.exec(css)![1])).toBeLessThanOrEqual(10);
+  it('draws the green flat in its fringe: no bands, no dome, no shadow (v31, a yardage book\'s plan view)', () => {
+    const svg = courseSvg(courseShape(4, 0, frame, 0), frame);
+    expect(svg).toMatch(/<path class="a-fringe" d="[^"]+"\/><path class="green" d="[^"]+"\/>/);
+    expect(svg).not.toMatch(/pattern|course-gmow|course-dome|a-green-shadow/);
   });
 
   it('tucks the tee box behind 다음 홀 when told where the button is, so none of it peeks out below', () => {
@@ -241,14 +236,14 @@ describe('drawn course behind the screen', () => {
     expect(s.pin!.y - s.pin!.pole).toBeLessThan(tall.bandTop + 10);
   });
 
-  it('draws the rough with grain, a vignette and a header shade, the fairway with its edge and first cut, and a bevelled tee', () => {
+  it('draws the rough flat, the fairway in its first cut, and a flat tee with its two markers (v31)', () => {
     const svg = courseSvg(courseShape(4, 0, frame, 0), frame);
-    for (const id of ['course-rough', 'course-mow', 'course-dome', 'course-vignette', 'course-shade', 'course-teebox']) expect(svg).toContain(`id="${id}"`);
-    // The grain is the page's noise tile (v22, src/grain.ts), which the drawing points at.
-    expect(svg).toContain('fill="url(#course-grain)"');
-    expect(svg).toMatch(/class="a-edge"[^>]* stroke-width="20"/);
-    expect(svg).toMatch(/class="a-cut"[^>]* stroke-width="10"/);
+    expect(svg.startsWith(`<rect class="a-rough-fill" width="${frame.width}" height="${frame.height}"/>`)).toBe(true);
+    expect(svg).toMatch(/class="a-cut"[^>]* stroke-width="8"/);
+    expect(svg).toMatch(/<rect class="tee" [^>]*rx="10"\/>/);
     expect(svg.match(/<circle [^>]*r="4.2" class="a-pole-fill"/g)).toHaveLength(2);
+    // v22's grain, vignette, header shade and bevel are gone.
+    expect(svg).not.toMatch(/course-(rough|mow|dome|vignette|shade|teebox|grain)|a-edge|a-tee-edge/);
   });
 
   it('takes every colour from the palette in style.css: no colour in the markup (v19)', () => {

@@ -41,7 +41,6 @@ import {
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
 import { courseShape, courseSvg, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, type Box, type CourseFrame, type OsmHole } from './course-art';
 import { osmHoleAt, osmLoading } from './osm-holes';
-import { paintGrain } from './grain';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
@@ -474,6 +473,7 @@ function drawCourse(): void {
   const frame: CourseFrame = { width: window.innerWidth, height: window.innerHeight, bandTop: 110, bandBottom: 168, right: window.innerWidth * 0.72 };
   const course = roundCourse(round);
   let osm: OsmHole | null = null;
+  if (view !== 'entry') svg.style.removeProperty('--art-bottom');
   if (view === 'entry') {
     // The open band starts under the one-row header.
     const head = $('hole-info').getBoundingClientRect();
@@ -481,6 +481,8 @@ function drawCourse(): void {
     frame.bandTop = head.bottom + 6;
     frame.bandBottom = sheet.top;
     frame.right = sheet.right - 6;
+    // The drawing ends at the sheet's top edge (v31): the card covers the rest, and what showed round it was noise.
+    svg.style.setProperty('--art-bottom', `${Math.round(sheet.top)}px`);
     // The tee box (27px with its bevel) centred behind 다음 홀.
     const go = $('go-next').getBoundingClientRect();
     frame.teeY = go.top + go.height / 2 - 1.5;
@@ -511,10 +513,9 @@ function drawCourse(): void {
     };
     frame.keep = [box(credit)].filter((b): b is Box => b !== null);
   }
-  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or v22's line where the note's hazards are drawn.
+  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or (v31) the schematic's line that it is approximate.
   $('hi-osm').hidden = !osm;
-  const art = $('hi-art');
-  art.hidden = osm !== null || art.dataset.named !== 'true';
+  $('hi-art').hidden = osm !== null;
   const info = holeInfo(course, round.current);
   const bend = layoutBend(info?.layout);
   const island = layoutIsland(info?.layout);
@@ -1007,13 +1008,16 @@ function renderEntry(a: Analysis, changed?: string): void {
   }
   notes.hidden = phrases.length === 0;
   $('hi-none').hidden = phrases.length > 0;
-  // Where the schematic's bunkers and water come from, when the note names any (v22): drawCourse() shows the line while it
-  // draws the schematic (v27: an OpenStreetMap hole says so instead). Read again only when the hole changes.
+  // What the schematic is drawn from (v31: always, that it is approximate; v22: the bunkers and water a note names):
+  // drawCourse() shows the line while it draws the schematic (v27: an OpenStreetMap hole says so instead). Read again
+  // only when the hole changes.
   const art = $('hi-art');
   const artKey = `${cur.par}|${info?.layout ?? ''}`;
   if (art.dataset.key !== artKey) {
     art.dataset.key = artKey;
-    art.dataset.named = String(layoutIsland(info?.layout) || holeHazards(cur.par, info?.layout).length > 0);
+    // A schematic hole is drawn from its par and length (v31: it always says so), its bunkers and water from the note.
+    const named = layoutIsland(info?.layout) || holeHazards(cur.par, info?.layout).length > 0;
+    setText(art, `그림은 Par와 거리로 그린 대략적인 모양이에요.${named ? ' 벙커·물은 공식 홀 안내 문구로 그린 대략 위치예요.' : ''}`);
   }
   setText($('hi-title'), `${i + 1}번 홀 안내`);
   setText($('hi-facts'), [`Par ${cur.par}`, distanceLabel(info), info?.si ? `HDCP ${info.si}` : null].filter(Boolean).join(', '));
@@ -2173,8 +2177,6 @@ function bind(): void {
   document.fonts?.addEventListener('loadingdone', () => fitNotes());
   window.addEventListener('resize', () => {
     fitNotes();
-    // A zoom can change the screen's scale: the grain tiles follow it (nothing to do otherwise).
-    paintGrain();
     drawCourse();
     scrollHint();
   });
@@ -2203,9 +2205,6 @@ function bind(): void {
 applyBig(loadDisplay().big);
 bind();
 render();
-// The drawn course's grain (v22), made once just after the first frame so it never holds up the first screen: faint as
-// it is, it simply appears a frame later.
-requestAnimationFrame(() => setTimeout(() => paintGrain()));
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
 if (loaded === null || untouched) {
   openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });

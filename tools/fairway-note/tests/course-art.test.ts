@@ -303,77 +303,97 @@ describe('placing the named hazards on the drawn hole (v22)', () => {
     }
   });
 
+  // The critique of v31's first pass: v22's outline tables pulled every other point in, so ponds and bunkers came out as
+  // leaves with pointed ends and greens as lemons. A plan view draws them rounded; a bunker may still be pulled in on a side.
+  it('rounds bunkers, ponds and greens as a plan view does: no point of an outline sticks out past both its neighbours (v31)', () => {
+    const tips = (o: number[]) => o.filter((r, j) => r - Math.max(o[(j + o.length - 1) % o.length], o[(j + 1) % o.length]) > 0.015);
+    const problems: string[] = [];
+    const seen = new Set<string>();
+    for (const [what, s] of shapes()) {
+      for (const [kind, o] of [['green', s.green.outline], ...s.hazards.map((h) => [h.kind, h.outline] as const)] as const) {
+        const key = `${kind} ${o.join(' ')}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (tips([...o]).length) problems.push(`${what}: ${key}`);
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(6);
+    expect(problems).toEqual([]);
+  });
+
   it('is the same drawing every time for the same hole', () => {
     const a = courseShape(4, 7, tall, 1, false, 380, holeHazards(4, '그린 주변 벙커, 좌측 연못'));
     expect(courseShape(4, 7, tall, 1, false, 380, holeHazards(4, '그린 주변 벙커, 좌측 연못'))).toEqual(a);
   });
 });
 
-describe('the drawn course, smoother (v22)', () => {
+describe('the drawn course, a yardage book’s plan view (v31)', () => {
+  // v22 lit the drawing (mowing stripes, a domed green, deep water with a glint, grain): it read as a game asset, and
+  // since v30 nothing on top of it is see-through. A plan view in flat fills is what golfers read in a yardage book.
   const frame: CourseFrame = { width: 375, height: 667, bandTop: 120, bandBottom: 200, right: 270 };
   const plain = courseSvg(courseShape(4, 0, frame, 0), frame);
   const hazards = courseSvg(courseShape(3, 3, frame, 0, false, null, holeHazards(3, '그린 앞 연못, 그린 좌측 벙커')), frame);
   const island = courseSvg(courseShape(3, 6, frame, 0, true), frame);
+  const ALL = [plain, hazards, island];
+  /** The flat parts a drawn hole is made of, each painted by its class in style.css. */
+  const FLAT = ['a-rough-fill', 'a-cut', 'fairway', 'bunker', 'a-sand', 'pond', 'water', 'a-fringe', 'green', 'a-cup', 'a-pole-edge', 'a-pole', 'flag', 'marker', 'a-marker', 'a-marker-label', 'tee', 'a-pole-fill'];
 
-  it('grains the rough and fairway from the page’s noise tile, with no SVG filter in the drawing at all', () => {
-    // WebKit runs SVG filters on the CPU: none here. The grain is a tile made once on a canvas (src/grain.ts) and kept
-    // in the page as a pattern, so the drawing only points at it.
-    for (const svg of [plain, hazards, island]) {
-      expect(svg).not.toMatch(/<filter|<fe[A-Z]|filter=/);
-      expect(svg).not.toContain('id="course-grain"');
+  it('is flat: no gradient, pattern, mask, clip path or filter, nothing painted by url(), and no grain', () => {
+    for (const svg of ALL) {
+      expect(svg).not.toMatch(/<(linearGradient|radialGradient|pattern|mask|clipPath|filter|fe[A-Z])\b/);
+      expect(svg).not.toMatch(/url\(#|\smask=|clip-path=|filter=/);
+      expect(svg).not.toContain('grain');
     }
-    expect(plain).toContain(`<rect width="${frame.width}" height="${frame.height}" fill="url(#course-grain)"/>`);
-    // Over the rough and the fairway, under the hazards and the green.
-    expect(plain.indexOf('fill="url(#course-grain)"')).toBeGreaterThan(plain.indexOf('class="fairway"'));
-    expect(plain.indexOf('fill="url(#course-grain)"')).toBeLessThan(plain.indexOf('class="a-fringe"'));
-    // No dashed blades: the old grain tile is gone.
-    expect(plain).not.toContain('a-grain-dark" stroke-width');
   });
 
-  it('mows the fairway in soft-edged stripes, two passes in one tile, over a fill lit from the top left', () => {
-    const stops = /<linearGradient id="course-mowfade"[^>]*>(.*?)<\/linearGradient>/.exec(plain)![1].match(/offset="([\d.]+)"/g)!.map((o) => Number(/[\d.]+/.exec(o)![0]));
-    expect(stops.length).toBeGreaterThanOrEqual(5);
-    // Each change from light to dark takes a few pixels of the 44px band, not one.
-    const edges = stops.slice(1).map((o, i) => o - stops[i]).filter((d) => d > 0 && d < 0.3);
-    expect(Math.min(...edges) * 44).toBeGreaterThanOrEqual(3);
-    // Across the line of play, and a fainter pass along it, in one tile: one fill over the fairway, not two.
-    expect(plain).toMatch(/<linearGradient id="course-mowfade2" x1="0" y1="0" x2="0" y2="1">/);
-    expect(plain).toMatch(/<pattern id="course-mow" width="44" height="72" patternUnits="userSpaceOnUse" patternTransform="rotate\([-\d.]+\)"><rect width="44" height="72" fill="url\(#course-mowfade\)"\/><rect width="44" height="72" fill="url\(#course-mowfade2\)"\/><\/pattern>/);
-    expect(plain.match(/fill="url\(#course-mow\)"/g)).toHaveLength(1);
-    // The fairway's own fill carries the light: no extra layer over it.
-    expect(plain).toMatch(/<path class="fairway" d="[^"]+" fill="url\(#course-fwfill\)"\/>/);
-    expect(plain).toMatch(/<linearGradient id="course-fwfill" gradientUnits="userSpaceOnUse"[^>]*><stop class="a-fw-lit" offset="0"\/><stop class="a-fw" offset="[\d.]+"\/><stop class="a-fw-shade" offset="1"\/><\/linearGradient>/);
-    // A soft shade where the rough meets the fairway, wider than the hard edge.
-    expect(plain).toMatch(/class="a-edge-soft"[^>]* stroke-width="3\d"/);
-  });
-
-  it('raises the green: a soft shadow, the fringe, the collar, then the putting surface', () => {
-    const order = ['class="a-green-shadow"', 'class="a-fringe"', 'class="a-collar"', 'class="green"'].map((c) => plain.indexOf(c));
-    expect(order.every((at) => at > 0)).toBe(true);
+  it('draws only the flat parts, from the ground up: rough, the fairway’s first cut and the fairway, hazards, the green’s fringe and the green, the pin, the tee', () => {
+    for (const svg of ALL) {
+      const classes = [...new Set([...svg.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(' ')))];
+      expect(classes.filter((c) => !FLAT.includes(c))).toEqual([]);
+    }
+    const at = (c: string) => plain.indexOf(`class="${c}"`);
+    const order = ['a-rough-fill', 'a-cut', 'fairway', 'a-fringe', 'green', 'a-pole', 'tee'].map(at);
+    expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(plain).toMatch(/<radialGradient id="course-gshadow"[^>]*><stop class="a-gshadow" offset="[\d.]+"\/><stop class="a-dark-0" offset="1"\/><\/radialGradient>/);
+    // Hazards sit on the fairway and under the green.
+    expect(hazards.indexOf('class="bunker"')).toBeLessThan(hazards.indexOf('class="a-fringe"'));
+    expect(hazards.indexOf('class="pond"')).toBeLessThan(hazards.indexOf('class="a-fringe"'));
   });
 
-  it('gives water depth, a bank and a glint, and sand a shaded lip and its own grain', () => {
-    for (const svg of [hazards, island]) {
-      expect(svg).toMatch(/<radialGradient id="course-depth"[^>]*>(<stop [^>]*\/>){3,}<\/radialGradient>/);
-      expect(svg).toMatch(/class="water"[^>]* fill="url\(#course-depth\)"/);
-      expect(svg).toContain('class="a-water-glint"');
-    }
-    expect(island).not.toContain('url(#course-sandgrain)');
+  it('keeps sand and water flat: one fill each, water with its bank line, no lip, depth or glint', () => {
     expect(hazards.match(/<g class="bunker">/g)).toHaveLength(1);
-    // The sand's finer grain is the page's second tile (src/grain.ts), as the turf's is.
-    expect(hazards).toMatch(/<g class="bunker"><path class="a-sand-lip" d="[^"]+"\/><path class="a-sand" d="[^"]+" fill="url\(#course-sand\)"\/><path d="[^"]+" fill="url\(#course-sandgrain\)"\/><\/g>/);
-    // Sand defs only where there is sand.
-    expect(plain).not.toContain('course-sand');
-    expect(island).not.toContain('course-sand');
+    expect(hazards).toMatch(/<g class="bunker"><path class="a-sand" d="[^"]+"\/><\/g>/);
+    for (const svg of [hazards, island]) {
+      expect(svg).toMatch(/<path class="water" d="[^"]+" stroke-width="2"\/>/);
+      expect(svg).not.toMatch(/\b(glint|depth|lip|collar|shadow|shade|vignette)\b/);
+    }
     expect(island).not.toContain('class="bunker"');
   });
 
+  it('marks the pin plainly: the cup, a white pole and a red pennant, no shadow or shading', () => {
+    for (const svg of ALL) {
+      expect(svg.match(/class="a-cup"/g)).toHaveLength(1);
+      expect(svg.match(/class="a-pole"/g)).toHaveLength(1);
+      expect(svg.match(/class="flag"/g)).toHaveLength(1);
+      expect(svg).toMatch(/<path class="flag" d="M[\d.-]+ [\d.-]+l[\d.-]+ [\d.-]+l?-?[\d.-]+ [\d.-]+z"\/>/);
+    }
+  });
+
+  // The critique of v31's first pass: the white pole was 2.1:1 on the light green, with nothing round it.
+  it('edges the white pole in a dark line, so the pin reads on the light green and on the dark rough alike', () => {
+    for (const svg of ALL) {
+      const m = /<path class="a-pole-edge" d="([^"]+)" stroke-width="([\d.]+)" stroke-linecap="round"\/><path class="a-pole" d="([^"]+)" stroke-width="([\d.]+)"/.exec(svg);
+      expect(m).not.toBeNull();
+      expect(m![1]).toBe(m![3]);
+      // At least 0.7px of edge each side of the pole.
+      expect(Number(m![2]) - Number(m![4])).toBeGreaterThanOrEqual(1.4);
+    }
+  });
+
   it('takes every colour from the palette with hazards drawn too: no colour in the markup', () => {
-    for (const svg of [plain, hazards, island]) {
+    for (const svg of ALL) {
       expect(svg).not.toMatch(/#[0-9A-Fa-f]{3,8}\b|rgba?\(/);
-      expect(svg).not.toMatch(/(fill|stroke|stop-color|flood-color|lighting-color)="(?!none"|url\(|white")/);
+      expect(svg).not.toMatch(/(fill|stroke|stop-color|flood-color|lighting-color)="(?!none")/);
       expect(svg).not.toMatch(/style=|<script|\son\w+=|href/);
     }
   });
