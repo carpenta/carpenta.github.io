@@ -105,6 +105,9 @@ const normalise = (url, deg, crop = [0, 0, 1, 1]) =>
     const c = new OffscreenCanvas(side ? h : w, side ? w : h);
     const g = c.getContext('2d');
     g.imageSmoothingQuality = 'high';
+    // Transparent maps on white, as they show on their pages (transparent pixels would read as black).
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
     g.translate(c.width / 2, c.height / 2);
     g.rotate((deg * Math.PI) / 180);
     g.drawImage(img, sx, sy, sw, sh, -w / 2, -h / 2, w, h);
