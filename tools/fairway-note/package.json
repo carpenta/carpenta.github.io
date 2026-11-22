@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "test:e2e:webkit": "playwright test --config playwright.webkit.config.ts",
     "typecheck": "tsc --noEmit",
-    "osm:holes": "node scripts/osm-holes.mjs"
+    "osm:holes": "node scripts/osm-holes.mjs",
+    "trace:holes": "bun scripts/trace-holes.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",
