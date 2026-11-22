@@ -6,23 +6,23 @@
 
 ## 실행
 
-Node.js 22.12 이상이 필요합니다.
+Node.js 22.12 이상과 bun 1.4가 필요합니다. 설치와 스크립트 실행은 bun이 하고, Vite·Vitest·Playwright는 그대로 Node에서 돕니다(2026-11-22, v38부터. 그 전엔 npm). lockfile은 `bun.lock`.
 
 ```sh
-npm ci
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
 배포 빌드 확인:
 
 ```sh
-npm run build
-npm run preview -- --port 4175 --strictPort
+bun run build
+bun run preview --port 4175 --strictPort
 ```
 
 주소: http://127.0.0.1:4175
 
-CSP 때문에 `npm run dev`에서는 자동 새로고침(HMR)과 Vite가 넣는 스타일이 막힙니다. 화면은 빌드 후 미리보기로 확인합니다.
+`bun run dev`에서만 CSP를 늦춰(인라인 스타일, 자동 새로고침 연결) Vite가 넣는 스타일과 HMR이 동작합니다(v38, `vite.config.ts`의 `devCsp`). 빌드한 페이지의 CSP는 그대로입니다. 서비스 워커·오프라인 확인은 빌드 후 미리보기로 합니다.
 
 ## 기능과 제한
 
@@ -187,7 +187,7 @@ node scripts/build-courses.mjs <조사 자료 폴더>
 - 갱신: README의 쿼리로 Overpass 응답을 저장소 밖에 저장한 뒤 그 파일을 넘깁니다. 손으로만 돌리고 빌드·CI는 부르지 않습니다. 홀마다 잰 길이를 공식 거리 옆에 출력합니다.
 
 ```sh
-npm run osm:holes -- <Overpass 응답>.json
+bun run osm:holes <Overpass 응답>.json
 ```
 
 ## 오프라인
@@ -198,7 +198,7 @@ npm run osm:holes -- <Overpass 응답>.json
 - 처음 열 때 이 파일들을 브라우저의 Cache Storage(`fairway-note-<빌드 ID>`)에 받아 두고, 그다음부터는 캐시에서 먼저 엽니다. 받을 때 HTTP 캐시를 건너뛰어 배포가 섞이지 않게 합니다. 받는 양은 14개 파일 약 1.59MB(글꼴 0.81MB, 에버리스 홀 모양 0.08MB 포함, gzip으로 약 1.06MB)입니다(v27). v25에는 13개 파일 약 1.50MB, 글꼴을 넣기 전(v21)에는 8개 파일 약 0.66MB였습니다.
 - 새 버전이 배포되면 바로 바꾸지 않고, 화면 아래쪽 막대들 위에 "새 버전이 있습니다 · 다시 열기" 버튼을 띄웁니다. 기록을 방해하지 않으며, 누르면 새 버전으로 다시 엽니다. 라운드와 지난 라운드는 localStorage에 있으므로 그대로 남습니다.
 - 새 버전이 자리를 잡으면 이 도구의 예전 캐시만 지웁니다.
-- `npm run dev`에서는 서비스 워커를 등록하지 않습니다. 확인은 `npm run build && npm run preview`로 합니다. 서비스 워커는 `localhost`·`127.0.0.1`이나 HTTPS에서만 동작합니다.
+- `bun run dev`에서는 서비스 워커를 등록하지 않습니다. 확인은 `bun run build && bun run preview`로 합니다. 서비스 워커는 `localhost`·`127.0.0.1`이나 HTTPS에서만 동작합니다.
 
 ## 개인정보 경계
 
@@ -214,14 +214,14 @@ npm run osm:holes -- <Overpass 응답>.json
 
 해저드 수는 홀마다 `hazard`로, 벙커 수(v14, 타수에 넣지 않음)는 `bunker`로 저장합니다. 라운드 마치기를 누른 라운드에는 `closed: true`가 붙어 마지막 홀 칩인이 끝낸 홀로 남습니다. 해저드·벙커가 생기기 전에 저장된 라운드는 0으로 읽고 따로 보관할 것도 없습니다(`version: 1` 유지). 이전 버전 앱은 이 값을 모르므로 그 홀을 해저드 벌타 없이 보여 주고, 그 앱에서 저장하면 해저드 수가 빠집니다(샷 세부와 같은 방식). 샷 세부는 같은 키의 홀마다 선택 항목(`tags`, `obByTag`)으로 저장합니다. 세부 일부를 읽을 수 없으면(모르는 칩 값 등) 타수는 그대로 두고 그 세부만 빼고 불러오며, 원래 값은 아래처럼 따로 보관합니다. 저장된 값이 깨졌거나 더 새 버전이 쓴 값이라 읽을 수 없으면 덮어쓰기 전에 `fairway-note:corrupt:<시각>` 키로 따로 보관합니다(최근 3개까지). 보관할 수 없으면 저장하지 않습니다. 새 라운드를 시작하면 바꿉니다(끝낸 홀이 있으면 먼저 지난 라운드에 보관합니다). 지난 라운드는 같은 localStorage의 다른 키 `fairway-note:history:v1`에 `{ id, endedAt, round }` 배열로 저장하고, 라운드마다 지금 라운드와 같은 검사(코스·해저드·샷 세부 포함)를 거칩니다. 첫 라운드를 보관할 때 생기고 마지막 라운드를 지우면 없어집니다. 저장된 지난 라운드를 일부라도 읽을 수 없으면(깨진 값, 모르는 필드나 세부) 덮어쓰기 전에 같은 `fairway-note:corrupt:<시각>` 키에 따로 보관하고(지금 라운드의 보관본과 합쳐 최근 3개), 보관할 수 없으면 지난 라운드를 바꾸지 않습니다. 서버로 보내지 않고, sessionStorage·IndexedDB·쿠키는 쓰지 않습니다. Cache Storage에는 앱 파일만 두고 라운드 내용은 넣지 않습니다. 저장할 수 없는 환경(일부 개인정보 보호 모드)에서는 기록 화면에 그렇게 알리고 메모리에서만 동작합니다.
 
-CSP 메타 태그가 네트워크 연결(`connect-src 'none'`)과 다른 출처의 스크립트·스타일·이미지·글꼴, 인라인 스타일 태그를 막습니다. 글꼴은 앱과 같은 출처의 파일만 쓰고 외부 글꼴 서비스에 요청하지 않습니다. 그래서 `npm run dev`에서는 Vite가 넣는 스타일도 막히니 화면 확인은 `npm run build && npm run preview`로 합니다.
+CSP 메타 태그가 네트워크 연결(`connect-src 'none'`)과 다른 출처의 스크립트·스타일·이미지·글꼴, 인라인 스타일 태그를 막습니다. 글꼴은 앱과 같은 출처의 파일만 쓰고 외부 글꼴 서비스에 요청하지 않습니다. `bun run dev`에서만 Vite가 넣는 인라인 스타일과 자동 새로고침 연결을 허용합니다(v38). 빌드 결과의 CSP는 바뀌지 않고, 단위 테스트(`tests/dev-csp.test.ts`)가 이를 확인합니다.
 
 ## 검증
 
 ```sh
-npm test
-npx playwright install chromium
-npm run test:e2e -- --workers=1
+bun run test
+bunx playwright install chromium
+bun run test:e2e --workers=1
 ```
 
 - 단위 테스트(Vitest)

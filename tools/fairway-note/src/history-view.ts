@@ -43,11 +43,11 @@ let started = false;
 /** The mounted view, once renderHistory() has run. */
 let view: { list: HTMLOListElement; trends: HTMLElement; note: HTMLElement; empty: HTMLElement; status: HTMLElement } | null = null;
 
-/** No kept rounds yet: a small flag drawing and two calm lines. */
+/** No kept rounds yet: a quiet line icon on a small glass circle (v39; the flag drawing read as tacky) and two calm lines. */
 function emptyState(): HTMLElement {
   const box = h('div', { id: 'history-empty', class: 'hist-empty' });
-  // Static markup: a flag on a little green, drawn from numbers only.
-  box.innerHTML = '<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><ellipse class="a-green-fill" cx="32" cy="40" rx="24" ry="6" stroke="none"/><ellipse class="a-cup" cx="34" cy="39" rx="3" ry="1.4"/><path class="a-pole-quiet" d="M34 39V8" stroke-width="2" stroke-linecap="round"/><path class="a-flag" d="M35 8c6-1 9 3 14 3-4 3-8 6-14 6z"/></svg>';
+  // Static markup: the tab bar's own history icon (Tabler's line), numbers only.
+  box.innerHTML = '<span class="he-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg></span>';
   box.append(h('p', { class: 'he-1' }, '아직 보관한 라운드가 없어요'), h('p', { class: 'he-2' }, '라운드를 마치고 "지난 라운드에 보관"을 누르면 여기에 쌓여요.'));
   return box;
 }

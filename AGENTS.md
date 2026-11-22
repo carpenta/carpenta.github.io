@@ -99,6 +99,17 @@ npm run test:e2e -- --workers=1   # 스스로 빌드하고 4173 포트에서 미
 npm run build
 ```
 
+### Fairway Note (`tools/fairway-note/`)
+
+이 도구만 bun으로 설치하고 스크립트를 돌립니다(lockfile `bun.lock`). Vite·Vitest·Playwright는 Node에서 돌므로 Node도 필요합니다. 자세한 것은 `tools/fairway-note/docs/HANDOFF.md`.
+
+```sh
+bun install --frozen-lockfile
+bun run test
+bun run build
+bun run test:e2e --workers=1   # 스스로 빌드하고 4175 포트에서 미리보기
+```
+
 ### 합치기 (루트)
 
 ```sh

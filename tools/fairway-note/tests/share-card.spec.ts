@@ -4,7 +4,7 @@ import { newRound, type Hole, type Round } from '../src/round';
 
 // Draws share cards in a real browser. tests/share-card.html is a test-only page that the Vite dev server serves
 // (the build's only page is index.html, so it never ships) with the app's CSP. It runs on its own server:
-//   npx playwright test -c playwright.port4184.config.ts
+//   bunx playwright test -c playwright.port4184.config.ts
 
 const hole = (par: 3 | 4 | 5, driver: number, approach: number, putts: number, ob = 0, hazard = 0): Hole => ({ par, driver, approach, putts, ob, hazard, mulligan: 0 });
 

@@ -640,7 +640,9 @@ function markerSvg(m: { x: number; y: number; d: number; label?: Box; text?: str
   const dot = `<circle cx="${f(m.x)}" cy="${f(m.y)}" r="5.5" class="a-marker" stroke-width="1.5"/>`;
   if (m.label && m.text === String(m.d)) {
     // The baseline half the figures' height (13px Pretendard's 9.4px) under the room's middle.
-    return `<g class="marker">${dot}<text class="a-marker-num" x="${f((m.label.x0 + m.label.x1) / 2)}" y="${f((m.label.y0 + m.label.y1) / 2 + 4.7)}" text-anchor="middle">${m.text}</text></g>`;
+    // v39: on a small white pill (the room the label was fitted into), as the painted hole's marks read.
+    const pill = `<rect class="a-marker-pill" x="${f(m.label.x0)}" y="${f(m.label.y0)}" width="${f(m.label.x1 - m.label.x0)}" height="${f(m.label.y1 - m.label.y0)}" rx="${f((m.label.y1 - m.label.y0) / 2)}"/>`;
+    return `<g class="marker">${dot}${pill}<text class="a-marker-num" x="${f((m.label.x0 + m.label.x1) / 2)}" y="${f((m.label.y0 + m.label.y1) / 2 + 4.7)}" text-anchor="middle">${m.text}</text></g>`;
   }
   const w = markerWidth(m.d);
   const at = m.label ?? { x0: m.x + 10, y0: m.y - 11, x1: m.x + 10 + w, y1: m.y + 11 };
@@ -1559,6 +1561,93 @@ function chaikin(pts: Pt[], times: number): Pt[] {
  * The SVG content for a hole from OpenStreetMap (v27), in the schematic's flat plan view (v31) on the real outlines.
  * Decorative and built from numbers only.
  */
+/**
+ * The hole as plain outlines in screen pixels, for the painted ground under the drawing (v39, course-paint.ts): the
+ * same shapes the drawing has, so the paint and the drawing's line, markers and flag stay on one another.
+ */
+export interface Terrain {
+  greens: Pt[][];
+  tees: Pt[][];
+  fairways: Pt[][];
+  bunkers: Pt[][];
+  /** Each pond's outer ring, then any islands in it. */
+  water: Pt[][][];
+  /** The line of play, tee to green. */
+  line: Pt[];
+  /** The same hole paints the same trees. */
+  seed: number;
+}
+
+/** An OpenStreetMap hole's outlines, their corners cut as the drawing cuts them. */
+export function osmTerrain(s: OsmShape, seed: number): Terrain {
+  return {
+    greens: s.greens.map((g) => chaikin(g, 2)),
+    tees: s.tees.map((t) => chaikin(t, 2)),
+    fairways: s.fairways.map((fw) => chaikin(fw, 1)),
+    bunkers: s.bunkers.map((b) => chaikin(b, 1)),
+    water: s.water.map((w) => w.map((r) => chaikin(r, 1))),
+    line: s.line,
+    seed,
+  };
+}
+
+/** An outline round (cx, cy), its radius scaled at the `outline` points (as `blob` draws it), turned by `angle` degrees. */
+function ringAround(cx: number, cy: number, rx: number, ry: number, outline: number[], angle = 0): Pt[] {
+  const a = (angle * Math.PI) / 180;
+  const n = outline.length;
+  const out: Pt[] = [];
+  for (let k = 0; k < 48; k++) {
+    const t = (k / 48) * Math.PI * 2;
+    const u = (k / 48) * n;
+    const j = Math.floor(u);
+    const r = outline[j % n] + (outline[(j + 1) % n] - outline[j % n]) * (u - j);
+    const x = Math.cos(t) * rx * r;
+    const y = Math.sin(t) * ry * r;
+    out.push([cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)]);
+  }
+  return out;
+}
+
+/** The schematic hole's outlines: its green, its tee box along the line, its fairway, bunkers and ponds. */
+export function bandTerrain(s: BandShape, seed: number): Terrain {
+  const g = s.green;
+  const [a, b] = [s.line[0], s.line[1] ?? s.line[0]];
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const ux = (b[0] - a[0]) / len;
+  const uy = (b[1] - a[1]) / len;
+  const { x, y, along, across } = s.tee;
+  const tee: Pt[] = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]): Pt => [x + (ux * along * i) / 2 - (uy * across * j) / 2, y + (uy * along * i) / 2 + (ux * across * j) / 2]);
+  const water: Pt[][][] = s.hazards.filter((h) => h.kind === 'water').map((h) => [ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)]);
+  if (s.water > 0) water.push([ringAround(g.cx, g.cy, g.rx * s.water, g.ry * s.water, g.outline)]);
+  return {
+    greens: [ringAround(g.cx, g.cy, g.rx, g.ry, g.outline)],
+    tees: [tee],
+    fairways: s.fairway ? [s.fairway] : [],
+    bunkers: s.hazards.filter((h) => h.kind === 'bunker').map((h) => ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)),
+    water,
+    line: s.line,
+    seed,
+  };
+}
+
+/** The full-screen schematic's outlines (off 기록, and 기록 on a screen with no band): painted behind the other screens. */
+export function courseTerrain(s: CourseShape, seed: number): Terrain {
+  const g = s.green;
+  const w = s.tee.width;
+  const tee: Pt[] = [[s.tee.x - w / 2, s.tee.y - w / 3], [s.tee.x + w / 2, s.tee.y - w / 3], [s.tee.x + w / 2, s.tee.y + w / 3], [s.tee.x - w / 2, s.tee.y + w / 3]];
+  const water: Pt[][][] = s.hazards.filter((h) => h.kind === 'water').map((h) => [ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)]);
+  if (s.water) water.push([ringAround(g.cx, g.cy, g.rx * 1.78, g.ry * 1.78, g.outline)]);
+  return {
+    greens: [ringAround(g.cx, g.cy, g.rx, g.ry, g.outline)],
+    tees: [tee],
+    fairways: s.fairway ? [s.fairway] : [],
+    bunkers: s.hazards.filter((h) => h.kind === 'bunker').map((h) => ringAround(h.cx, h.cy, h.rx, h.ry, h.outline, h.angle)),
+    water,
+    line: [[s.tee.x, s.tee.y], [g.cx, g.cy]],
+    seed,
+  };
+}
+
 export function osmSvg(traced: OsmShape, frame: CourseFrame): string {
   const { width: W, height: H } = frame;
   // OSM's outlines are traced with few points: their corners are cut (twice for the small greens and tee boxes, once for

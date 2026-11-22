@@ -92,7 +92,9 @@ describe('hole', () => {
     expect([0, 3, -2].map(formatToPar)).toEqual(['E', '+3', '-2']);
   });
 
-  it('words a hole score as golfers say it, for the score badge', () => {
+  // v39: the badge shows badgeWord (Ace, Par or the score against par; tests/cleanup.test.ts); the badge's spoken name
+  // keeps the whole Korean word.
+  it('words a hole score as golfers say it, for the badge\'s spoken name', () => {
     expect(scoreWord(1, 3)).toBe('홀인원');
     expect(scoreWord(1, 4)).toBe('홀인원');
     expect(scoreWord(2, 5)).toBe('알바트로스');

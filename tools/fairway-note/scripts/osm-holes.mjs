@@ -1,7 +1,7 @@
 // Builds src/data/osm/everis.json, the Everis holes drawn from OpenStreetMap (v27), from an Overpass extract and the
 // hand-made hole mapping in src/data/osm/everis-holes.json. Run by hand, never in the build or CI:
 //
-//   npm run osm:holes -- <overpass extract.json>
+//   bun run osm:holes <overpass extract.json>
 //
 // The query and its date are in src/data/osm/README.md. The output is a Derivative Database of OpenStreetMap under ODbL 1.0
 // (© OpenStreetMap contributors): it stays in src/data/osm/, apart from the official course data in src/data/courses.json.
@@ -25,7 +25,7 @@ const WATER_NEAR = 25;
 
 const [input] = process.argv.slice(2);
 if (!input) {
-  console.error('usage: npm run osm:holes -- <overpass extract.json>');
+  console.error('usage: bun run osm:holes <overpass extract.json>');
   process.exit(1);
 }
 const extract = JSON.parse(readFileSync(input, 'utf8'));

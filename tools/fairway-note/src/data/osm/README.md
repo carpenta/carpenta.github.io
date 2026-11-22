@@ -37,7 +37,7 @@ out geom;
 Save the query's JSON answer outside the repository, then from `tools/fairway-note`:
 
 ```sh
-npm run osm:holes -- <path to the answer>.json
+bun run osm:holes <path to the answer>.json
 ```
 
 The script prints each hole's measured length beside the official one. Run by hand only; the build and CI never fetch

@@ -4,7 +4,7 @@
 
 - 기준: `fairway-note-entry-v2`의 v10(커밋 `296c774`). `src/`, `index.html`, `tests/e2e.spec.ts`는 바꾸지 않았습니다.
 - 도구: Playwright 1.64.0, WebKit 27.2(Playwright 빌드 v2370, macOS arm64)
-- 실행: 처음 한 번 `npx playwright install webkit`, 그다음 `npm run test:e2e:webkit -- --workers=1`
+- 실행: 처음 한 번 `bunx playwright install webkit`, 그다음 `bun run test:e2e:webkit --workers=1`
 - 설정 `playwright.webkit.config.ts`는 기본 설정을 가져와 프로젝트만 바꿉니다.
   - `devices['iPhone 13']`: 390×664, `isMobile`, `hasTouch`, 배율 3, iPhone Safari UA
   - 포트 4185(`--strictPort`)를 쓰고, 이미 떠 있는 서버를 재사용하지 않습니다.

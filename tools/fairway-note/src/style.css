@@ -62,6 +62,13 @@
   --on-capsule: color-mix(in srgb, var(--ink) 60%, transparent);
   --on-capsule-soft: color-mix(in srgb, var(--ink) 35%, transparent);
   --glow: color-mix(in srgb, var(--white) 75%, transparent);
+  /* The chip row's pills over the drawing (v38, the user's call over v30's opaque rule): see-through, so they no longer
+     hide the hole behind them; still light enough that their ink and muted text keep 4.5:1 over the rough and the hole. */
+  --chip-on-art: color-mix(in srgb, var(--white) 72%, transparent);
+  /* Ink, muted and these darker turf and red on it: 4.5:1 or more over the rough, the deep rough and every fill the hole
+     is drawn in (turf 5.0:1, red 4.6:1 at worst; the plain ones fall to 3.1 and 2.7 over the rough). */
+  --turf-on-chip: color-mix(in oklab, var(--turf) 60%, var(--ink));
+  --red-on-chip: color-mix(in oklab, var(--red) 60%, var(--ink));
   --backdrop-light: color-mix(in srgb, var(--deep) 22%, transparent);
   --backdrop: color-mix(in srgb, var(--deep) 36%, transparent);
   --backdrop-strong: color-mix(in srgb, var(--deep) 52%, transparent);
@@ -134,9 +141,16 @@ svg { display: block; }
 
 /* Our own drawn hole fills the screen behind everything. On 기록 it ends at the sheet's top edge (v31, --art-bottom from
    main.ts): below it the card covers the hole, and what showed beside the card and above 다음 홀 read as a glitch.
-   Fitted into the band (v33), it also starts under the chip row (--art-top), so water the band cuts ends at its edge.
+   Fitted into the band (v33), it also starts at the band's top (--art-top), so water the band cuts ends at its edge;
+   since v38 that is under the switcher, and the chip row's see-through pills lie over the drawing.
    The page under it is the same rough, so neither edge shows. */
 .course-art { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; clip-path: inset(var(--art-top, 0px) 0 calc(100% - var(--art-bottom, 100%)) 0); }
+/* v39: on 기록 the ground is painted (course-paint.ts) on a canvas under the drawing, the whole screen, the hole as an
+   aerial view; the drawing then shows only its line marks, markers and flag, its own ground clear (still there to be
+   hit and measured). */
+.course-paint { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.course-paint[hidden] { display: none; }
+#course.painted :is(.a-rough-fill, .a-cut, .fairway, .a-sand, .a-tee-fill, .tee, .tee2, .green, .green2, .a-fringe, .water, .water-far, .shore) { fill: transparent; stroke: transparent; }
 
 .app {
   position: relative; z-index: 1; max-width: 480px; margin: 0 auto; height: 100dvh;
@@ -279,7 +293,7 @@ svg { display: block; }
 /* A hole in one (v29): the word is the number, so 홀인원 shows alone on the centre line, where the ring is widest. */
 .badge.hio .bmark { display: none; }
 .badge.hio .badge-name { font-size: var(--t-m); font-weight: var(--w-value); }
-body.big .badge.hio .badge-name { font-size: var(--t-l); }
+body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px); }   /* v39: 17px Ace on the middle (it sat 1px high) */
 /* Golf's own scorecard marks, drawn in SVG: ◎ eagle or better, ○ birdie, nothing for par, □ bogey, ⧈ double or worse. */
 .bmark, .m { position: relative; display: grid; place-items: center; }
 /* 36px marks (v32, 30 inside the old ring): an eagle's inner circle clears its number by 4px instead of touching it. With
@@ -374,8 +388,9 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); }
    ticks cutting the number. Since v34 in the soft see-through ink (about 2:1 on either half), so it blends into the
    capsule: the user found the solid line too hard, and the two tones already mark the split. */
 .num-row { position: absolute; z-index: 1; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; pointer-events: none; }
-/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. */
-.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px solid var(--on-capsule-soft); }
+/* A hairline border, a stroke like the glyphs (v34), in the softer see-through ink: it takes each half's tone. Dashed
+   since v38 (the user's call): a quieter split than the solid line. */
+.num-row::before, .num-row::after { content: ''; flex: 1; height: 0; border-top: 1px dashed var(--on-capsule-soft); }
 .club-short.unsplit .num-row::before, .club-short.unsplit .num-row::after { visibility: hidden; }
 .pill-ico { display: none; }
 /* Trimmed to its digits' cap height, the count is sized for 10px above and below it between the glyphs: 2px more than
@@ -543,7 +558,7 @@ body.big .home-link { font-size: var(--t-m); }
 /* While a dialog is open the bar steps back (v32): the dim backdrop over the dark bar changed nothing there, so its
    labels and the chosen tab stayed as loud as the panel. */
 .bar { transition: opacity .16s ease-out; }
-body:has(dialog[open]:not(#menu)) .tabbar .bar { opacity: .4; }
+body:has(dialog[open]:not(#menu, #voice)) .tabbar .bar { opacity: .4; }   /* v39: 말로 입력 in the card is no dialog over the screen */
 @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
 /* The menu (v36) rises from 메뉴 and stops on the bar, which stays in view and in use: 메뉴 marked as where the sheet came
    from, the view's own tab stepping aside for it, and a tap on a view going on to it (main.ts). */
@@ -814,13 +829,14 @@ button.mi:active { background: var(--fill-2); }
 .mi-t { min-width: 0; }
 .mi b { display: block; font-size: var(--t-l); font-weight: var(--w-label); }
 .mi small { display: block; font-size: var(--t-s); color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#mi-mulligan small { white-space: normal; }   /* v39: the centred menu is 32px narrower at 360; beside its − 0 + the line wraps rather than end in … */
 .mi .chev { justify-self: end; color: var(--off-ink); transition: transform .16s; }
 .mi[aria-expanded='true'] .chev { transform: rotate(90deg); }
 .mpanel { padding: 0 0 14px 52px; font-size: var(--t-m); line-height: 1.45; }
 .mpanel p + p { margin-top: 6px; }
 .mpanel .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .mpanel .row .btn { display: inline-grid; place-items: center; padding: 0 16px; text-decoration: none; color: inherit; }
-.mpanel .row .btn.primary { color: var(--on-action); }
+.mpanel .row .btn.primary { color: var(--on-glass); }   /* v39: white on the menu's glass (lime's ink there was 1.7:1) */
 .mpanel .small { margin: 8px 0 0; }
 .backup > h2 { display: none; }
 .backup .muted.small { margin: 0; }
@@ -1418,6 +1434,10 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 .info-chip { position: relative; flex: none; gap: 5px; padding: 0 10px; color: var(--turf); }
 .info-chip::after { content: ''; position: absolute; inset: -10px 0; }   /* a 48px touch area */
 .info-chip[aria-expanded='true'] { background: var(--fill); }
+/* v38: the drawing runs behind the chip row, and its pills let it show through (--chip-on-art). */
+.meta, .progress, .info .info-chip:not([aria-expanded='true']) { background: var(--chip-on-art); }
+.info .info-chip:not([aria-expanded='true']) { color: var(--turf-on-chip); }
+.progress .prog.under { color: var(--red-on-chip); }
 .info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); display: inline-grid; place-items: center; background: var(--turf); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-value); line-height: 1; }
 .hinfo {
   position: fixed; inset: auto auto auto var(--m, 12px); margin: 0; width: min(300px, calc(100vw - 24px));
@@ -1632,3 +1652,375 @@ details.how > summary, details.shot-details > summary { display: inline-flex; al
 :is(details.how, details.shot-details) > summary::after { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--turf); border-bottom: 2px solid var(--turf); transform: translateY(-2px) rotate(45deg); transition: transform .16s ease-out; }
 :is(details.how, details.shot-details)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); color: var(--ink); }
+
+/* ======================================================================================================================
+   v39: glow and glass (the user's chosen mock-up, design/v39/). One glass everywhere, no outlines on any box: tone, blur
+   and shadow alone; a lime edge and glow mark what is chosen. Over the hole the glass is 50% and lightly blurred so the
+   painted ground shows through; on the page it is deeper. The hole switcher sits low, between the hole and the card.
+   ==================================================================================================================== */
+:root {
+  --lime: #c4e04f;
+  --lime-glow: color-mix(in srgb, #c4e04f 55%, transparent);
+  --on-glass: #f4f7f0;
+  --on-glass-soft: color-mix(in srgb, #f4f7f0 66%, transparent);
+  --map-glass: rgb(10 24 16 / .5);
+  --map-blur: blur(4px) saturate(1.2);
+  --deep-glass: linear-gradient(180deg, rgb(14 30 21 / .62), rgb(10 22 15 / .74));
+  --deep-blur: blur(18px) saturate(1.4);
+  --glass-drop: 0 6px 16px rgb(0 0 0 / .28);
+  --chosen-edge: 0 0 0 1.5px var(--lime);
+  --island: 62px;
+}
+.app { padding-bottom: calc(var(--island) + 26px + env(safe-area-inset-bottom)); }
+.map-glass { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); }
+
+/* The top bar: 홈 as its icon alone, the course and the round so far in the middle, the score on the right. */
+.home-link { color: var(--on-glass); filter: drop-shadow(0 1px 3px rgb(0 0 0 / .6)); }
+.home-link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.home-link svg { width: 26px; height: 26px; }
+.round-head { grid-column: 2; grid-row: 1; justify-self: center; min-width: 0; max-width: 100%; display: grid; justify-items: center; gap: 3px; text-align: center; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
+.round-name { margin: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--on-glass); font-size: var(--t-m); font-weight: var(--w-label); }
+.round-head .progress { margin: 0; height: auto; padding: 0; background: none; box-shadow: none; gap: 4px; }
+.round-head .prog { color: var(--on-glass); }   /* white: the soft 66% was 3.6:1 on the painted course's lightest spots under it */
+.round-head .prog.score { color: var(--on-glass); }
+.round-head .prog.under { color: #ff8f84; }
+.badge { width: 56px; height: 56px; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); outline: 0; box-shadow: var(--glass-drop); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+.badge[data-tone] { background: var(--map-glass); }
+.badge .bm { display: none; }
+.badge-name { color: var(--on-glass-soft); }
+.badge[data-tone='under'] #hole-strokes { color: #ff9a8f; }
+.badge[data-tone='par'] #hole-strokes { color: var(--lime); }
+
+/* The chip row: the length (a tap lists every tee) and 홀 안내, map glass. */
+#hole-info .meta, #hole-info .info-chip { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+#hole-info .meta { padding: 0; }
+.dist { height: 100%; padding: 0 12px; border-radius: var(--r-full); color: inherit; font: inherit; }
+.dist:disabled { cursor: default; color: inherit; }
+.dist .mt-len { color: var(--on-glass); }
+#hole-info .info-n { background: var(--lime); color: var(--ink); }
+.tee-list { margin: 10px 0 6px; padding: 0; list-style: none; display: grid; gap: 2px; }
+.tee-list li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; min-height: 40px; font-size: var(--t-m); font-weight: var(--w-label); }
+.tee-dot { width: 14px; height: 14px; border-radius: var(--r-full); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25); }
+.osm-credit { color: color-mix(in srgb, #fff 62%, transparent); text-shadow: 0 1px 2px rgb(0 0 0 / .5); }
+
+/* The hole switcher, low: ‹ · [Par · (ring: the hole number) · HCP] · ›. Numbers on one line, labels on another. */
+.hole-nav { flex: none; margin: 6px var(--m) 14px; }
+.hole-nav .switcher { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: 10px; padding: 0; background: none; box-shadow: none; max-width: none; }
+.hole-nav .round, .hole-nav .round:disabled { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); color: var(--on-glass); box-shadow: var(--glass-drop); }
+.hole-nav .round:disabled { color: color-mix(in srgb, #fff 35%, transparent); }
+.hole-nav .round:active:not(:disabled) { background: rgb(10 24 16 / .7); }
+.hole-nav .round.finish { background: var(--lime); color: var(--ink); box-shadow: 0 0 16px 1px var(--lime-glow), var(--glass-drop); }
+.nav-pill { position: relative; height: 60px; border-radius: var(--r-full); display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+.nav-stat { position: relative; height: 60px; }
+.nav-stat b, .nav-stat span, .hole-n, .hole-u { text-box: trim-both cap alphabetic; line-height: 1; }
+.nav-stat b, .nav-stat span { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; }
+.nav-stat b { bottom: calc(50% - 2px); font-size: var(--t-l); font-weight: var(--w-value); }
+.nav-stat span { bottom: calc(50% - 19px); font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-glass-soft); }
+.hole-nav .hole-h { justify-self: center; width: 80px; height: 80px; margin: -10px 0; }
+.hole-nav .hole-title {
+  position: relative; width: 80px; height: 80px; padding: 0; border-radius: var(--r-full); display: block;
+  background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass);
+  box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow), var(--glass-drop);
+}
+.hole-nav .hole-title:active, .hole-nav .hole-title[aria-expanded='true'] { background: radial-gradient(circle at 50% 35%, #2c5238 0%, #1c3626 75%); }
+.hole-nav .hole-txt, .hole-nav .hole-main { position: static; display: block; }
+.hole-nav .hole-n { position: absolute; left: 50%; translate: -50% 0; bottom: calc(50% - 2px); font-size: 32px; font-weight: var(--w-value); letter-spacing: -.02em; color: var(--on-glass); }
+.hole-nav .hole-u { position: absolute; left: 50%; translate: -50% 0; bottom: calc(50% - 19px); font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-glass-soft); white-space: nowrap; }
+.hole-nav :is(.hole-sub, .ticks, .hole-chev) { display: none; }
+
+/* The card: deep glass, no outline, a faint lime halo; white type. Its parts take the same tokens, retinted. */
+.sheet {
+  background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur);
+  box-shadow: 0 0 26px rgb(196 224 79 / .12), var(--glass-drop); color: var(--on-glass);
+  --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
+  --fill: rgb(255 255 255 / .07); --fill-2: rgb(255 255 255 / .13); --fill-press: rgb(255 255 255 / .2);
+  --on-capsule: rgb(255 255 255 / .62); --on-capsule-soft: rgb(255 255 255 / .35); --off-ink: rgb(255 255 255 / .35);
+}
+.sheet-wrap::after { display: none; }
+/* The tabs at the card's top: 기본 · 상세 · 음성, the chosen one white with a glowing lime underline. */
+.sheet .modes { display: grid; grid-template-columns: repeat(3, 1fr); width: auto; margin: -4px calc(-1 * var(--card-pad)) 6px; background: none; border-radius: 0; }
+.sheet .mode { min-width: 0; height: 44px; padding: 0; border-radius: 0; background: none; color: var(--on-glass-soft); font-size: var(--t-m); }
+.sheet .mode[aria-pressed='true'] { background: none; color: var(--on-glass); }
+.sheet .mode[aria-pressed='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* The clubs as icons (the user's call): the app's driver, iron and putter, the names kept for the screen reader. */
+.club-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.club-lbl svg { width: 24px; height: 24px; color: var(--on-glass); }
+.lbl-in { padding: 0 10px 0 12px; gap: 4px; }
+@container (max-width: 80px) { .sheet .lbl-in { padding: 0 4px; } }   /* 상세's narrow columns keep v28's slim chip, so 어프로치 is whole */
+.count { color: var(--on-glass); }
+.count.zero { color: var(--on-capsule); }   /* a 0 in the + and −'s own ink: the paper's --quiet was 1.9:1 on the glass */
+/* OB, 벙커 and 해저드 in 상세 only (the user's call); what 기본 already counted still counts. */
+#entry[data-mode='basic'] .pens { display: none; }
+/* 말로 입력 opens from the 음성 tab; its own button and 다음 홀 are gone from 기록. */
+#entry .vc-open, #entry .next { display: none; }
+
+/* The bar: a floating island, the same deep glass, off the edges; the chosen tab white with a glowing lime dot. */
+.tabbar { left: 16px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); padding: 0 6px; border-radius: var(--r-full); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
+.tab, .bar-menu { height: var(--island); color: var(--on-glass-soft); }
+.tab .ti, .bar-menu .ti { width: auto; height: 24px; background: none; }
+.tab[aria-selected='true'] .ti { background: none; }
+.tab svg, .bar-menu svg { width: 22px; height: 22px; stroke-width: 1.5; }
+.tab-label { font-size: var(--t-s); }   /* 13px, the v39 floor for text (the mock-up's 11px was under it) */
+.tab[aria-selected='true'] { position: relative; color: var(--on-glass); }
+.tab[aria-selected='true']::after { content: ''; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 2px var(--lime-glow); }
+.hole-nav .switcher { width: 100%; }
+/* The icon stays in narrow columns too: it is the club's name now (v39). */
+@container (max-width: 103px) { .sheet .lbl-in > svg { display: block; } }
+/* The OpenStreetMap credit at the band's foot, over the low switcher (6px above it), not under it (v39). */
+.osm-credit { bottom: calc(100% + 14px + 60px + 6px + 6px); }
+/* The 100 and 150 marks (v39): a white dot with a deep centre and the number on a small white pill. */
+#course .a-marker-pill { fill: #fbfcf8; }
+#course .marker .a-marker-num { fill: #163021; stroke: none; }
+#course .a-marker { fill: #fbfcf8; stroke: #1d3524; stroke-width: 3px; }
+/* 상세's 세컨 and 어프로치 both swing the iron: there the name says which, in place of the icon (v39). */
+:is(.club-second, .club-short) .club-name { position: static; width: auto; height: auto; overflow: hidden; clip-path: none; color: var(--on-glass); }
+:is(.club-second, .club-short) .lbl-in > svg { display: none; }
+@container (max-width: 103px) { .sheet :is(.club-second, .club-short) .lbl-in > svg { display: none; } }
+/* The paper screens run on under the floating island (v39), their foot padded so the last row scrolls clear of it. */
+.view.sc { margin-bottom: calc(-1 * (var(--island) + 26px + env(safe-area-inset-bottom))); }
+.sc-body { padding-bottom: calc(var(--island) + 34px + env(safe-area-inset-bottom)); }
+/* 홀 안내 at the chip row's right end, as the mock-up has it (the progress pill that pinned it moved to the bar). */
+#hole-info .info-chip { margin-left: auto; }
+/* 상세's OB, 벙커 and 해저드 (and 빼기) spread evenly across the card, not held under three of the four capsules. */
+#entry[data-mode='detail'] .pens { display: flex; justify-content: space-evenly; }
+#entry[data-mode='detail'] .pens > * { flex: 0 0 72px; }
+
+/* The other screens on the same system (v39): deep ground, dark glass panels with no outlines, white type, lime for
+   what is chosen and for the primary action. Their own tokens retinted, so their layouts and tables stay as they were. */
+.sc, .sheet-dialog, .hinfo, .past {   /* .past too: 지난 라운드 열기 kept the paper's ink on its deep ground */
+  --white: rgb(255 255 255 / .06); --paper: rgb(255 255 255 / .04);
+  --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --off-ink: rgb(255 255 255 / .35);
+  --line: rgb(255 255 255 / .12); --fill: rgb(255 255 255 / .07); --fill-2: rgb(255 255 255 / .13); --fill-press: rgb(255 255 255 / .2);
+  --turf: var(--lime); color: var(--on-glass);
+}
+.sc { background: radial-gradient(120% 55% at 50% 0%, #1f3d2a 0%, #0f2118 70%); }
+.sc-body { background: transparent; }
+.sc::after { background: linear-gradient(transparent, #0f2118 85%); }
+.sheet-dialog, .hinfo { background: linear-gradient(180deg, #17301f, #0f2118); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+.sheet-dialog, .past { --quiet: color-mix(in srgb, #f4f7f0 52%, transparent); }   /* zero counts on the dark sheet: the paper's --quiet was 2.6:1 */
+/* No outlines on the panels (the user: boxes with no border); tone and the glass alone set them apart. */
+.sc-sheet, .box { outline: 0; }
+#entry[data-mode='detail'] .pens .undo:disabled { display: none; }
+/* No lime slabs (the user could not bear the bright green buttons): every primary action and every chosen control is
+   styled as the entry card is, light glass with white type, set apart by a lime edge and a soft glow alone. */
+body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go, .next,
+  .tchip[aria-pressed='true'], .dir[aria-pressed='true'], .club-lbl[aria-expanded='true'] .lbl-in, .edit.on,
+  .picker-list .course[aria-pressed='true'], .pk-len button[aria-pressed='true'],
+  .nine-pick button[aria-checked='true'], .np-row button[aria-pressed='true'], .sp-shots button[aria-pressed='true'],
+  .sp-chip[aria-pressed='true'], .ct-col.cur .c-hole, .scell[aria-current='true'] .sc-no, .hole-nav .round.finish) {
+  background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28);
+}
+body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active:not(:disabled) { background: rgb(255 255 255 / .18); }   /* :not(:disabled) outranks the old lime press (2.3:1 under white type) */
+/* The course picker is still on paper: there the white type vanished (1.05:1), so its chosen ones keep ink on white with a turf edge. */
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: none; outline: 1.5px solid var(--turf); outline-offset: -1.5px; }
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']):active { background: var(--fill-2); }
+body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
+/* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
+   result, the direction pad. The capsules, the switcher and the tabs keep their round ends. */
+#entry[data-mode='detail'] :is(.lbl-in, .tchip, .dir) { border-radius: var(--r-tile); }
+/* More room under the hole switcher: its ring hangs 10px below the pill, and in 상세 it nearly met the card (v39). */
+.hole-nav { margin-bottom: 24px; }
+.osm-credit { bottom: calc(100% + 24px + 60px + 6px + 6px); }
+/* The ring's words are trimmed to the cap height for alignment; Hangul stands above it, so nothing may clip them. Its
+   sizes are the ring's own, whatever 큰 글씨 or a two-digit hole would set elsewhere. */
+.hole-nav .hole-u { overflow: visible; }
+body .hole-nav #hole-title .hole-u { font-size: var(--t-s); }
+body .hole-nav #hole-title .hole-n { font-size: 32px; }
+/* Two-digit holes read centred: tabular figures give a "1" a whole digit's width with the glyph in its middle, so "12"
+   no longer leans right in the ring; the same for the Par, HCP and score numbers beside it (v39). */
+.hole-nav .hole-n, .nav-stat b, #hole-strokes { font-variant-numeric: tabular-nums; }
+/* The long-press number picker on the glass too (the user: the white box did not belong): deep glass, white numbers,
+   the chosen one in light glass with the lime edge. */
+.numpick {
+  --white: rgb(255 255 255 / .06); --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent);
+  --fill: rgb(255 255 255 / .08); --fill-2: rgb(255 255 255 / .14);
+  background: linear-gradient(180deg, #17301f, #0f2118); color: var(--on-glass);
+  box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
+}
+.numpick .np-row button { color: var(--on-glass); font-variant-numeric: tabular-nums; }
+/* Modals stand clearly off the screen behind them (v39, the user's call): the three backdrops much darker, a touch of blur. */
+:root {
+  --backdrop-light: rgb(4 12 8 / .55);
+  --backdrop: rgb(4 12 8 / .62);
+  --backdrop-strong: rgb(4 12 8 / .72);
+}
+dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+
+/* v39 tidy-up of 스코어카드, 지난 라운드 and 메뉴 (the user: tidy them, the table too dense, the marks lost). */
+/* The round's score in the hole ring's style: solid deep green, a lime edge, a white number (no lime or red disc). */
+.sh-ring, .sh-ring[data-tone] { background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass); box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow); }
+.sh-ring[data-tone='under'] b { color: #ff9a8f; }
+:is(.sc, .sheet-dialog, .past) .m[data-tone='under'] { color: #ff9a8f; }   /* the table's and the summary's under-par marks too: --red was 2.3–2.9:1 on the dark */
+.sh-ring[data-tone='par'] b { color: var(--lime); }
+.sc-hero { border-bottom-color: rgb(255 255 255 / .08); }
+/* 스코어카드 | 분석 as the card's tabs read: the chosen one white with a glowing lime underline. */
+.sc-switch { background: none; border-radius: 0; }
+body .sc-switch button, body .sc-switch button[aria-checked='true'] { background: none; box-shadow: none; color: var(--on-glass-soft); }
+body .sc-switch button[aria-checked='true'] { color: var(--on-glass); }
+.sc-switch button[aria-checked='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* 파 수정: a quiet glass button; while editing, the chosen glass with the lime edge (as every chosen control). */
+.edit { height: 40px; background: rgb(255 255 255 / .1); box-shadow: none; color: var(--on-glass); }
+/* The table: room to read, faint separators instead of a grid, the current hole in lime type. */
+.ct { background: rgb(255 255 255 / .04); }
+.ct::after { display: none; }
+.ct :is(.c-hole, .c-par, .c-score, .c-putt) { height: 32px; font-size: var(--t-m); }
+.ct .c-score { height: 52px; }
+.ct .c-hole { background: rgb(255 255 255 / .06); }
+.ct .c-par { border-bottom-color: rgb(255 255 255 / .06); }
+.ct .c-putt { border-top-color: rgb(255 255 255 / .06); }
+.ct-sum { background: rgb(255 255 255 / .05); }
+.ct-sum .c-hole { background: rgb(255 255 255 / .1); }
+.ct-col.cur { background-color: rgb(196 224 79 / .08); }
+body .ct-col.cur .c-hole { background: none; box-shadow: none; color: var(--lime); }
+.ct + .ct, .sc-nine + .sc-nine { margin-top: 20px; }
+/* The scorecard marks on the dark glass: outlines in white, the 트리플 square a soft fill with a white number. */
+.m[data-mark='triple']::before { background: rgb(255 255 255 / .24); }
+.m[data-mark='triple'] b { color: var(--on-glass); }
+/* The scorecard table's corners small (the user: less round), a table inside the rounder panel. */
+.ct { border-radius: 6px; }
+/* The paper screens' title bar as glass over the same ground (v39): what scrolls passes under a blurred bar in the
+   page's own tone, with no seam; its buttons quiet glass, no outline. */
+.sc-top { background: rgb(15 33 24 / .72); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+.sc-top .edit:not(.on), .sc-top .head-btn { background: rgb(255 255 255 / .1); outline: none; color: var(--on-glass); }
+/* 라운드 마치기 (the user: the outlined, glowing pill was awkward): a quiet glass action in the tile radius, its words in
+   lime, no outline or glow; it finishes the round, so it stays clear of the card but does not shout. */
+.sc-finish { border-radius: var(--r-tile); background: rgb(255 255 255 / .08); outline: none; box-shadow: none; color: var(--lime); }
+.sc-finish:active { background-color: rgb(255 255 255 / .14); color: var(--lime); }
+/* The painted course behind the other screens too (v39, the user's call): their ground a dark veil over it, so the
+   panels' glass shows the course through and the type keeps its contrast; the menu's sheet glass over it as well. */
+.sc { background: linear-gradient(180deg, rgb(10 22 15 / .7) 0%, rgb(10 22 15 / .84) 60%, rgb(10 22 15 / .9) 100%); }
+.sheet-dialog { background: rgb(13 28 20 / .82); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+/* Off 기록 the painted course alone shows behind the veil: the drawing's flag, marks and outlines are 기록's. */
+body:has(#entry[hidden]) #course { visibility: hidden; }
+/* 지난 라운드's empty state: the history line icon, soft white on a small glass circle (v39). */
+.he-icon { width: 56px; height: 56px; border-radius: var(--r-full); display: grid; place-items: center; background: rgb(255 255 255 / .07); color: var(--on-glass-soft); }
+/* The flag on the hole (the user: its red jumped out): an off-white cloth with a faint edge, as the white marks round it. */
+.a-flag, #course .flag { fill: #eeeae0; stroke: rgb(20 40 28 / .35); stroke-width: .75px; }
+/* The menu as a centred modal (the user: as a sheet it covered the screen oddly): a card in the middle of the screen,
+   the whole screen dimmed behind it, scrolling inside where a screen is short; it fades in rather than rising. */
+.menu-sheet {
+  margin: auto; width: min(360px, calc(100vw - 32px)); max-height: min(720px, calc(100dvh - 64px));   /* the whole menu on a 390×844 phone (v36), 706px */
+  border-radius: var(--r-card); padding: 14px 16px 16px;
+}
+#menu::backdrop { background: var(--backdrop-strong); }
+#menu .grab { display: none; }
+.menu-sheet[open] { animation: fn-menu-pop .18s ease-out; }
+@keyframes fn-menu-pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-sheet[open] { animation: none; } }
+/* The paper screens' title bar see-through (the user asked why it was not): the course shows through, a light blur
+   keeps what scrolls under it from fighting the title. */
+.sc-top { background: rgb(10 22 15 / .28); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); text-shadow: 0 1px 3px rgb(0 0 0 / .5); }
+/* The score badge with air (the user: too tight): the bar's 60px slot, a 20px number and a wider gap to its word. */
+.badge { width: var(--badge); height: var(--badge); gap: 7px; }
+.badge #hole-strokes { font-size: 20px; }
+.badge .badge-name { font-size: var(--t-s); letter-spacing: .02em; }   /* 13px, the v39 floor for text */
+.badge #hole-strokes, .badge .badge-name { text-box: trim-both cap alphabetic; line-height: 1; }
+.badge { gap: 6px; }
+/* The score badge laid out as the hole ring is (the user: align it like the hole number): the number's baseline on the
+   circle's middle, its word one line under, both centred; Ace, shown alone, on the middle itself. */
+.badge { position: relative; display: block; }
+.badge .bmark { display: contents; }
+.badge #hole-strokes, .badge .badge-name { position: absolute; left: 50%; translate: -50% 0; margin: 0; padding: 0; white-space: nowrap; }
+.badge #hole-strokes { bottom: 50%; }
+.badge .badge-name { bottom: calc(50% - 14px); }
+.badge.hio .badge-name { bottom: calc(50% - 6px); font-size: 15px; }
+.badge #hole-strokes { bottom: calc(50% + 1.5px); }
+.badge .badge-name { bottom: calc(50% - 15.5px); }
+.badge:not([data-tone='none'], [data-tone='progress'], .hio) .badge-name { bottom: calc(50% - 18px); }   /* the 13px Par/±n (was 11px) 2.5px lower, so number and word stay centred */
+/* The badge's number is white whatever its mark (the triple's old deep ink vanished on the glass); lime at par, a soft red
+   under it, as before. */
+#badge #hole-strokes { color: var(--on-glass); }
+#badge[data-tone='par'] #hole-strokes { color: var(--lime); }
+#badge[data-tone='under'] #hole-strokes { color: #ff9a8f; }
+/* 상세's lower rows (the user: too much space, align them): tighter rows, and OB · 벙커 · 해저드 on the pad's own lines,
+   OB under its far-left button, 벙커 under 페어웨이, 해저드 under its far-right button (the 72px buttons hang 12px past
+   the pad's 48px ends, so the row reaches 12px past the content edge each side). */
+#entry[data-mode='detail'] .detail { margin-top: 4px; }
+#entry[data-mode='detail'] .pad { margin-top: 6px; }
+#entry[data-mode='detail'] .pens { display: flex; justify-content: space-between; margin: 8px -12px 0; }
+#entry[data-mode='detail'] .pens > * { flex: 0 0 72px; }
+
+/* 말로 입력 in the card (v39): 음성 changes the card's content, the capsules and 상세's rows step aside meanwhile, and the
+   음성 tab is the chosen one. Not a sheet over the screen: no backdrop, no rise. */
+.sheet .vc-inline { position: static; inset: auto; margin: 2px 0 0; width: auto; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; animation: none; }
+.sheet .vc-inline .vc-head h2 { font-size: var(--t-m); }
+#entry:has(#voice[open]) :is(.clubs, .detail, .pens) { display: none; }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice) { color: var(--on-glass-soft); }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice)::before { display: none; }
+#entry:has(#voice[open]) #mode-voice { color: var(--on-glass); }
+#entry:has(#voice[open]) #mode-voice::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+/* As a tab, 말로 입력 has no title row or ×: the tabs switch it (its title still names the field for screen readers). */
+.sheet .vc-inline .vc-head { display: none; }
+.sheet .vc-inline .vc-field { margin-top: 6px; }
+/* The club's shot-detail panel on the same glass (the user: its style differed): deep glass, white type, its chips the
+   card's light glass, the chosen one with the lime edge (as every chosen control), tile corners as 상세's controls. */
+.shot-panel {
+  --white: rgb(255 255 255 / .06); --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
+  --line: rgb(255 255 255 / .12); --fill: rgb(255 255 255 / .08); --fill-2: rgb(255 255 255 / .14); --off-ink: rgb(255 255 255 / .35);
+  background: linear-gradient(180deg, #17301f, #0f2118); color: var(--on-glass);
+  box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
+}
+.shot-panel :is(.sp-chip, .sp-shots button) { border-radius: var(--r-tile); }
+/* The undo toast just under the chip row (the user: in the space right under 홀 안내), over the top of the hole, the chips
+   left in view; deep glass as the rest, for its four seconds. */
+.toast { grid-row: auto; top: calc(100% + 8px); transform: none; background: rgb(12 26 19 / .86); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); box-shadow: var(--glass-drop); color: var(--on-glass); }
+.top:has(> .toast:not([hidden])) .info { visibility: visible; }
+.toast button { color: var(--lime); }
+/* 스코어카드 and 지난 라운드 as 기록 is (the user: their title and body grounds stood apart): the painted course in the
+   open, no veil; the title floats over it with a soft top shade only where content scrolls under; the panels are the
+   card's deep glass. */
+.sc { background: transparent; }
+.sc::after { display: none; }
+.sc-top { background: linear-gradient(180deg, rgb(10 22 15 / .55) 0%, rgb(10 22 15 / .32) 70%, rgb(10 22 15 / 0) 100%); -webkit-backdrop-filter: none; backdrop-filter: none; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
+.sc-sheet, .box { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+/* No ground behind the title at all (the user: the gradient still looked odd): the title scrolls away with the page, so
+   nothing ever passes under it and it needs none. */
+.sc-top { position: relative; background: none; }
+.past .sc-top { position: sticky; top: 0; z-index: 2; background: var(--deep); }   /* a past round's dialog keeps 닫기 in view, on its own opaque ground */
+/* On the scrolling screens the island stands clear of what scrolls under it (the user: they overlapped): a soft fade to
+   the deep green behind the bar, no hard band; taps go through it. 기록 does not scroll there and keeps its open course. */
+body:has(#entry[hidden])::after {
+  content: ''; position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; pointer-events: none;
+  height: calc(var(--island) + 64px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgb(10 22 15 / 0) 0%, rgb(10 22 15 / .72) 55%, rgb(10 22 15 / .86) 100%);
+}
+/* 홈 leaves with the title when 스코어카드 or 지난 라운드 has scrolled (it would float over the page), back at the top. */
+.home-link { transition: opacity .15s ease-out; }
+body.scrolled .home-link { opacity: 0; pointer-events: none; }
+/* Short screens (under 700px tall, v39): 상세 must fit with no scrolling, the capsules' halves kept at 48px. The frame
+   round the card gives the room: a smaller ring and switcher, a slimmer tab row, a lower and slimmer island. */
+@media (max-height: 699px) {
+  :root { --island: 54px; }
+  .tabbar { bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .app { padding-bottom: calc(var(--island) + 16px + env(safe-area-inset-bottom)); }
+  .view.sc { margin-bottom: calc(-1 * (var(--island) + 16px + env(safe-area-inset-bottom))); }
+  .hole-nav { margin: 2px var(--m) 14px; }
+  .nav-pill { height: 48px; grid-template-columns: 1fr 64px 1fr; }
+  .nav-stat { height: 48px; }
+  .nav-stat b { font-size: var(--t-m); bottom: calc(50% - 1px); }
+  .nav-stat span { bottom: calc(50% - 15px); }
+  .hole-nav .hole-h, .hole-nav .hole-title { width: 64px; height: 64px; }
+  .hole-nav .hole-h { margin: -8px 0; }
+  body .hole-nav #hole-title .hole-n { font-size: 26px; bottom: calc(50% - 1px); }
+  .hole-nav .hole-u { bottom: calc(50% - 15px); }
+  .sheet .modes { margin-bottom: 2px; }
+  .sheet .mode { height: 36px; }
+  .sheet .mode::after { inset: auto 0 -2px; height: 48px; }   /* still a 48px touch area: down to the capsules, up into the card's top */
+  #entry[data-mode='basic'] .sheet { --sheet-pt: 16px; }   /* 기본's card top had 0–4px over the tabs, so the area was cut to 36–42px */
+  .osm-credit { bottom: calc(100% + 14px + 48px + 6px + 6px); }
+}
+@media (max-height: 599px) {
+  .hole-nav { margin-bottom: 12px; }
+  .sheet .mode { height: 34px; }
+}
+/* 상세 has no 빼기 (the user's call): appearing after a first penalty it re-spread the row under the finger. A penalty is
+   taken back with 되돌리기 on the toast, or by a long press on OB, 벙커 or 해저드 (0 … 5). */
+#entry[data-mode='detail'] .pens .undo { display: none; }
+/* 스코어카드 | 분석 on the card's deep glass: over the open course their words fell to 2.6–4.3:1 (the test's finding). */
+.sc-switch { margin-inline: var(--m); border-radius: var(--r-tile); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
+/* Under the open menu, 메뉴 on the island is marked as every chosen tab is (a lime dot), not v36's filled pill. */
+body:has(#menu[open]) .bar-menu .ti { background: none; }
+/* 되돌리기 in 상세 on short screens too (v39: with no 빼기 there it is one of the two ways to take a penalty back): under
+   the top bar, where the chip row it sits under in 기본 is hidden. */
+@media (max-height: 699px) { #entry[data-mode='detail'] .toast:not([hidden]) { display: flex; } }

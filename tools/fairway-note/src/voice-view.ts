@@ -50,7 +50,7 @@ export function bindVoice(page: VoicePage): void {
     const on = toggle.getAttribute('aria-checked') !== 'true';
     show(on);
     saveDisplay({ voice: on });
-    page.announce(on ? '말로 입력을 켰어요. 기록 화면의 다음 홀 옆에 있어요' : '말로 입력을 껐어요');
+    page.announce(on ? '말로 입력을 켰어요. 기록 카드의 음성 탭에 있어요' : '말로 입력을 껐어요');
   });
 
   /** Why nothing changed, under the field; the line is selected so the next dictation replaces it. */
@@ -70,13 +70,24 @@ export function bindVoice(page: VoicePage): void {
    * when the page closes it, and by the close event for Escape; that event can come late (a page in the background),
    * so it does nothing once done, or when the sheet has opened again.
    */
+  /** v39: the card's tabs say which is chosen to a screen reader too: 음성 while it is open, else the card's own mode. */
+  const pressTabs = (voice: boolean) => {
+    const mode = document.getElementById('entry')?.dataset.mode;
+    document.getElementById('mode-voice')?.setAttribute('aria-pressed', String(voice));
+    for (const tab of document.querySelectorAll<HTMLElement>('#sheet button[data-mode]')) tab.setAttribute('aria-pressed', String(!voice && tab.dataset.mode === mode));
+  };
   const closed = () => {
     if (!shown || dialog.open) return;
     shown = false;
+    pressTabs(false);
     line.value = '';
     say(null);
     if (!used) page.dismissed();
-    if (!open.hidden) open.focus({ preventScroll: true });
+    // v39: closing gives focus back to what opened it, the 음성 tab, which then showed a focus ring though the card had
+    // gone back to its capsules (the user's report): let it go instead.
+    const back = document.activeElement;
+    if (back instanceof HTMLElement && back.id === 'mode-voice') back.blur();
+    else if (!open.hidden && open.offsetParent !== null) open.focus({ preventScroll: true });
   };
   const shut = () => {
     dialog.close();
@@ -92,8 +103,17 @@ export function bindVoice(page: VoicePage): void {
     used = false;
     shown = true;
     page.opened();
-    dialog.showModal();
+    // v39: in the card, in place of the capsules (the user: 음성 changes the card's content, no sheet over the screen).
+    dialog.show();
+    pressTabs(true);
     line.focus();
+  });
+  // Not modal now, so Escape is ours to handle.
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      shut();
+    }
   });
   // The keyboard's 완료 (enterkeyhint="done") and the 입력 button both submit; nothing is ever sent anywhere.
   $('vc-form').addEventListener('submit', (event) => {

@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fairway Note v39 시안 — 글로, 실사 같은 벡터 홀, 아래쪽 홀 이동</title>
+<!-- A design mock-up (v39 step 0), never built or deployed. Serve the tool folder (bun run dev) and open
+     /design/v39/. The hole is drawn on a canvas from the bundled OpenStreetMap shapes (© OpenStreetMap contributors,
+     ODbL); nothing is fetched from outside. Ideas from the reference the user chose, none of its name, logo or words. -->
+<style>
+  @font-face { font-family: 'Pretendard'; font-weight: 400; src: url('../../src/fonts/Pretendard-Regular.subset.woff2') format('woff2'); }
+  @font-face { font-family: 'Pretendard'; font-weight: 600; src: url('../../src/fonts/Pretendard-SemiBold.subset.woff2') format('woff2'); }
+  @font-face { font-family: 'Pretendard'; font-weight: 800; src: url('../../src/fonts/Pretendard-ExtraBold.subset.woff2') format('woff2'); }
+  :root {
+    --page: #0f2118;
+    --ink: #102519;
+    --white: #fbfcf8;
+    --lime: #c4e04f;
+    --lime-glow: color-mix(in srgb, #c4e04f 55%, transparent);
+    --on-glass: #f4f7f0;
+    --on-glass-soft: color-mix(in srgb, #f4f7f0 66%, transparent);
+    /* One glass, everywhere: the same tint, blur, hairline, top highlight and drop. */
+    --glass-bg: rgb(12 26 19 / .64);
+    --glass-blur: blur(16px) saturate(1.3);
+    --hair: rgb(255 255 255 / .14);
+    --hair-top: inset 0 1px 0 rgb(255 255 255 / .10);
+    --drop: 0 6px 16px rgb(0 0 0 / .28);
+    /* On glass: one fill (and a second, deeper one for a capsule's lower half), the same hairline. */
+    --in-bg: rgb(255 255 255 / .07);
+    --in-bg-2: rgb(255 255 255 / .13);
+    /* Chosen: the same glass, a lime edge and its glow. */
+    --chosen-edge: 0 0 0 1.5px var(--lime);
+    --chosen-glow: 0 0 16px 1px var(--lime-glow);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #2a2f2c; font-family: 'Pretendard', system-ui, sans-serif; color: var(--on-glass); display: flex; gap: 40px; justify-content: center; align-items: flex-start; padding: 32px 24px; flex-wrap: wrap; }
+  html:lang(ko) body { word-break: keep-all; }
+  figure { margin: 0; display: grid; gap: 12px; justify-items: center; }
+  figcaption { font-size: 15px; font-weight: 600; color: #d7dcd8; }
+  .phone { position: relative; width: 390px; height: 844px; overflow: hidden; border-radius: 44px; background: var(--page); box-shadow: 0 30px 80px rgb(0 0 0 / .5), 0 0 0 10px #111, 0 0 0 11px #333; }
+  img.map { position: absolute; inset: 0; width: 390px; height: 844px; }
+
+  /* Top: 홈, the round so far, the score badge; then length and 홀 안내. Dark glass over the hole. */
+  .top { position: absolute; inset: 0 0 auto 0; padding: 52px 16px 0; display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 10px; }
+  .glass { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: 0; box-shadow: var(--drop); }
+  /* Over the hole (score, chips, the switcher): the same glass, lighter and tinted with the grass, so it sits in the picture. */
+  .on-map { background: rgb(10 24 16 / .5); -webkit-backdrop-filter: blur(4px) saturate(1.2); backdrop-filter: blur(4px) saturate(1.2); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+  .glass-in { background: var(--in-bg); border: 0; box-shadow: none; }
+  /* 홈: the icon alone (no circle), a soft shadow so it reads on the hole; the 48px tap area is invisible. */
+  .home { justify-self: start; width: 48px; height: 48px; display: grid; place-items: center; color: var(--on-glass); filter: drop-shadow(0 1px 3px rgb(0 0 0 / .6)); }
+  .home svg { width: 26px; height: 26px; }
+  /* Numbers and their labels trimmed to the cap height, so rows line up by what the eye sees. */
+  .badge .n, .badge .w, .stat b, .stat span, .ring b, .ring span { text-box: trim-both cap alphabetic; line-height: 1; }
+  .course { justify-self: center; text-align: center; line-height: 1.25; }
+  .course b { display: block; font-size: 15px; font-weight: 600; }
+  .course span { font-size: 13px; color: var(--on-glass-soft); }
+  /* The score: the number and its word, nothing drawn round the number. */
+  .badge { width: 56px; height: 56px; border-radius: 999px; display: grid; justify-items: center; align-content: center; gap: 6px; }
+  .badge .n { font-size: 22px; font-weight: 800; }
+  .badge .w { font-size: 11px; font-weight: 600; color: var(--on-glass-soft); }
+  .chips { position: absolute; top: 118px; left: 16px; right: 16px; display: flex; justify-content: space-between; }
+  .chip { height: 32px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  .chip .m { color: var(--on-glass-soft); font-weight: 600; }
+  .chip .k { min-width: 18px; height: 18px; border-radius: 999px; background: var(--lime); color: var(--ink); display: inline-grid; place-items: center; font-size: 12px; font-weight: 800; padding: 0 5px; }
+  .credit { position: absolute; top: 340px; left: 18px; font-size: 11px; color: color-mix(in srgb, #fff 55%, transparent); }
+
+  /* The hole switcher, low (the reference's shape): ‹  [ Par 4 (ring 2) HCP 5 ]  ›
+     One shared grid for the three columns: every number's bottom on one line (the midline + 4px), every label's
+     bottom on another (the midline + 22px), whatever the column's height. */
+  .nav { position: absolute; top: 362px; left: 0; right: 0; height: 80px; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; padding: 0 16px; gap: 10px; }
+  .arrow { width: 48px; height: 48px; padding: 0; border-radius: 999px; display: grid; place-items: center; color: var(--on-glass); }
+  .pill { position: relative; height: 60px; border-radius: 999px; display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; }
+  .stat, .ring { position: relative; justify-self: center; }
+  .stat { width: 100%; height: 60px; }
+  .ring { width: 80px; height: 80px; margin: -10px 0; border-radius: 999px;
+    /* Opaque (see-through read as odd here): a solid deep green, the tone the glass round it takes over the hole; lime edge. */
+    background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%);
+    box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow), var(--drop); }
+  .stat b, .stat span, .ring b, .ring span { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; }
+  .stat b, .ring b { font-weight: 800; }
+  .stat b { font-size: 20px; bottom: calc(50% - 2px); }
+  .ring b { font-size: 32px; bottom: calc(50% - 2px); letter-spacing: -.02em; }
+  .stat span, .ring span { font-size: 12px; font-weight: 600; color: var(--on-glass-soft); bottom: calc(50% - 19px); }
+
+  /* The entry card. A: light, as today. B: dark glass. */
+  .card { position: absolute; top: 456px; left: 12px; right: 12px; height: 290px; border-radius: 26px; padding: 0 14px 12px; display: grid; grid-template-rows: 44px 32px 1fr; gap: 8px; }
+  /* The sheet's handle (pull up for 상세) and its tabs, as the reference's sheet: the chosen one white, a lime underline. */
+  .handle { position: absolute; top: 446px; left: 50%; translate: -50% 0; width: 40px; height: 4px; border-radius: 999px; background: rgb(255 255 255 / .55); }
+  .modes { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: stretch; margin: 0 -14px; }
+  .mode { position: relative; display: grid; place-items: center; font-size: 15px; font-weight: 600; color: var(--on-glass-soft); }
+  .mode.on { color: var(--on-glass); }
+  .mode.on::after { content: ''; position: absolute; bottom: 6px; width: 22px; height: 2px; border-radius: 2px; background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
+  /* 기본's penalties under the capsules: OB at the left, 해저드 at the right, each with its count. */
+  .pens { display: flex; justify-content: space-between; align-items: center; }
+  .pen { height: 40px; padding: 0 14px 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .pen svg { width: 20px; height: 20px; }
+  .pen b { font-weight: 800; color: var(--on-glass-soft); }
+  /* The light card as glowing glass (the user: "glow 스타일의 투명도"): a bright frosted layer over the hole, a lit
+     hairline, light from within and a faint lime halo; white type. Its parts are lighter glass inside it. */
+  .card.light {
+    background: linear-gradient(180deg, rgb(255 255 255 / .24), rgb(255 255 255 / .12));
+    -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+    border: 1px solid rgb(255 255 255 / .34); color: #fff;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 0 30px rgb(255 255 255 / .10), 0 0 26px rgb(196 224 79 / .16), var(--drop); }
+  .card.light .name { background: rgb(255 255 255 / .16); border: 1px solid rgb(255 255 255 / .26); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / .25); }
+  .card.light .cap { border: 1px solid rgb(255 255 255 / .26); box-shadow: inset 0 1px 0 rgb(255 255 255 / .3); }
+  .card.light .cap .up { background: rgb(255 255 255 / .13); } .card.light .cap .dn { background: rgb(255 255 255 / .23); }
+  .card.light .cap .up, .card.light .cap .dn { color: rgb(255 255 255 / .82); }
+  .card.light .cap .mid b { color: #fff; text-shadow: 0 0 12px rgb(255 255 255 / .35); }
+  .card.light .cap.on { border-color: var(--lime); box-shadow: inset 0 0 0 .5px var(--lime), 0 0 16px var(--lime-glow), inset 0 0 18px rgb(196 224 79 / .18); }
+  /* B: the same glass as the panels, deeper, with the same glow treatment as A (lit hairline, inner light, lime halo). */
+  .card.dark { color: var(--on-glass); }
+  .card.dark.glass { background: linear-gradient(180deg, rgb(14 30 21 / .62), rgb(10 22 15 / .74)); -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+    border: 0; box-shadow: 0 0 26px rgb(196 224 79 / .12), var(--drop); }
+  .card { padding-bottom: 14px; }
+  .names, .caps { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 12px; }
+  .name { justify-self: center; height: 32px; padding: 0 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  
+  .dark .name { color: var(--on-glass); }
+  .name i { font-style: normal; font-size: 10px; opacity: .7; }
+  /* The clubs as icons (the user's call), the app's own driver, iron and putter; the names stay as labels. */
+  .name svg.club { width: 26px; height: 26px; stroke-width: 1.75; }
+  .name { min-width: 64px; justify-content: center; }
+  .cap { position: relative; border-radius: 999px; overflow: hidden; display: grid; grid-template-rows: 1fr 1fr; }
+  
+  .dark .cap { padding: 0; background: none; }
+  .dark .cap .up { background: var(--in-bg); } .dark .cap .dn { background: var(--in-bg-2); }
+  .cap .up, .cap .dn { display: grid; place-items: center; font-size: 26px; font-weight: 400; }
+  .cap .up { align-items: start; padding-top: 14px; } .cap .dn { align-items: end; padding-bottom: 12px; }
+  
+  .dark .cap .up, .dark .cap .dn { color: color-mix(in srgb, #fff 62%, transparent); }
+  .cap .mid { position: absolute; inset: 50% 0 auto; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
+  .cap .mid::before, .cap .mid::after { content: ''; flex: 1; border-top: 1px dashed currentColor; opacity: .35; }
+  .cap .mid b { font-size: 34px; font-weight: 800; line-height: 1; }
+  .dark .cap.on { box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px var(--lime-glow); }
+  
+
+  .next { position: absolute; top: 700px; left: 12px; right: 12px; height: 52px; border: 0; border-radius: 999px; background: var(--lime); color: var(--ink); font: 800 18px 'Pretendard', system-ui; box-shadow: var(--chosen-glow), var(--drop); }
+
+  /* Tab bar: a floating island. The same glass, off the edges; quiet icons; the chosen one white with a lime dot. */
+  .tabs { position: absolute; left: 16px; right: 16px; bottom: 18px; height: 62px; border-radius: 999px; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 6px; }
+  .tab { position: relative; display: grid; justify-items: center; align-content: center; gap: 5px; color: var(--on-glass-soft); font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--on-glass); }
+  .tab.on::after { content: ''; position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 999px; background: var(--lime); box-shadow: 0 0 8px 2px var(--lime-glow); }
+  svg.i { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<template id="screen">
+  <div class="phone">
+    <img class="map" alt="" width="390" height="844" />
+    <div class="top">
+      <div class="home"><svg class="i" viewBox="0 0 24 24" width="22" height="22"><path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></svg></div>
+      <div class="course"><b>에버리스 · 새별</b><span>1홀까지 +1</span></div>
+      <div class="badge glass on-map"><span class="n">5</span><span class="w">보기</span></div>
+    </div>
+    <div class="chips">
+      <span class="chip glass on-map">376 m <span class="m">화이트</span></span>
+      <span class="chip glass on-map">홀 안내 <span class="k">3</span></span>
+    </div>
+    <span class="credit">© OpenStreetMap</span>
+    <div class="nav">
+      <button class="arrow glass on-map" aria-label="이전 홀"><svg class="i" viewBox="0 0 24 24" width="22" height="22"><path d="M15 6l-6 6l6 6"/></svg></button>
+      <div class="pill glass on-map">
+        <div class="stat"><b>4</b><span>Par</span></div>
+        <div class="ring"><b>2</b><span>번 홀</span></div>
+        <div class="stat"><b>5</b><span>HCP</span></div>
+      </div>
+      <button class="arrow glass on-map" aria-label="다음 홀"><svg class="i" viewBox="0 0 24 24" width="22" height="22"><path d="M9 6l6 6l-6 6"/></svg></button>
+    </div>
+    <div class="card">
+      <div class="modes" role="tablist"><span class="mode on" role="tab" aria-selected="true">기본</span><span class="mode" role="tab" aria-selected="false">상세</span><span class="mode" role="tab" aria-selected="false">음성</span></div>
+      <div class="names">
+        <span class="name" role="button" aria-label="드라이버"><svg class="i club" viewBox="0 0 24 24"><path d="M17.2 3 14 11.4"/><path d="M13.6 11c-3.7-.6-8.2.7-9 3.7-.7 2.5 1.2 4.4 4.7 4.6 3.5.2 6.4-1 7-3.1.4-1.6-.7-3.8-2.7-5.2z" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+        <span class="name" role="button" aria-label="그린까지"><svg class="i club" viewBox="0 0 24 24"><path d="M16.8 3 15.4 10.4"/><path d="M14.6 9.9l1.8.6c.6 3.2.4 6.4-.6 8.4-.8 1.6-3.5 2.1-8.2 1.6-1.9-.2-2.7-1.6-2-2.9l1-2c.4-.8 1.3-1.2 2.2-1 2.7.5 4.5-.4 5.8-4.7z" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+        <span class="name" role="button" aria-label="퍼터"><svg class="i club" viewBox="0 0 24 24"><path d="M15.4 3 13.8 15.4"/><rect x="4.5" y="15.4" width="14.5" height="4.6" rx="1.8" fill="currentColor" fill-opacity="0.18"/></svg><i>▾</i></span>
+      </div>
+      <div class="caps">
+        <div class="cap"><div class="up">+</div><div class="dn">−</div><div class="mid"><b>1</b></div></div>
+        <div class="cap"><div class="up">+</div><div class="dn">−</div><div class="mid"><b>2</b></div></div>
+        <div class="cap on"><div class="up">+</div><div class="dn">−</div><div class="mid"><b>2</b></div></div>
+      </div>
+    </div>
+    <nav class="tabs glass">
+      <span class="tab"><svg class="i" viewBox="0 0 24 24"><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z"/><path d="M3 10h18"/><path d="M10 3v18"/></svg>스코어카드</span>
+      <span class="tab on"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>기록</span>
+      <span class="tab"><svg class="i" viewBox="0 0 24 24"><path d="M12 8l0 4l2 2"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>지난 라운드</span>
+      <span class="tab"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M7 12h13"/><path d="M10 18h10"/></svg>메뉴</span>
+    </nav>
+  </div>
+</template>
+
+
+<figure id="b"><figcaption>v39 시안 · 짙은 유리 입력 카드(사용자 선택)</figcaption></figure>
+
+
+<script type="module">
+const data = await (await fetch('../../src/data/osm/everis.json')).json();
+const hole = data.holes.saebyul[1]; // 새별 2: Par 4, 376 m, three ponds, six bunkers
+
+// A seeded random, so the trees stand in the same places every time.
+let seed = 20261122;
+const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+
+const pairs = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 2) out.push([flat[i], flat[i + 1]]); return out; };
+
+function paint() {
+  const canvas = document.createElement('canvas'); canvas.width = 780; canvas.height = 1688;
+  seed = 20261122;
+  const W = 390, H = 844, D = 2;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(D, 0, 0, D, 0, 0);
+
+  // Turn the hole so the tee is at the left and the green at the right (wider than tall on a phone: a larger scale), and fit it between the chips and the switcher.
+  const line = pairs(hole.line);
+  const [tx, ty] = line[0];
+  const alpha = Math.atan2(ty, -tx);           // the tee→green direction on screen (north up)
+  const phi = -alpha;
+  const rot = ([x, y]) => { const sx = x, sy = -y; return [sx * Math.cos(phi) - sy * Math.sin(phi), sx * Math.sin(phi) + sy * Math.cos(phi)]; };
+  // Water is each pond's outer ring, then its islands.
+  const ponds = hole.water.map((rings) => rings.map(pairs));
+  const shapes = { greens: hole.greens.map(pairs), tees: hole.tees.map(pairs), fairways: hole.fairways.map(pairs), bunkers: hole.bunkers.map(pairs) };
+  const core = [...line, ...shapes.greens.flat(), ...shapes.tees.flat(), ...shapes.fairways.flat(), ...shapes.bunkers.flat()].map(rot);
+  const xs = core.map((p) => p[0]), ys = core.map((p) => p[1]);
+  const box = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  const top = 176, bottom = 338;
+  const s = Math.min((W - 44) / (box.x1 - box.x0), (bottom - top) / (box.y1 - box.y0));
+  const ox = W / 2 - ((box.x0 + box.x1) / 2) * s, oy = (top + bottom) / 2 - ((box.y0 + box.y1) / 2) * s;
+  const P = (p) => { const [x, y] = rot(p); return [x * s + ox, y * s + oy]; };
+  const path = (pts) => { const p = new Path2D(); pts.map(P).forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); return p; };
+  const paths = Object.fromEntries(Object.entries(shapes).map(([k, v]) => [k, v.map(path)]));
+  paths.water = ponds.map((rings) => { const p = new Path2D(); for (const ring of rings) p.addPath(path(ring)); return p; });
+  const play = [...paths.fairways, ...paths.greens, ...paths.tees];
+  const linePts = line.map(P);
+  const linePath = new Path2D(); linePts.forEach(([x, y], i) => (i ? linePath.lineTo(x, y) : linePath.moveTo(x, y)));
+
+  // Noise, for the grain of grass.
+  const noise = document.createElement('canvas'); noise.width = noise.height = 160;
+  const nctx = noise.getContext('2d'); const img = nctx.createImageData(160, 160);
+  for (let i = 0; i < img.data.length; i += 4) { const v = 110 + rnd() * 140; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  nctx.putImageData(img, 0, 0);
+  const grain = (a) => { ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = ctx.createPattern(noise, 'repeat'); ctx.fillRect(0, 0, W, H); ctx.restore(); };
+
+  // 1. Rough: a deep green with broad, soft light from the top left.
+  const rough = ctx.createLinearGradient(0, 0, W, H);
+  rough.addColorStop(0, '#34573a'); rough.addColorStop(.55, '#2a4a30'); rough.addColorStop(1, '#213d28');
+  ctx.fillStyle = rough; ctx.fillRect(0, 0, W, H);
+  grain(.5);
+
+  // 2. The semi-rough round the play: a lighter, soft-edged band.
+  ctx.save(); ctx.filter = 'blur(10px)'; ctx.strokeStyle = '#33603a'; ctx.fillStyle = '#33603a'; ctx.lineJoin = 'round';
+  ctx.lineWidth = 34; for (const p of play) { ctx.stroke(p); ctx.fill(p); }
+  ctx.lineWidth = 26; ctx.stroke(linePath); ctx.restore();
+
+  // 3. Trees: canopies where the play and the water are not, thicker further out.
+  const mask = document.createElement('canvas'); mask.width = W; mask.height = H;
+  const m = mask.getContext('2d'); m.fillStyle = m.strokeStyle = '#000'; m.lineJoin = m.lineCap = 'round';
+  m.lineWidth = 58; for (const p of play) { m.stroke(p); m.fill(p); } m.lineWidth = 50; m.stroke(linePath);
+  m.lineWidth = 14; for (const p of paths.water) { m.stroke(p); m.fill(p); }
+  for (const p of paths.bunkers) { m.lineWidth = 16; m.stroke(p); m.fill(p); }
+  const taken = m.getImageData(0, 0, W, H).data;
+  const free = (x, y) => x < 0 || y < 0 || x >= W || y >= H || taken[(Math.floor(y) * W + Math.floor(x)) * 4 + 3] === 0;
+  // Smooth value noise on a 48px grid, for clumps rather than an even carpet.
+  const G = 48, cols = Math.ceil(W / G) + 2, rows = Math.ceil(H / G) + 2;
+  const lattice = Array.from({ length: cols * rows }, () => rnd());
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const clump = (x, y) => {
+    const gx = (x + G) / G, gy = (y + G) / G, i = Math.floor(gx), j = Math.floor(gy), fx = smooth(gx - i), fy = smooth(gy - j);
+    const v = (a, b) => lattice[Math.min(rows - 1, Math.max(0, b)) * cols + Math.min(cols - 1, Math.max(0, a))];
+    return (v(i, j) * (1 - fx) + v(i + 1, j) * fx) * (1 - fy) + (v(i, j + 1) * (1 - fx) + v(i + 1, j + 1) * fx) * fy;
+  };
+  const trees = [];
+  for (let y = -6; y < H + 6; y += 8) for (let x = -6; x < W + 6; x += 8) {
+    const jx = x + (rnd() - .5) * 8, jy = y + (rnd() - .5) * 8;
+    if (!free(jx, jy)) continue;
+    let near = 99; for (let d = 6; d <= 48; d += 6) { if (!free(jx + d, jy) || !free(jx - d, jy) || !free(jx, jy + d) || !free(jx, jy - d)) { near = d; break; } }
+    // A tree line along the hole's edges, then clumps where the noise is high, open rough elsewhere.
+    const keep = near <= 18 ? .78 : near <= 36 ? .45 : clump(jx, jy) > .62 ? .7 : .03;
+    if (rnd() < keep) trees.push([jx, jy, 4 + rnd() * 4.5, rnd()]);
+  }
+  // The trees are never drawn as rounds (a field of small circles reads as holes): the circles only seed one merged
+  // canopy. Blur and threshold them (metaballs) into organic masses, then shade each mass from its own outline.
+  const layer = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return [c, c.getContext('2d')]; };
+  const [seedC, sctx] = layer();
+  sctx.fillStyle = '#000';
+  for (const [x, y, r] of trees) { sctx.beginPath(); sctx.ellipse(x, y, r * 1.35, r * (1 + rnd() * .5), rnd() * Math.PI, 0, Math.PI * 2); sctx.fill(); }
+  const [canopyC, cctx] = layer();
+  cctx.filter = 'blur(5px)'; cctx.drawImage(seedC, 0, 0); cctx.filter = 'none';
+  const px = cctx.getImageData(0, 0, W, H);
+  for (let i = 3; i < px.data.length; i += 4) { const a = px.data[i]; px.data[i] = a < 96 ? 0 : a > 150 ? 255 : (a - 96) * 255 / 54; }
+  cctx.putImageData(px, 0, 0);
+  // A copy of the canopy's shape in one colour, moved by (dx, dy).
+  const tinted = (colour, dx = 0, dy = 0, blur = 0) => {
+    const [c, t] = layer(); if (blur) t.filter = `blur(${blur}px)`;
+    t.drawImage(canopyC, dx, dy); t.filter = 'none'; t.globalCompositeOperation = 'source-in'; t.fillStyle = colour; t.fillRect(0, 0, W, H); return c;
+  };
+  ctx.drawImage(tinted('rgb(3 12 6 / .6)', 5, 6, 5), 0, 0);              // the masses' shadow on the rough
+  const [massC, mctx] = layer();
+  mctx.drawImage(tinted('#1b3823'), 0, 0);                                  // the canopy, darker than the rough
+  mctx.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 28; i++) {                                            // broad, soft tone changes inside it
+    const x = rnd() * W, y = rnd() * H, r = 30 + rnd() * 60;
+    const g = mctx.createRadialGradient(x, y, 0, x, y, r);
+    const c = rnd() < .5 ? '74 115 66' : '14 34 20';
+    g.addColorStop(0, `rgb(${c} / .45)`); g.addColorStop(1, `rgb(${c} / 0)`);
+    mctx.fillStyle = g; mctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // Light on the upper-left edge of every mass, shade on the lower right: the shape minus itself moved.
+  const rim = (colour, dx, dy, blur) => { const c = tinted(colour, 0, 0, blur); const t = c.getContext('2d'); t.globalCompositeOperation = 'destination-out'; t.drawImage(canopyC, dx, dy); return c; };
+  mctx.drawImage(rim('rgb(110 155 92 / .32)', 5, 5, 4), 0, 0);
+  mctx.drawImage(rim('rgb(4 14 8 / .45)', -5, -5, 4), 0, 0);
+  // Crowns: a finer layer of merged blobs inside the masses, a little lighter, each with its own soft shade below.
+  const [crownSeed, csx] = layer(); csx.fillStyle = '#000';
+  for (let i = 0; i < 4600; i++) { const x = rnd() * W, y = rnd() * H, r = 1.6 + rnd() * 2.6; csx.beginPath(); csx.ellipse(x, y, r * 1.4, r, rnd() * Math.PI, 0, Math.PI * 2); csx.fill(); }
+  const [crownC, crx] = layer(); crx.filter = 'blur(2px)'; crx.drawImage(crownSeed, 0, 0); crx.filter = 'none';
+  const cp = crx.getImageData(0, 0, W, H);
+  for (let i = 3; i < cp.data.length; i += 4) { const a = cp.data[i]; cp.data[i] = a < 110 ? 0 : a > 150 ? 255 : (a - 110) * 255 / 40; }
+  crx.putImageData(cp, 0, 0);
+  const crownTint = (colour, dx, dy, blur) => { const [c, t] = layer(); t.filter = blur ? `blur(${blur}px)` : 'none'; t.drawImage(crownC, dx, dy); t.filter = 'none'; t.globalCompositeOperation = 'source-in'; t.fillStyle = colour; t.fillRect(0, 0, W, H); return c; };
+  mctx.drawImage(crownTint('rgb(2 10 5 / .35)', 1.5, 2, 1.5), 0, 0);
+  mctx.drawImage(crownTint('rgb(58 96 56 / .55)', 0, 0, .6), 0, 0);
+  // Leaf grain: fine noise, only on the canopy.
+  mctx.globalAlpha = .55; mctx.globalCompositeOperation = 'soft-light'; mctx.fillStyle = mctx.createPattern(noise, 'repeat'); mctx.fillRect(0, 0, W, H);
+  mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'destination-in'; mctx.drawImage(canopyC, 0, 0);
+  ctx.drawImage(massC, 0, 0);
+  grain(.2);
+
+  // 4. Water: deep in the middle, lighter at the shore, a thin bright edge.
+  for (const p of paths.water) {
+    ctx.save(); ctx.clip(p, 'evenodd');
+    const wg = ctx.createLinearGradient(0, 140, 0, H); wg.addColorStop(0, '#174b56'); wg.addColorStop(1, '#0d2f39');
+    ctx.fillStyle = wg; ctx.fillRect(0, 0, W, H);
+    ctx.filter = 'blur(6px)'; ctx.lineWidth = 12; ctx.strokeStyle = 'rgb(70 130 120 / .55)'; ctx.stroke(p);
+    ctx.restore();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgb(190 225 210 / .35)'; ctx.stroke(p);
+  }
+
+  // 5. A thin white outline round the play, a few metres out.
+  const ring = document.createElement('canvas'); ring.width = W; ring.height = H;
+  const r = ring.getContext('2d'); r.lineJoin = 'round'; r.fillStyle = r.strokeStyle = '#fff';
+  r.lineWidth = 15.5; for (const p of [...paths.fairways, ...paths.greens]) { r.stroke(p); r.fill(p); }
+  r.globalCompositeOperation = 'destination-out'; r.lineWidth = 13; for (const p of [...paths.fairways, ...paths.greens]) { r.stroke(p); r.fill(p); }
+  ctx.save(); ctx.globalAlpha = .75; ctx.drawImage(ring, 0, 0, W, H); ctx.restore();
+
+  // 6. Fairway: first-cut green with a soft gradient, an inner edge and broad mowing stripes across the line.
+  for (const p of paths.fairways) {
+    ctx.save(); ctx.clip(p);
+    const fg = ctx.createLinearGradient(0, top, 0, bottom); fg.addColorStop(0, '#5e9a49'); fg.addColorStop(1, '#4a8139');
+    ctx.fillStyle = fg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgb(255 255 255 / .06)'; for (let y = 0; y < H; y += 22) ctx.fillRect(0, y, W, 11);
+    ctx.filter = 'blur(3px)'; ctx.lineWidth = 6; ctx.strokeStyle = 'rgb(10 30 15 / .35)'; ctx.stroke(p);
+    ctx.restore();
+  }
+  // 7. Tees.
+  for (const p of paths.tees) { ctx.fillStyle = '#5c9847'; ctx.fill(p); ctx.lineWidth = 1; ctx.strokeStyle = 'rgb(255 255 255 / .25)'; ctx.stroke(p); }
+  // 8. Greens: a fringe ring, then the putting surface, lighter at the top, with fine stripes.
+  for (const p of paths.greens) {
+    ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.strokeStyle = '#3f7a37'; ctx.stroke(p);
+    ctx.save(); ctx.clip(p);
+    const gg = ctx.createLinearGradient(0, top - 20, 0, top + 60); gg.addColorStop(0, '#86c46a'); gg.addColorStop(1, '#6aa955');
+    ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgb(255 255 255 / .05)'; for (let y = 0; y < H; y += 6) ctx.fillRect(0, y, W, 3);
+    ctx.restore();
+  }
+  // 9. Bunkers: pale sand with a lip shadow on the near side and a thin dark edge.
+  for (const p of paths.bunkers) {
+    ctx.fillStyle = '#e4d9bd'; ctx.fill(p);
+    ctx.save(); ctx.clip(p); ctx.filter = 'blur(2.5px)'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgb(95 75 40 / .55)';
+    ctx.translate(1.6, 1.8); ctx.stroke(p); ctx.restore();
+    ctx.lineWidth = .8; ctx.strokeStyle = 'rgb(40 50 30 / .45)'; ctx.stroke(p);
+  }
+  grain(.18);
+
+  // 10. The line of play, dotted, with the 150 and 100 marks and the pin.
+  ctx.save(); ctx.setLineDash([1.5, 5]); ctx.lineCap = 'round'; ctx.lineWidth = 2; ctx.strokeStyle = 'rgb(255 255 255 / .9)'; ctx.stroke(linePath); ctx.restore();
+  const along = (d) => { // d metres back from the green along the line
+    const ptsM = line.slice().reverse(); let left = d;
+    for (let i = 0; i < ptsM.length - 1; i++) {
+      const [ax, ay] = ptsM[i], [bx, by] = ptsM[i + 1]; const seg = Math.hypot(bx - ax, by - ay);
+      if (left <= seg) return P([ax + (bx - ax) * left / seg, ay + (by - ay) * left / seg]);
+      left -= seg;
+    }
+    return P(ptsM.at(-1));
+  };
+  ctx.font = '700 11px Pretendard, system-ui'; ctx.textBaseline = 'middle';
+  for (const d of [150, 100]) {
+    const [x, y] = along(d);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1d3524'; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+    const label = `${d}`; const w = ctx.measureText(label).width + 14; const lx = x + 10, ly = y - 11;
+    ctx.save(); ctx.shadowColor = 'rgb(0 0 0 / .35)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = '#fbfcf8'; ctx.beginPath(); ctx.roundRect(lx, ly, w, 20, 10); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#163021'; ctx.fillText(label, lx + 7, ly + 10.5);
+  }
+  const [gx, gy] = linePts.at(-1);
+  ctx.save(); ctx.shadowColor = '#c4e04f'; ctx.shadowBlur = 14; ctx.fillStyle = '#c4e04f'; ctx.beginPath(); ctx.arc(gx, gy, 6, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(gx, gy, 9, 0, Math.PI * 2); ctx.stroke();
+  const [bx, by] = linePts[0];
+  ctx.save(); ctx.shadowColor = '#c4e04f'; ctx.shadowBlur = 10; ctx.strokeStyle = '#c4e04f'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(bx, by, 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+
+  // 11. The screen's own fades, so the glass above and below reads: dark at the top and into the page at the bottom.
+  const ft = ctx.createLinearGradient(0, 0, 0, 150); ft.addColorStop(0, 'rgb(15 33 24 / .45)'); ft.addColorStop(1, 'rgb(15 33 24 / 0)');
+  ctx.fillStyle = ft; ctx.fillRect(0, 0, W, 150);
+  const fb = ctx.createLinearGradient(0, 380, 0, H); fb.addColorStop(0, 'rgb(15 33 24 / 0)'); fb.addColorStop(1, 'rgb(15 33 24 / .45)');
+  ctx.fillStyle = fb; ctx.fillRect(0, 380, W, H - 380);
+  return canvas.toDataURL('image/png');
+}
+
+await document.fonts.load('700 11px Pretendard');
+let picture = '';
+try { picture = paint(); } catch (error) { console.error('paint failed', error); }
+for (const [id, kind] of [['b', 'dark']]) {
+  const node = document.getElementById('screen').content.cloneNode(true);
+  node.querySelector('.card').classList.add(kind);
+  if (kind === 'dark') {
+    node.querySelector('.card').classList.add('glass');
+    node.querySelectorAll('.card .name, .card .cap').forEach((el) => el.classList.add('glass-in'));
+  }
+  const fig = document.getElementById(id);
+  fig.prepend(node);
+  fig.querySelector('img.map').src = picture;
+}
+</script>
+</body>
+</html>

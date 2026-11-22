@@ -94,16 +94,19 @@ jobs:
         working-directory: tools/fairway-note
     steps:
       - uses: actions/checkout@v7
+      # bun installs and runs the scripts; Vite, Vitest and Playwright still run on Node. Keep bun-version in step with
+      # packageManager in tools/fairway-note/package.json.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: tools/fairway-note/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e -- --workers=1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - run: bun run build
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e --workers=1
       - uses: actions/upload-artifact@v7
         with:
           name: fairway-note-dist

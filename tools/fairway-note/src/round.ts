@@ -375,10 +375,12 @@ export function scoreWord(strokes: number, par: number): string {
  * 홀인원 the badge shows alone, in place of the number it already says (main.ts).
  */
 export function badgeWord(strokes: number, par: number): string {
-  if (strokes === 1) return '홀인원';
+  // v39: Ace and Par in golf's own words; every other score against par, as a card writes it (the user: the long English
+  // words broke the badge, "+2" is fine). The spoken name keeps the whole word (scoreWord).
+  if (strokes === 1) return 'Ace';
   const d = strokes - par;
-  const words: Record<number, string> = { [-2]: '이글', [-1]: '버디', 0: '파', 1: '보기', 2: '더블' };
-  return words[d] ?? (d > 0 ? `+${d}` : `−${-d}`);
+  if (d === 0) return 'Par';
+  return d > 0 ? `+${d}` : `−${-d}`;
 }
 
 export function scoreName(toPar: number): ScoreName {
