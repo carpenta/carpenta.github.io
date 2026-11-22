@@ -229,33 +229,44 @@ test('enters OB, 벙커 and 해저드 in 상세 only, and what 기본 counted st
   await detailMode(page);
   await expect(page.locator('#pens')).toBeVisible();
   for (const name of ['OB', '벙커', '해저드']) await expect(page.getByRole('button', { name: `${name} 하나 더하기` })).toBeVisible();
-  // A penalty from an older round (or put in before v39) keeps counting in 기본, and 상세 can take it off.
+  // A penalty from an older round (or put in before v39) keeps counting in 기본, and 상세 can take it off: a long press
+  // on OB and 0 (v39: 상세 has no 빼기).
   await tap(page, 'driver');
   await tap(page, 'ob');
   await modeTab(page, '기본').click();
   await expect(page.locator('#pens')).toBeHidden();
   await expect(page.locator('#hole-strokes')).toHaveText('2');
   await modeTab(page, '상세').click();
-  await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await longPressPen(page, 'ob');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
   await expect(page.locator('#hole-strokes')).toHaveText('1');
 });
 
-test('adds a penalty stroke for each OB or hazard and takes the last one off with 빼기', async ({ page }) => {
+// v39 (the user's call): 상세 has no 빼기, which re-spread the row under the finger when it came in; the toast's
+// 되돌리기 takes back the last tap, and a long press on the penalty sets its count (0 … 5+).
+test('adds a penalty stroke for each OB or hazard, and takes them back with 되돌리기 or a long press', async ({ page }) => {
   await open(page);
-  await expect(page.getByRole('button', { name: 'OB 하나 빼기' })).toHaveCount(0);
   // v39: penalties are entered in 상세 (the test above); the rest of the round is the same there.
   await detailMode(page);
   await tap(page, 'driver');
   await tap(page, 'ob');
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await expect(page.locator('#hole-strokes')).toHaveText('2');
+  // No 빼기 for it, by name or in sight.
+  for (const name of ['OB', '해저드', '벙커', '벌타']) await expect(page.getByRole('button', { name: `${name} 하나 빼기` })).toHaveCount(0);
+  await expect(page.locator('#pen-undo')).toBeHidden();
   await tap(page, 'hazard', 2);
   await expect(page.locator('#hole-strokes')).toHaveText('4');
-  await page.getByRole('button', { name: '해저드 하나 빼기' }).click();
+  // 되돌리기 takes back the last tap only: one 해저드.
+  await page.getByRole('button', { name: '되돌리기' }).click();
   await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
-  await page.getByRole('button', { name: '해저드 하나 빼기' }).click();
-  // Then the OB added before them.
-  await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await expect(page.locator('#hole-strokes')).toHaveText('3');
+  // A long press and 0 takes off the other 해저드, then the OB added before them.
+  await longPressPen(page, 'hazard');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
+  await longPressPen(page, 'ob');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
   await expect(page.locator('#hole-strokes')).toHaveText('1');
   await tap(page, 'hazard');
   await tap(page, 'putts');
@@ -304,9 +315,10 @@ test('records the tee shot on the 상세 pad as the first drive’s detail', asy
   await tap(page, 'second');
   await tap(page, 'putts', 2);
   expect((await stored(page)).holes[0].tags).toEqual({ driver: ['fairway'] });
-  // The penalties stay under the pad in 상세, with the same 빼기.
+  // The penalties stay under the pad in 상세, with no 빼기 beside them (v39).
   await tap(page, 'ob');
-  await expect(page.locator('#pen-undo')).toHaveText('OB 빼기');
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
+  await expect(page.locator('#pen-undo')).toBeHidden();
   await next(page).click();
   await next(page).click();
   await next(page).click();
@@ -1558,9 +1570,11 @@ test('the hole number opens a strip of all 18 holes, marking a skipped one, and 
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
   await page.getByRole('button', { name: '그린까지 하나 빼기' }).click();
-  // v39: a penalty is taken off in 상세, where it is entered.
+  // v39: a penalty is taken off in 상세, where it is entered, by a long press (no 빼기 there): the seeded OB to 0.
   await modeTab(page, '상세').click();
-  await page.getByRole('button', { name: 'OB 하나 빼기' }).click();
+  await longPressPen(page, 'ob');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
+  await expect(page.locator('#numpick')).toBeHidden();
   await modeTab(page, '기본').click();
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
   // Now 1 + 2 + 4 = 7 strokes: 트리플 보기 on this par 4 (Everis 새별 2).
@@ -1741,8 +1755,9 @@ test('a long press on a penalty in 상세 sets its count straight away, and a ta
   await page.getByRole('button', { name: '1번', exact: true }).click();
   await tap(page, 'hazard');
   expect((await stored(page)).holes[0]).toMatchObject({ ob: 0, hazard: 2, bunker: 3 });
-  // 빼기 takes off the 해저드 just tapped.
-  await page.getByRole('button', { name: '해저드 하나 빼기' }).click();
+  // 되돌리기 takes off the 해저드 just tapped (v39: no 빼기 in 상세).
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
   expect((await stored(page)).holes[0].hazard).toBe(1);
 });
 
@@ -2495,10 +2510,12 @@ for (const [width, height] of [[375, 553], [375, 667]]) {
         expect(Math.abs(centre(b) - centre(pads[j])), `pill ${j} on the pad's line`).toBeLessThanOrEqual(1);
         expect(b.width, `pill ${j} width`).toBeCloseTo(72, 0);
       });
-      // An OB, so 빼기 shows too, last in the row.
+      // An OB: still the three pills alone (v39: no 빼기 in 상세), each where it stood.
       await tap(page, 'ob');
       await atRest(page);
-      const pens = await Promise.all(['#stake-ob', '#stake-bunker', '#stake-hazard', '#pen-undo'].map(async (s) => (await page.locator(s).boundingBox())!));
+      await expect(page.locator('#pen-undo')).toBeHidden();
+      const pens = await Promise.all(['#stake-ob', '#stake-bunker', '#stake-hazard'].map(async (s) => (await page.locator(s).boundingBox())!));
+      pens.forEach((b, j) => expect(Math.abs(centre(b) - centre(pads[j])), `pill ${j} still on the pad's line`).toBeLessThanOrEqual(1));
       const card = (await page.locator('#sheet').boundingBox())!;
       pens.forEach((b, j) => {
         expect(Math.abs(b.width - pens[0].width), `pill ${j} width`).toBeLessThanOrEqual(1);
@@ -2630,11 +2647,13 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
           expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), await line('far-left'), '상세: OB under the pad\'s far-left button');
           expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), await line('fairway'), '상세: 벙커 under 페어웨이');
           expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), await line('far-right'), '상세: 해저드 under the pad\'s far-right button');
-          // An OB brings 빼기, at the row's right end, on the far-right line; OB keeps its place.
+          // An OB brings no 빼기 (v39); OB, 벙커 and 해저드 keep their lines.
           await tap(page, 'ob');
           await atRest(page);
-          expectAligned(midX(await rect(page, '#pen-undo .u-ico')), await line('far-right'), '상세: 빼기 under the pad\'s far-right button');
+          await expect(page.locator('#pen-undo')).toBeHidden();
           expectAligned(midX(await rect(page, '#stake-ob .pen-icon')), await line('far-left'), '상세: OB stays on the far-left line');
+          expectAligned(midX(await rect(page, '#stake-bunker .pen-icon')), await line('fairway'), '상세: 벙커 stays under 페어웨이');
+          expectAligned(midX(await rect(page, '#stake-hazard .pen-icon')), await line('far-right'), '상세: 해저드 stays on the far-right line');
           // The 0 … 5+ picker spans the card, its first and last choice on the card's content edge.
           await longPressPen(page, 'hazard');
           const pick = await rect(page, '#numpick');
@@ -5160,33 +5179,35 @@ test('a line that ends with 다음 홀 records the hole and moves on, and one �
   expect(back.holes[0]).toMatchObject({ driver: 0, approach: 0, putts: 0 });
 });
 
-test('빼기 names the penalty it takes off: after an OB and then a 해저드 it reads 해저드, by taps and by a spoken line (v21)', async ({ page }) => {
+// v39 (the user's call): 상세 has no 빼기 (v21–v38 named the last penalty and took it off); 되돌리기 takes back the
+// last change, a tap's one penalty or a spoken line's whole line, and a long press sets the count.
+test('되돌리기 takes back the last penalty tap alone, or a spoken line’s penalties together; a long press takes off the rest (v39)', async ({ page }) => {
   await open(page);
-  // v39: the penalties and 빼기 are in 상세.
-  await modeTab(page, '상세').click();
-  const undo = page.locator('#pen-undo');
-  // Two taps: OB, then 해저드.
+  // 상세 with its one-time tip put away: on a smaller phone it covers 퍼터, tapped below.
+  await detailMode(page);
+  // Two taps: OB, then 해저드. 되돌리기 takes back the 해저드 only.
   await tap(page, 'ob');
-  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
   await tap(page, 'hazard');
-  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
-  await expect(undo).toContainText('해저드 빼기');
-  await undo.click();
-  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
-  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
-  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
-  // The toast still takes back only the last tap's penalty, and 빼기 follows it.
-  await tap(page, 'hazard');
-  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
+  await expect(page.locator('#pen-undo')).toBeHidden();
   await page.getByRole('button', { name: '되돌리기' }).click();
   await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
-  await expect(undo).toHaveAccessibleName('OB 하나 빼기');
-  // One spoken line on the next hole: OB, then 해저드, in the order said.
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
+  // The OB is taken off by a long press and 0.
+  await longPressPen(page, 'ob');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
+  await expect(page.locator('#stake-ob .pen-count')).toHaveClass(/zero/);
+  expect((await stored(page)).holes[0]).toMatchObject({ ob: 0, hazard: 0 });
+  // One spoken line on the next hole: OB and 해저드, and one 되돌리기 takes both back.
+  await tap(page, 'putts');
   await next(page).click();
   await say(page, 'OB 해저드');
+  await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
-  await expect(undo).toHaveAccessibleName('해저드 하나 빼기');
-  await expect(undo).toContainText('해저드 빼기');
+  await expect(page.locator('#pen-undo')).toBeHidden();
+  await page.getByRole('button', { name: '되돌리기' }).click();
+  await expect(page.locator('#stake-ob .pen-count')).toHaveClass(/zero/);
+  await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
+  expect((await stored(page)).holes[1]).toMatchObject({ ob: 0, hazard: 0 });
 });
 
 test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alone adds one, and 7번 홀 jumps there', async ({ page }) => {
@@ -5198,9 +5219,10 @@ test('OB, 해저드 and 벙커 add one each as their buttons do, a club said alo
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await expect(page.locator('#stake-hazard .pen-count')).toHaveText('1');
   await expect(page.locator('#toast-msg')).toHaveText('OB +1 · 해저드 +1');
-  // They were added in the order said, as by two taps: the penalty row's 빼기 (in 상세, v39) takes off the 해저드, then the OB.
+  // In 상세 (v39: no 빼기 there) a long press on 해저드 and 0 takes it off; the OB stays.
   await modeTab(page, '상세').click();
-  await page.locator('#pen-undo').click();
+  await longPressPen(page, 'hazard');
+  await page.getByRole('button', { name: '0번', exact: true }).click();
   await expect(page.locator('#stake-hazard .pen-count')).toHaveClass(/zero/);
   await expect(page.locator('#stake-ob .pen-count')).toHaveText('1');
   await say(page, '해저드');
@@ -7345,10 +7367,10 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       expectAligned(midX(box), width / 2, 'centred');
     });
 
-    // v39: 기본 has no penalties (the user: "ob 해저드 벙커는 상세에서만"), and in 상세 OB · 벙커 · 해저드 stand on the pad's
-    // lines at rest, 빼기 out of the row (display: none) until there is a penalty, then at the row's right end. v36's rule
-    // that 빼기 holds its column so nothing moves no longer holds there: when 빼기 shows, 벙커 and 해저드 move (reported; the user's call).
-    test('빼기 is out of sight until there is a penalty to take off, then an arrow turning back at the row’s end, and the card does not move', async ({ page }) => {
+    // v39 (the user's call, 4e99ce4): 상세 has no 빼기. v36–v38 brought it into the row with the first penalty, which
+    // re-spread OB · 벙커 · 해저드 under the finger; now #pen-undo never shows in 상세, whatever the counts, and the three
+    // stay on the pad's far-left, 페어웨이 and far-right lines as taps add, and 되돌리기 or a long press take away.
+    test('상세 never shows 빼기 at any count, and OB, 벙커 and 해저드 do not move as penalties come and go', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: '기본', exact: true }).click();
       await atRest(page);
@@ -7357,24 +7379,69 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
       await atRest(page);
       const undo = page.locator('#pen-undo');
-      await expect(undo).toBeDisabled();
-      await expect(undo).toBeHidden();
-      // The first penalty moves the card nothing: it keeps its top and height.
-      const before = await rect(page, '#sheet');
+      const pens = ['#stake-ob', '#stake-bunker', '#stake-hazard'] as const;
+      const parts = pens.flatMap((s) => [s, `${s} .pen-icon`]);
+      const boxes = () => Promise.all(parts.map((s) => rect(page, s)));
+      const sheet = await rect(page, '#sheet');
+      const lines = await Promise.all(['far-left', 'fairway', 'far-right'].map((d) => rect(page, `#pad button[data-tee="${d}"]`)));
+      const before = await boxes();
+      pens.forEach((s, j) => expectAligned(midX(before[2 * j + 1]), midX(lines[j]), `${s} on the pad's line at rest`));
+      /** After each change: 빼기 out of sight (display: none), and every pill and icon where it stood, to half a pixel. */
+      const unmoved = async (what: string, counts: [number, number, number]) => {
+        await atRest(page);
+        for (const [j, s] of pens.entries()) {
+          if (counts[j]) await expect(page.locator(`${s} .pen-count`), `${what}: ${s} count`).toHaveText(String(counts[j]));
+          else await expect(page.locator(`${s} .pen-count`), `${what}: ${s} count`).toHaveClass(/zero/);
+        }
+        await expect(undo, `${what}: 빼기`).toBeHidden();
+        expect(await undo.evaluate((el) => getComputedStyle(el).display), `${what}: 빼기 display`).toBe('none');
+        for (const name of ['OB', '해저드', '벙커', '벌타']) await expect(page.getByRole('button', { name: `${name} 하나 빼기` }), `${what}: ${name} 빼기`).toHaveCount(0);
+        const now = await boxes();
+        now.forEach((b, k) => {
+          for (const side of ['x', 'y', 'width', 'height'] as const) {
+            expect(Math.abs(b[side] - before[k][side]), `${what}: ${parts[k]} ${side} ${b[side].toFixed(2)} vs ${before[k][side].toFixed(2)}`).toBeLessThanOrEqual(0.5);
+          }
+        });
+        const card = await rect(page, '#sheet');
+        expectAligned(card.y, sheet.y, `${what}: card top`);
+        expectAligned(card.height, sheet.height, `${what}: card height`);
+      };
+      await unmoved('at rest', [0, 0, 0]);
       await tap(page, 'ob');
-      await expect(undo).toBeVisible();
-      await expect(undo).toBeEnabled();
-      await expect(undo).toHaveText('OB 빼기');
-      await atRest(page);
-      const after = await rect(page, '#sheet');
-      expectAligned(after.y, before.y, '상세: card top after the first penalty');
-      expectAligned(after.height, before.height, '상세: card height after the first penalty');
-      // At the row's right end, under the pad's far-right button, as tall as a penalty.
-      expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(await rect(page, '#pad button[data-tee="far-right"]')), '빼기 under the far-right button');
-      expectAligned((await rect(page, '#pen-undo')).height, (await rect(page, '#stake-ob')).height, '빼기 as tall as OB');
-      // Not the capsule's −: 빼기 draws an arrow turning back, so the two read as two actions.
-      const glyph = (selector: string) => page.locator(selector).first().evaluate((svg) => svg.innerHTML.replace(/\s+/g, ' '));
-      expect(await glyph('#pen-undo svg')).not.toBe(await glyph('.club-second .minus svg'));
+      await unmoved('the first OB', [1, 0, 0]);
+      await page.getByRole('button', { name: '벙커 하나 더하기' }).click();
+      await unmoved('a 벙커', [1, 1, 0]);
+      await tap(page, 'hazard');
+      await unmoved('a 해저드', [1, 1, 1]);
+      await tap(page, 'ob');
+      await unmoved('a second OB', [2, 1, 1]);
+      await longPressPen(page, 'ob');
+      await page.getByRole('button', { name: '5번 이상' }).click();
+      await unmoved('OB 5+ by the picker', [5, 1, 1]);
+      // The toast's 되돌리기 is taken within its four seconds, before the (slower) look at every box. Under 600px tall 상세
+      // hides the toast with the chip row (style.css, since v6), so there the picker takes the 해저드 back to 1 instead
+      // (reported: on a short screen a penalty comes back by the long press alone).
+      await longPressPen(page, 'hazard');
+      await page.getByRole('button', { name: '4번', exact: true }).click();
+      await expect(page.locator('#stake-hazard .pen-count')).toHaveText('4');
+      if (height >= 600) {
+        await page.getByRole('button', { name: '되돌리기' }).click();
+      } else {
+        await expect(page.locator('#toast')).toBeHidden();
+        await longPressPen(page, 'hazard');
+        await page.getByRole('button', { name: '1번', exact: true }).click();
+      }
+      await unmoved('되돌리기 after 해저드 4', [5, 1, 1]);
+      await longPressPen(page, 'hazard');
+      await page.getByRole('button', { name: '4번', exact: true }).click();
+      await unmoved('해저드 4 by the picker', [5, 1, 4]);
+      for (const [j, key] of (['ob', 'bunker', 'hazard'] as const).entries()) {
+        await longPressPen(page, key);
+        await page.getByRole('button', { name: '0번', exact: true }).click();
+        const counts: [number, number, number] = [0, 0, 0];
+        for (let k = j + 1; k < 3; k++) counts[k] = [5, 1, 4][k];
+        await unmoved(`${key} to 0 by the picker`, counts);
+      }
     });
   });
 }
@@ -7810,8 +7877,8 @@ async function pixelAt(page: Page, x: number, y: number) {
   }, `data:image/png;base64,${png.toString('base64')}`);
 }
 
-/** The penalty row's buttons in document order, Tab's order, seen or not. */
-const penOrder = (page: Page) => page.locator('#pens button').evaluateAll((list) => list.map((b) => b.id));
+/** The penalty row's buttons in document order, Tab's order: those shown (v39: 상세's hidden 빼기 is not reached by Tab). */
+const penOrder = (page: Page) => page.locator('#pens button').evaluateAll((list) => list.filter((b) => getComputedStyle(b).display !== 'none').map((b) => b.id));
 
 /** The menu as laid out: each group's heading and its rows (icon tile, title column, the title's and its line's size). */
 const menuLayout = (page: Page) => page.locator('#menu').evaluate((menu) => {
@@ -7842,8 +7909,9 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
 
     // v39 (the user: 상세's rows aligned): OB, 벙커 and 해저드 stand on the direction pad's far-left, 페어웨이 and far-right
-    // lines (v36–v38: under the first three capsules); 빼기 comes in at the row's end, on the far-right line; 기본 has none.
-    test('상세 stands OB, 벙커 and 해저드 on the pad’s lines; 빼기 comes in at the row’s end; 기본 shows no penalties', async ({ page }) => {
+    // lines (v36–v38: under the first three capsules) and keeps them there whatever the counts, with no 빼기 (the user's
+    // call: it re-spread the row when it came in); 기본 has none.
+    test('상세 stands OB, 벙커 and 해저드 on the pad’s lines with no 빼기, a penalty moves none of them; 기본 shows no penalties', async ({ page }) => {
       await open(page);
       await page.getByRole('button', { name: '상세', exact: true }).click();
       if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
@@ -7853,17 +7921,19 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       const before = await Promise.all(pens.map((s) => rect(page, `${s} .pen-icon`)));
       before.forEach((b, j) => expectAligned(midX(b), midX(lines[j]), `${pens[j]} on the pad's line`));
       await expect(page.locator('#pen-undo')).toBeHidden();
-      // Tab goes the way the eye does.
-      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'stake-hazard', 'pen-undo']);
-      // The first penalty brings 빼기 in at the end, on the far-right line; OB keeps its place and every row its line.
+      // Tab goes the way the eye does, through the three alone.
+      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'stake-hazard']);
+      // The first penalty brings no 빼기; OB, 벙커 and 해저드 keep their places, on one row.
       await tap(page, 'ob');
       await atRest(page);
-      await expect(page.locator('#pen-undo')).toBeVisible();
-      await expect(page.locator('#pen-undo')).toHaveText('OB 빼기');
-      expectAligned(midX(await rect(page, '#pen-undo .u-ico')), midX(lines[2]), '빼기 on the far-right line');
-      const ob = await rect(page, '#stake-ob .pen-icon');
-      expectAligned(ob.x, before[0].x, 'OB: x after the first penalty');
-      for (const s of [...pens, '#pen-undo']) expectAligned((await rect(page, `${s}`)).y, (await rect(page, '#stake-ob')).y, `${s} on one row`);
+      await expect(page.locator('#pen-undo')).toBeHidden();
+      expect(await penOrder(page)).toEqual(['stake-ob', 'stake-bunker', 'stake-hazard']);
+      for (const [j, s] of pens.entries()) {
+        const now = await rect(page, `${s} .pen-icon`);
+        expectAligned(now.x, before[j].x, `${s}: x after the first penalty`);
+        expectAligned(midX(now), midX(lines[j]), `${s} still on the pad's line`);
+        expectAligned((await rect(page, s)).y, (await rect(page, '#stake-ob')).y, `${s} on one row`);
+      }
       // 기본 (v39): no penalty row at all; what 상세 counted still counts.
       await page.getByRole('button', { name: '기본', exact: true }).click();
       await atRest(page);
