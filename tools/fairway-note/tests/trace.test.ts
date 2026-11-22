@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import coursesData from '../src/data/courses.json';
 import { lineLength, ringArea, ringCentroid, type Pt } from '../src/osm-geo';
 import { blobs, implausible, majority, outerEdge, shapeOf, toMetres, type Grid } from '../src/trace-geo';
 
@@ -102,4 +103,39 @@ describe('implausible', () => {
     expect(implausible({ ...base, greens: [ring(14)] })).toEqual([]);
     expect(implausible({ ...base, greens: [ring(40)] })).toEqual(['green 6400 m²']);
   });
+});
+
+describe('the traced courses (src/data/traced/)', () => {
+  const files = import.meta.glob<{ course: string; source: string[]; checked: string; holes: Record<string, (Record<string, unknown> | null)[]> }>('../src/data/traced/*.json', { eager: true, import: 'default' });
+  const courses = (coursesData as { courses: { id: string; nines: { id: string; par: number[] }[] }[] }).courses;
+  it('has some, each named for a course in courses.json', () => {
+    expect(Object.keys(files).length).toBeGreaterThan(1);
+    for (const [path, data] of Object.entries(files)) expect(path.endsWith(`/${data.course}.json`), path).toBe(true);
+  });
+  for (const [path, data] of Object.entries(files)) {
+    it(`${data.course}: one entry per hole of each nine, every traced hole well formed`, () => {
+      const course = courses.find((c) => c.id === data.course);
+      expect(course, path).toBeDefined();
+      expect(data.checked).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      for (const [nine, holes] of Object.entries(data.holes)) {
+        const known = course!.nines.find((n) => n.id === nine);
+        expect(known, `${data.course}/${nine}`).toBeDefined();
+        expect(holes).toHaveLength(known!.par.length);
+        for (const hole of holes) {
+          if (hole === null) continue;
+          const h = hole as { line: number[]; greens: number[][]; tees: number[][]; fairways: number[][]; bunkers: number[][]; water: number[][][] };
+          expect(h.line.length).toBeGreaterThanOrEqual(4);
+          expect(h.greens.length).toBeGreaterThan(0);
+          expect(h.tees.length).toBeGreaterThan(0);
+          for (const ring of [...h.greens, ...h.tees, ...h.fairways, ...h.bunkers, ...h.water.flat()]) {
+            expect(ring.length % 2).toBe(0);
+            expect(ring.length).toBeGreaterThanOrEqual(6);
+            expect(ring.every(Number.isFinite)).toBe(true);
+          }
+          // The line ends at the green's middle, the data's origin.
+          expect(Math.hypot(h.line.at(-2)!, h.line.at(-1)!)).toBeLessThan(1);
+        }
+      }
+    });
+  }
 });

@@ -177,7 +177,7 @@ describe('the Everis holes from OpenStreetMap (v27)', () => {
   });
 
   it('loads a course’s outlines once, on first use, and only for a course that has them', async () => {
-    expect(osmLoading('ecoland')).toBeNull();
+    expect(osmLoading('gold')).toBeNull();
     expect(osmLoading(null)).toBeNull();
     const round: RoundCourse = { id: 'everis', name: '에버리스 골프리조트', front: '새별', back: '레이크' };
     const wait = osmLoading('everis');
@@ -199,7 +199,7 @@ describe('the Everis holes from OpenStreetMap (v27)', () => {
     expect(osmHoleAt(round, 13)).toBeNull();
     expect(osmHoleAt(round, 14)).toEqual(holes.lake[5]);
     expect(osmHoleAt({ ...round, front: '파인' }, 4)).toEqual(holes.pine[4]);
-    expect(osmHoleAt({ id: 'ecoland', name: '에코랜드 골프클럽', front: '와일드', back: '비치힐스' }, 0)).toBeNull();
+    expect(osmHoleAt({ id: 'gold', name: '골드', front: '챔피언 OUT', back: '챔피언 IN' }, 0)).toBeNull();
     expect(osmHoleAt({ id: null, name: '동네 골프장', front: '', back: '' }, 0)).toBeNull();
     expect(osmHoleAt({ ...round, front: '없는 코스' }, 0)).toBeNull();
   });

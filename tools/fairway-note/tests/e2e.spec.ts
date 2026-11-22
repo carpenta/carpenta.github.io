@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
@@ -15,11 +15,17 @@ async function open(page: Page) {
   await expect(page.locator('#picker')).toBeHidden();
 }
 
+/** The courses with holes traced from their hole maps (v40): each one's outlines are a chunk named after it. */
+const TRACED = readdirSync(fileURLToPath(new URL('../src/data/traced/', import.meta.url))).map((f) => f.replace(/\.json$/, ''));
+
 /**
  * Starts a round on another course from the picker's search. Since v27 Everis is drawn from OpenStreetMap, so the
- * schematic's own tests run on courses it does not draw (에코랜드, 라온).
+ * schematic's own tests run on courses it does not draw (에코랜드, 라온). v40 traces some of those from their hole maps:
+ * unless `traced`, their outlines' chunks are refused, so the course keeps the schematic, as it does when the chunk
+ * cannot load (osm-holes.ts).
  */
-async function openCourse(page: Page, query: string, name: string) {
+async function openCourse(page: Page, query: string, name: string, { traced = false } = {}) {
+  if (!traced) await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.abort());
   await page.goto('/');
   await page.getByRole('searchbox', { name: '골프장 검색' }).fill(query);
   await page.locator('#picker-list button', { hasText: name }).click();
@@ -942,7 +948,7 @@ test('draws a 핀크스 hole traced from its official hole map, with no OpenStre
     if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') requests.push(request.url());
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await openCourse(page, '핀크스', '핀크스 골프클럽');
+  await openCourse(page, '핀크스', '핀크스 골프클럽', { traced: true });
   const course = page.locator('#course');
   await expect(course).toHaveAttribute('data-art', 'traced');
   await expect(course.locator(':scope > .fairway').first()).toBeAttached();
