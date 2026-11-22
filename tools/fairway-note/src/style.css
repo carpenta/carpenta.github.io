@@ -2014,3 +2014,10 @@ body.scrolled .home-link { opacity: 0; pointer-events: none; }
   .hole-nav { margin-bottom: 12px; }
   .sheet .mode { height: 34px; }
 }
+/* 상세 has no 빼기 (the user's call): appearing after a first penalty it re-spread the row under the finger. A penalty is
+   taken back with 되돌리기 on the toast, or by a long press on OB, 벙커 or 해저드 (0 … 5). */
+#entry[data-mode='detail'] .pens .undo { display: none; }
+/* 스코어카드 | 분석 on the card's deep glass: over the open course their words fell to 2.6–4.3:1 (the test's finding). */
+.sc-switch { margin-inline: var(--m); border-radius: var(--r-tile); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
+/* Under the open menu, 메뉴 on the island is marked as every chosen tab is (a lime dot), not v36's filled pill. */
+body:has(#menu[open]) .bar-menu .ti { background: none; }

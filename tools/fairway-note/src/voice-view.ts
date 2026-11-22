@@ -70,9 +70,16 @@ export function bindVoice(page: VoicePage): void {
    * when the page closes it, and by the close event for Escape; that event can come late (a page in the background),
    * so it does nothing once done, or when the sheet has opened again.
    */
+  /** v39: the card's tabs say which is chosen to a screen reader too: 음성 while it is open, else the card's own mode. */
+  const pressTabs = (voice: boolean) => {
+    const mode = document.getElementById('entry')?.dataset.mode;
+    document.getElementById('mode-voice')?.setAttribute('aria-pressed', String(voice));
+    for (const tab of document.querySelectorAll<HTMLElement>('#sheet button[data-mode]')) tab.setAttribute('aria-pressed', String(!voice && tab.dataset.mode === mode));
+  };
   const closed = () => {
     if (!shown || dialog.open) return;
     shown = false;
+    pressTabs(false);
     line.value = '';
     say(null);
     if (!used) page.dismissed();
@@ -98,6 +105,7 @@ export function bindVoice(page: VoicePage): void {
     page.opened();
     // v39: in the card, in place of the capsules (the user: 음성 changes the card's content, no sheet over the screen).
     dialog.show();
+    pressTabs(true);
     line.focus();
   });
   // Not modal now, so Escape is ours to handle.
