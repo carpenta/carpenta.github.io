@@ -1946,8 +1946,8 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 .sheet .vc-inline { position: static; inset: auto; margin: 2px 0 0; width: auto; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; animation: none; }
 .sheet .vc-inline .vc-head h2 { font-size: var(--t-m); }
 #entry:has(#voice[open]) :is(.clubs, .detail, .pens) { display: none; }
-#entry:has(#voice[open]) .sheet .mode[aria-pressed='true'] { color: var(--on-glass-soft); }
-#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']::before { display: none; }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice) { color: var(--on-glass-soft); }
+#entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice)::before { display: none; }
 #entry:has(#voice[open]) #mode-voice { color: var(--on-glass); }
 #entry:has(#voice[open]) #mode-voice::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); box-shadow: 0 0 8px 1px var(--lime-glow); }
 /* As a tab, 말로 입력 has no title row or ×: the tabs switch it (its title still names the field for screen readers). */
@@ -2021,3 +2021,6 @@ body.scrolled .home-link { opacity: 0; pointer-events: none; }
 .sc-switch { margin-inline: var(--m); border-radius: var(--r-tile); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
 /* Under the open menu, 메뉴 on the island is marked as every chosen tab is (a lime dot), not v36's filled pill. */
 body:has(#menu[open]) .bar-menu .ti { background: none; }
+/* 되돌리기 in 상세 on short screens too (v39: with no 빼기 there it is one of the two ways to take a penalty back): under
+   the top bar, where the chip row it sits under in 기본 is hidden. */
+@media (max-height: 699px) { #entry[data-mode='detail'] .toast:not([hidden]) { display: flex; } }

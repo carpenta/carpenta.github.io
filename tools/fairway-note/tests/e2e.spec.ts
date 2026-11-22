@@ -5098,7 +5098,8 @@ test('음성 shows 말로 입력 in the card in place of the capsules, no sheet 
   await atRest(page);
   expect(await page.locator('#views .bar').evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
   // 음성 reads as the chosen tab: white with the lime underline, 기본 soft with none.
-  const underline = (selector: string) => page.locator(selector).evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el, '::before').display]);
+  // No underline: the ::before hidden, or not there at all (content none) once the tab is not pressed.
+  const underline = (selector: string) => page.locator(selector).evaluate((el) => { const b = getComputedStyle(el, '::before'); return [getComputedStyle(el).color, b.content === 'none' || b.content === 'normal' ? 'none' : b.display]; });
   expect(await underline('#mode-voice')).toEqual(['rgb(244, 247, 240)', 'block']);
   expect(await underline('.sheet .mode[data-mode="basic"]')).toEqual(['rgba(244, 247, 240, 0.66)', 'none']);
   // Escape puts the capsules back, in the mode it left.
@@ -7418,19 +7419,12 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
       await longPressPen(page, 'ob');
       await page.getByRole('button', { name: '5번 이상' }).click();
       await unmoved('OB 5+ by the picker', [5, 1, 1]);
-      // The toast's 되돌리기 is taken within its four seconds, before the (slower) look at every box. Under 600px tall 상세
-      // hides the toast with the chip row (style.css, since v6), so there the picker takes the 해저드 back to 1 instead
-      // (reported: on a short screen a penalty comes back by the long press alone).
+      // The toast's 되돌리기 is taken within its four seconds, before the (slower) look at every box. v39: 상세 shows it on
+      // short screens too (under the top bar), so 되돌리기 is a way back at every height.
       await longPressPen(page, 'hazard');
       await page.getByRole('button', { name: '4번', exact: true }).click();
       await expect(page.locator('#stake-hazard .pen-count')).toHaveText('4');
-      if (height >= 600) {
-        await page.getByRole('button', { name: '되돌리기' }).click();
-      } else {
-        await expect(page.locator('#toast')).toBeHidden();
-        await longPressPen(page, 'hazard');
-        await page.getByRole('button', { name: '1번', exact: true }).click();
-      }
+      await page.getByRole('button', { name: '되돌리기' }).click();
       await unmoved('되돌리기 after 해저드 4', [5, 1, 1]);
       await longPressPen(page, 'hazard');
       await page.getByRole('button', { name: '4번', exact: true }).click();
