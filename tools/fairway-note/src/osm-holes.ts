@@ -9,9 +9,20 @@ import type { RoundCourse } from './round';
  * one never fetch it. Per nine id, nine entries (null where a hole is not matched and keeps the schematic).
  */
 type ByNine = Record<string, (OsmHole | null)[]>;
-const SOURCES: Record<string, () => Promise<{ default: { holes: unknown } }>> = {
+type Load = () => Promise<{ default: { holes: unknown } }>;
+const SOURCES: Record<string, Load> = {
   everis: () => import('./data/osm/everis.json'),
+  // v40: holes traced roughly from the course's official hole maps (src/data/traced/, scripts/trace-holes.mjs), in the
+  // same shape; drawn the same way, without OpenStreetMap's credit.
+  pinx: () => import('./data/traced/pinx.json'),
 };
+const TRACED = new Set(['pinx']);
+
+/** Where a course's outlines come from: OpenStreetMap, traced from its hole maps, or none (the schematic). */
+export function holeArt(courseId: string | null): 'osm' | 'traced' | null {
+  if (courseId === null || !SOURCES[courseId]) return null;
+  return TRACED.has(courseId) ? 'traced' : 'osm';
+}
 const loaded = new Map<string, ByNine>();
 const loading = new Map<string, Promise<void>>();
 

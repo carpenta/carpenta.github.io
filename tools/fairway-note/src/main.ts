@@ -40,7 +40,7 @@ import {
 } from './round';
 import { CLUB_ICONS, PEN_ICONS, icon } from './icons';
 import { bandShape, bandSvg, bandTerrain, courseShape, courseSvg, courseTerrain, CREDIT_SIDES, FIT_BAND, holeHazards, holeThumb, layoutBend, layoutIsland, osmShape, osmSvg, osmTerrain, type ArtBand, type Box, type CourseFrame, type OsmHole, type Terrain } from './course-art';
-import { osmHoleAt, osmLoading } from './osm-holes';
+import { holeArt, osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
@@ -583,14 +583,18 @@ function drawCourse(): void {
       osm = osmHoleAt(course, round.current);
     }
   }
+  // v40: a hole traced from the course's own hole map is drawn as an OpenStreetMap one is, but it is not OSM's.
+  const traced = osm !== null && holeArt(course.id) === 'traced';
   // The credit beside the drawing whenever it is OpenStreetMap's: shown first, so the hole keeps clear of it (v27).
-  credit.hidden = !osm;
+  credit.hidden = !osm || traced;
   const band = fit ? artBand() : null;
   // The fitted drawing also ends under the chip row (v33): water the band cuts stops at its edge, not between the chips.
   if (band) svg.style.setProperty('--art-top', `${Math.round(band.y0)}px`);
   else svg.style.removeProperty('--art-top');
-  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, or (v31) the schematic's line that it is approximate.
-  $('hi-osm').hidden = !osm;
+  // 홀 안내 says which drawing it is: OpenStreetMap's with its credit, traced from the hole map (v40), or (v31) the
+  // schematic's line that it is approximate.
+  $('hi-osm').hidden = !osm || traced;
+  $('hi-traced').hidden = !traced;
   $('hi-art').hidden = osm !== null;
   const info = holeInfo(course, round.current);
   const bend = layoutBend(info?.layout);
@@ -623,7 +627,7 @@ function drawCourse(): void {
     const shape = osmShape(osm, round.current, band, length, CREDIT_SIDES, { bare, inset: false });
     svg.innerHTML = osmSvg(shape, frame);
     paintGround(osmTerrain(shape, groundSeed(course.id, nine, round.current)), key, frame);
-    mark('osm', shape, band);
+    mark(traced ? 'traced' : 'osm', shape, band);
     // The credit at the end the drawing chose (v33): the right end where water would lie behind it at the left.
     credit.classList.toggle('end', shape.credit?.side === 'end');
     marks.hidden = shape.markers.length === 0;

@@ -1126,8 +1126,8 @@ export interface OsmHole {
   fairways: number[][];
   bunkers: number[][];
   water: number[][][];
-  /** The OSM element ids each kind came from: "w123" a way, "r123" a relation. */
-  osm: { tees: string[]; greens: string[]; fairways: string[]; bunkers: string[]; water: string[] };
+  /** The OSM element ids each kind came from: "w123" a way, "r123" a relation (none on a hole traced from a hole map, v40). */
+  osm?: { tees: string[]; greens: string[]; fairways: string[]; bunkers: string[]; water: string[] };
 }
 
 /** A hole turned so its line of play runs up the screen, in metres: u to the right, v down from the greens' middle. */
