@@ -8,7 +8,9 @@
 // longest tee in courses.json, else a length typical of the par); and optionally trace.json, how this course's maps are
 // drawn: { crop: [x0, y0, x1, y1] (fractions, to leave out insets and legends), cropHoles: { "<nine>-<n>": [...] },
 // rotate: 0|90|180|270, rotateHoles: { "<nine>-<n>": deg }, skip: ["<nine>-<n>", …] (holes that keep the schematic), palette: { fairway|green|rough|dark|bunker|water|
-// background: ["#rrggbb", …] }, maxDistance: 60 }. Each map is turned clockwise by rotate so its tee is at the bottom and
+// background: ["#rrggbb", …] }, maxDistance: 60 }; and optionally drawn.json, holes outlined by eye where the colours can't
+// be told apart (3D drawings, line plans): { "<nine>-<n>": { greens, tees (the back tee first), fairways, bunkers, water:
+// [[x, y, x, y, …], …] } } in the map file's own pixels, uncut and unturned; those holes skip the colour sorting below. Each map is turned clockwise by rotate so its tee is at the bottom and
 // its green at the top, and, when its long side is outside 450–700px, scaled to 580px (the rules below were tuned at that size). Without a
 // palette, the 핀크스 rules sort the pixels; with one, each pixel takes the class of its nearest sample colour. The pixels are read in Playwright's Chromium; each is sorted by colour (src/trace-geo.ts does the
 // geometry): light green patches are the fairways, the putting green (the topmost small one) and the tees (the small ones
@@ -55,6 +57,49 @@ if (process.argv[2] === '--colours') {
   process.exit(0);
 }
 
+// bun run trace:holes --grid <map file> <out.png>: the map with a labelled 50px grid over it (every 10px faintly), to read
+// the pixel coordinates for drawn.json off it by eye.
+if (process.argv[2] === '--grid') {
+  const [file, outFile] = process.argv.slice(3);
+  const ext = file.split('.').pop().toLowerCase();
+  const b = await chromium.launch();
+  const p = await b.newPage();
+  const png = await p.evaluate(async (url) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const c = new OffscreenCanvas(img.width, img.height);
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0);
+    for (let v = 0; v <= Math.max(img.width, img.height); v += 10) {
+      const major = v % 50 === 0;
+      g.strokeStyle = major ? 'rgb(255 0 0 / .55)' : 'rgb(255 0 0 / .15)';
+      g.lineWidth = major ? 1 : 0.5;
+      g.beginPath();
+      g.moveTo(v + 0.5, 0);
+      g.lineTo(v + 0.5, img.height);
+      g.moveTo(0, v + 0.5);
+      g.lineTo(img.width, v + 0.5);
+      g.stroke();
+      if (major && v) {
+        g.font = 'bold 10px sans-serif';
+        g.fillStyle = '#c00';
+        g.fillText(String(v), v + 2, 10);
+        g.fillText(String(v), 2, v - 2);
+      }
+    }
+    const blob = new Uint8Array(await (await c.convertToBlob()).arrayBuffer());
+    let s = '';
+    for (const x of blob) s += String.fromCharCode(x);
+    return btoa(s);
+  }, `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(file).toString('base64')}`);
+  writeFileSync(outFile, Buffer.from(png, 'base64'));
+  await b.close();
+  process.exit(0);
+}
+
 const [course, folder] = process.argv.slice(2);
 if (!course || !folder) {
   console.error('usage: bun run trace:holes <course id> <folder of hole maps>\n       bun run trace:holes --colours <map file>');
@@ -72,6 +117,7 @@ const optional = (name) => {
 };
 const lengths = optional('lengths.json');
 const config = optional('trace.json');
+const drawn = optional('drawn.json');
 const files = readdirSync(folder);
 /** A length typical of the par, where neither the map nor the course data gives one. */
 const TYPICAL = { 3: 150, 4: 350, 5: 480, 6: 560 };
@@ -249,6 +295,10 @@ function trace(w, h, cls) {
 }
 
 const flat = (r) => r.flat();
+/** [x, y, x, y, …] → [[x, y], …] */
+const pairs = (r) => Array.from({ length: r.length / 2 }, (_, i) => [r[2 * i], r[2 * i + 1]]);
+let byEye = 0;
+let byColour = 0;
 const out = {};
 const report = [];
 const sheet = [];
@@ -269,12 +319,25 @@ for (const nine of entry.nines) {
     }
     const ext = file.split('.').pop().toLowerCase();
     const raw = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(join(folder, file)).toString('base64')}`;
-    const url = await normalise(raw, config.rotateHoles?.[name] ?? config.rotate ?? 0, config.cropHoles?.[name] ?? config.crop);
     const printed = (lengths[nine.id]?.find((e) => e.hole === n)?.tees ?? []).map((t) => t.m ?? 0);
     const listed = (nine.holes?.[n - 1]?.distances ?? []).map((t) => Math.round(t.unit === 'yd' ? t.length * 0.9144 : t.length));
     const length = Math.max(0, ...printed) || Math.max(0, ...listed) || TYPICAL[nine.par[n - 1]];
-    const { w, h, cls } = await classify(url, config.palette ?? null, config.maxDistance ?? 60);
-    const got = trace(w, h, cls);
+    // A hole outlined by eye (drawn.json) is drawn over the map as it is, in that map's own pixels; the others are
+    // cut, turned and sorted by colour.
+    const hand = drawn[name];
+    let url;
+    let got;
+    if (hand) {
+      url = raw;
+      got = { hole: Object.fromEntries(['greens', 'tees', 'fairways', 'bunkers', 'water'].map((k) => [k, (hand[k] ?? []).map(pairs)])) };
+      if (!got.hole.greens.length || !got.hole.tees.length) got = { why: 'drawn.json has no green or tee' };
+      byEye++;
+    } else {
+      url = await normalise(raw, config.rotateHoles?.[name] ?? config.rotate ?? 0, config.cropHoles?.[name] ?? config.crop);
+      const { w, h, cls } = await classify(url, config.palette ?? null, config.maxDistance ?? 60);
+      got = trace(w, h, cls);
+      byColour++;
+    }
     if (!got.hole || !length) {
       out[nine.id].push(null);
       report.push(`${name}: kept the schematic (${got.why ?? 'no length'})`);
@@ -334,7 +397,11 @@ writeFileSync(
   target,
   `${JSON.stringify({
     course,
-    method: "Traced by colour from the course's official hole maps, roughly; scaled to the longest tee's printed length.",
+    method: byEye && !byColour
+      ? "Outlined by eye from the course's official hole maps, roughly; scaled to the longest tee's length."
+      : byEye
+        ? "Traced by colour or outlined by eye from the course's official hole maps, roughly; scaled to the longest tee's length."
+        : "Traced by colour from the course's official hole maps, roughly; scaled to the longest tee's printed length.",
     source,
     checked: new Date().toISOString().slice(0, 10),
     holes: out,
