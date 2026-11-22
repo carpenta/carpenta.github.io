@@ -23,9 +23,40 @@ import { ringArea } from '../src/osm-geo.ts';
 import { blobs, implausible, majority, shapeOf, toMetres } from '../src/trace-geo.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+// bun run trace:holes --colours <map file>: the map's 24 commonest colours (in steps of 16), each with where one pixel of
+// it is, to choose a course's palette from.
+if (process.argv[2] === '--colours') {
+  const file = process.argv[3];
+  const ext = file.split('.').pop().toLowerCase();
+  const b = await chromium.launch();
+  const p = await b.newPage();
+  const top = await p.evaluate(async (url) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const c = new OffscreenCanvas(img.width, img.height);
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, img.width, img.height).data;
+    const bins = new Map();
+    for (let i = 0; i < d.length; i += 4) {
+      const key = ((d[i] >> 4) << 8) | ((d[i + 1] >> 4) << 4) | (d[i + 2] >> 4);
+      const bin = bins.get(key) ?? { n: 0, at: (i / 4) | 0 };
+      bin.n++;
+      bins.set(key, bin);
+    }
+    const hex = (v) => ((v << 4) | 8).toString(16).padStart(2, '0');
+    return [...bins].sort((a, b) => b[1].n - a[1].n).slice(0, 24).map(([k, v]) => `#${hex(k >> 8)}${hex((k >> 4) & 15)}${hex(k & 15)} ${v.n} at ${v.at % img.width},${(v.at / img.width) | 0}`);
+  }, `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(file).toString('base64')}`);
+  console.log(`${file}\n${top.join('\n')}`);
+  await b.close();
+  process.exit(0);
+}
+
 const [course, folder] = process.argv.slice(2);
 if (!course || !folder) {
-  console.error('usage: bun run trace:holes <course id> <folder of hole maps>');
+  console.error('usage: bun run trace:holes <course id> <folder of hole maps>\n       bun run trace:holes --colours <map file>');
   process.exit(1);
 }
 const courses = JSON.parse(readFileSync(join(root, 'src/data/courses.json'), 'utf8')).courses;
