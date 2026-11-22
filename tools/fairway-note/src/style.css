@@ -1000,11 +1000,11 @@ body.big .picker-home { font-size: var(--t-m); }
   flex: 0 1 auto; min-height: 0; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; padding: 16px var(--m) max(14px, env(safe-area-inset-bottom));
   background: var(--white); border-radius: var(--r-card) var(--r-card) 0 0; box-shadow: var(--sh-sheet);
 }
-/* 6px of room inside the scroller, given back by the margin, so focus rings and touch areas at its edges aren't cut.
+/* 8px of room inside the scroller (6px before v41), given back by the margin, so focus rings, touch areas and the chosen glow at its edges aren't cut.
    The room fades out top and bottom: empty at rest, it softens only what scrolls past the edge. */
 .pk-scroll {
-  flex: 0 1 auto; min-height: 0; display: grid; gap: 10px; margin: -6px; padding: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
-  mask-image: linear-gradient(transparent, black 6px, black calc(100% - 6px), transparent);
+  flex: 0 1 auto; min-height: 0; display: grid; gap: 10px; margin: -8px; padding: 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  mask-image: linear-gradient(transparent, black 8px, black calc(100% - 8px), transparent);
 }
 .pk-scroll::-webkit-scrollbar { display: none; }
 /* The chosen course's name alone (v23), whole on up to two balanced lines: its nines are the rows right under it. */
@@ -2045,3 +2045,18 @@ body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria
 }
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true'], .chip[aria-pressed='true']):active { background: rgb(255 255 255 / .18); }
 body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
+/* v41 (the user, again: the picker had not taken the design). The sheet floats as the 기록 screen's card does, inset
+   from the sides and the bottom with every corner round. The rows that scroll (regions, the list, the nines) keep 8px
+   of room inside, given back by their margins, so a chosen control's glow fades out instead of being cut square at its
+   edge; the chosen course is a rounded tile (the tile radius) inside the list rather than a band across it. */
+.picker-foot { margin: 12px var(--m) max(12px, env(safe-area-inset-bottom)); padding: 16px 24px; border-radius: var(--r-card); }
+/* The rows' text now starts 24px in (8px of room + 16px); the search icon and the sheet's content start there too. */
+.pk-search { padding-inline: 24px 16px; }
+.picker-areas { margin-top: 8px; padding-block: 8px; }
+.picker-list { margin-top: 10px; padding: 8px; scroll-padding-block: 8px; }
+.picker-list .course { border-radius: var(--r-tile); }
+/* No line runs into the chosen tile's round corners: the lines above and below it go. */
+.picker-list > li:has(.course[aria-pressed='true']), .picker-list > li:has(+ li .course[aria-pressed='true']) { border-bottom-color: transparent; }
+.nine-pick { margin: -8px; padding: 8px; }
+/* Under 600px tall the floating sheet gives back the 16px its margins cost, and its rows sit 6px apart (10px elsewhere), so the nines stay whole though its narrower note can wrap to two lines. */
+@media (max-height: 599px) { .picker-areas { margin-top: 2px; } .picker-list { margin-top: 0; } .picker-foot { margin-block: 6px max(8px, env(safe-area-inset-bottom)); padding-block: 12px; gap: 6px; } .pk-scroll { gap: 6px; } }
