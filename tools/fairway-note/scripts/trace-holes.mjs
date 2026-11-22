@@ -3,16 +3,20 @@
 //
 //   bun run trace:holes <course id> <folder of hole maps>
 //
-// The folder (kept out of git) holds <nine>-<hole>.png, one flat plan per hole with the tee at the bottom and the green
-// at the top, and lengths.json ({ <nine>: [{ hole, tees: [{ colour, m, yd }] }] }) with each hole's tee lengths as the
-// map prints them. The pixels are read in Playwright's Chromium; each is sorted by colour (src/trace-geo.ts does the
+// The folder (kept out of git) holds <nine>-<hole>.(png|jpg|jpeg|webp), one plan per hole; optionally lengths.json
+// ({ <nine>: [{ hole, tees: [{ colour, m, yd }] }] }) with each hole's tee lengths as the map prints them (else the
+// longest tee in courses.json, else a length typical of the par); and optionally trace.json, how this course's maps are
+// drawn: { rotate: 0|90|180|270, rotateHoles: { "<nine>-<n>": deg }, palette: { fairway|green|rough|dark|bunker|water|
+// background: ["#rrggbb", …] }, maxDistance: 60 }. Each map is turned clockwise by rotate so its tee is at the bottom and
+// its green at the top, and, when its long side is outside 450–700px, scaled to 580px (the rules below were tuned at that size). Without a
+// palette, the 핀크스 rules sort the pixels; with one, each pixel takes the class of its nearest sample colour. The pixels are read in Playwright's Chromium; each is sorted by colour (src/trace-geo.ts does the
 // geometry): light green patches are the fairways, the putting green (the topmost small one) and the tees (the small ones
 // low down); compact white patches inside the course are bunkers; blue ones water. Each hole is scaled to its longest
 // tee's length along the line of play. The output has, per nine id, nine entries in src/data/osm/'s hole shape without
 // the `osm` ids (null where a hole keeps the schematic). The folder gets overlay/<nine>-<hole>.png, the trace over the
 // map, and sheet.png, all of them, to check by eye.
 import { chromium } from '@playwright/test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ringArea } from '../src/osm-geo.ts';
@@ -27,7 +31,18 @@ if (!course || !folder) {
 const courses = JSON.parse(readFileSync(join(root, 'src/data/courses.json'), 'utf8')).courses;
 const entry = courses.find((c) => c.id === course);
 if (!entry) throw new Error(`no course ${course} in courses.json`);
-const lengths = JSON.parse(readFileSync(join(folder, 'lengths.json'), 'utf8'));
+const optional = (name) => {
+  try {
+    return JSON.parse(readFileSync(join(folder, name), 'utf8'));
+  } catch {
+    return {};
+  }
+};
+const lengths = optional('lengths.json');
+const config = optional('trace.json');
+const files = readdirSync(folder);
+/** A length typical of the par, where neither the map nor the course data gives one. */
+const TYPICAL = { 3: 150, 4: 350, 5: 480, 6: 560 };
 mkdirSync(join(folder, 'overlay'), { recursive: true });
 
 /** Classes the browser sorts each pixel into. */
@@ -36,9 +51,30 @@ const K = { other: 0, white: 1, fairway: 2, light: 3, rough: 4, dark: 5, water: 
 const browser = await chromium.launch();
 const page = await browser.newPage();
 
+/** The map turned clockwise by `deg` and scaled to a long side of 580px, as a PNG data URL. */
+const normalise = (url, deg) =>
+  page.evaluate(async ({ url, deg, PNG_OUT }) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const long = Math.max(img.width, img.height);
+    // Maps already near the size the rules were tuned at are left as they are (resampling moves a few edge pixels).
+    const k = long < 450 || long > 700 ? 580 / long : 1;
+    const w = Math.round(img.width * k);
+    const h = Math.round(img.height * k);
+    const side = deg % 180 !== 0;
+    const c = new OffscreenCanvas(side ? h : w, side ? w : h);
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.translate(c.width / 2, c.height / 2);
+    g.rotate((deg * Math.PI) / 180);
+    g.drawImage(img, -w / 2, -h / 2, w, h);
+    return `data:image/png;base64,${await (0, eval)(PNG_OUT)(c)}`;
+  }, { url, deg, PNG_OUT });
+
 /** The map's pixels, sorted into K, with the white page around the course as background. */
-const classify = (url) =>
-  page.evaluate(async ({ url, K }) => {
+const classify = (url, palette, maxDistance) =>
+  page.evaluate(async ({ url, K, palette, maxDistance }) => {
     const img = new Image();
     img.src = url;
     await img.decode();
@@ -49,7 +85,23 @@ const classify = (url) =>
     g.drawImage(img, 0, 0);
     const d = g.getImageData(0, 0, W, H).data;
     const cls = new Uint8Array(W * H);
+    // A course's own sample colours: each pixel the class of the nearest, or none past maxDistance.
+    const CLASS = { fairway: K.fairway, green: K.light, rough: K.rough, dark: K.dark, bunker: K.white, water: K.water, background: K.background };
+    const samples = palette ? Object.entries(palette).flatMap(([name, hexes]) => hexes.map((hex) => [CLASS[name], parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)])) : null;
     for (let i = 0; i < W * H; i++) {
+      if (samples) {
+        let best = K.other;
+        let near = maxDistance * maxDistance;
+        for (const [k, r, gg, b] of samples) {
+          const dd = (d[i * 4] - r) ** 2 + (d[i * 4 + 1] - gg) ** 2 + (d[i * 4 + 2] - b) ** 2;
+          if (dd < near) {
+            near = dd;
+            best = k;
+          }
+        }
+        cls[i] = best;
+        continue;
+      }
       const r = d[i * 4];
       const gg = d[i * 4 + 1];
       const b = d[i * 4 + 2];
@@ -77,7 +129,7 @@ const classify = (url) =>
       if (i < (H - 1) * W) stack.push(i + W);
     }
     return { w: W, h: H, cls: Array.from(cls) };
-  }, { url, K });
+  }, { url, K, palette, maxDistance });
 
 /** Base64 of a canvas's PNG, inside the page. */
 const PNG_OUT = `async (c) => { const b = new Uint8Array(await (await c.convertToBlob()).arrayBuffer()); let s = ''; for (const x of b) s += String.fromCharCode(x); return btoa(s); }`;
@@ -162,18 +214,19 @@ for (const nine of entry.nines) {
   out[nine.id] = [];
   for (let n = 1; n <= nine.par.length; n++) {
     const name = `${nine.id}-${n}`;
-    let png;
-    try {
-      png = readFileSync(join(folder, `${name}.png`));
-    } catch {
+    const file = files.find((f) => new RegExp(`^${name}\\.(png|jpe?g|webp)$`, 'i').test(f));
+    if (!file) {
       out[nine.id].push(null);
       report.push(`${name}: no map`);
       continue;
     }
-    const url = `data:image/png;base64,${png.toString('base64')}`;
-    const tees = lengths[nine.id]?.find((e) => e.hole === n)?.tees ?? [];
-    const length = Math.max(0, ...tees.map((t) => t.m ?? 0));
-    const { w, h, cls } = await classify(url);
+    const ext = file.split('.').pop().toLowerCase();
+    const raw = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(join(folder, file)).toString('base64')}`;
+    const url = await normalise(raw, config.rotateHoles?.[name] ?? config.rotate ?? 0);
+    const printed = (lengths[nine.id]?.find((e) => e.hole === n)?.tees ?? []).map((t) => t.m ?? 0);
+    const listed = (nine.holes?.[n - 1]?.distances ?? []).map((t) => Math.round(t.unit === 'yd' ? t.length * 0.9144 : t.length));
+    const length = Math.max(0, ...printed) || Math.max(0, ...listed) || TYPICAL[nine.par[n - 1]];
+    const { w, h, cls } = await classify(url, config.palette ?? null, config.maxDistance ?? 60);
     const got = trace(w, h, cls);
     if (!got.hole || !length) {
       out[nine.id].push(null);

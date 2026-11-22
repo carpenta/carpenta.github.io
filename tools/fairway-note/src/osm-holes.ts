@@ -10,13 +10,22 @@ import type { RoundCourse } from './round';
  */
 type ByNine = Record<string, (OsmHole | null)[]>;
 type Load = () => Promise<{ default: { holes: unknown } }>;
+/**
+ * v40: holes traced roughly from courses' official hole maps (src/data/traced/<course id>.json, scripts/trace-holes.mjs),
+ * in the same shape; drawn the same way, without OpenStreetMap's credit. Every file there is its own chunk, found by name.
+ */
+const TRACED_FILES = import.meta.glob<{ holes: unknown }>('./data/traced/*.json');
+const TRACED = new Set<string>();
 const SOURCES: Record<string, Load> = {
   everis: () => import('./data/osm/everis.json'),
-  // v40: holes traced roughly from the course's official hole maps (src/data/traced/, scripts/trace-holes.mjs), in the
-  // same shape; drawn the same way, without OpenStreetMap's credit.
-  pinx: () => import('./data/traced/pinx.json'),
 };
-const TRACED = new Set(['pinx']);
+for (const [path, load] of Object.entries(TRACED_FILES)) {
+  const id = path.slice(path.lastIndexOf('/') + 1, -'.json'.length);
+  // OpenStreetMap's outlines first where a course has both.
+  if (SOURCES[id]) continue;
+  SOURCES[id] = load as unknown as Load;
+  TRACED.add(id);
+}
 
 /** Where a course's outlines come from: OpenStreetMap, traced from its hole maps, or none (the schematic). */
 export function holeArt(courseId: string | null): 'osm' | 'traced' | null {
