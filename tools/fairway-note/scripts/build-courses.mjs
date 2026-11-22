@@ -28,7 +28,7 @@ if (!dir) {
 /** Region files to read, in this order, when present. Other JSON files in the folder (OSM extracts) are ignored. */
 const FILES = ['jeju-si', 'seogwipo-si', 'kr-gyeonggi', 'kr-gangwon', 'kr-chungcheong', 'kr-jeolla', 'kr-gyeongsang', 'kr-gyeongsang-official'];
 /** Hole-note files (one entry per nine), read when present. A later entry replaces an earlier one for the same nine. */
-const HOLE_FILES = ['hole-details', 'hole-details-2'];
+const HOLE_FILES = ['hole-details', 'hole-details-2', 'hole-details-3'];
 /**
  * Region files whose nines also carry hole fields (distances, holeGuideUrls, si) read only from the course's own
  * pages. The other region files have such fields from the par research, whose sources were mixed: never used.

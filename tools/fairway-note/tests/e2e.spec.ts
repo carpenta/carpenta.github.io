@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
@@ -15,16 +15,25 @@ async function open(page: Page) {
   await expect(page.locator('#picker')).toBeHidden();
 }
 
+/** The courses with holes traced from their hole maps (v40): each one's outlines are a chunk named after it. */
+const TRACED = readdirSync(fileURLToPath(new URL('../src/data/traced/', import.meta.url))).map((f) => f.replace(/\.json$/, ''));
+
 /**
  * Starts a round on another course from the picker's search. Since v27 Everis is drawn from OpenStreetMap, so the
- * schematic's own tests run on courses it does not draw (에코랜드, 라온).
+ * schematic's own tests run on courses it does not draw (에코랜드, 라온). v40 traces some of those from their hole maps:
+ * unless `traced`, their outlines' chunks are answered with no outlines, so the course keeps the schematic (a refused
+ * request would log an error, which the page check below fails on). A traced course's drawing waits for its chunk, the
+ * drawing behind the picker showing until then: this returns once the new course is drawn.
  */
-async function openCourse(page: Page, query: string, name: string) {
+async function openCourse(page: Page, query: string, name: string, { traced = false } = {}) {
+  if (!traced) await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.fulfill({ contentType: 'text/javascript', body: 'export default { holes: {} };' }));
   await page.goto('/');
   await page.getByRole('searchbox', { name: '골프장 검색' }).fill(query);
   await page.locator('#picker-list button', { hasText: name }).click();
+  const before = await page.locator('#course').getAttribute('data-key');
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#course')).not.toHaveAttribute('data-key', before ?? '');
 }
 
 const PENALTY = ['ob', 'hazard', 'bunker'];
@@ -395,13 +404,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v39');
+  await expect(page.locator('#menu-version')).toHaveText('v40');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v39');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v40');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -933,6 +942,42 @@ test('keeps the schematic, with no OpenStreetMap credit, on a course it does not
   await expect(page.locator('#course')).toHaveAttribute('data-art', 'schematic');
   await expect(page.locator('#osm-credit')).toBeHidden();
   expect(await sideScroll(page)).toBe(0);
+});
+
+test('draws a 핀크스 hole traced from its official hole map, with no OpenStreetMap credit, and the schematic where none was traced (v40)', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') requests.push(request.url());
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCourse(page, '핀크스', '핀크스 골프클럽', { traced: true });
+  const course = page.locator('#course');
+  await expect(course).toHaveAttribute('data-art', 'traced');
+  await expect(course.locator(':scope > .fairway').first()).toBeAttached();
+  await expect(course.locator(':scope > .green')).toHaveCount(1);
+  await expect(course).toHaveClass(/painted/);
+  // Not OpenStreetMap's: no credit beside it; 홀 안내 says it follows the course's own hole map.
+  await expect(page.locator('#osm-credit')).toBeHidden();
+  await page.locator('#info-btn').click();
+  await expect(page.locator('#hi-traced')).toBeVisible();
+  await expect(page.locator('#hi-traced')).toHaveText('그림은 골프장 공식 코스 안내도를 보고 대략 따라 그린 모양이에요.');
+  await expect(page.locator('#hi-osm')).toBeHidden();
+  await expect(page.locator('#hi-art')).toBeHidden();
+  await page.keyboard.press('Escape');
+  // 이스트 2 was not traced (its green could not be told from the map): the schematic, and 홀 안내 says so.
+  await page.getByRole('button', { name: '다음 홀로 이동' }).click();
+  await expect(page.locator('#hole-n')).toHaveText('2');
+  await expect(course).toHaveAttribute('data-art', 'schematic');
+  await page.locator('#info-btn').click();
+  await expect(page.locator('#hi-art')).toBeVisible();
+  await expect(page.locator('#hi-traced')).toBeHidden();
+  await page.keyboard.press('Escape');
+  // Back on 1, traced again; the outlines came with the app, from its own origin.
+  await page.getByRole('button', { name: '이전 홀', exact: true }).click();
+  await expect(course).toHaveAttribute('data-art', 'traced');
+  expect(await sideScroll(page)).toBe(0);
+  expect(requests).toEqual([]);
 });
 
 test('keeps the schematic, with no credit, on the Everis holes OpenStreetMap does not match and on a screen with no open band (v27)', async ({ page }) => {
@@ -6760,7 +6805,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v39');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v40');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -7092,7 +7137,7 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
 // (white 10%) with white letters, a 1.5px lime edge inside and a soft lime glow; a chosen tab (the card's, the scorecard's
 // switch, the island's) has no fill, white letters and a glowing lime underline or dot. The course picker is still on
 // paper: its chosen ones white with ink letters and a turf edge, and on its dark rough the region chip inverts (v30).
-test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the paper picker white with a turf edge (v39)', async ({ page }) => {
+test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the picker the same (v39)', async ({ page }) => {
   const chosen: string[] = [];
   const look = async (selector: string) => {
     const el = page.locator(selector).first();
@@ -7120,19 +7165,13 @@ test('marks whatever is chosen one way: light glass with a lime edge and glow, t
   };
   await page.goto('/');
   await expect(page.locator('#picker')).toBeVisible();
-  const [turf, white, ink, paper] = [await token(page, '--turf'), await token(page, '--on-dark'), await token(page, '--ink'), await token(page, '--white')];
-  // The region chips sit on the dark rough: the chosen one is the brightest there, its neighbours quiet.
-  await expectLook(".picker .chip[aria-pressed='true']", { background: white, color: turf, ring: 'none' });
-  expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(white);
-  for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
-    // The turf edge an inset outline (v30's rule for rings), no shadow.
-    await expectLook(selector, { background: paper, color: ink, ring: 'none' });
-    // (1.5px as written; a browser snaps an outline to whole device pixels, so 1px at 1x.)
-    const edge = await page.locator(selector).first().evaluate((el) => ({ colour: getComputedStyle(el).outlineColor, width: parseFloat(getComputedStyle(el).outlineWidth), offset: parseFloat(getComputedStyle(el).outlineOffset) }));
-    expect(edge.colour, selector).toBe(turf);
-    expect(edge.width, selector).toBeGreaterThanOrEqual(1);
-    expect(edge.offset, `${selector}: inside its box`).toBeLessThanOrEqual(-edge.width);
+  // The picker is on the glass too now (the user: 새 라운드's screen had not taken the design): its chosen region,
+  // length, nines and course the same light glass with a lime edge and glow, and no outline drawn besides.
+  for (const selector of [".picker .chip[aria-pressed='true']", ".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
+    await control(selector);
+    expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).outlineStyle), selector).toBe('none');
   }
+  expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await tabMark(".sheet .mode[aria-pressed='true']", '::before');
   await tabMark('#tab-entry', '::after');
@@ -8325,6 +8364,14 @@ test('shows the green in place, no window up close: in the band, clear of the cr
     // The resize redraws the hole; under load that can land after the lines above (as v32 found).
     await expect.poll(async () => (await shapeBox(course.locator(':scope > .green'))).width, `${width}×${height}: redrawn`).toBeGreaterThan(0);
     await atRest(page);
+    // On a slow runner the green was read mid-redraw (CI: y 0 at 375×667): wait until two reads 100ms apart agree.
+    let last = '';
+    await expect.poll(async () => {
+      const box = JSON.stringify(await shapeBox(course.locator(':scope > .green')));
+      const same = box === last;
+      last = box;
+      return same;
+    }, { message: `${width}×${height}: green at rest`, intervals: [100] }).toBe(true);
     const band = await visibleBand(page);
     const green = await shapeBox(course.locator(':scope > .green'));
     expect(green.y, `${width}×${height}: green under the chips`).toBeGreaterThanOrEqual(band.y0 - 0.5);
