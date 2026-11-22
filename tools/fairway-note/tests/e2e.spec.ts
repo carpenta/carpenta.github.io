@@ -8319,6 +8319,14 @@ test('shows the green in place, no window up close: in the band, clear of the cr
     // The resize redraws the hole; under load that can land after the lines above (as v32 found).
     await expect.poll(async () => (await shapeBox(course.locator(':scope > .green'))).width, `${width}×${height}: redrawn`).toBeGreaterThan(0);
     await atRest(page);
+    // On a slow runner the green was read mid-redraw (CI: y 0 at 375×667): wait until two reads 100ms apart agree.
+    let last = '';
+    await expect.poll(async () => {
+      const box = JSON.stringify(await shapeBox(course.locator(':scope > .green')));
+      const same = box === last;
+      last = box;
+      return same;
+    }, { message: `${width}×${height}: green at rest`, intervals: [100] }).toBe(true);
     const band = await visibleBand(page);
     const green = await shapeBox(course.locator(':scope > .green'));
     expect(green.y, `${width}×${height}: green under the chips`).toBeGreaterThanOrEqual(band.y0 - 0.5);
