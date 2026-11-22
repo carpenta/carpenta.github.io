@@ -3,7 +3,7 @@
 //
 //   bun run trace:holes <course id> <folder of hole maps>
 //
-// The folder (kept out of git) holds <nine>-<hole>.(png|jpg|jpeg|webp), one plan per hole; optionally lengths.json
+// The folder (kept out of git) holds <nine>-<hole>.(png|jpg|jpeg|webp|gif), one plan per hole; optionally lengths.json
 // ({ <nine>: [{ hole, tees: [{ colour, m, yd }] }] }) with each hole's tee lengths as the map prints them (else the
 // longest tee in courses.json, else a length typical of the par); and optionally trace.json, how this course's maps are
 // drawn: { crop: [x0, y0, x1, y1] (fractions, to leave out insets and legends), cropHoles: { "<nine>-<n>": [...] },
@@ -261,7 +261,7 @@ for (const nine of entry.nines) {
       report.push(`${name}: kept the schematic (skipped in trace.json)`);
       continue;
     }
-    const file = files.find((f) => new RegExp(`^${name}\\.(png|jpe?g|webp)$`, 'i').test(f));
+    const file = files.find((f) => new RegExp(`^${name}\\.(png|jpe?g|webp|gif)$`, 'i').test(f));
     if (!file) {
       out[nine.id].push(null);
       report.push(`${name}: no map`);
