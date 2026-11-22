@@ -1,0 +1,244 @@
+// Traces a course's holes from its official hole maps into src/data/traced/<course>.json (the 핀크스 pilot). Run by hand,
+// never in the build or CI:
+//
+//   bun run trace:holes <course id> <folder of hole maps>
+//
+// The folder (kept out of git) holds <nine>-<hole>.png, one flat plan per hole with the tee at the bottom and the green
+// at the top, and lengths.json ({ <nine>: [{ hole, tees: [{ colour, m, yd }] }] }) with each hole's tee lengths as the
+// map prints them. The pixels are read in Playwright's Chromium; each is sorted by colour (src/trace-geo.ts does the
+// geometry): light green patches are the fairways, the putting green (the topmost small one) and the tees (the small ones
+// low down); compact white patches inside the course are bunkers; blue ones water. Each hole is scaled to its longest
+// tee's length along the line of play. The output has, per nine id, nine entries in src/data/osm/'s hole shape without
+// the `osm` ids (null where a hole keeps the schematic). The folder gets overlay/<nine>-<hole>.png, the trace over the
+// map, and sheet.png, all of them, to check by eye.
+import { chromium } from '@playwright/test';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ringArea } from '../src/osm-geo.ts';
+import { blobs, implausible, majority, shapeOf, toMetres } from '../src/trace-geo.ts';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const [course, folder] = process.argv.slice(2);
+if (!course || !folder) {
+  console.error('usage: bun run trace:holes <course id> <folder of hole maps>');
+  process.exit(1);
+}
+const courses = JSON.parse(readFileSync(join(root, 'src/data/courses.json'), 'utf8')).courses;
+const entry = courses.find((c) => c.id === course);
+if (!entry) throw new Error(`no course ${course} in courses.json`);
+const lengths = JSON.parse(readFileSync(join(folder, 'lengths.json'), 'utf8'));
+mkdirSync(join(folder, 'overlay'), { recursive: true });
+
+/** Classes the browser sorts each pixel into. */
+const K = { other: 0, white: 1, fairway: 2, light: 3, rough: 4, dark: 5, water: 6, background: 7 };
+
+const browser = await chromium.launch();
+const page = await browser.newPage();
+
+/** The map's pixels, sorted into K, with the white page around the course as background. */
+const classify = (url) =>
+  page.evaluate(async ({ url, K }) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const W = img.width;
+    const H = img.height;
+    const c = new OffscreenCanvas(W, H);
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, W, H).data;
+    const cls = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      const r = d[i * 4];
+      const gg = d[i * 4 + 1];
+      const b = d[i * 4 + 2];
+      const mx = Math.max(r, gg, b);
+      const s = mx ? (mx - Math.min(r, gg, b)) / mx : 0;
+      if (mx > 215 && s < 0.12) cls[i] = K.white;
+      else if (b > gg + 10 && b > r + 20) cls[i] = K.water;
+      else if (gg >= r && gg >= b && gg > 200 && r > 140) cls[i] = K.light;
+      else if (gg >= r && gg >= b && gg > 165) cls[i] = K.fairway;
+      else if (gg >= r && gg >= b && gg > 85 && s > 0.45) cls[i] = K.rough;
+      else if (mx < 140) cls[i] = K.dark;
+    }
+    // The page: white reached from the image's edge.
+    const stack = [];
+    for (let x = 0; x < W; x++) stack.push(x, (H - 1) * W + x);
+    for (let y = 0; y < H; y++) stack.push(y * W, y * W + W - 1);
+    while (stack.length) {
+      const i = stack.pop();
+      if (cls[i] !== K.white) continue;
+      cls[i] = K.background;
+      const x = i % W;
+      if (x > 0) stack.push(i - 1);
+      if (x < W - 1) stack.push(i + 1);
+      if (i >= W) stack.push(i - W);
+      if (i < (H - 1) * W) stack.push(i + W);
+    }
+    return { w: W, h: H, cls: Array.from(cls) };
+  }, { url, K });
+
+/** Base64 of a canvas's PNG, inside the page. */
+const PNG_OUT = `async (c) => { const b = new Uint8Array(await (await c.convertToBlob()).arrayBuffer()); let s = ''; for (const x of b) s += String.fromCharCode(x); return btoa(s); }`;
+
+/** The trace drawn over the map, as a PNG (base64). */
+const overlay = (url, hole, label) =>
+  page.evaluate(async ({ url, hole, label, PNG_OUT }) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const c = new OffscreenCanvas(img.width, img.height);
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    g.fillStyle = 'rgb(255 255 255 / .45)';
+    g.fillRect(0, 0, img.width, img.height);
+    const ring = (r, stroke, fill) => {
+      g.beginPath();
+      r.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+      g.closePath();
+      g.fillStyle = fill;
+      g.fill();
+      g.strokeStyle = stroke;
+      g.lineWidth = 2;
+      g.stroke();
+    };
+    hole.fairways.forEach((r) => ring(r, '#0a7d2c', 'rgb(40 200 90 / .45)'));
+    hole.water.forEach((r) => ring(r, '#0047ff', 'rgb(0 90 255 / .5)'));
+    hole.bunkers.forEach((r) => ring(r, '#c27c00', 'rgb(255 190 60 / .7)'));
+    hole.greens.forEach((r) => ring(r, '#d4007a', 'rgb(255 90 180 / .6)'));
+    hole.tees.forEach((r, i) => ring(r, i ? '#444' : '#000', i ? 'rgb(120 120 120 / .6)' : 'rgb(0 0 0 / .6)'));
+    if (hole.line.length) {
+      g.beginPath();
+      hole.line.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+      g.strokeStyle = '#e00';
+      g.lineWidth = 2.5;
+      g.stroke();
+    }
+    g.fillStyle = '#000';
+    g.font = 'bold 22px sans-serif';
+    g.fillText(label, 8, 26);
+    return (0, eval)(PNG_OUT)(c);
+  }, { url, hole, label, PNG_OUT });
+
+const mask = (w, h, cls, keep) => {
+  const on = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) on[i] = keep.includes(cls[i]) ? 1 : 0;
+  return { w, h, on };
+};
+
+/** The parts of one hole map, in pixels, or why it could not be traced. */
+function trace(w, h, cls) {
+  const light = blobs(majority(mask(w, h, cls, [K.fairway, K.light]), 2), 25, 1.5);
+  // The putting green: a round light patch of a green's size in the top 40%, the topmost of them (specks such as the
+  // flag's number are too small, the fairway too long).
+  const isGreen = (b) => b.area >= 150 && b.area <= 3000 && shapeOf(b).outline > 0.5 && shapeOf(b).stretch < 2.5 && b.centre[1] < h * 0.4;
+  let greens = light.filter(isGreen);
+  // Where the green runs into the fairway's lighter stripes, the green alone: the lightest pixels only.
+  if (!greens.length) greens = blobs(majority(mask(w, h, cls, [K.light]), 2), 25, 1.5).filter(isGreen);
+  if (!greens.length) return { why: 'no green found' };
+  const green = greens.reduce((top, b) => (b.centre[1] < top.centre[1] ? b : top));
+  // Tees: small compact light patches in the lowest 40%: the lowest is the back tee, the others within 160px of it.
+  const low = light.filter((b) => b !== green && b.area <= 800 && shapeOf(b).stretch < 3.5 && b.centre[1] > h * 0.6).sort((a, b) => b.centre[1] - a.centre[1]);
+  if (!low.length) return { why: 'no tee found low on the map' };
+  const tees = low.filter((b) => Math.hypot(b.centre[0] - low[0].centre[0], b.centre[1] - low[0].centre[1]) <= 160);
+  const fairways = light.filter((b) => b !== green && !tees.includes(b) && b.area >= 600);
+  const white = blobs(majority(mask(w, h, cls, [K.white]), 1), 35, 1);
+  // Bunkers: compact white patches; label boxes are rectangles by their edge, cart paths long or thin.
+  const bunkers = white.filter((b) => {
+    const s = shapeOf(b);
+    return b.area <= 4000 && s.outline < 0.8 && s.fill > 0.3 && s.stretch < 6;
+  });
+  // Water: blue patches bigger than the legend's blue tee dot.
+  const water = blobs(majority(mask(w, h, cls, [K.water]), 2), 150, 1.5);
+  return { hole: { tees: tees.map((b) => b.ring), greens: [green.ring], fairways: fairways.map((b) => b.ring), bunkers: bunkers.map((b) => b.ring), water: water.map((b) => b.ring) } };
+}
+
+const flat = (r) => r.flat();
+const out = {};
+const report = [];
+const sheet = [];
+for (const nine of entry.nines) {
+  out[nine.id] = [];
+  for (let n = 1; n <= nine.par.length; n++) {
+    const name = `${nine.id}-${n}`;
+    let png;
+    try {
+      png = readFileSync(join(folder, `${name}.png`));
+    } catch {
+      out[nine.id].push(null);
+      report.push(`${name}: no map`);
+      continue;
+    }
+    const url = `data:image/png;base64,${png.toString('base64')}`;
+    const tees = lengths[nine.id]?.find((e) => e.hole === n)?.tees ?? [];
+    const length = Math.max(0, ...tees.map((t) => t.m ?? 0));
+    const { w, h, cls } = await classify(url);
+    const got = trace(w, h, cls);
+    if (!got.hole || !length) {
+      out[nine.id].push(null);
+      report.push(`${name}: kept the schematic (${got.why ?? 'no length'})`);
+      continue;
+    }
+    const m = toMetres(got.hole, length);
+    // Scraps of fairway (a stripe cut off by a label or a path) go; the hole stays.
+    m.fairways = m.fairways.filter((f) => Math.abs(ringArea(f)) >= 300);
+    const why = implausible(m);
+    // The line back in pixels for the overlay: metres over scale, north up again, from the green's middle.
+    const g0 = got.hole.greens[0];
+    const gc = [g0.reduce((s, p) => s + p[0], 0) / g0.length, g0.reduce((s, p) => s + p[1], 0) / g0.length];
+    const linePx = m.line.map(([x, y]) => [gc[0] + x / m.scale, gc[1] - y / m.scale]);
+    const shot = await overlay(url, { ...got.hole, line: linePx }, `${name} ${length}m${why.length ? ' !' : ''}`);
+    writeFileSync(join(folder, 'overlay', `${name}.png`), Buffer.from(shot, 'base64'));
+    sheet.push(`overlay/${name}.png`);
+    if (why.length) {
+      out[nine.id].push(null);
+      report.push(`${name}: kept the schematic (${why.join(', ')})`);
+      continue;
+    }
+    out[nine.id].push({
+      line: flat(m.line),
+      greens: m.greens.map(flat),
+      tees: m.tees.map(flat),
+      fairways: m.fairways.map(flat),
+      bunkers: m.bunkers.map(flat),
+      water: m.water.map((w) => w.map(flat)),
+    });
+    report.push(`${name}: ${length} m, ${m.fairways.length} fairway(s), ${m.bunkers.length} bunker(s), ${m.water.length} water, ${(1 / m.scale).toFixed(2)} px/m`);
+  }
+}
+
+// All overlays side by side, nine to a row.
+const tiles = sheet.map((f) => `data:image/png;base64,${readFileSync(join(folder, f)).toString('base64')}`);
+const sheetPng = await page.evaluate(async ({ tiles, PNG_OUT }) => {
+  const imgs = await Promise.all(tiles.map(async (u) => { const i = new Image(); i.src = u; await i.decode(); return i; }));
+  const cw = 200;
+  const ch = 360;
+  const c = new OffscreenCanvas(cw * 9, ch * Math.ceil(imgs.length / 9));
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  imgs.forEach((img, k) => {
+    const s = Math.min(cw / img.width, ch / img.height);
+    g.drawImage(img, (k % 9) * cw, Math.floor(k / 9) * ch, img.width * s, img.height * s);
+  });
+  return (0, eval)(PNG_OUT)(c);
+}, { tiles, PNG_OUT });
+writeFileSync(join(folder, 'sheet.png'), Buffer.from(sheetPng, 'base64'));
+await browser.close();
+
+const target = join(root, 'src/data/traced', `${course}.json`);
+mkdirSync(dirname(target), { recursive: true });
+const source = entry.nines.map((nine) => nine.holes?.[0]?.guideUrl).filter(Boolean);
+writeFileSync(
+  target,
+  `${JSON.stringify({
+    course,
+    method: "Traced by colour from the course's official hole maps, roughly; scaled to the longest tee's printed length.",
+    source,
+    checked: new Date().toISOString().slice(0, 10),
+    holes: out,
+  })}\n`,
+);
+console.log(report.join('\n'));
+console.log(`wrote ${target} and ${join(folder, 'sheet.png')}`);
