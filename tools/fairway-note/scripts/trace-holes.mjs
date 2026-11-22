@@ -57,44 +57,48 @@ if (process.argv[2] === '--colours') {
   process.exit(0);
 }
 
-// bun run trace:holes --grid <map file> <out.png>: the map with a labelled 50px grid over it (every 10px faintly), to read
-// the pixel coordinates for drawn.json off it by eye.
+// bun run trace:holes --grid <map file> <out.png> [zoom]: the map, enlarged zoom times (default 1, so small maps can be
+// read), with a labelled grid over it every 50px of the map (every 10px faintly); the labels are the map file's own pixels,
+// the ones drawn.json takes, whatever the zoom.
 if (process.argv[2] === '--grid') {
-  const [file, outFile] = process.argv.slice(3);
+  const [file, outFile, zoomArg] = process.argv.slice(3);
+  const zoom = Math.max(1, Number(zoomArg) || 1);
   const ext = file.split('.').pop().toLowerCase();
   const b = await chromium.launch();
   const p = await b.newPage();
-  const png = await p.evaluate(async (url) => {
+  const png = await p.evaluate(async ([url, z]) => {
     const img = new Image();
     img.src = url;
     await img.decode();
-    const c = new OffscreenCanvas(img.width, img.height);
+    const c = new OffscreenCanvas(Math.round(img.width * z), Math.round(img.height * z));
     const g = c.getContext('2d');
     g.fillStyle = '#fff';
     g.fillRect(0, 0, c.width, c.height);
-    g.drawImage(img, 0, 0);
+    g.imageSmoothingEnabled = z < 2;
+    g.drawImage(img, 0, 0, c.width, c.height);
     for (let v = 0; v <= Math.max(img.width, img.height); v += 10) {
       const major = v % 50 === 0;
+      const at = Math.round(v * z) + 0.5;
       g.strokeStyle = major ? 'rgb(255 0 0 / .55)' : 'rgb(255 0 0 / .15)';
       g.lineWidth = major ? 1 : 0.5;
       g.beginPath();
-      g.moveTo(v + 0.5, 0);
-      g.lineTo(v + 0.5, img.height);
-      g.moveTo(0, v + 0.5);
-      g.lineTo(img.width, v + 0.5);
+      g.moveTo(at, 0);
+      g.lineTo(at, c.height);
+      g.moveTo(0, at);
+      g.lineTo(c.width, at);
       g.stroke();
       if (major && v) {
         g.font = 'bold 10px sans-serif';
         g.fillStyle = '#c00';
-        g.fillText(String(v), v + 2, 10);
-        g.fillText(String(v), 2, v - 2);
+        g.fillText(String(v), at + 2, 10);
+        g.fillText(String(v), 2, at - 2);
       }
     }
     const blob = new Uint8Array(await (await c.convertToBlob()).arrayBuffer());
     let s = '';
     for (const x of blob) s += String.fromCharCode(x);
     return btoa(s);
-  }, `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(file).toString('base64')}`);
+  }, [`data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(file).toString('base64')}`, zoom]);
   writeFileSync(outFile, Buffer.from(png, 'base64'));
   await b.close();
   process.exit(0);
