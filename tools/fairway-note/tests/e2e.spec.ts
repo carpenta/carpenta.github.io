@@ -21,16 +21,19 @@ const TRACED = readdirSync(fileURLToPath(new URL('../src/data/traced/', import.m
 /**
  * Starts a round on another course from the picker's search. Since v27 Everis is drawn from OpenStreetMap, so the
  * schematic's own tests run on courses it does not draw (에코랜드, 라온). v40 traces some of those from their hole maps:
- * unless `traced`, their outlines' chunks are refused, so the course keeps the schematic, as it does when the chunk
- * cannot load (osm-holes.ts).
+ * unless `traced`, their outlines' chunks are answered with no outlines, so the course keeps the schematic (a refused
+ * request would log an error, which the page check below fails on). A traced course's drawing waits for its chunk, the
+ * drawing behind the picker showing until then: this returns once the new course is drawn.
  */
 async function openCourse(page: Page, query: string, name: string, { traced = false } = {}) {
-  if (!traced) await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.abort());
+  if (!traced) await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.fulfill({ contentType: 'text/javascript', body: 'export default { holes: {} };' }));
   await page.goto('/');
   await page.getByRole('searchbox', { name: '골프장 검색' }).fill(query);
   await page.locator('#picker-list button', { hasText: name }).click();
+  const before = await page.locator('#course').getAttribute('data-key');
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#course')).not.toHaveAttribute('data-key', before ?? '');
 }
 
 const PENALTY = ['ob', 'hazard', 'bunker'];
