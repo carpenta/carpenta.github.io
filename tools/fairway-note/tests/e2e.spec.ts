@@ -7092,7 +7092,7 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
 // (white 10%) with white letters, a 1.5px lime edge inside and a soft lime glow; a chosen tab (the card's, the scorecard's
 // switch, the island's) has no fill, white letters and a glowing lime underline or dot. The course picker is still on
 // paper: its chosen ones white with ink letters and a turf edge, and on its dark rough the region chip inverts (v30).
-test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the paper picker white with a turf edge (v39)', async ({ page }) => {
+test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the picker the same (v39)', async ({ page }) => {
   const chosen: string[] = [];
   const look = async (selector: string) => {
     const el = page.locator(selector).first();
@@ -7120,19 +7120,13 @@ test('marks whatever is chosen one way: light glass with a lime edge and glow, t
   };
   await page.goto('/');
   await expect(page.locator('#picker')).toBeVisible();
-  const [turf, white, ink, paper] = [await token(page, '--turf'), await token(page, '--on-dark'), await token(page, '--ink'), await token(page, '--white')];
-  // The region chips sit on the dark rough: the chosen one is the brightest there, its neighbours quiet.
-  await expectLook(".picker .chip[aria-pressed='true']", { background: white, color: turf, ring: 'none' });
-  expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(white);
-  for (const selector of [".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
-    // The turf edge an inset outline (v30's rule for rings), no shadow.
-    await expectLook(selector, { background: paper, color: ink, ring: 'none' });
-    // (1.5px as written; a browser snaps an outline to whole device pixels, so 1px at 1x.)
-    const edge = await page.locator(selector).first().evaluate((el) => ({ colour: getComputedStyle(el).outlineColor, width: parseFloat(getComputedStyle(el).outlineWidth), offset: parseFloat(getComputedStyle(el).outlineOffset) }));
-    expect(edge.colour, selector).toBe(turf);
-    expect(edge.width, selector).toBeGreaterThanOrEqual(1);
-    expect(edge.offset, `${selector}: inside its box`).toBeLessThanOrEqual(-edge.width);
+  // The picker is on the glass too now (the user: 새 라운드's screen had not taken the design): its chosen region,
+  // length, nines and course the same light glass with a lime edge and glow, and no outline drawn besides.
+  for (const selector of [".picker .chip[aria-pressed='true']", ".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
+    await control(selector);
+    expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).outlineStyle), selector).toBe('none');
   }
+  expect(await page.locator(".picker .chip[aria-pressed='false']").first().evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
   await page.getByRole('button', { name: '이 코스로 시작' }).click();
   await tabMark(".sheet .mode[aria-pressed='true']", '::before');
   await tabMark('#tab-entry', '::after');
