@@ -404,13 +404,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v40');
+  await expect(page.locator('#menu-version')).toHaveText('v41');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v40');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v41');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -4012,13 +4012,19 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       within1px(search.x, list.x, 'search and list, left');
       within1px(endOf(search), endOf(list), 'search and list, right');
       // The search icon starts on the rows' text edge.
-      within1px((await spanOf(page, '.pk-search svg')).x, (await spanOf(page, '#picker-list .course b')).x, 'search icon');
-      // The chosen course's sheet: name, 18홀/9홀 and the start button on the list's edges.
-      within1px((await spanOf(page, '#picker-label')).x, list.x, 'course name');
-      within1px(endOf(await spanOf(page, '#picker-len')), endOf(list), '18홀/9홀');
+      const text = (await spanOf(page, '#picker-list .course b')).x;
+      within1px((await spanOf(page, '.pk-search svg')).x, text, 'search icon');
+      // The chosen course's sheet (a floating card since v41): the card on the list's edges, and its name, 18홀/9홀
+      // and the start button on the rows' text edge, as far in from the right as the text is from the left.
+      const inset = text - list.x;
+      const foot = await spanOf(page, '.picker-foot');
+      within1px(foot.x, list.x, 'sheet, left');
+      within1px(endOf(foot), endOf(list), 'sheet, right');
+      within1px((await spanOf(page, '#picker-label')).x, text, 'course name');
+      within1px(endOf(await spanOf(page, '#picker-len')), endOf(list) - inset, '18홀/9홀');
       const start = await spanOf(page, '#picker-start');
-      within1px(start.x, list.x, 'start, left');
-      within1px(endOf(start), endOf(list), 'start, right');
+      within1px(start.x, text, 'start, left');
+      within1px(endOf(start), endOf(list) - inset, 'start, right');
       // 전반 and 후반 (새별, 레이크, 파인) as one grid: three equal columns, the 후반 row under the 전반 row, ending on the edge.
       const nines = await spansOf(page, '#picker-chosen .nine-pick button');
       expect(nines).toHaveLength(6);
@@ -4026,7 +4032,7 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         within1px(b.width, nines[0].width, `nine ${i + 1} width`);
         within1px(b.x, nines[i % 3].x, `nine ${i + 1} column`);
       }
-      within1px(endOf(nines[2]), endOf(list), 'nines, right');
+      within1px(endOf(nines[2]), endOf(list) - inset, 'nines, right');
     });
   });
 }
@@ -5788,7 +5794,9 @@ for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]]) 
       // The chosen course's row opens at the list's top, unless the list is scrolled to its end.
       const list = page.locator('#picker-list');
       const atEnd = await list.evaluate((el) => el.scrollTop >= el.scrollHeight - el.clientHeight - 1);
-      if (!atEnd) within1px((await spanOf(page, "#picker-list .course[aria-pressed='true']")).y, (await spanOf(page, '#picker-list')).y, 'chosen row at the top');
+      // Since v41 the list keeps 8px of room inside, so its top is its inner edge.
+      const pad = await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingTop));
+      if (!atEnd) within1px((await spanOf(page, "#picker-list .course[aria-pressed='true']")).y, (await spanOf(page, '#picker-list')).y + pad, 'chosen row at the top');
       // Scrolled part of a row, the list comes to rest on a row's top.
       await list.evaluate((el) => new Promise<void>((resolve) => {
         el.addEventListener('scrollend', () => resolve(), { once: true });
@@ -5796,7 +5804,7 @@ for (const [width, height] of [[360, 640], [375, 553], [375, 667], [390, 844]]) 
         el.scrollTo({ top: 30 });
       }));
       await settled(page);
-      const top = (await spanOf(page, '#picker-list')).y;
+      const top = (await spanOf(page, '#picker-list')).y + pad;
       const rows = await spansOf(page, '#picker-list > li');
       expect(rows.some((r) => Math.abs(r.y - top) <= 1), `rows at ${rows.map((r) => (r.y - top).toFixed(1)).join(', ')}`).toBe(true);
       // A long name still fits two lines, nothing cut, and 이 코스로 시작 stays on screen.
@@ -6805,7 +6813,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v40');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v41');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -7196,6 +7204,51 @@ test('marks whatever is chosen one way: light glass with a lime edge and glow, t
   expect(chosen.filter((line) => !line.endsWith(': ok'))).toEqual([]);
   // The island's chosen tab is white, its icon and name.
   expect(await page.locator('#tab-card').evaluate((el) => getComputedStyle(el).color)).toBe(onGlass);
+});
+
+test('the picker as the 기록 screen: its sheet a floating card, the chosen course rounded, and no chosen glow cut square by a scroller (v41)', async ({ page }) => {
+  for (const [width, height] of [[390, 844], [360, 640]]) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await expect(page.locator('#picker')).toBeVisible();
+    await settled(page);
+    // The user: the picker had not taken the design. The sheet floats as the 기록 screen's card does: inset from both
+    // sides and the bottom, every corner rounded.
+    const foot = await page.locator('.picker-foot').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const s = getComputedStyle(el);
+      return { left: r.left, right: innerWidth - r.right, bottom: innerHeight - r.bottom, radii: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius] };
+    });
+    expect(foot.left, `${width}`).toBeGreaterThanOrEqual(12);
+    expect(foot.right, `${width}`).toBeGreaterThanOrEqual(12);
+    expect(foot.bottom, `${width}`).toBeGreaterThanOrEqual(8);
+    expect(foot.radii, `${width}`).toEqual(['24px', '24px', '24px', '24px']);
+    // The chosen course is a rounded tile inside the list, not a square band whose lower edge runs flat.
+    const course = await page.locator(".picker-list .course[aria-pressed='true']").evaluate((el) => getComputedStyle(el).borderBottomLeftRadius);
+    expect(parseFloat(course)).toBeGreaterThanOrEqual(12);
+    // Every chosen control's glow shows round it: the nearest ancestor that clips (the region row, the list, the
+    // nines' row) leaves 8px of room on each side (less a subpixel, as the list comes to rest), where the 14px glow has faded to almost nothing. Before v41 the
+    // row and the list cut it at the control's edge, so a dark rectangle stood round 전체, 새별 and the chosen course.
+    const cut = await page.evaluate(() => {
+      const out: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>(".picker .chip[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true'], .picker-list .course[aria-pressed='true']")) {
+        const r = el.getBoundingClientRect();
+        if (!r.width) continue;
+        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+          const s = getComputedStyle(a);
+          if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+          const c = a.getBoundingClientRect();
+          const room = [r.top - c.top, c.right - r.right, c.bottom - r.bottom, r.left - c.left];
+          // At rest the chosen ones are in view, so every side counts (v41 first left the nines' sides out, and a dark
+          // edge still stood left of 새별).
+          if (Math.min(...room) < 7.5) out.push(`${el.textContent!.trim().slice(0, 12)} in .${a.className}: ${room.map((v) => v.toFixed(1)).join(',')}`);
+          break;
+        }
+      }
+      return out;
+    });
+    expect(cut, `${width}`).toEqual([]);
+  }
 });
 
 test('paints each count over both halves of its capsule, whole, in 기본 and 상세 (v30: the halves are opaque now)', async ({ page }) => {
