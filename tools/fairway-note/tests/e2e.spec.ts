@@ -26,7 +26,14 @@ const TRACED = readdirSync(fileURLToPath(new URL('../src/data/traced/', import.m
  * drawing behind the picker showing until then: this returns once the new course is drawn.
  */
 async function openCourse(page: Page, query: string, name: string, { traced = false } = {}) {
-  if (!traced) await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.fulfill({ contentType: 'text/javascript', body: 'export default { holes: {} };' }));
+  if (!traced) {
+    await page.route(new RegExp(`/assets/(${TRACED.join('|')})-[^/]+\\.js$`), (route) => route.fulfill({ contentType: 'text/javascript', body: 'export default { holes: {} };' }));
+    // A worker installed by an earlier load in the test answers the chunk from its cache, which page.route doesn't see;
+    // with it unregistered the next load is uncontrolled (the worker never claims a page), so the stub above answers.
+    await page.evaluate(async () => {
+      for (const r of (await navigator.serviceWorker?.getRegistrations()) ?? []) await r.unregister();
+    });
+  }
   await page.goto('/');
   await page.getByRole('searchbox', { name: '골프장 검색' }).fill(query);
   await page.locator('#picker-list button', { hasText: name }).click();
@@ -815,10 +822,8 @@ test('fits the drawn distance pills to their labels in the page font where the c
 
 test('draws a pond in front of a par 3 green and a bunker on its left, as the hole note says (v22)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await page.getByRole('searchbox', { name: '골프장 검색' }).fill('한양');
-  await page.locator('#picker-list button', { hasText: '한양컨트리클럽' }).click();
-  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  // 한양 is traced from its hole maps since its outlines were drawn by eye; this checks the schematic, so without them.
+  await openCourse(page, '한양', '한양컨트리클럽');
   // Hole 10 is 신코스 IN 1: "그린 앞 연못, 그린 좌측 깊은 벙커".
   await pickHole(page, 9);
   await expect(page.locator('#hole-notes li')).toHaveText(['그린 앞 연못', '그린 좌측 깊은 벙커']);
