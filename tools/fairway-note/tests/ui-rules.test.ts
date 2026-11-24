@@ -84,6 +84,24 @@ describe('one design system (v30)', () => {
     expect(Math.max(...blurs)).toBeLessThanOrEqual(26);
   });
 
+  // v42 (the user's call on the research's glow budget): a glow marks two things only, where you are (the hole ring) and
+  // what to do next (the screen's main action: 마침, a dialog's primary button). What is chosen (a tab, a mode, a chip,
+  // the scorecard's ring) keeps its lime edge or line, with no glow. The panels' faint lime halo (10–12%) is their tint,
+  // not a glow on a control.
+  it('glows on the hole ring and the main action only (v42)', () => {
+    const glow = /0 0 \d+px(?: \d+px)? (?:var\(--lime-glow\)|rgb\(196 224 79 \/ \.(?:2[5-9]|[3-9])\d*\))/;
+    const allowed = /\.hole-title|\.primary|\.sh-go|\.vc-go|\.next\b|\.round\.finish/;
+    /** A selector list split at its top-level commas, each :is(…) list opened into its own entries. */
+    const atoms = (selector: string): string[] => selector.split(/,(?![^(]*\))/).flatMap((part) => {
+      const inner = /:is\(([^]*)\)/.exec(part);
+      return inner ? inner[1].split(',').map((s) => s.trim()) : [part.trim()];
+    });
+    const glowing = rules(css).filter(({ body }) => [...body.matchAll(/box-shadow:([^;]*)/g)].some((m) => glow.test(m[1])));
+    expect(glowing.length).toBeGreaterThan(0);
+    const off = glowing.flatMap(({ selector }) => atoms(selector).filter((a) => !allowed.test(a)));
+    expect(off).toEqual([]);
+  });
+
   it('sets type in six sizes: 13, 15, 17, 22, 34 and the counts, plus the ring\'s 32 and the island\'s 11 (v39)', () => {
     expect(css).toMatch(/--t-s: 13px; --t-m: 15px; --t-l: 17px; --t-xl: 22px; --t-2xl: 34px; --t-count: 56px;/);
     const off = declared(/font-size/)
@@ -135,8 +153,9 @@ describe('one design system (v30)', () => {
   };
 
   it('paints a see-through surface from the glass tokens alone (v39)', () => {
-    expect(css).toMatch(/--map-glass: rgb\(10 24 16 \/ \.5\);/);
-    expect(css).toMatch(/--map-blur: blur\(4px\)/);
+    // v42 (the user's call): the map glass frostier, .5 and 4px → .64 and 10px, so its words hold over sand and greens.
+    expect(css).toMatch(/--map-glass: rgb\(10 24 16 \/ \.64\);/);
+    expect(css).toMatch(/--map-blur: blur\(10px\)/);
     expect(css).toMatch(/--deep-glass: linear-gradient\(180deg, rgb\(14 30 21 \/ \.62\), rgb\(10 22 15 \/ \.74\)\);/);
     expect(css).toMatch(/--deep-blur: blur\(18px\)/);
     // v38's rule for the chip pills is still in the file, overridden by the map glass on #hole-info (the e2e checks the

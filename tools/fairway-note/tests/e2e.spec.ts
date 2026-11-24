@@ -218,9 +218,9 @@ test('shows the hole score in the badge on map glass, its mark kept but not draw
   await expect(mark).toHaveAttribute('data-mark', 'birdie');
   await expect(shape.locator('circle')).toHaveCount(1);
   await expect(badge).toHaveClass(/celebrate/);
-  // v39: the badge stays map glass whatever the score, and no scorecard mark rings the number (the user: "숫자에 Border
+  // v39: the badge stays map glass whatever the score (v42: the frostier .64), and no scorecard mark rings the number (the user: "숫자에 Border
   // 를 억지스럽게 씌우지 말아줘"); under par the number turns a light red.
-  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(10, 24, 16, 0.5)');
+  expect(await badge.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(10, 24, 16, 0.64)');
   expect(await page.locator('#hole-strokes').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 154, 143)');
   await expect(shape).toBeHidden();
   await page.getByRole('button', { name: '퍼터 하나 빼기' }).click();
@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v41');
+  await expect(page.locator('#menu-version')).toHaveText('v42');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v41');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v42');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -4736,7 +4736,7 @@ test('an old saved round shows its approach shots under 그린까지, keeping th
 });
 
 // v39 (the user: "투명도 50% 까지도 허용", borderless glass): the switcher's pill and arrows are map glass, half see-through
-// with a light blur; the card is deep glass with a stronger blur; the ring is opaque ("투명도가 있으면 오히려 어색함") with
+// with a light blur (v42, the user's call: frostier, .64 and a 10px blur); the card is deep glass with a stronger blur; the ring is opaque ("투명도가 있으면 오히려 어색함") with
 // a 1.5px lime edge. None has an outline or a border (v30's opaque white is gone).
 test('the hole switcher is map glass round an opaque ring and the entry card deep glass, none outlined (v39; opaque white v30–v38)', async ({ page }) => {
   await open(page);
@@ -4746,8 +4746,8 @@ test('the hole switcher is map glass round an opaque ring and the entry card dee
   });
   for (const selector of ['#entry .nav-pill', '#prev-hole', '#next-hole']) {
     const s = await look(selector);
-    expect(s.bg, selector).toBe('rgba(10, 24, 16, 0.5)');
-    expect(s.filter, selector).toBe('blur(4px) saturate(1.2)');
+    expect(s.bg, selector).toBe('rgba(10, 24, 16, 0.64)');
+    expect(s.filter, selector).toBe('blur(10px) saturate(1.2)');
     expect([s.outline, s.border], selector).toEqual(['none', '0px']);
   }
   const ring = await look('#hole-btn');
@@ -5584,7 +5584,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset), image: s.backgroundImage };
       });
       expect(halo.shadow, 'the lime edge').toContain('rgb(196, 224, 79) 0px 0px 0px 1.5px');
-      expect(halo.shadow, 'its glow').toContain('0px 0px 10px 0px');
+      // v42 (the user's call): the scorecard's ring keeps its lime edge but no glow; only the hole ring and the main action glow.
+      expect(halo.shadow, 'the edge alone, no glow').toBe('rgb(196, 224, 79) 0px 0px 0px 1.5px');
       expect(halo.offset, 'any outline drawn inside the box').toBeLessThanOrEqual(-halo.width);
       expect(halo.image, 'deep and opaque').toMatch(/^radial-gradient\((?!.*rgba)/);
       within1px((await spanOf(page, '#sh-ring')).x, tables[0].x, 'ring on the table edge');
@@ -6818,7 +6819,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v41');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v42');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -7093,7 +7094,7 @@ const SYSTEM_SCREENS: [string, (page: Page) => Promise<unknown>][] = [
 const PRIMARY = ['#picker-start', '#sum-archive', '#finish-round', '#now-continue'];
 /**
  * v39's see-through surfaces (the user's glow mock-up; tests/ui-rules.test.ts holds the stylesheet to the same tokens):
- * map glass over the hole (dark green 50%, 70% pressed), the panels' dark glass (82%), and white tints of at most 24% for
+ * map glass over the hole (dark green 64% since v42, 50% before; 70% pressed), the panels' dark glass (82%), and white tints of at most 24% for
  * fills, chosen controls and primary actions, and lime light of at most 10% (the scorecard's current column). The deep glass of the card and the island is a gradient, not a colour.
  */
 const isGlass = (bg: string) => {
@@ -7102,7 +7103,9 @@ const isGlass = (bg: string) => {
   const [r, g, b, a] = m.slice(1).map(Number);
   // The scorecard's current column is lime light at 8% (a canvas reads a faint colour back a few bytes off).
   const lime = Math.abs(r - 196) <= 8 && Math.abs(g - 224) <= 8 && Math.abs(b - 79) <= 8 && a <= 0.1;
-  return (r === 10 && g === 24 && b === 16 && (a === 0.5 || a === 0.7)) || (r === 13 && g === 28 && b === 20 && a === 0.82) || (r === 255 && g === 255 && b === 255 && a <= 0.24) || lime;
+  // The map glass at 64% (v42) reads back a byte under its dark green (9 23 16) through the canvas, so ±1 there.
+  const mapGreen = Math.abs(r - 10) <= 1 && Math.abs(g - 24) <= 1 && Math.abs(b - 16) <= 1;
+  return (mapGreen && (a === 0.64 || a === 0.7)) || (r === 13 && g === 28 && b === 20 && a === 0.82) || (r === 255 && g === 255 && b === 255 && a <= 0.24) || lime;
 };
 /** A shadow's layers in v39: the v30 drops, the glass drop, the 1.5px lime edge, and lime glows no wider than 26px. */
 const SHADOW_LAYER = /^c (0px 2px 6px 0px|0px 12px 32px 0px|0px -8px 32px 0px|0px 6px 16px 0px|0px 0px 0px 1\.5px( inset)?|0px 0px (\d|1\d|2[0-6])px( \dpx)?( 0px)?)$/;
@@ -7150,7 +7153,7 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
 // (white 10%) with white letters, a 1.5px lime edge inside and a soft lime glow; a chosen tab (the card's, the scorecard's
 // switch, the island's) has no fill, white letters and a glowing lime underline or dot. The course picker is still on
 // paper: its chosen ones white with ink letters and a turf edge, and on its dark rough the region chip inverts (v30).
-test('marks whatever is chosen one way: light glass with a lime edge and glow, tabs by a lime underline; the picker the same (v39)', async ({ page }) => {
+test('marks whatever is chosen one way: light glass with a lime edge (no glow since v42), tabs by a lime underline; the picker the same (v39)', async ({ page }) => {
   const chosen: string[] = [];
   const look = async (selector: string) => {
     const el = page.locator(selector).first();
@@ -7163,23 +7166,24 @@ test('marks whatever is chosen one way: light glass with a lime edge and glow, t
     const got = await look(selector);
     chosen.push(`${selector}: ${JSON.stringify(got) === JSON.stringify(want) ? 'ok' : JSON.stringify(got)}`);
   };
-  const LIME_EDGE = 'rgb(196, 224, 79) 0px 0px 0px 1.5px inset, rgba(196, 224, 79, 0.28) 0px 0px 14px 0px';
+  // v42 (the user's call): the edge alone; the glow is the hole ring's and the main action's only.
+  const LIME_EDGE = 'rgb(196, 224, 79) 0px 0px 0px 1.5px inset';
   const onGlass = 'rgb(244, 247, 240)';
   const control = (selector: string) => expectLook(selector, { background: 'rgba(255, 255, 255, 0.1)', color: onGlass, ring: LIME_EDGE });
-  /** A tab: no fill, white letters, and the lime mark (underline or dot) under it, glowing. */
+  /** A tab: no fill, white letters, and the lime mark (underline or dot) under it, unlit (v42; it glowed in v39–v41). */
   const tabMark = async (selector: string, mark: '::before' | '::after') => {
     const got = await look(selector);
     const line = await page.locator(selector).first().evaluate((node, m) => {
       const s = getComputedStyle(node, m);
-      return { fill: s.backgroundColor, glow: s.boxShadow.includes('0px 0px 8px') };
+      return { fill: s.backgroundColor, glow: s.boxShadow !== 'none' };
     }, mark);
-    const ok = got.background === 'rgba(0, 0, 0, 0)' && got.color === onGlass && line.fill === 'rgb(196, 224, 79)' && line.glow;
+    const ok = got.background === 'rgba(0, 0, 0, 0)' && got.color === onGlass && line.fill === 'rgb(196, 224, 79)' && !line.glow;
     chosen.push(`${selector}: ${ok ? 'ok' : JSON.stringify({ ...got, ...line })}`);
   };
   await page.goto('/');
   await expect(page.locator('#picker')).toBeVisible();
   // The picker is on the glass too now (the user: 새 라운드's screen had not taken the design): its chosen region,
-  // length, nines and course the same light glass with a lime edge and glow, and no outline drawn besides.
+  // length, nines and course the same light glass with a lime edge (unlit since v42), and no outline drawn besides.
   for (const selector of [".picker .chip[aria-pressed='true']", ".pk-len button[aria-pressed='true']", ".nine-pick button[aria-checked='true']", ".picker-list .course[aria-pressed='true']"]) {
     await control(selector);
     expect(await page.locator(selector).first().evaluate((el) => getComputedStyle(el).outlineStyle), selector).toBe('none');
@@ -8581,4 +8585,65 @@ test('the badge’s number stands 3:1 or more off the course under it for every 
     if (c.ratio === null || c.ratio < 3) found.push(`${mark}: ${c.ratio?.toFixed(2)}`);
   }
   expect(found).toEqual([]);
+});
+
+/**
+ * v42 (the user's call): a lime glow marks where you are (the hole ring) and what to do next (마침) and nothing else; a
+ * chosen tab, mode or pane keeps its lime dot or line with no glow. Every element and its ::before and ::after are read:
+ * a glow is a lime shadow with no offset, a blur and at least 25% alpha (the panels' 10–12% halo is their tint).
+ */
+const glowing = (page: Page) => page.evaluate(() => {
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const rgba = (css: string) => {
+    cv.clearRect(0, 0, 1, 1);
+    cv.fillStyle = 'rgba(0,0,0,0)';
+    cv.fillStyle = css;
+    cv.fillRect(0, 0, 1, 1);
+    const d = cv.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2], d[3] / 255];
+  };
+  const isGlow = (shadow: string) => shadow !== 'none' && shadow.split(/,(?![^(]*\))/).some((layer) => {
+    if (/\binset\b/.test(layer)) return false;
+    const colour = /(rgba?\([^)]*\)|color\([^)]*\)|oklab\([^)]*\)|oklch\([^)]*\)|#[0-9a-f]+)/i.exec(layer)?.[1];
+    const lengths = layer.replace(colour ?? '', '').trim().split(/\s+/).map(parseFloat);
+    if (!colour || lengths.length < 3 || lengths[0] !== 0 || lengths[1] !== 0 || !(lengths[2] > 0)) return false;
+    const [r, g, b, a] = rgba(colour);
+    return Math.abs(r - 196) <= 8 && Math.abs(g - 224) <= 8 && Math.abs(b - 79) <= 8 && a >= 0.25;
+  });
+  const seen = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+  };
+  const name = (el: Element) => (el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+  const out: string[] = [];
+  for (const el of document.querySelectorAll('body *')) {
+    if (!seen(el)) continue;
+    if (isGlow(getComputedStyle(el).boxShadow)) out.push(name(el));
+    for (const p of ['::before', '::after']) {
+      const s = getComputedStyle(el, p);
+      if (s.content !== 'none' && s.display !== 'none' && isGlow(s.boxShadow)) out.push(`${name(el)}${p}`);
+    }
+  }
+  return out;
+});
+
+test('only the hole ring and the main action glow; chosen tabs, modes and panes are lime without a glow (v42)', async ({ page }) => {
+  await open(page);
+  await settled(page);
+  // 기록 on hole 1: the ring alone (the island's chosen dot and the card's mode line are lime, unlit).
+  expect(await glowing(page)).toEqual(['#hole-btn']);
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await settled(page);
+  expect(await glowing(page)).toEqual(['#hole-btn']);
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  // 스코어카드: its main action alone, n번 홀 기록하기 (its 스코어카드 | 분석 line and score ring are unlit).
+  await tap(page, 'driver');
+  await showCard(page);
+  await settled(page);
+  expect(await glowing(page)).toEqual(['#sh-go']);
+  // The last hole: the ring and › as 마침.
+  await pickHole(page, 17);
+  await settled(page);
+  await expect(page.locator('#next-hole')).toHaveClass(/finish/);
+  expect((await glowing(page)).sort()).toEqual(['#hole-btn', '#next-hole']);
 });
