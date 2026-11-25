@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newRound } from '../src/round';
-import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadDisplay, loadPrefs, saveDisplay, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
+import { CORRUPT_PREFIX, MAX_CORRUPT, PREFS_KEY, STORAGE_KEY, loadBackupMark, loadDisplay, loadPrefs, persistenceState, saveBackupMark, saveDisplay, savePrefs, clearRound, loadRound, parseRound, preserveUnreadable, requestPersistence, saveRound } from '../src/storage';
 
 function memory() {
   const map = new Map<string, string>();
@@ -281,5 +281,45 @@ describe('storage', () => {
     expect(() => requestPersistence({ storage: { persist: () => { throw new Error('no'); } } })).not.toThrow();
     requestPersistence({ storage: { persist: () => Promise.reject(new Error('denied')) } });
     await new Promise((r) => setTimeout(r, 0));
+  });
+});
+
+// v43: the last backup, remembered beside the course and the display settings in the prefs key.
+describe('the last backup mark (v43)', () => {
+  it('round-trips, and survives saving the course or a display setting', () => {
+    const kv = memory();
+    expect(loadBackupMark(kv)).toBe(null);
+    expect(saveBackupMark({ at: '2026-11-25', rounds: 4 }, kv)).toBe(true);
+    expect(loadBackupMark(kv)).toEqual({ at: '2026-11-25', rounds: 4 });
+    savePrefs({ course: 'everis', front: 'saebyul', back: 'lake' }, kv);
+    saveDisplay({ big: true }, kv);
+    expect(loadBackupMark(kv)).toEqual({ at: '2026-11-25', rounds: 4 });
+    expect(loadDisplay(kv).big).toBe(true);
+    expect(loadPrefs(kv)).toMatchObject({ course: 'everis', front: 'saebyul', back: 'lake' });
+  });
+
+  it('keeps the course and the display settings when it is written', () => {
+    const kv = memory();
+    savePrefs({ course: 'everis', front: 'saebyul', back: 'lake' }, kv);
+    saveDisplay({ voice: true }, kv);
+    saveBackupMark({ at: '2026-11-25', rounds: 1 }, kv);
+    expect(loadDisplay(kv).voice).toBe(true);
+    expect(loadPrefs(kv)).toMatchObject({ course: 'everis' });
+  });
+
+  it('reads a value that is not a date or not a count as no backup', () => {
+    const kv = memory();
+    for (const bad of [{ backedUpAt: 'yesterday', backedUpRounds: 2 }, { backedUpAt: '2026-11-25', backedUpRounds: -1 }, { backedUpAt: '2026-11-25', backedUpRounds: 1.5 }, { backedUpAt: '2026-11-25' }]) {
+      kv.setItem(PREFS_KEY, JSON.stringify(bad));
+      expect(loadBackupMark(kv)).toBe(null);
+    }
+    expect(saveBackupMark({ at: '2026-11-25', rounds: 1 }, null)).toBe(false);
+  });
+
+  it('reports whether the browser keeps this site\'s storage, or null where it cannot say', async () => {
+    expect(await persistenceState({ storage: { persisted: async () => true } })).toBe(true);
+    expect(await persistenceState({ storage: { persisted: async () => false } })).toBe(false);
+    expect(await persistenceState({})).toBe(null);
+    expect(await persistenceState({ storage: { persisted: () => Promise.reject(new Error('no')) } })).toBe(null);
   });
 });

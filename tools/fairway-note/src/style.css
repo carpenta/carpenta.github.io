@@ -2067,3 +2067,5 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 .nine-pick { margin: -8px; padding: 8px; }
 /* Under 600px tall the floating sheet gives back the 16px its margins cost, and its rows sit 6px apart (10px elsewhere), so the nines stay whole though its narrower note can wrap to two lines. */
 @media (max-height: 599px) { .picker-areas { margin-top: 2px; } .picker-list { margin-top: 0; } .picker-foot { margin-block: 6px max(8px, env(safe-area-inset-bottom)); padding-block: 12px; gap: 6px; } .pk-scroll { gap: 6px; } }
+/* v43: the menu's 백업과 복원 line with no backup yet, or one thirty days old: a small sand dot before it (no alarm red). */
+.mi small.backup-old::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; border-radius: var(--r-full); background: var(--sand); }

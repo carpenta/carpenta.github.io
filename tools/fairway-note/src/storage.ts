@@ -245,7 +245,7 @@ export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
 export function savePrefs(choice: CourseChoice, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    kv.setItem(PREFS_KEY, JSON.stringify({ ...choice, ...flags(loadDisplay(kv)) }));
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...choice, ...flags(loadDisplay(kv)), ...markFields(loadBackupMark(kv)) }));
     return true;
   } catch {
     return false;
@@ -282,6 +282,45 @@ function prefsObject(kv: KV | null): Record<string, unknown> {
 export function loadDisplay(kv: KV | null = store()): Display {
   const o = prefsObject(kv);
   return { big: o.big === true, coach: o.coach === true, home: o.home === true, voice: o.voice === true, split: o.split === true };
+}
+
+/** When the last backup file was made (v43): the local date and how many past rounds were kept then. */
+export interface BackupMark {
+  at: string;
+  rounds: number;
+}
+
+const markFields = (m: BackupMark | null) => (m ? { backedUpAt: m.at, backedUpRounds: m.rounds } : {});
+
+/** The last backup, or null when none was made (or the value is not a date and a count). */
+export function loadBackupMark(kv: KV | null = store()): BackupMark | null {
+  const o = prefsObject(kv);
+  const at = o.backedUpAt;
+  const rounds = o.backedUpRounds;
+  if (typeof at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(at)) return null;
+  if (typeof rounds !== 'number' || !Number.isInteger(rounds) || rounds < 0) return null;
+  return { at, rounds };
+}
+
+/** Remembers the last backup beside the course and the display settings. */
+export function saveBackupMark(mark: BackupMark, kv: KV | null = store()): boolean {
+  try {
+    if (!kv) return false;
+    kv.setItem(PREFS_KEY, JSON.stringify({ ...prefsObject(kv), ...markFields(mark) }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the browser keeps this site's storage under pressure (v43), or null where it cannot say. */
+export async function persistenceState(nav: { storage?: { persisted?: () => Promise<boolean> } } = navigator): Promise<boolean | null> {
+  try {
+    const persisted = nav.storage?.persisted;
+    return persisted ? await persisted.call(nav.storage) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Changes some display settings, keeping the others and the remembered course. */
