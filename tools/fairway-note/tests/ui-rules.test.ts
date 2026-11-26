@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 // Rules the stylesheet and the on-screen words keep (v23). They read the source files as text.
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const css = read('src/style.css').replace(/\/\*[\s\S]*?\*\//g, '');
+/** Round on purpose (v46) but sized by another rule: each is as wide as it is tall there. */
+const ROUND_SIZED_ELSEWHERE: string[] = [
+  '.badge.celebrate::after',   // the score badge's own circle (inset 0 on .badge, var(--badge) square)
+];
 
 /** Every innermost rule as its selector and declarations; an at-rule's own block is skipped, its rules are kept. */
 function rules(text: string): { selector: string; body: string }[] {
@@ -45,10 +49,13 @@ describe('one design system (v30)', () => {
     .flatMap(({ selector, body }) => [...body.matchAll(new RegExp(`(?:^|;)\\s*(${property.source})\\s*:\\s*([^;]+)`, 'g'))]
       .map((m) => ({ selector, property: m[1], value: m[2].trim().replace(/\s*!important$/, '') })));
 
-  // v39 adds one named exception: the scorecard table's 6px corners (the user: "표의 round 를 줄여줘").
-  it('rounds corners with three radii only: full, card and tile, and the scorecard table\'s 6px (v39)', () => {
-    expect(css).toMatch(/--r-full: 999px; --r-card: 24px; --r-tile: 12px;/);
-    const corner = /^(var\(--r-(full|card|tile)\)|0|inherit)$/;
+  // v39 adds one named exception: the scorecard table's 6px corners (the user: "표의 round 를 줄여줘"). v46 (the user:
+  // "조금 더 선이 깔끔하게 떨어지고 edge 가 있었으면, 약간 유아틱"; their pick of mock-up A, design/v46/): no more pills.
+  // Controls 12px, cards 16px, tiles 8px, and full round only for what is round on purpose (next test).
+  it('rounds corners with four radii only: round, control, card and tile, and the scorecard table\'s 6px (v46)', () => {
+    expect(css).toMatch(/--r-round: 999px; --r-ctl: 12px; --r-card: 16px; --r-tile: 8px;/);
+    expect(css).not.toMatch(/--r-full/);
+    const corner = /^(var\(--r-(round|ctl|card|tile)\)|0|inherit)$/;
     const off = declared(/border(?:-(?:top|bottom)-(?:left|right))?-radius/)
       .filter(({ selector, value }) => !(selector === '.ct' && value === '6px'))
       .filter(({ value }) => !value.split(/\s+/).every((part) => corner.test(part)))
@@ -56,41 +63,58 @@ describe('one design system (v30)', () => {
     expect(off).toEqual([]);
   });
 
+  // What is round on purpose (v46): a rule that rounds fully draws a circle, as wide as it is tall (the hole ring, the
+  // score, icon buttons, birdie and eagle marks, dots, the switch knob). Everything else that used to be a pill is a
+  // 12px control now.
+  it('rounds fully only what is as wide as it is tall (v46)', () => {
+    const size = (body: string, prop: string) => new RegExp(`(?:^|;)\\s*${prop}: ([^;]+)`).exec(body)?.[1].trim();
+    const round = rules(css).filter(({ body }) => /border-radius: var\(--r-round\)/.test(body));
+    expect(round.length).toBeGreaterThan(10);
+    const off = round
+      .filter(({ selector, body }) => !(size(body, 'width') && size(body, 'width') === size(body, 'height')) && !ROUND_SIZED_ELSEWHERE.includes(selector))
+      .map(({ selector }) => selector);
+    expect(off).toEqual([]);
+  });
+
   // v39 (the user's glow mock-up): one more drop, the glass's own (--glass-drop), and lime light for what is chosen. A
-  // shadow is made of these layers alone: the three v30 drops, the glass drop, the lime edge (1.5px, the token or inset),
-  // and a lime glow (a blur with no offset, in --lime-glow or the lime at low alpha). One exception, the tee dots in the
-  // tee list: a 1px dark ring so a white tee's dot reads on the glass.
-  it('casts the v30 drops, the glass drop and lime light only (v39)', () => {
+  // shadow is made of these layers alone: the three v30 drops, the glass drop, the lime edge (the token or inset), a lime
+  // glow (a blur with no offset, in --lime-glow), and since v46 a panel's 1px hairline (--panel-line) where the panels
+  // had a lime halo. One exception, the tee dots in the tee list: a 1px dark ring so a white tee's dot reads on the glass.
+  // v46: every lime edge is 1px (the user: "선이 깔끔하게").
+  it('casts the v30 drops, the glass drop, a 1px lime edge, the panel hairline and the ring\'s glow only (v46)', () => {
     expect(css).toMatch(/--sh-float: [^;]+;/);
     expect(css).toMatch(/--sh-raise: [^;]+;/);
     expect(css).toMatch(/--sh-sheet: [^;]+;/);
     expect(css).toMatch(/--glass-drop: 0 6px 16px rgb\(0 0 0 \/ \.28\);/);
-    expect(css).toMatch(/--chosen-edge: 0 0 0 1\.5px var\(--lime\);/);
+    expect(css).toMatch(/--chosen-edge: 0 0 0 1px var\(--lime\);/);
+    expect(css).toMatch(/--panel-line: inset 0 0 0 1px rgb\(255 255 255 \/ \.1\);/);
     const layer = new RegExp([
       String.raw`var\(--sh-(float|raise|sheet)\)`,
       String.raw`var\(--glass-drop\)`,
       String.raw`var\(--chosen-edge\)`,
-      String.raw`inset 0 0 0 1\.5px var\(--lime\)`,
-      String.raw`0 0 \d+px( \d+px)? (var\(--lime-glow\)|rgb\(196 224 79 \/ \.\d+\))`,
+      String.raw`var\(--panel-line\)`,
+      String.raw`inset 0 0 0 1px var\(--lime\)`,
+      String.raw`0 0 \d+px( \d+px)? var\(--lime-glow\)`,
     ].map((s) => `^(${s})$`).join('|'));
     const off = declared(/box-shadow/)
       .filter(({ selector, value }) => !(selector === '.tee-dot' && value === 'inset 0 0 0 1px rgb(0 0 0 / .25)'))
       .filter(({ value }) => value !== 'none' && !value.split(/,\s*(?![^(]*\))/).every((part) => layer.test(part.trim())))
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
-    // The lime glow never grows into a halo wider than the mock-up's 26px card halo.
-    const blurs = [...css.matchAll(/0 0 (\d+)px(?: \d+px)? (?:var\(--lime-glow\)|rgb\(196 224 79)/g)].map((m) => Number(m[1]));
+    // The lime glow stays small: the ring's, no halo.
+    const blurs = [...css.matchAll(/0 0 (\d+)px(?: \d+px)? var\(--lime-glow\)/g)].map((m) => Number(m[1]));
     expect(blurs.length).toBeGreaterThan(0);
-    expect(Math.max(...blurs)).toBeLessThanOrEqual(26);
+    expect(Math.max(...blurs)).toBeLessThanOrEqual(16);
+    // No lime light in a shadow other than through the tokens (the panels' 26px halo is gone, v46).
+    expect(declared(/box-shadow/).filter(({ value }) => /rgb\(196 224 79/.test(value)).map(({ selector }) => selector)).toEqual([]);
   });
 
-  // v42 (the user's call on the research's glow budget): a glow marks two things only, where you are (the hole ring) and
-  // what to do next (the screen's main action: 마침, a dialog's primary button). What is chosen (a tab, a mode, a chip,
-  // the scorecard's ring) keeps its lime edge or line, with no glow. The panels' faint lime halo (10–12%) is their tint,
-  // not a glow on a control.
-  it('glows on the hole ring and the main action only (v42)', () => {
+  // v42 (the user's call on the research's glow budget): a glow marked two things, where you are (the hole ring) and what
+  // to do next (the main action). v46 (the user's call: "홀 링에만 남기기"): the ring alone; a main action keeps its 1px
+  // lime edge, unlit, as everything chosen does.
+  it('glows on the hole ring only (v46)', () => {
     const glow = /0 0 \d+px(?: \d+px)? (?:var\(--lime-glow\)|rgb\(196 224 79 \/ \.(?:2[5-9]|[3-9])\d*\))/;
-    const allowed = /\.hole-title|\.primary|\.sh-go|\.vc-go|\.next\b|\.round\.finish/;
+    const allowed = /\.hole-title/;
     /** A selector list split at its top-level commas, each :is(…) list opened into its own entries. */
     const atoms = (selector: string): string[] => selector.split(/,(?![^(]*\))/).flatMap((part) => {
       const inner = /:is\(([^]*)\)/.exec(part);
@@ -100,6 +124,16 @@ describe('one design system (v30)', () => {
     expect(glowing.length).toBeGreaterThan(0);
     const off = glowing.flatMap(({ selector }) => atoms(selector).filter((a) => !allowed.test(a)));
     expect(off).toEqual([]);
+  });
+
+  // v46 (the user: "선이 깔끔하게"): a control's outline, a section's rule and a chosen edge are 1px. 1.5px stays only in
+  // the score marks' strokes (eagle, double) and the hole strip's dashed later/missed cells, which are glyphs, not lines.
+  it('draws every control line and rule at 1px (v46)', () => {
+    const thick = declared(/outline(?:-offset)?|border(?:-(?:top|bottom|left|right))?|border-width|box-shadow/)
+      .filter(({ value }) => /(^|[^\d.])1\.5px/.test(value))
+      .filter(({ selector }) => !/\.m\[data-mark='(eagle|double)'\]|\.scell\[data-st='(later|missed)'\]/.test(selector))
+      .map(({ selector, property, value }) => `${selector} { ${property}: ${value} }`);
+    expect(thick).toEqual([]);
   });
 
   it('sets type in six sizes: 13, 15, 17, 22, 34 and the counts, plus the ring\'s 32 and the island\'s 11 (v39)', () => {
@@ -193,7 +227,7 @@ describe('one design system (v30)', () => {
   it('dresses every primary action and the last hole\'s › as light glass with a lime edge, not a lime slab (v39)', () => {
     const glass = rules(css).find(({ selector, body }) => selector.startsWith('body :is(') && /background: rgb\(255 255 255 \/ \.1\)/.test(body));
     expect(glass).toBeDefined();
-    expect(glass!.body).toMatch(/box-shadow: inset 0 0 0 1\.5px var\(--lime\)/);
+    expect(glass!.body).toMatch(/box-shadow: inset 0 0 0 1px var\(--lime\)/);
     for (const part of ['.btn.primary', '.sum-actions .primary', '.check-actions .primary', '.sh-go', '.vc-go', '.next', '.hole-nav .round.finish']) {
       expect(glass!.selector, part).toContain(part);
     }

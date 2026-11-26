@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v45');
+  await expect(page.locator('#menu-version')).toHaveText('v46');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v45');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v46');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -4754,7 +4754,8 @@ test('the hole switcher is map glass round an opaque ring and the entry card dee
   // Opaque: every stop of its gradient is a solid colour.
   expect(ring.image).toMatch(/^radial-gradient\(/);
   expect(ring.image).not.toMatch(/rgba\(/);
-  expect(ring.shadow).toContain('rgb(196, 224, 79) 0px 0px 0px 1.5px');
+  // v46 (the user: "선이 깔끔하게"): the ring's lime edge is 1px; its glow stays, the only one ("홀 링에만 남기기").
+  expect(ring.shadow).toContain('rgb(196, 224, 79) 0px 0px 0px 1px');
   const card = await look('#sheet');
   expect(card.image).toBe('linear-gradient(rgba(14, 30, 21, 0.62), rgba(10, 22, 15, 0.74))');
   expect(card.filter).toBe('blur(18px) saturate(1.4)');
@@ -5583,9 +5584,10 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         const s = getComputedStyle(el);
         return { shadow: s.boxShadow, width: parseFloat(s.outlineWidth), offset: parseFloat(s.outlineOffset), image: s.backgroundImage };
       });
-      expect(halo.shadow, 'the lime edge').toContain('rgb(196, 224, 79) 0px 0px 0px 1.5px');
-      // v42 (the user's call): the scorecard's ring keeps its lime edge but no glow; only the hole ring and the main action glow.
-      expect(halo.shadow, 'the edge alone, no glow').toBe('rgb(196, 224, 79) 0px 0px 0px 1.5px');
+      // v46 (the user: "선이 깔끔하게"): every lime edge is 1px.
+      expect(halo.shadow, 'the lime edge').toContain('rgb(196, 224, 79) 0px 0px 0px 1px');
+      // v42 (the user's call): the scorecard's ring keeps its lime edge but no glow; v46: only the hole ring glows.
+      expect(halo.shadow, 'the edge alone, no glow').toBe('rgb(196, 224, 79) 0px 0px 0px 1px');
       expect(halo.offset, 'any outline drawn inside the box').toBeLessThanOrEqual(-halo.width);
       expect(halo.image, 'deep and opaque').toMatch(/^radial-gradient\((?!.*rgba)/);
       within1px((await spanOf(page, '#sh-ring')).x, tables[0].x, 'ring on the table edge');
@@ -5705,10 +5707,11 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       const bars = await page.locator('#lost-bars .bar, #lost-bars .bar i, #analysis .bar-track, #analysis .bar-fill').evaluateAll((list) => list.map((el) => ({
         h: el.getBoundingClientRect().height, r: getComputedStyle(el).borderTopLeftRadius,
       })));
-      // One rounding for both (v30: the full radius, so a 12px bar is a pill end to end).
+      // One rounding for both, a pill end to end (v30: the full radius; v46: the 12px control radius, half or more of a
+      // 12px bar's height, still draws it as a pill).
       for (const b of bars) {
         expect(Math.abs(b.h - 12)).toBeLessThanOrEqual(0.5);
-        expect(b.r).toBe('999px');
+        expect(parseFloat(b.r), `${b.r} on a ${b.h}px bar`).toBeGreaterThanOrEqual(b.h / 2);
       }
       const pitch = async (selector: string) => {
         const rows = await spansOf(page, selector);
@@ -6819,7 +6822,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v45');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v46');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -7107,8 +7110,11 @@ const isGlass = (bg: string) => {
   const mapGreen = Math.abs(r - 10) <= 1 && Math.abs(g - 24) <= 1 && Math.abs(b - 16) <= 1;
   return (mapGreen && (a === 0.64 || a === 0.7)) || (r === 13 && g === 28 && b === 20 && a === 0.82) || (r === 255 && g === 255 && b === 255 && a <= 0.24) || lime;
 };
-/** A shadow's layers in v39: the v30 drops, the glass drop, the 1.5px lime edge, and lime glows no wider than 26px. */
-const SHADOW_LAYER = /^c (0px 2px 6px 0px|0px 12px 32px 0px|0px -8px 32px 0px|0px 6px 16px 0px|0px 0px 0px 1\.5px( inset)?|0px 0px (\d|1\d|2[0-6])px( \dpx)?( 0px)?)$/;
+/**
+ * A shadow's layers in v39: the v30 drops, the glass drop, the lime edge, and lime glows no wider than 26px. v46: the
+ * edge is 1px, and a panel's 1px hairline (inset) took the place of its lime halo.
+ */
+const SHADOW_LAYER = /^c (0px 2px 6px 0px|0px 12px 32px 0px|0px -8px 32px 0px|0px 6px 16px 0px|0px 0px 0px 1px( inset)?|0px 0px (\d|1\d|2[0-6])px( \dpx)?( 0px)?)$/;
 
 for (const [width, height] of [[390, 844], [375, 553]] as const) {
   test.describe(`one design system on a ${width}×${height} phone (v30; v39 glass)`, () => {
@@ -7133,8 +7139,10 @@ for (const [width, height] of [[390, 844], [375, 553]] as const) {
         limit('opaque backgrounds', opaque, 6);
         const odd = clear.filter((b) => !isGlass(b));
         if (odd.length) over.push(`${name}: see-through but not glass: ${odd.join(' | ')}`);
-        limit('radii', found.radius, 4);
-        const radii = found.radius.map((r) => r.replace(/ \(.*$/, '')).filter((r) => !['999px', '24px', '12px', '6px', '50%'].includes(r));
+        // v46 (the user's pick of mock-up A): round, control 12, card 16, tile 8 and the table's 6, one level more than
+        // v30's full/card/tile now that a control is no pill.
+        limit('radii', found.radius, 5);
+        const radii = found.radius.map((r) => r.replace(/ \(.*$/, '')).filter((r) => !['999px', '16px', '12px', '8px', '6px', '50%'].includes(r));
         if (radii.length) over.push(`${name}: radii off the scale: ${radii.join(' | ')}`);
         limit('shadows', found.shadow, 5);
         const layers = found.shadow.map((s) => s.replace(/ \(.*$/, '')).flatMap((s) => s.split(/, (?=c )/)).filter((l) => !SHADOW_LAYER.test(l));
@@ -7166,8 +7174,9 @@ test('marks whatever is chosen one way: light glass with a lime edge (no glow si
     const got = await look(selector);
     chosen.push(`${selector}: ${JSON.stringify(got) === JSON.stringify(want) ? 'ok' : JSON.stringify(got)}`);
   };
-  // v42 (the user's call): the edge alone; the glow is the hole ring's and the main action's only.
-  const LIME_EDGE = 'rgb(196, 224, 79) 0px 0px 0px 1.5px inset';
+  // v42 (the user's call): the edge alone; the glow is the hole ring's and the main action's only. v46: 1px, and the
+  // ring alone glows.
+  const LIME_EDGE = 'rgb(196, 224, 79) 0px 0px 0px 1px inset';
   const onGlass = 'rgb(244, 247, 240)';
   const control = (selector: string) => expectLook(selector, { background: 'rgba(255, 255, 255, 0.1)', color: onGlass, ring: LIME_EDGE });
   /** A tab: no fill, white letters, and the lime mark (underline or dot) under it, unlit (v42; it glowed in v39–v41). */
@@ -7231,10 +7240,11 @@ test('the picker as the 기록 screen: its sheet a floating card, the chosen cou
     expect(foot.left, `${width}`).toBeGreaterThanOrEqual(12);
     expect(foot.right, `${width}`).toBeGreaterThanOrEqual(12);
     expect(foot.bottom, `${width}`).toBeGreaterThanOrEqual(8);
-    expect(foot.radii, `${width}`).toEqual(['24px', '24px', '24px', '24px']);
+    // v46 (the user's pick of mock-up A): cards 16px, tiles 8px.
+    expect(foot.radii, `${width}`).toEqual(['16px', '16px', '16px', '16px']);
     // The chosen course is a rounded tile inside the list, not a square band whose lower edge runs flat.
     const course = await page.locator(".picker-list .course[aria-pressed='true']").evaluate((el) => getComputedStyle(el).borderBottomLeftRadius);
-    expect(parseFloat(course)).toBeGreaterThanOrEqual(12);
+    expect(parseFloat(course)).toBeGreaterThanOrEqual(8);
     // Every chosen control's glow shows round it: the nearest ancestor that clips (the region row, the list, the
     // nines' row) leaves 8px of room on each side (less a subpixel, as the list comes to rest), where the 14px glow has faded to almost nothing. Before v41 the
     // row and the list cut it at the control's edge, so a dark rectangle stood round 전체, 새별 and the chosen course.
@@ -7428,7 +7438,8 @@ for (const [width, height] of [[360, 640], [375, 553], [390, 844]] as const) {
           const s = getComputedStyle(el);
           return { image: s.backgroundImage, filter: s.backdropFilter || s.getPropertyValue('-webkit-backdrop-filter'), corner: s.borderTopLeftRadius };
         });
-        expect(look, `${name}: the panel`).toEqual({ image: 'linear-gradient(rgba(14, 30, 21, 0.62), rgba(10, 22, 15, 0.74))', filter: 'blur(18px) saturate(1.4)', corner: '24px' });
+        // v46: the card radius is 16px (the user's pick of mock-up A).
+        expect(look, `${name}: the panel`).toEqual({ image: 'linear-gradient(rgba(14, 30, 21, 0.62), rgba(10, 22, 15, 0.74))', filter: 'blur(18px) saturate(1.4)', corner: '16px' });
         // The title scrolls away with the page, and 홈 fades once the page has moved past 8px; back at the top it returns.
         await expect(page.locator('body')).not.toHaveClass(/scrolled/);
         await page.locator(view).evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -8627,7 +8638,8 @@ const glowing = (page: Page) => page.evaluate(() => {
   return out;
 });
 
-test('only the hole ring and the main action glow; chosen tabs, modes and panes are lime without a glow (v42)', async ({ page }) => {
+// v46 (the user: "홀 링에만 남기기"): the main action lost its glow too; the ring alone says where you are.
+test('only the hole ring glows; main actions, chosen tabs, modes and panes are lime without a glow (v42, v46)', async ({ page }) => {
   await open(page);
   await settled(page);
   // 기록 on hole 1: the ring alone (the island's chosen dot and the card's mode line are lime, unlit).
@@ -8636,16 +8648,16 @@ test('only the hole ring and the main action glow; chosen tabs, modes and panes 
   await settled(page);
   expect(await glowing(page)).toEqual(['#hole-btn']);
   await page.getByRole('button', { name: '기본', exact: true }).click();
-  // 스코어카드: its main action alone, n번 홀 기록하기 (its 스코어카드 | 분석 line and score ring are unlit).
+  // 스코어카드: nothing glows, its main action (n번 홀 기록하기) included; its line and score ring are unlit.
   await tap(page, 'driver');
   await showCard(page);
   await settled(page);
-  expect(await glowing(page)).toEqual(['#sh-go']);
-  // The last hole: the ring and › as 마침.
+  expect(await glowing(page)).toEqual([]);
+  // The last hole: the ring alone; › as 마침 keeps its lime edge, unlit.
   await pickHole(page, 17);
   await settled(page);
   await expect(page.locator('#next-hole')).toHaveClass(/finish/);
-  expect((await glowing(page)).sort()).toEqual(['#hole-btn', '#next-hole']);
+  expect(await glowing(page)).toEqual(['#hole-btn']);
 });
 
 /*
@@ -9031,4 +9043,72 @@ test('the 내 코스 sheet fits 360px with its HCP open, and the picker row keep
   expectAligned(await textLeft('#picker-list .course-group'), await textLeft('#picker-list button.mine b'), 'the heading on the rows’ text');
   const [heading] = await contrastOf(page, [{ sel: '#picker-list .course-group', min: 4.5, unders: ROUGH }]);
   expect(heading.ratio!, 'the 내 코스 heading').toBeGreaterThanOrEqual(4.5);
+});
+
+/* ---------- v46: crisp lines and edges (the user: "조금 더 선이 깔끔하게 떨어지고 edge 가 있었으면 … 약간 유아틱") ---------- */
+
+/**
+ * Every visible element that paints a shape (a fill, a border, an outline or a shadow) fully rounded but not as wide as
+ * it is tall: a pill, which v46 retired for the 12px control. A transparent box draws no corner, so it is not one.
+ */
+const pills = (page: Page) => page.evaluate(() => {
+  const name = (el: Element) => (el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+  const paints = (s: CSSStyleDeclaration) => s.backgroundColor !== 'rgba(0, 0, 0, 0)' || s.backgroundImage !== 'none'
+    || parseFloat(s.borderTopWidth) > 0 || (s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0) || s.boxShadow !== 'none';
+  const out: string[] = [];
+  for (const el of document.querySelectorAll('body *')) {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+    const s = getComputedStyle(el);
+    if ((s.borderTopLeftRadius === '999px' || s.borderTopLeftRadius === '50%') && paints(s) && Math.abs(r.width - r.height) > 1) {
+      out.push(`${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`);
+    }
+  }
+  return out;
+});
+
+test('nothing is a pill any more: controls 12px, cards 16px, and only what is as wide as tall rounds fully (v46)', async ({ page }) => {
+  const corner = (sel: string) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  await settled(page);
+  expect(await pills(page), '코스 선택').toEqual([]);
+  expect(await corner('.picker-foot'), 'the picker card').toBe('16px');
+  expect(await corner('#picker-start'), '이 코스로 시작').toBe('12px');
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await settled(page);
+  expect(await pills(page), '기록').toEqual([]);
+  expect(await corner('.tabbar'), 'the island').toBe('12px');
+  expect(await corner('.nav-pill'), 'the hole switcher').toBe('12px');
+  expect(await corner('.sheet'), 'the card').toBe('16px');
+  // Round on purpose: the hole ring and the score badge.
+  expect(await corner('#hole-btn'), 'the hole ring').toBe('999px');
+  expect(await corner('.badge'), 'the score').toBe('999px');
+  await page.getByRole('button', { name: '상세', exact: true }).click();
+  await settled(page);
+  expect(await pills(page), '기록 상세').toEqual([]);
+  await page.getByRole('button', { name: '기본', exact: true }).click();
+  await showCard(page);
+  await settled(page);
+  expect(await pills(page), '스코어카드').toEqual([]);
+  await menu(page);
+  await settled(page);
+  expect(await pills(page), '메뉴').toEqual([]);
+  await closeMenu(page);
+  // The summary's main action is wide: a 12px control beside the round icon buttons (the screen check found it a pill).
+  await seed(page, Object.fromEntries(Array.from({ length: 18 }, (_, i) => [i, { driver: 1, approach: 1, putts: 2 }])), 17);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await expect(page.locator('#summary')).toBeVisible();
+  await settled(page);
+  expect(await pills(page), '라운드 요약').toEqual([]);
+  expect(await corner('#sum-archive'), '지난 라운드에 보관').toBe('12px');
+  expect(await corner('#sum-share'), 'the round icon buttons').toBe('999px');
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await expect(page.locator('#summary')).toBeHidden();
+  await pastItems(page).first().click();
+  await expect(page.locator('#past')).toBeVisible();
+  await settled(page);
+  expect(await pills(page), '지난 라운드').toEqual([]);
 });
