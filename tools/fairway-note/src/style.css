@@ -1647,10 +1647,10 @@ body.big .toast.vc #toast-msg { line-height: 20px; }
 .how-box { margin: 8px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); color: var(--muted); font-size: var(--t-s); line-height: 1.5; text-wrap: pretty; }
 .how-box p + p { margin-top: 6px; }
 details.how { margin-top: 8px; }
-details.how > summary, details.shot-details > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
-:is(details.how, details.shot-details) > summary::-webkit-details-marker { display: none; }
-:is(details.how, details.shot-details) > summary::after { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--turf); border-bottom: 2px solid var(--turf); transform: translateY(-2px) rotate(45deg); transition: transform .16s ease-out; }
-:is(details.how, details.shot-details)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+details.how > summary, details.shot-details > summary, details.mine-hcp > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
+:is(details.how, details.shot-details, details.mine-hcp) > summary::-webkit-details-marker { display: none; }
+:is(details.how, details.shot-details, details.mine-hcp) > summary::after { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--turf); border-bottom: 2px solid var(--turf); transform: translateY(-2px) rotate(45deg); transition: transform .16s ease-out; }
+:is(details.how, details.shot-details, details.mine-hcp)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); color: var(--ink); }
 
 /* ======================================================================================================================
@@ -2089,3 +2089,20 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 .qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
 .past-meta, .hist-add { white-space: nowrap; }
 .spark-line .spark-hole { fill: none; stroke: var(--deep); stroke-width: 3.5; stroke-linecap: round; }
+/* 내 코스 (v45): the offer under the summary, the save sheet, the picker's own group and the menu's list. */
+.sum-mine { display: flex; align-items: center; gap: 12px; margin: 8px 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); }
+.sum-mine p { flex: 1 1 auto; min-width: 0; font-size: var(--t-m); font-weight: var(--w-help); text-wrap: pretty; }
+.sum-mine .btn { flex: none; min-height: 44px; }
+.sum-mine[hidden], .sum-mine .btn[hidden] { display: none; }
+.mine-nine { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: var(--t-m); font-weight: var(--w-label); }
+.mine-nine input { width: 11em; min-width: 0; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-tile); background: var(--fill); color: var(--ink); font: inherit; }
+.mine-hcp { margin-top: 12px; }
+.mine-sheet p { text-wrap: pretty; }
+details.mine-hcp > summary { font-size: var(--t-m); color: var(--ink); }
+.mine-cell input { width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--ink); text-align: center; font: inherit; font-size: var(--t-l); font-weight: var(--w-value); }
+.mine-cell input::placeholder { color: var(--muted); opacity: 1; }
+/* Sand, as v43's due-backup dot: red-ink reads 2.6:1 on the dark sheet. */
+.mine-error { margin-top: 8px; color: var(--sand); font-weight: var(--w-label); text-wrap: pretty; }
+.mine-error:empty { display: none; }
+.mine-foot { display: flex; justify-content: flex-end; }
+.picker-list .course-group { padding: 10px 16px 6px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }

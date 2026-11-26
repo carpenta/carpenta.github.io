@@ -6,6 +6,7 @@ import { dateLabel, historyCsv } from './report';
 import { hasFinishedHole, hasRecord, loadHistory, saveHistory } from './history';
 import { MAX_BACKUP_BYTES, backupName, backupOf, backupText, parseBackup, planImport, settleImport } from './backup';
 import { refreshHistory, type Page } from './history-view';
+import { loadMyCourses, mergeMyCourses, saveMyCourses } from './my-courses';
 import { h, setText } from './dom';
 
 type BackupPage = Pick<Page, 'current' | 'replace'>;
@@ -40,7 +41,7 @@ async function showKeep(line: HTMLElement): Promise<void> {
 }
 
 function fileText(p: BackupPage): string {
-  return backupText(backupOf(p.current(), loadHistory()));
+  return backupText(backupOf(p.current(), loadHistory(), new Date(), loadMyCourses()));
 }
 
 /** Downloads the backup. */
@@ -126,6 +127,11 @@ function importText(p: BackupPage, text: string): void {
     parts.push(replace
       ? '진행 중이던 라운드를 지금 라운드로 불러왔어요.'
       : done.imported > plan.imported ? '진행 중이던 라운드는 지난 라운드에 넣었어요.' : '진행 중이던 라운드는 끝낸 홀이 없어 넣지 않았어요.');
+  }
+  // 내 코스 (v45): added beside the rounds; the same course is not added twice.
+  if (read.courses?.length) {
+    const mine = mergeMyCourses(loadMyCourses(), read.courses);
+    if (mine.imported && saveMyCourses(mine.courses)) parts.push(`내 코스 ${mine.imported}개를 가져왔어요.`);
   }
   if (plan.skipped) parts.push(`이미 있는 ${plan.skipped}개는 건너뛰었어요.`);
   if (plan.invalid) parts.push(`읽을 수 없는 ${plan.invalid}개는 넣지 않았어요.`);

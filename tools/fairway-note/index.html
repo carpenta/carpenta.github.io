@@ -380,8 +380,7 @@
               <!-- Filled by renderBackup(). -->
               <section id="backup" class="backup"></section>
             </div>
-          </li>
-        </ul>
+          </li>        </ul>
       </section>
       <section class="mg" aria-labelledby="mg-set">
         <h3 class="mg-h" id="mg-set">설정</h3>
@@ -433,6 +432,8 @@
 
     <!-- v44: 지난 라운드 넣기, filled by src/quick-entry.ts -->
     <dialog id="quick" class="sheet-dialog qe-sheet" aria-labelledby="qe-title"></dialog>
+    <!-- 내 코스로 저장 (v45): the nines' names and an optional HCP, filled by my-course-view.ts -->
+    <dialog id="mine-sheet" class="sheet-dialog qe-sheet mine-sheet" aria-labelledby="mine-title"></dialog>
 
     <dialog id="summary" class="sheet-dialog sum-sheet" aria-labelledby="sum-title">
       <div class="grab" aria-hidden="true"></div>
@@ -458,6 +459,11 @@
         <dl class="sum-stats" id="sum-stats"></dl>
         <!-- Said once under the tiles while no tee result is recorded, instead of a 페어웨이 안착 tile with no value -->
         <p class="sum-hint" id="sum-hint" hidden>상세에서 티샷 방향을 고르면 페어웨이 안착이 보여요.</p>
+        <!-- 내 코스 (v45): after a round on a course typed in by hand, an offer to keep its pars for next time -->
+        <div class="sum-mine" id="sum-mine" hidden>
+          <p id="sum-mine-text"></p>
+          <button type="button" class="btn" id="sum-mine-save">저장</button>
+        </div>
         <p id="sum-status" class="muted small" role="status"></p>
       </div>
       <!-- Round buttons from the icon family (main.ts draws them): 공유 or 결과 복사, 이미지 저장 where the image cannot be

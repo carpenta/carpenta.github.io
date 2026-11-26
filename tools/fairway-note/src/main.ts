@@ -47,7 +47,9 @@ import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref,
 import { PREFS_KEY, STORAGE_KEY, clearRound, loadBackupMark, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
 import { backupStatus, shouldAskBackup } from './backup-nudge';
 import { keepScreenOn } from './wake';
-import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
+import { CUSTOM_NAME, courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
+import { loadMyCourses, saveOffer } from './my-courses';
+import { openMineSheet, updateMinePars } from './my-course-view';
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
@@ -1735,11 +1737,43 @@ function renderSummary(): void {
     : [!t.holes ? '홀을 기록하면 어디서 타수를 잃었는지 보여요.' : '기준보다 잃은 타수가 없어요.']));
   $<HTMLAnchorElement>('sum-mail').href = mailtoHref(round);
   $<HTMLButtonElement>('sum-archive').disabled = t.holes === 0;
+  renderMineOffer(t.holes > 0);
 }
+
+/* ---------- 내 코스 (v45): keep a course typed in by hand from its summary ---------- */
+
+/** The course was just kept from this summary: it says so instead of asking again, until the summary next opens. */
+let mineSaved = false;
+
+function renderMineOffer(recorded: boolean): void {
+  const done = mineSaved;
+  const offer = done || !recorded || round.course?.name === CUSTOM_NAME ? null : saveOffer(round, loadMyCourses());
+  $('sum-mine').hidden = !done && offer === null;
+  setText($('sum-mine-text'), done
+    ? '내 코스에 저장했어요. 다음엔 코스 선택 맨 위에서 고르면 돼요.'
+    : offer === 'update' ? '내 코스의 파를 이 라운드대로 바꿀까요?' : '이 골프장을 내 코스로 저장할까요? 다음엔 홀별 파가 채워져요.');
+  $('sum-mine-save').hidden = done;
+  setText($('sum-mine-save'), offer === 'update' ? '바꾸기' : '저장');
+}
+
+function mineDone(ok: boolean): void {
+  if (ok) {
+    mineSaved = true;
+    // The card's line changes in place; say it for screen readers too, as 넣기 does (v44).
+    announce('내 코스에 저장했어요');
+  } else setText($('sum-status'), '저장할 공간이 없거나 이 브라우저에서는 저장할 수 없어 내 코스를 저장하지 못했어요.');
+  renderMineOffer(true);
+}
+
+$('sum-mine-save').addEventListener('click', () => {
+  if (saveOffer(round, loadMyCourses()) === 'update') mineDone(updateMinePars(round));
+  else openMineSheet($<HTMLDialogElement>('mine-sheet'), round, mineDone);
+});
 
 /** Only 라운드 마치기 opens it: the player moves on from the hole being played, which then counts like any other. */
 function openSummary(from: HTMLElement): void {
   summaryOpener = from;
+  mineSaved = false;
   hideToast();
   if (!round.closed) update({ ...round, closed: true });
   setText($('sum-status'), '');
