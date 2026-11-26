@@ -77,7 +77,7 @@
   --sh-3: color-mix(in srgb, var(--ink) 32%, transparent);
   --sh-4: color-mix(in srgb, var(--ink) 40%, transparent);
   /* Shapes (v30): three radii, and three shadows for floating things only (nothing inside a card casts one). */
-  --r-full: 999px; --r-card: 24px; --r-tile: 12px;
+  --r-round: 999px; --r-ctl: 12px; --r-card: 16px; --r-tile: 8px;
   --sh-float: 0 2px 6px var(--sh-2);    /* a control over the drawing or the rough */
   --sh-raise: 0 12px 32px var(--sh-3);  /* a card or popover over the drawing */
   --sh-sheet: 0 -8px 32px var(--sh-2);  /* a sheet from the bottom edge */
@@ -175,7 +175,7 @@ svg { display: block; }
 /* The sheet slides sideways between holes; nothing scrolls the page sideways meanwhile. */
 #entry { overflow-x: clip; }
 .round {
-  width: 48px; height: 48px; border-radius: var(--r-full); display: grid; place-items: center;
+  width: 48px; height: 48px; border-radius: var(--r-round); display: grid; place-items: center;
   background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
 }
 .round:active { background: var(--fill-2); }
@@ -184,7 +184,7 @@ svg { display: block; }
    the Par line under it shorten (v18). */
 .switcher {
   grid-column: 2; grid-row: 1; justify-self: center; max-width: 100%; min-width: 0;
-  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--r-full);
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--r-card);   /* v46: its 12px controls + 4px */
   background: var(--white); box-shadow: var(--sh-float);
 }
 .switcher .round { flex: none; box-shadow: none; background: var(--fill); }
@@ -193,7 +193,7 @@ svg { display: block; }
 .hole-h { display: flex; min-width: 0; margin: 0; font: inherit; }
 /* The hole number is a button: it opens the hole strip. */
 .hole-title {
-  position: relative; min-width: 0; height: 48px; padding: 0 6px 0 8px; border-radius: var(--r-full);
+  position: relative; min-width: 0; height: 48px; padding: 0 6px 0 8px; border-radius: var(--r-ctl);
   display: flex; align-items: center; gap: 2px; font-weight: var(--w-label); white-space: nowrap; text-align: left; color: var(--ink);
 }
 .hole-title:active { background: var(--fill-2); }
@@ -205,7 +205,7 @@ svg { display: block; }
 .ticks { align-self: stretch; display: flex; gap: 1px; height: 4px; margin-top: 4px; }
 /* 1.5px at least (v32): 18 of them and their gaps come to 44px, so in 큰 글씨 at 360 the bar is no wider than "5번" and
    the button hugs the word as at the normal size (2px made it 53px and left 8px of air before ⌄). */
-.ticks i { flex: 1 1 0; min-width: 1.5px; border-radius: var(--r-full); background: var(--fill-2); }
+.ticks i { flex: 1 1 0; min-width: 1.5px; border-radius: var(--r-ctl); background: var(--fill-2); }
 .ticks i[data-t='done'] { background: var(--turf); }
 .ticks i[data-t='miss'] { background: var(--miss); }
 .ticks i[data-t='cur'] { flex-grow: 2.5; background: var(--deep); }
@@ -235,7 +235,7 @@ svg { display: block; }
 .info { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; min-width: 0; }
 .chip .lbl { font-weight: var(--w-label); color: var(--muted); }
 .chip {
-  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: var(--r-ctl);
   background: var(--white); box-shadow: var(--sh-float);
   font-size: var(--t-s); font-weight: var(--w-label); color: var(--ink); white-space: nowrap; text-decoration: none;
 }
@@ -246,7 +246,7 @@ svg { display: block; }
 /* The hole's handicap and layout note: quiet captions on the course, under the chips. 기본 only, and only where there is room. */
 .notes { grid-column: 1 / -1; grid-row: 3; justify-self: start; display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; padding: 0; list-style: none; max-width: calc(100% - var(--badge) - 16px); }
 .notes li {
-  height: 24px; padding: 0 9px; border-radius: var(--r-full); display: inline-flex; align-items: center;
+  height: 24px; padding: 0 9px; border-radius: var(--r-ctl); display: inline-flex; align-items: center;
   background: var(--deep); color: var(--on-dark-2); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap;
 }
 /* main.ts sets --notes-h on #entry to the captions' height: two rows on tall screens, one below 700px, none below 620px. */
@@ -280,7 +280,7 @@ svg { display: block; }
    the score and its scorecard mark, deep, turf at par and red under it. */
 .badge {
   grid-column: 3; grid-row: 1; justify-self: end; align-self: center; position: relative; z-index: 3;
-  width: var(--badge); height: var(--badge); border-radius: var(--r-full);
+  width: var(--badge); height: var(--badge); border-radius: var(--r-round);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-float);
   outline: 1px solid var(--outline-on-art); outline-offset: -1px;
@@ -325,7 +325,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .badge.celebrate { animation: pop .5s cubic-bezier(.3, .7, .2, 1); }
 .badge.celebrate .bm * { stroke-dasharray: 1.02; animation: draw .55s cubic-bezier(.3, .7, .2, 1) both; }
 .badge.celebrate .bm *:nth-child(2) { animation-delay: .14s; }
-.badge.celebrate::after { content: ''; position: absolute; inset: 0; border: 6px solid var(--glow); border-radius: var(--r-full); animation: ring .7s ease-out both; }
+.badge.celebrate::after { content: ''; position: absolute; inset: 0; border: 6px solid var(--glow); border-radius: var(--r-round); animation: ring .7s ease-out both; }
 /* The scorecard's smaller marks keep their CSS rings. */
 .m::before, .m::after { content: ''; position: absolute; inset: 0; margin: auto; width: 0; height: 0; border: 0 solid currentColor; }
 
@@ -336,7 +336,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 /* The club's name and icon: a 44px button that opens its shot details (v20), shown as a small chip with a chevron; a dot
    on it once the club has details on this hole. */
 .club-lbl { position: relative; display: grid; place-items: center; width: 100%; max-width: 104px; height: var(--lbl-h); font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
-.lbl-in { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px 0 7px; border-radius: var(--r-full); background: var(--fill); transition: background-color .12s ease-out; }
+.lbl-in { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px 0 7px; border-radius: var(--r-ctl); background: var(--fill); transition: background-color .12s ease-out; }
 .club-lbl:active .lbl-in { background: var(--fill-2); }
 .club-lbl[aria-expanded='true'] .lbl-in { background: var(--turf); color: var(--on-dark); }
 .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-dark); }
@@ -344,7 +344,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .club-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lbl-chev { flex: none; display: grid; color: var(--turf); }
 .lbl-chev svg { width: 12px; height: 12px; }
-.lbl-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: var(--r-full); background: var(--turf); outline: 2px solid var(--white); opacity: 0; transition: opacity .16s ease-out; }
+.lbl-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: var(--r-round); background: var(--turf); outline: 2px solid var(--white); opacity: 0; transition: opacity .16s ease-out; }
 .club-lbl.tagged .lbl-dot { opacity: 1; }
 /* A column narrower than the capsule keeps the name whole: the icon steps aside and the name is 13px; the chevron stays. */
 @container (max-width: 103px) { .lbl-in > svg { display: none; } .lbl-in { padding: 0 7px 0 9px; font-size: var(--t-s); } }
@@ -353,7 +353,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 @container (max-width: 80px) { .lbl-in { width: 100%; justify-content: center; padding: 0 4px; } .lbl-chev { display: none; } }
 .pill {
   position: relative; width: 100%; max-width: 104px; height: var(--pill-h);
-  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: var(--r-full);
+  display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; border-radius: var(--r-ctl);
 }
 /* A half: a button from the capsule's end to its midline, its glyph at the outer end; pressed, the whole half tints. */
 .step { position: relative; display: grid; justify-items: center; width: 100%; min-height: 0; transition: background-color .12s ease-out; }
@@ -421,7 +421,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .st-defs > div { display: contents; }
 .st-defs dt { font-size: var(--t-s); font-weight: var(--w-label); line-height: 18px; color: var(--sun); white-space: nowrap; }
 .st-defs dd { margin: 0; font-size: var(--t-s); font-weight: var(--w-help); line-height: 18px; color: var(--on-dark); text-wrap: pretty; }
-.st-close { flex: none; position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; color: var(--on-dark); }
+.st-close { flex: none; position: relative; width: 44px; height: 44px; border-radius: var(--r-round); display: grid; place-items: center; color: var(--on-dark); }
 .st-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .st-close:active { background: var(--deep-press); }
 @media (prefers-reduced-motion: reduce) { .split-tip { animation: none; } }
@@ -438,7 +438,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .tee-t .val.none { color: var(--muted); font-weight: var(--w-help); }
 .tee-chips { display: flex; gap: 8px; flex: none; }
 .tchip {
-  position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: var(--r-full);
+  position: relative; height: 32px; min-width: 48px; padding: 0 10px; border-radius: var(--r-ctl);
   display: inline-flex; align-items: center; justify-content: center; gap: 3px;
   background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); color: var(--ink); white-space: nowrap;
 }
@@ -447,11 +447,11 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .tchip.miss { min-width: 80px; }
 /* From the card's content edge to the other, like the tee line above it; 페어웨이 stays in the centre. */
 .pad { margin-top: 8px; display: flex; justify-content: space-between; gap: 8px; }
-.dir { flex: none; width: 48px; height: 48px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.dir { flex: none; width: 48px; height: 48px; border-radius: var(--r-round); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .dir:active { background: var(--fill-2); }
 .dir.far { background: var(--fill); }
 .dir[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
-.d-c { width: 64px; border-radius: var(--r-full); font-size: var(--t-s); font-weight: var(--w-label); background: var(--fill); }
+.d-c { width: 64px; border-radius: var(--r-ctl); font-size: var(--t-s); font-weight: var(--w-label); background: var(--fill); }
 
 /* Penalties: OB (white post) and 해저드 (red post); each tap adds a stroke. 벙커 (상세) is noted only.
    The row sits on the steppers' columns (v14): OB under 드라이버, 해저드 under 퍼터, and in the middle "빼기" (기본) or
@@ -476,12 +476,12 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 #entry[data-mode='detail'] .pen { width: 100%; max-width: 72px; gap: 2px; }
 /* The penalties' 2px between icon and word (v32): 빼기 kept 4px, so the card grew 2px when the first penalty came. */
 #entry[data-mode='detail'] .undo { width: 100%; max-width: 72px; gap: 2px; }
-.pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); }
+.pen-icon { position: relative; width: var(--pen); height: var(--pen); border-radius: var(--r-round); display: grid; place-items: center; background: var(--fill); }
 .pen:active:not(:disabled) .pen-icon { background: var(--fill-2); }
 .pen.on .pen-icon { background: var(--sand-tint); outline: 2px solid var(--sand); outline-offset: -2px; }
 .pen-lbl { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); line-height: 16px; text-align: center; white-space: nowrap; }
 .pen-count {
-  position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: var(--r-full);
+  position: absolute; top: -4px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: var(--r-ctl);
   background: var(--sand); color: var(--ink); font-size: var(--t-s); font-weight: var(--w-value); line-height: 24px; text-align: center; outline: 2px solid var(--white);
 }
 .pen-count.zero { display: none; }
@@ -489,7 +489,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
   width: 72px; display: flex; flex-direction: column; align-items: center; gap: 4px;
   font-size: var(--t-s); font-weight: var(--w-label); line-height: 16px; color: var(--turf); white-space: nowrap;
 }
-.undo .u-ico { width: var(--pen); height: var(--pen); border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.undo .u-ico { width: var(--pen); height: var(--pen); border-radius: var(--r-round); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .undo:active:not(:disabled) .u-ico { background: var(--fill-2); }
 /* With nothing to take off, 빼기 keeps its box but not its look (v32): nothing appears or moves when the first penalty
    comes, and the busiest card carries no dead control (shown disabled, its − under the capsule's − was one more thing to
@@ -497,13 +497,13 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .undo:disabled { visibility: hidden; }
 
 /* 기본 / 상세 */
-.modes { display: flex; width: fit-content; margin: 12px auto 0; border-radius: var(--r-full); background: var(--fill); }
-.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: var(--r-full); color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
+.modes { display: flex; width: fit-content; margin: 12px auto 0; border-radius: var(--r-ctl); background: var(--fill); }
+.mode { position: relative; height: var(--mode-h); min-width: 96px; padding: 0 18px; border-radius: var(--r-ctl); color: var(--muted); font-size: var(--t-s); font-weight: var(--w-label); }
 .mode::after { content: ''; position: absolute; inset: calc((var(--mode-h) - 48px) / 2) 0; }   /* a 48px touch area */
 /* What is chosen, everywhere (v30): turf with white letters, so it reads in sun on light and on dark alike. */
 .mode[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 
-.next { position: relative; z-index: 1; flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: var(--r-full); background: var(--action); color: var(--on-action); font-size: var(--t-l); font-weight: var(--w-label); box-shadow: var(--sh-float); }
+.next { position: relative; z-index: 1; flex: none; margin: var(--next-m) var(--m); height: var(--next-h); border-radius: var(--r-ctl); background: var(--action); color: var(--on-action); font-size: var(--t-l); font-weight: var(--w-label); box-shadow: var(--sh-float); }
 .next:active { background: var(--action-press); }
 
 /* Undo: after a + or − or a penalty, "드라이버 +1 · 되돌리기" for four seconds. Since the club names became buttons (v20)
@@ -511,14 +511,14 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
    long the message, a tap meant for a button never lands on it. */
 .toast {
   position: absolute; z-index: 4; grid-row: 2; grid-column: 1 / -1; left: 0; right: 0; top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: var(--r-full);
+  display: flex; align-items: center; justify-content: space-between; gap: 2px; height: 44px; padding: 0 0 0 16px; border-radius: var(--r-ctl);
   background: var(--deep); color: var(--on-dark); box-shadow: var(--sh-raise);
   font-size: var(--t-m); font-weight: var(--w-label); white-space: nowrap;
 }
 #toast-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* While the bar shows, the chips step aside under it (whatever shows or hides it). */
 .top:has(> .toast:not([hidden])) .info { visibility: hidden; }
-.toast button { flex: none; height: 44px; padding: 0 16px; border-radius: var(--r-full); color: var(--sun); font-weight: var(--w-label); }
+.toast button { flex: none; height: 44px; padding: 0 16px; border-radius: var(--r-ctl); color: var(--sun); font-weight: var(--w-label); }
 .toast button:active { background: var(--deep-press); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(calc(-50% + 8px)); } to { opacity: 1; transform: translateY(-50%); } }
 .toast.show { animation: toast-in .16s ease-out; }
@@ -534,7 +534,7 @@ body.big .badge.hio .badge-name { font-size: var(--t-l); bottom: calc(50% - 7px)
 .bar { width: 100%; max-width: 480px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 4px; align-items: center; }
 .tabs { grid-column: 1 / 4; display: grid; grid-template-columns: subgrid; column-gap: 4px; }
 .tab, .bar-menu { height: var(--tabbar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--tab-ink); font-weight: var(--w-label); }
-.tab .ti, .bar-menu .ti { width: 56px; height: 28px; border-radius: var(--r-full); display: grid; place-items: center; }
+.tab .ti, .bar-menu .ti { width: 56px; height: 28px; border-radius: var(--r-ctl); display: grid; place-items: center; }
 .tab[aria-selected='true'] .ti { background: var(--turf); }
 .tab svg, .bar-menu svg, .home-link svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .tab-label { font-size: var(--t-s); white-space: nowrap; }
@@ -593,16 +593,16 @@ body:has(#menu[open]) .tab[aria-selected='true'] .ti { background: transparent; 
 .sc-top > .edit, .sc-top > .head-btn { grid-column: 3; justify-self: end; }
 .sc-title { grid-column: 2; text-align: center; min-width: 0; }
 /* A header's right-hand action other than 파 수정 (v35: 닫기 on a past round, 취소 on the picker), sized as 파 수정. */
-.head-btn { height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); white-space: nowrap; }
+.head-btn { height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-ctl); font-size: var(--t-m); font-weight: var(--w-label); white-space: nowrap; }
 .edit {
-  height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-full); background: var(--white); box-shadow: var(--sh-float);
+  height: 48px; min-width: 76px; padding: 0 14px; border-radius: var(--r-ctl); background: var(--white); box-shadow: var(--sh-float);
   font-size: var(--t-m); font-weight: var(--w-label); color: var(--turf); white-space: nowrap;
 }
 .edit.on { background: var(--turf); color: var(--on-dark); }
 /* On the deep header (v32) 파 수정 is a ghost: no fill or shadow, a soft white ring and white letters, so the round's
    score under it stays the loudest thing on the page (a white floating pill had outshone the ring, while 기록 keeps a
    quiet badge in the same slot). While editing it inverts to white with turf letters, as chosen things do on dark. */
-.sc-top .edit, .sc-top .head-btn { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+.sc-top .edit, .sc-top .head-btn { background: transparent; box-shadow: none; color: var(--on-dark); outline: 1px solid var(--on-dark-line); outline-offset: -1px; }
 .sc-top .edit.on { background: var(--white); color: var(--turf); outline: none; }
 .sc-top .edit:not(.on):active, .sc-top .head-btn:active { background-color: var(--deep-press); }
 .sc-top .edit.on:active { background-color: var(--fill); }
@@ -613,8 +613,8 @@ body:has(#menu[open]) .tab[aria-selected='true'] .ti { background: transparent; 
 /* 스코어카드 | 분석 (v26): the picker's 18홀 | 9홀 at the cards' width under the title row, the chosen half a white pill on
    the tint. 44px tall with 3px padding, so the radii are concentric (22 outside, 19 inside), each half reaching 48px to
    the touch; 12px from the title row (its 10px and 2px) and from the card under it. */
-.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 0 var(--m) 12px; border-radius: var(--r-full); background: var(--fill); }
-.sc-switch button { position: relative; min-width: 0; height: 44px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
+.sc-switch { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 0 var(--m) 12px; border-radius: var(--r-ctl); background: var(--fill); }
+.sc-switch button { position: relative; min-width: 0; height: 44px; border-radius: var(--r-ctl); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
 .sc-switch button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
 .sc-switch button[aria-checked='true'] { background: var(--turf); color: var(--on-dark); }
 .sc-analysis { flex: none; }
@@ -626,9 +626,9 @@ body:has(#menu[open]) .tab[aria-selected='true'] .ti { background: transparent; 
 .m[data-tone='par'] { color: var(--turf); }
 .m[data-tone='none'] { color: var(--quiet); }
 .m b { position: relative; font-size: var(--t-xl); font-weight: var(--w-value); line-height: 1; text-box: trim-both cap alphabetic; }
-.m[data-mark='birdie']::before { width: 29px; height: 29px; border-width: 2px; border-radius: var(--r-full); }
-.m[data-mark='eagle']::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: var(--r-full); }
-.m[data-mark='eagle']::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: var(--r-full); }
+.m[data-mark='birdie']::before { width: 29px; height: 29px; border-width: 2px; border-radius: var(--r-round); }
+.m[data-mark='eagle']::before { width: 25px; height: 25px; border-width: 1.5px; border-radius: var(--r-round); }
+.m[data-mark='eagle']::after { width: 32px; height: 32px; border-width: 1.5px; border-radius: var(--r-round); }
 .m[data-mark='bogey']::before { width: 27px; height: 27px; border-width: 2px; }
 .m[data-mark='double']::before { width: 24px; height: 24px; border-width: 1.5px; }
 .m[data-mark='double']::after { width: 31px; height: 31px; border-width: 1.5px; }
@@ -649,7 +649,7 @@ body.big .legend { --lg-col: 100px; }
    subtotals, as a bare number like them; its to-par stands just before it. */
 .tot {
   --sum-w: 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto var(--sum-w); column-gap: 10px; align-items: baseline;
-  margin-top: 16px; padding-top: 12px; border-top: 1.5px solid var(--line);
+  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line);
 }
 .tot h3 { font-size: var(--t-l); font-weight: var(--w-label); }
 .tot > span { font-size: var(--t-s); color: var(--muted); }
@@ -674,8 +674,8 @@ body.big .legend { --lg-col: 100px; }
 .lost-bars li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 3em; align-items: center; gap: 8px; font-size: var(--t-s); }
 /* A block, not the tab bar's 4-column .bar grid it shares a name with: in that grid every fill took its width from a
    quarter of the track, so the most lost read as a stub (v29). */
-.lost-bars .bar { display: block; height: 12px; border-radius: var(--r-full); background: var(--fill); overflow: hidden; }
-.lost-bars .bar i { display: block; height: 100%; border-radius: var(--r-full); background: var(--turf); }
+.lost-bars .bar { display: block; height: 12px; border-radius: var(--r-ctl); background: var(--fill); overflow: hidden; }
+.lost-bars .bar i { display: block; height: 100%; border-radius: var(--r-ctl); background: var(--turf); }
 .lost-bars li.worst .bar i { background: var(--sand); }
 .lost-bars .v { text-align: right; font-weight: var(--w-value); }
 /* 그린까지's two parts over the holes split in 상세 (v28): indented under it in the quiet ink, on the same columns, their
@@ -704,13 +704,13 @@ body.big .legend { --lg-col: 100px; }
 .metrics.three dt small { margin-left: 0; white-space: nowrap; }
 .bars { display: grid; gap: 8px; }
 .bar-row { display: grid; grid-template-columns: 5.5em 1fr 3em; align-items: center; gap: 8px; font-size: var(--t-s); }
-.bar-track { height: 12px; background: var(--fill); border-radius: var(--r-full); overflow: hidden; }
-.bar-fill { display: block; height: 100%; border-radius: var(--r-full); background: var(--turf); }
+.bar-track { height: 12px; background: var(--fill); border-radius: var(--r-ctl); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: var(--r-ctl); background: var(--turf); }
 .bar-value { text-align: right; font-weight: var(--w-value); }
 .best-worst { margin-top: 12px; font-size: var(--t-m); text-wrap: pretty; }
 .insights { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: var(--t-m); text-wrap: pretty; }
 .insights li { position: relative; padding-left: 16px; }
-.insights li::before { content: ''; position: absolute; left: 3px; top: .62em; width: 6px; height: 6px; border-radius: var(--r-full); background: var(--turf); }
+.insights li::before { content: ''; position: absolute; left: 3px; top: .62em; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--turf); }
 #send-status:empty { display: none; }
 
 /* ---------- 지난 라운드 and 백업 (src/history-view.ts, src/backup-view.ts); one past round opens read-only ---------- */
@@ -730,7 +730,7 @@ body.big .legend { --lg-col: 100px; }
 #hist-view #history { margin-bottom: 24px; }
 /* With the heading gone the trends open the card: no gap above them beyond the card's own padding (v17). */
 #hist-view .history-trends { margin-top: 0; }
-.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-value); vertical-align: middle; }
+.topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: var(--r-ctl); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-value); vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: var(--red-tint); color: var(--red-ink); }
 .history-trends { margin: 8px 0 12px; }
 .history-trends .metrics { margin: 0; }
@@ -789,9 +789,9 @@ html.past-open { overflow: hidden; }
 
 /* Secondary (v30): white, a turf ring and turf letters, so it reads as a button on a white sheet or the paper page in
    sun (the fill alone was 1.1:1 against them). The primary is lime, a chosen thing turf, a quiet one a fill or nothing. */
-.btn { min-height: 48px; padding: 8px 14px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-weight: var(--w-label); }
+.btn { min-height: 48px; padding: 8px 14px; border-radius: var(--r-ctl); background: var(--white); color: var(--turf); outline: 1px solid var(--turf); outline-offset: -1px; font-weight: var(--w-label); }
 .btn.primary { background: var(--action); color: var(--on-action); outline: none; }
-.btn.danger { background: var(--white); color: var(--red); outline: 1.5px solid currentColor; outline-offset: -1.5px; }
+.btn.danger { background: var(--white); color: var(--red); outline: 1px solid currentColor; outline-offset: -1px; }
 .notice { padding: 8px 12px; border-radius: var(--r-tile); background: var(--warn-tint); box-shadow: var(--sh-float); font-size: var(--t-m); }
 .stale { display: grid; gap: 10px; padding: 12px 14px; border-radius: var(--r-card); background: var(--warn-tint); box-shadow: var(--sh-float); }
 .stale-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -803,7 +803,7 @@ html.past-open { overflow: hidden; }
   padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
 }
 .sheet-dialog::backdrop { background: var(--backdrop-strong); }
-.grab { width: 40px; height: 5px; border-radius: var(--r-full); background: var(--fill); margin: 0 auto 12px; }
+.grab { width: 40px; height: 5px; border-radius: var(--r-ctl); background: var(--fill); margin: 0 auto 12px; }
 .sheet-dialog h2 { font-size: var(--t-l); font-weight: var(--w-label); }
 /* The menu (v36): it rises from 메뉴 and stops on the bar's top edge, the dim stopping there too, so the bar stays in view
    with 메뉴 marked as where the sheet came from; its items sorted by job (the round, keeping the record, settings, then
@@ -843,19 +843,19 @@ button.mi:active { background: var(--fill-2); }
 /* 멀리건 on its own row (v36): −, the count and + at the row's end, where the switches end, two taps from 기록. */
 .mi.mi-step { grid-template-columns: 40px minmax(0, 1fr) auto; }
 .stepper { display: flex; align-items: center; gap: 4px; }
-.step-sm { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); color: var(--turf); display: grid; place-items: center; }
+.step-sm { width: 48px; height: 48px; border-radius: var(--r-round); background: var(--fill); color: var(--turf); display: grid; place-items: center; }
 .step-sm svg { width: 20px; height: 20px; }
 .step-sm:active:not(:disabled) { background: var(--fill-2); }
 .step-sm:disabled { color: var(--off-ink); }
 .step-count { min-width: 24px; text-align: center; font-size: var(--t-l); font-weight: var(--w-value); }
 /* The ×, on the title's line and ending where the rows end (v36: 닫기 at the sheet's foot came down onto the bar). */
-.menu-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
+.menu-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-round); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
 .menu-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 
 /* A new version is waiting: a small prompt above 다음 홀 that never blocks the page. */
 .update-prompt {
   position: fixed; left: 50%; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom) + 72px); transform: translateX(-50%); z-index: 6;
-  max-width: calc(100vw - 24px); min-height: 44px; padding: 10px 16px; border-radius: var(--r-full);
+  max-width: calc(100vw - 24px); min-height: 44px; padding: 10px 16px; border-radius: var(--r-ctl);
   background: var(--ink); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; box-shadow: var(--sh-float);
 }
 .update-prompt:disabled { opacity: .7; }
@@ -939,7 +939,7 @@ button.mi:active { background: var(--fill-2); }
 }
 .pk-brand { grid-column: 2; grid-row: 1; justify-self: center; display: flex; align-items: center; gap: 8px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-dark-soft); }
 .picker-head > h2 { grid-column: 1 / -1; grid-row: 2; margin-top: 2px; font-size: var(--t-2xl); font-weight: var(--w-label); line-height: 1.15; letter-spacing: -.01em; }
-.picker-head > .head-btn { grid-column: 3; grid-row: 1; justify-self: end; background: transparent; color: var(--on-dark); outline: 1.5px solid var(--on-dark-line); outline-offset: -1.5px; }
+.picker-head > .head-btn { grid-column: 3; grid-row: 1; justify-self: end; background: transparent; color: var(--on-dark); outline: 1px solid var(--on-dark-line); outline-offset: -1px; }
 /* The views' 홈 (.home-link), here in the row: quiet, no fill, a 48px target. */
 .picker-home {
   appearance: none; border: 0; background: none; font-family: inherit; cursor: pointer;
@@ -967,7 +967,7 @@ body.big .picker-home { font-size: var(--t-m); }
 .picker-areas { flex: none; margin: 16px 0 0; padding: 0 var(--m) 2px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .picker-areas::-webkit-scrollbar { display: none; }
 .picker .chip {
-  position: relative; flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: var(--r-full);
+  position: relative; flex: none; height: 32px; padding: 0 14px; border: 0; border-radius: var(--r-ctl);
   background: var(--rough-fill); color: var(--on-dark); font-size: var(--t-m); font-weight: var(--w-label); box-shadow: none;
 }
 .picker .chip::after { content: ''; position: absolute; inset: -8px 0; }   /* a 48px touch area */
@@ -1016,9 +1016,9 @@ body.big .picker-home { font-size: var(--t-m); }
 .pk-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
 .pk-name .picker-label { min-width: 0; }
 .pk-holes { flex: none; font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); white-space: nowrap; }
-.pk-len { flex: none; display: flex; border-radius: var(--r-full); background: var(--fill); }
+.pk-len { flex: none; display: flex; border-radius: var(--r-ctl); background: var(--fill); }
 .pk-len[hidden] { display: none; }
-.pk-len button { position: relative; min-width: 54px; height: 42px; padding: 0 10px; border-radius: var(--r-full); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
+.pk-len button { position: relative; min-width: 54px; height: 42px; padding: 0 10px; border-radius: var(--r-ctl); font-size: var(--t-m); font-weight: var(--w-label); color: var(--muted); }
 .pk-len button::after { content: ''; position: absolute; inset: -3px 0; }   /* a 48px touch area */
 .pk-len button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 .picker-chosen { display: grid; gap: 8px; }
@@ -1057,14 +1057,14 @@ body.big .picker-home { font-size: var(--t-m); }
 .sum-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: start; }
 .sum-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); text-wrap: balance; }
 .sum-head p { font-size: var(--t-s); color: var(--muted); margin-top: 2px; }
-.sum-close { position: relative; width: 44px; height: 44px; margin-top: calc((22px * 1.45 - 44px) / 2); border-radius: var(--r-full); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
+.sum-close { position: relative; width: 44px; height: 44px; margin-top: calc((22px * 1.45 - 44px) / 2); border-radius: var(--r-round); background: var(--fill); color: var(--ink); display: grid; place-items: center; }
 .sum-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sum-hero { margin-top: 6px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-columns: auto; column-gap: 16px; align-items: center; }
 /* The ring's white gap and hairline are drawn inside its 80px box (v23), so the box is the edge the eye sees: a 70px
    disc on the content box, toned through background-color so the clip stays. */
 .sum-ring {
-  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-full); background: var(--deep) content-box; color: var(--on-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1.5px solid var(--line); outline-offset: -1.5px;
+  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-round); background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1px solid var(--line); outline-offset: -1px;
 }
 .sum-ring[data-tone='under'] { background-color: var(--red); }
 .sum-ring[data-tone='par'] { background-color: var(--turf); }
@@ -1086,7 +1086,7 @@ body.big .picker-home { font-size: var(--t-m); }
 .sum-card img { display: block; width: 100%; height: 100%; animation: fn-fade .2s ease-out; }
 .sum-card:active img { opacity: .82; }
 .sum-badge {
-  position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: var(--r-full);
+  position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: var(--r-round);
   background: var(--fill); color: var(--turf); display: grid; place-items: center; outline: 2px solid var(--white);
 }
 .sum-card[data-state='drawing'] .sum-badge, .sum-card[data-act='share'] .b-save, .sum-card[data-act='save'] .b-share { display: none; }
@@ -1121,12 +1121,12 @@ body.big .picker-home { font-size: var(--t-m); }
 #summary[data-overflow] .sum-actions::before { opacity: 1; }
 /* The same round buttons in a past round (v23). */
 .sum-actions > *, .round-actions > * {
-  flex: none; width: 52px; height: 52px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-m); font-weight: var(--w-label);
+  flex: none; width: 52px; height: 52px; border-radius: var(--r-round); background: var(--fill); font-size: var(--t-m); font-weight: var(--w-label);
   color: var(--turf); display: grid; place-items: center; text-decoration: none;
 }
-.sum-actions .primary { flex: 1; width: auto; min-width: 0; background: var(--action); color: var(--on-action); font-size: var(--t-l); }
+.sum-actions .primary { flex: 1; width: auto; min-width: 0; border-radius: var(--r-ctl); background: var(--action); color: var(--on-action); font-size: var(--t-l); }   /* v46: wide, so a control, not the icons' circle */
 .sum-actions .primary:disabled { background: var(--fill); color: var(--off-ink); }
-.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
+.sc-finish { flex: none; margin: 0 var(--m) 12px; height: 52px; border-radius: var(--r-ctl); background: var(--white); color: var(--turf); outline: 1px solid var(--turf); outline-offset: -1px; font-size: var(--t-l); font-weight: var(--w-label); }
 
 /* ---------- press (v23): every control outside 기록 answers a tap with its colour, as 기록's do; colour only ----------
    The tap highlight is off, so without this a press in sunlight reads as "didn't work" and invites a second tap.
@@ -1186,12 +1186,12 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 
 /* ---------- 스코어카드 (v13): a hero, then each nine as one classic table ---------- */
 /* No side padding: the ring and the tiles start and end on the tables' edges, like everything else in the card (v17). */
-.sc-hero { display: grid; grid-template-columns: 80px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 2px 0 14px; border-bottom: 1.5px solid var(--line); }
+.sc-hero { display: grid; grid-template-columns: 80px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 2px 0 14px; border-bottom: 1px solid var(--line); }
 .sc-hero[hidden], .sh-empty[hidden] { display: none; }
 /* The same ring as 라운드 요약's: 80px, 16px to the text (v17), its halo inside the box (v23). */
 .sh-ring {
-  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-full); background: var(--deep) content-box; color: var(--on-dark);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1.5px solid var(--line); outline-offset: -1.5px;
+  width: 80px; height: 80px; padding: 5px; border-radius: var(--r-round); background: var(--deep) content-box; color: var(--on-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; outline: 1px solid var(--line); outline-offset: -1px;
 }
 .sh-ring[data-tone='under'] { background-color: var(--red); }
 .sh-ring[data-tone='par'] { background-color: var(--turf); }
@@ -1206,10 +1206,10 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .sh-stats div { padding: 8px 12px; border-radius: var(--r-tile); background: var(--paper); }
 .sh-stats dt { font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 .sh-stats dd { margin: 2px 0 0; font-size: var(--t-l); font-weight: var(--w-value); font-variant-numeric: tabular-nums; }
-.sh-empty { padding: 6px 0 14px; text-align: center; border-bottom: 1.5px solid var(--line); }
+.sh-empty { padding: 6px 0 14px; text-align: center; border-bottom: 1px solid var(--line); }
 .sh-e1 { font-size: var(--t-l); font-weight: var(--w-label); text-wrap: balance; }
 .sh-e2 { margin-top: 4px; font-size: var(--t-s); color: var(--muted); text-wrap: pretty; }
-.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: var(--r-full); background: var(--action); color: var(--on-action); font-size: var(--t-m); font-weight: var(--w-label); }
+.sh-go { margin-top: 12px; height: 48px; padding: 0 22px; border-radius: var(--r-ctl); background: var(--action); color: var(--on-action); font-size: var(--t-m); font-weight: var(--w-label); }
 /* Each nine as one table, the same shape in every mode (v23): the label column, nine hole columns and the sum column on
    one grid, each column four rows (26 / 26 / 40 / 26). On the round being recorded a hole's column is a button as tall
    as the table, about 24px wide at 360 (WCAG 2.5.8), with the hole strip's 48×64 cells one tap away on the hole number. */
@@ -1239,7 +1239,7 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 button.ct-col:focus-visible { outline-offset: -3px; }
 /* 파 수정: each par cell reads as a key in the same column (nothing moves); a par changed from the course's is chosen. */
 .ct.editing .ct-col .c-par { position: relative; isolation: isolate; color: var(--ink); font-weight: var(--w-value); }
-.ct.editing .ct-col .c-par::before { content: ''; position: absolute; z-index: -1; inset: 2px 2px 3px; border-radius: var(--r-tile); background: var(--fill); outline: 1.5px solid var(--fairway); outline-offset: -1.5px; }
+.ct.editing .ct-col .c-par::before { content: ''; position: absolute; z-index: -1; inset: 2px 2px 3px; border-radius: var(--r-tile); background: var(--fill); outline: 1px solid var(--fairway); outline-offset: -1px; }
 .ct.editing .ct-col .c-par.changed { color: var(--on-dark); }
 .ct.editing .ct-col .c-par.changed::before { background: var(--turf); outline: none; }
 /* A 34px mark is wider than a hole's column (24–30px), and a grid item that overflows its column is put at the start
@@ -1309,7 +1309,7 @@ body.big .pen-icon svg { width: 28px; height: 28px; }
 .strip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; padding: 0 16px; }
 .strip-head h2 { font-size: var(--t-l); font-weight: var(--w-label); }
 .strip-note { font-size: var(--t-s); font-weight: var(--w-help); color: var(--muted); white-space: nowrap; }
-.strip-note.warn { height: 28px; padding: 0 10px; border-radius: var(--r-full); display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: var(--w-label); outline: 1.5px solid var(--sand); outline-offset: -1.5px; }
+.strip-note.warn { height: 28px; padding: 0 10px; border-radius: var(--r-ctl); display: inline-flex; align-items: center; background: var(--sand-tint); color: var(--sand-ink); font-weight: var(--w-label); outline: 1px solid var(--sand); outline-offset: -1px; }
 /* Whole cells (v23): it opens with the two holes before this one in view, the first on the heading's edge, and comes
    to rest on a cell's start. Whatever scrolls under the 16px edges fades out there instead of being chopped through. */
 .strip-row {
@@ -1326,7 +1326,7 @@ body.big .pen-icon svg { width: 28px; height: 28px; }
 button.scell:active { background: var(--fill); }
 .scell .sc-no { height: 18px; font-size: var(--t-s); font-weight: var(--w-label); line-height: 18px; color: var(--muted); }
 .scell[aria-current='true'] { background: var(--fill); }
-.scell[aria-current='true'] .sc-no { padding: 0 6px; border-radius: var(--r-full); background: var(--turf); color: var(--on-dark); }
+.scell[aria-current='true'] .sc-no { padding: 0 6px; border-radius: var(--r-ctl); background: var(--turf); color: var(--on-dark); }
 .scell[data-st='later'] { padding-top: 4.5px; background: var(--white); border: 1.5px dashed var(--line-strong); }
 .scell[data-st='missed'] { padding-top: 4.5px; background: var(--sand-tint); border: 1.5px dashed var(--sand-line); }
 .scell[data-st='missed'] .sc-no, .scell[data-st='missed'] .m { color: var(--sand-ink); }
@@ -1340,7 +1340,7 @@ button.scell:active { background: var(--fill); }
 .check-list b { display: block; font-size: var(--t-m); font-weight: var(--w-label); }
 .check-list small { display: block; margin-top: 2px; font-size: var(--t-s); color: var(--muted); }
 .check-actions { margin-top: 14px; display: grid; gap: 8px; }
-.check-actions button { height: 52px; border-radius: var(--r-full); background: var(--white); color: var(--turf); outline: 1.5px solid var(--turf); outline-offset: -1.5px; font-size: var(--t-l); font-weight: var(--w-label); }
+.check-actions button { height: 52px; border-radius: var(--r-ctl); background: var(--white); color: var(--turf); outline: 1px solid var(--turf); outline-offset: -1px; font-size: var(--t-l); font-weight: var(--w-label); }
 .check-actions .primary { background: var(--action); color: var(--on-action); outline: none; }
 
 /* ---------- long-press a count: a one-row 0 … 5+ picker ---------- */
@@ -1355,15 +1355,15 @@ button.scell:active { background: var(--fill); }
 .numpick::backdrop { background: var(--backdrop); }
 .np-h { padding: 2px 0 8px; font-size: var(--t-m); font-weight: var(--w-label); }
 .np-row { display: flex; justify-content: space-between; gap: 4px; }
-.np-row button { width: 48px; height: 48px; border-radius: var(--r-full); background: var(--fill); font-size: var(--t-xl); font-weight: var(--w-value); color: var(--ink); }
+.np-row button { width: 48px; height: 48px; border-radius: var(--r-round); background: var(--fill); font-size: var(--t-xl); font-weight: var(--w-value); color: var(--ink); }
 .np-row button:active { background: var(--fill); }
 .np-row button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 @media (max-width: 369px) { .np-row { gap: 6px; } .np-row button { width: 44px; height: 44px; } }
 
 /* ---------- 메뉴: the 큰 글씨 switch, 앱 정보 ---------- */
 .mi.tg { grid-template-columns: 40px minmax(0, 1fr) 44px; }
-.sw { position: relative; width: 44px; height: 26px; border-radius: var(--r-full); background: var(--fill); outline: 1.5px solid var(--switch-line); outline-offset: -1.5px; }
-.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: var(--r-full); background: var(--white); transition: transform .16s; }
+.sw { position: relative; width: 44px; height: 26px; border-radius: var(--r-ctl); background: var(--fill); outline: 1px solid var(--switch-line); outline-offset: -1px; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: var(--r-round); background: var(--white); transition: transform .16s; }
 .mi[aria-checked='true'] .sw { background: var(--turf); box-shadow: none; }
 .mi[aria-checked='true'] .sw::after { transform: translateX(18px); }
 .mpanel .ab-h { font-size: var(--t-m); font-weight: var(--w-label); }
@@ -1409,12 +1409,12 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 /* ---------- one header row (v10): Par, length, HDCP and progress in one pill, then 홀 안내 ---------- */
 .info { align-items: center; flex-wrap: nowrap; }
 .meta {
-  display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0; height: 28px; padding: 0 10px; border-radius: var(--r-ctl);
   background: var(--white); box-shadow: var(--sh-float); font-size: var(--t-s); font-weight: var(--w-label); white-space: nowrap; color: var(--ink);
 }
 .mt-len, .mt-hd { color: var(--muted); font-weight: var(--w-label); }
 .progress {
-  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-full);
+  flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-ctl);
   background: var(--white); box-shadow: var(--sh-float); font-size: var(--t-s); white-space: nowrap;
 }
 .progress[hidden] + .info-chip { margin-left: auto; }
@@ -1438,7 +1438,7 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 .meta, .progress, .info .info-chip:not([aria-expanded='true']) { background: var(--chip-on-art); }
 .info .info-chip:not([aria-expanded='true']) { color: var(--turf-on-chip); }
 .progress .prog.under { color: var(--red-on-chip); }
-.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full); display: inline-grid; place-items: center; background: var(--turf); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-value); line-height: 1; }
+.info-n { min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-ctl); display: inline-grid; place-items: center; background: var(--turf); color: var(--on-dark); font-size: var(--t-s); font-weight: var(--w-value); line-height: 1; }
 .hinfo {
   position: fixed; inset: auto auto auto var(--m, 12px); margin: 0; width: min(300px, calc(100vw - 24px));
   padding: 14px 16px 6px; border: 0; border-radius: var(--r-card); background: var(--white); color: var(--ink); box-shadow: var(--sh-raise);
@@ -1448,7 +1448,7 @@ body.big .mi b, body.big .tot h3 { font-size: calc(var(--t-l) * 1.18); }
 .hi-h { font-size: var(--t-l); font-weight: var(--w-label); }
 .hi-facts { margin-top: 2px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
 .hi-notes { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
-.hi-notes li { height: 28px; padding: 0 10px; border-radius: var(--r-full); display: inline-flex; align-items: center; background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); }
+.hi-notes li { height: 28px; padding: 0 10px; border-radius: var(--r-ctl); display: inline-flex; align-items: center; background: var(--fill); font-size: var(--t-s); font-weight: var(--w-label); }
 .hi-none, .hi-art, .hi-osm { margin-top: 8px; font-size: var(--t-s); color: var(--muted); text-wrap: pretty; }
 /* The OpenStreetMap credit in 홀 안내 and 앱 정보 (v27): a link inside the sentence, underlined so it reads as one. */
 .hi-osm a, .ab-foot a, .ab-site a { color: var(--turf); font-weight: var(--w-label); text-decoration: underline; text-underline-offset: 2px; }
@@ -1459,7 +1459,7 @@ body.big .info-chip { font-size: var(--t-m); }
 @media (max-height: 599px) { body.big .meta { height: 28px; } body.big .prog { height: 20px; } }
 
 /* ---------- saved records gone or unreadable: the first screen's card ---------- */
-.pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: var(--r-card); background: var(--sand-tint); box-shadow: var(--sh-raise); outline: 1.5px solid var(--sand); outline-offset: -1.5px; color: var(--sand-ink); }
+.pk-missing { flex: none; margin: 16px var(--m) 0; padding: 14px 16px; border-radius: var(--r-card); background: var(--sand-tint); box-shadow: var(--sh-raise); outline: 1px solid var(--sand); outline-offset: -1px; color: var(--sand-ink); }
 .pk-missing[hidden] { display: none; }
 .pk-missing .nc-head { display: flex; align-items: center; gap: 10px; }
 .pk-missing h3 { margin: 0; font-size: var(--t-l); font-weight: var(--w-label); color: var(--ink); }
@@ -1488,7 +1488,7 @@ body.big .info-chip { font-size: var(--t-m); }
    "를 길게 누르면 바…". Centred on the card like 상세's tip, where the counts sit; 기본 only, as before. */
 .coach {
   position: absolute; z-index: 2; left: 50%; top: calc(var(--lbl-h) + var(--pill-h) / 2); transform: translate(-50%, -50%); pointer-events: none;
-  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px 9px 11px; border-radius: var(--r-ctl);
   background: var(--deep); color: var(--on-dark); font-size: var(--t-m); font-weight: var(--w-label); box-shadow: var(--sh-raise);
 }
 .coach[hidden], #entry[data-mode='detail'] .coach { display: none; }
@@ -1526,7 +1526,7 @@ body.big .info-chip { font-size: var(--t-m); }
 /* 세컨's and 어프로치's panels say what they are under their name (v28), in helper text. */
 .sp-help { font-size: var(--t-s); font-weight: var(--w-help); line-height: 18px; color: var(--muted); text-wrap: pretty; }
 body.big .sp-help { font-size: var(--t-m); line-height: 20px; }
-.sp-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.sp-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-round); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .sp-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .sp-close:active { background: var(--fill); }
 /* Which shot the chips write, with two or more, five across at most: numbers as in the 0 … 5+ picker, the chosen one
@@ -1539,7 +1539,7 @@ body.big .sp-help { font-size: var(--t-m); line-height: 20px; }
 .sp-shots button::after { content: ''; position: absolute; inset: -2px 0; }   /* a 48px touch area */
 .sp-shots button:active { background: var(--fill); }
 .sp-shots button[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
-.sp-dot { position: absolute; left: calc(50% + 8px); top: calc(50% - 9px); width: 6px; height: 6px; border-radius: var(--r-full); background: var(--turf); opacity: 0; }
+.sp-dot { position: absolute; left: calc(50% + 8px); top: calc(50% - 9px); width: 6px; height: 6px; border-radius: var(--r-round); background: var(--turf); opacity: 0; }
 .sp-shots button[aria-pressed='true'] .sp-dot { background: var(--on-dark); }
 .sp-shots button.tagged .sp-dot { opacity: 1; }
 /* The chips: one six-column grid, three across or two across, with the same gap both ways. */
@@ -1556,7 +1556,7 @@ body.big .sp-help { font-size: var(--t-m); line-height: 20px; }
 .sp-chip[aria-pressed='true'] { background: var(--turf); color: var(--on-dark); }
 /* An OB chip adds a penalty stroke (unless the OB is counted already): outlined in the penalty stake's sand, filled
    with it when chosen. */
-.sp-chip.ob { outline: 1.5px solid var(--sand); outline-offset: -1.5px; }
+.sp-chip.ob { outline: 1px solid var(--sand); outline-offset: -1px; }
 .sp-chip.ob[aria-pressed='true'] { outline: none; }
 .sp-chip:active { background: var(--fill); }
 body.big .sp-club { font-size: calc(var(--t-l) * 1.18); line-height: 24px; }
@@ -1574,7 +1574,7 @@ body.big .sp-shots button { font-size: calc(var(--t-l) * 1.18); }
    다음 홀. 다음 홀 keeps its right edge, where a right thumb lands, and gives the button its width and an 8px gap. */
 .vc-open {
   position: absolute; z-index: 1; left: var(--m); bottom: var(--next-m); width: var(--next-h); height: var(--next-h);
-  border-radius: var(--r-full); display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
+  border-radius: var(--r-round); display: grid; place-items: center; background: var(--white); color: var(--ink); box-shadow: var(--sh-float);
 }
 .vc-open:active { background: var(--fill-2); }
 .vc-open:not([hidden]) + .next { margin-left: calc(var(--m) + var(--next-h) + 8px); }
@@ -1592,13 +1592,13 @@ body.big .sp-shots button { font-size: calc(var(--t-l) * 1.18); }
 .vc-sheet[open]::backdrop { animation: fn-fade .16s ease-out; }
 .vc-head { display: grid; grid-template-columns: minmax(0, 1fr) 44px; column-gap: 8px; align-items: center; }
 .vc-head h2 { font-size: var(--t-l); font-weight: var(--w-label); line-height: 22px; }
-.vc-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-full); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
+.vc-close { position: relative; width: 44px; height: 44px; border-radius: var(--r-round); display: grid; place-items: center; background: var(--fill); color: var(--ink); }
 .vc-close::after { content: ''; position: absolute; inset: -2px; }   /* a 48px touch area */
 .vc-close:active { background: var(--fill-2); }
-/* The field: a 52px pill with 입력 inside it, 4px in all round, so the two curves share a centre (22 + 4 = 26). */
+/* The field: 52px tall with 입력 inside it, 4px in all round, so the two curves share a centre (v46: 12 + 4 = 16). */
 .vc-field {
   margin-top: 12px; height: var(--next-h); display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 18px;
-  border-radius: var(--r-full); background: var(--fill);
+  border-radius: var(--r-card); background: var(--fill);
 }
 .vc-field:focus-within { outline: 2px solid var(--turf); outline-offset: -2px; }
 .vc-line {
@@ -1609,7 +1609,7 @@ body.big .sp-shots button { font-size: calc(var(--t-l) * 1.18); }
 /* After a line it could not read, the line is selected for the next dictation to replace: in the palette's chosen tint. */
 .vc-line::selection { background: var(--fill-2); color: var(--ink); }
 .vc-go {
-  flex: none; height: 44px; padding: 0 18px; border-radius: var(--r-full);
+  flex: none; height: 44px; padding: 0 18px; border-radius: var(--r-ctl);
   background: var(--action); color: var(--on-action); font-size: var(--t-m); font-weight: var(--w-label);
 }
 .vc-go:active { background: var(--action-press); }
@@ -1642,7 +1642,7 @@ body.big .toast.vc #toast-msg { line-height: 20px; }
 .lost-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lost-head h3 { margin-bottom: 0; }
 /* A 44px ⓘ that keeps the heading's line: it shows how the bars count, only when asked. */
-.info-toggle { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; border-radius: var(--r-full); display: grid; place-items: center; color: var(--muted); }
+.info-toggle { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; border-radius: var(--r-round); display: grid; place-items: center; color: var(--muted); }
 .info-toggle:active, .info-toggle[aria-expanded='true'] { background: var(--fill); color: var(--turf); }
 .how-box { margin: 8px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); color: var(--muted); font-size: var(--t-s); line-height: 1.5; text-wrap: pretty; }
 .how-box p + p { margin-top: 6px; }
@@ -1668,7 +1668,9 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
   --deep-glass: linear-gradient(180deg, rgb(14 30 21 / .62), rgb(10 22 15 / .74));
   --deep-blur: blur(18px) saturate(1.4);
   --glass-drop: 0 6px 16px rgb(0 0 0 / .28);
-  --chosen-edge: 0 0 0 1.5px var(--lime);
+  --chosen-edge: 0 0 0 1px var(--lime);
+  /* v46: a panel's 1px hairline where it had a 26px lime halo (the user: "선이 깔끔하게"). */
+  --panel-line: inset 0 0 0 1px rgb(255 255 255 / .1);
   --island: 62px;
 }
 .app { padding-bottom: calc(var(--island) + 26px + env(safe-area-inset-bottom)); }
@@ -1694,13 +1696,13 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 /* The chip row: the length (a tap lists every tee) and 홀 안내, map glass. */
 #hole-info .meta, #hole-info .info-chip { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
 #hole-info .meta { padding: 0; }
-.dist { height: 100%; padding: 0 12px; border-radius: var(--r-full); color: inherit; font: inherit; }
+.dist { height: 100%; padding: 0 12px; border-radius: var(--r-ctl); color: inherit; font: inherit; }
 .dist:disabled { cursor: default; color: inherit; }
 .dist .mt-len { color: var(--on-glass); }
 #hole-info .info-n { background: var(--lime); color: var(--ink); }
 .tee-list { margin: 10px 0 6px; padding: 0; list-style: none; display: grid; gap: 2px; }
 .tee-list li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; min-height: 40px; font-size: var(--t-m); font-weight: var(--w-label); }
-.tee-dot { width: 14px; height: 14px; border-radius: var(--r-full); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25); }
+.tee-dot { width: 14px; height: 14px; border-radius: var(--r-round); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .25); }
 .osm-credit { color: color-mix(in srgb, #fff 62%, transparent); text-shadow: 0 1px 2px rgb(0 0 0 / .5); }
 
 /* The hole switcher, low: ‹ · [Par · (ring: the hole number) · HCP] · ›. Numbers on one line, labels on another. */
@@ -1709,8 +1711,8 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .hole-nav .round, .hole-nav .round:disabled { background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); color: var(--on-glass); box-shadow: var(--glass-drop); }
 .hole-nav .round:disabled { color: color-mix(in srgb, #fff 35%, transparent); }
 .hole-nav .round:active:not(:disabled) { background: rgb(10 24 16 / .7); }
-.hole-nav .round.finish { background: var(--lime); color: var(--ink); box-shadow: 0 0 16px 1px var(--lime-glow), var(--glass-drop); }
-.nav-pill { position: relative; height: 60px; border-radius: var(--r-full); display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
+.hole-nav .round.finish { background: var(--lime); color: var(--ink); box-shadow: var(--glass-drop); }
+.nav-pill { position: relative; height: 60px; border-radius: var(--r-ctl); display: grid; grid-template-columns: 1fr 84px 1fr; align-items: center; background: var(--map-glass); -webkit-backdrop-filter: var(--map-blur); backdrop-filter: var(--map-blur); box-shadow: var(--glass-drop); color: var(--on-glass); text-shadow: 0 1px 2px rgb(0 0 0 / .45); }
 .nav-stat { position: relative; height: 60px; }
 .nav-stat b, .nav-stat span, .hole-n, .hole-u { text-box: trim-both cap alphabetic; line-height: 1; }
 .nav-stat b, .nav-stat span { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; }
@@ -1718,7 +1720,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .nav-stat span { bottom: calc(50% - 19px); font-size: var(--t-s); font-weight: var(--w-label); color: var(--on-glass-soft); }
 .hole-nav .hole-h { justify-self: center; width: 80px; height: 80px; margin: -10px 0; }
 .hole-nav .hole-title {
-  position: relative; width: 80px; height: 80px; padding: 0; border-radius: var(--r-full); display: block;
+  position: relative; width: 80px; height: 80px; padding: 0; border-radius: var(--r-round); display: block;
   background: radial-gradient(circle at 50% 35%, #24432e 0%, #172d1f 75%); color: var(--on-glass);
   box-shadow: var(--chosen-edge), 0 0 10px var(--lime-glow), var(--glass-drop);
 }
@@ -1731,7 +1733,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 /* The card: deep glass, no outline, a faint lime halo; white type. Its parts take the same tokens, retinted. */
 .sheet {
   background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur);
-  box-shadow: 0 0 26px rgb(196 224 79 / .12), var(--glass-drop); color: var(--on-glass);
+  box-shadow: var(--panel-line), var(--glass-drop); color: var(--on-glass);
   --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
   --fill: rgb(255 255 255 / .07); --fill-2: rgb(255 255 255 / .13); --fill-press: rgb(255 255 255 / .2);
   --on-capsule: rgb(255 255 255 / .62); --on-capsule-soft: rgb(255 255 255 / .35); --off-ink: rgb(255 255 255 / .35);
@@ -1741,7 +1743,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .sheet .modes { display: grid; grid-template-columns: repeat(3, 1fr); width: auto; margin: -4px calc(-1 * var(--card-pad)) 6px; background: none; border-radius: 0; }
 .sheet .mode { min-width: 0; height: 44px; padding: 0; border-radius: 0; background: none; color: var(--on-glass-soft); font-size: var(--t-m); }
 .sheet .mode[aria-pressed='true'] { background: none; color: var(--on-glass); }
-.sheet .mode[aria-pressed='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); }
+.sheet .mode[aria-pressed='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-ctl); background: var(--lime); }
 /* The clubs as icons (the user's call): the app's driver, iron and putter, the names kept for the screen reader. */
 .club-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .club-lbl svg { width: 24px; height: 24px; color: var(--on-glass); }
@@ -1755,14 +1757,14 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 #entry .vc-open, #entry .next { display: none; }
 
 /* The bar: a floating island, the same deep glass, off the edges; the chosen tab white with a glowing lime dot. */
-.tabbar { left: 16px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); padding: 0 6px; border-radius: var(--r-full); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
+.tabbar { left: 16px; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); padding: 0 6px; border-radius: var(--r-ctl); background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--glass-drop); }
 .tab, .bar-menu { height: var(--island); color: var(--on-glass-soft); }
 .tab .ti, .bar-menu .ti { width: auto; height: 24px; background: none; }
 .tab[aria-selected='true'] .ti { background: none; }
 .tab svg, .bar-menu svg { width: 22px; height: 22px; stroke-width: 1.5; }
 .tab-label { font-size: var(--t-s); }   /* 13px, the v39 floor for text (the mock-up's 11px was under it) */
 .tab[aria-selected='true'] { position: relative; color: var(--on-glass); }
-.tab[aria-selected='true']::after { content: ''; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: var(--r-full); background: var(--lime); }
+.tab[aria-selected='true']::after { content: ''; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: var(--r-round); background: var(--lime); }
 .hole-nav .switcher { width: 100%; }
 /* The icon stays in narrow columns too: it is the club's name now (v39). */
 @container (max-width: 103px) { .sheet .lbl-in > svg { display: block; } }
@@ -1796,7 +1798,7 @@ details.shot-details > summary { margin: 16px 0 8px; font-size: var(--t-m); colo
 .sc { background: radial-gradient(120% 55% at 50% 0%, #1f3d2a 0%, #0f2118 70%); }
 .sc-body { background: transparent; }
 .sc::after { background: linear-gradient(transparent, #0f2118 85%); }
-.sheet-dialog, .hinfo { background: linear-gradient(180deg, #17301f, #0f2118); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+.sheet-dialog, .hinfo { background: linear-gradient(180deg, #17301f, #0f2118); box-shadow: var(--panel-line), var(--glass-drop); }
 .sheet-dialog, .past { --quiet: color-mix(in srgb, #f4f7f0 52%, transparent); }   /* zero counts on the dark sheet: the paper's --quiet was 2.6:1 */
 /* No outlines on the panels (the user: boxes with no border); tone and the glass alone set them apart. */
 .sc-sheet, .box { outline: 0; }
@@ -1810,15 +1812,12 @@ body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .
   .nine-pick button[aria-checked='true'], .np-row button[aria-pressed='true'], .sp-shots button[aria-pressed='true'],
   .sp-chip[aria-pressed='true'], .ct-col.cur .c-hole, .scell[aria-current='true'] .sc-no, .hole-nav .round.finish) {
   background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none;
-  box-shadow: inset 0 0 0 1.5px var(--lime);
+  box-shadow: inset 0 0 0 1px var(--lime);
 }
-/* The same weight as the rule above (its list's heaviest entry, the finish), so this one, later, wins. */
-body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go, .next, .hole-nav .round.finish) {
-  box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28);
-}
+/* v46 (the user: "홀 링에만 남기기"): the main action lost its glow; it is set apart by the edge and its light glass. */
 body :is(.btn.primary, .sum-actions .primary, .check-actions .primary, .sh-go, .vc-go):active:not(:disabled) { background: rgb(255 255 255 / .18); }   /* :not(:disabled) outranks the old lime press (2.3:1 under white type) */
 /* The course picker is still on paper: there the white type vanished (1.05:1), so its chosen ones keep ink on white with a turf edge. */
-body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: none; outline: 1.5px solid var(--turf); outline-offset: -1.5px; }
+body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']) { background: var(--white); color: var(--ink); box-shadow: none; outline: 1px solid var(--turf); outline-offset: -1px; }
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true']):active { background: var(--fill-2); }
 body .club-lbl[aria-expanded='true'] :is(svg, .lbl-chev) { color: var(--on-glass); }
 /* 상세's controls in the tile radius (the user: the full pills read vague at these sizes): the club names, the tee
@@ -1841,7 +1840,7 @@ body .hole-nav #hole-title .hole-n { font-size: 32px; }
   --white: rgb(255 255 255 / .06); --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent);
   --fill: rgb(255 255 255 / .08); --fill-2: rgb(255 255 255 / .14);
   background: linear-gradient(180deg, #17301f, #0f2118); color: var(--on-glass);
-  box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
+  box-shadow: var(--panel-line), var(--glass-drop);
 }
 .numpick .np-row button { color: var(--on-glass); font-variant-numeric: tabular-nums; }
 /* Modals stand clearly off the screen behind them (v39, the user's call): the three backdrops much darker, a touch of blur. */
@@ -1863,7 +1862,7 @@ dialog::backdrop { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px
 .sc-switch { background: none; border-radius: 0; }
 body .sc-switch button, body .sc-switch button[aria-checked='true'] { background: none; box-shadow: none; color: var(--on-glass-soft); }
 body .sc-switch button[aria-checked='true'] { color: var(--on-glass); }
-.sc-switch button[aria-checked='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); }
+.sc-switch button[aria-checked='true']::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-ctl); background: var(--lime); }
 /* 파 수정: a quiet glass button; while editing, the chosen glass with the lime edge (as every chosen control). */
 .edit { height: 40px; background: rgb(255 255 255 / .1); box-shadow: none; color: var(--on-glass); }
 /* The table: room to read, faint separators instead of a grid, the current hole in lime type. */
@@ -1899,7 +1898,7 @@ body .ct-col.cur .c-hole { background: none; box-shadow: none; color: var(--lime
 /* Off 기록 the painted course alone shows behind the veil: the drawing's flag, marks and outlines are 기록's. */
 body:has(#entry[hidden]) #course { visibility: hidden; }
 /* 지난 라운드's empty state: the history line icon, soft white on a small glass circle (v39). */
-.he-icon { width: 56px; height: 56px; border-radius: var(--r-full); display: grid; place-items: center; background: rgb(255 255 255 / .07); color: var(--on-glass-soft); }
+.he-icon { width: 56px; height: 56px; border-radius: var(--r-round); display: grid; place-items: center; background: rgb(255 255 255 / .07); color: var(--on-glass-soft); }
 /* The flag on the hole (the user: its red jumped out): an off-white cloth with a faint edge, as the white marks round it. */
 .a-flag, #course .flag { fill: #eeeae0; stroke: rgb(20 40 28 / .35); stroke-width: .75px; }
 /* The menu as a centred modal (the user: as a sheet it covered the screen oddly): a card in the middle of the screen,
@@ -1954,7 +1953,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 #entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice) { color: var(--on-glass-soft); }
 #entry:has(#voice[open]) .sheet .mode[aria-pressed='true']:not(#mode-voice)::before { display: none; }
 #entry:has(#voice[open]) #mode-voice { color: var(--on-glass); }
-#entry:has(#voice[open]) #mode-voice::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-full); background: var(--lime); }
+#entry:has(#voice[open]) #mode-voice::before { content: ''; position: absolute; left: 50%; bottom: 6px; translate: -50% 0; width: 22px; height: 2px; border-radius: var(--r-ctl); background: var(--lime); }
 /* As a tab, 말로 입력 has no title row or ×: the tabs switch it (its title still names the field for screen readers). */
 .sheet .vc-inline .vc-head { display: none; }
 .sheet .vc-inline .vc-field { margin-top: 6px; }
@@ -1964,7 +1963,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
   --white: rgb(255 255 255 / .06); --ink: #f4f7f0; --muted: color-mix(in srgb, #f4f7f0 66%, transparent); --turf: var(--lime);
   --line: rgb(255 255 255 / .12); --fill: rgb(255 255 255 / .08); --fill-2: rgb(255 255 255 / .14); --off-ink: rgb(255 255 255 / .35);
   background: linear-gradient(180deg, #17301f, #0f2118); color: var(--on-glass);
-  box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop);
+  box-shadow: var(--panel-line), var(--glass-drop);
 }
 .shot-panel :is(.sp-chip, .sp-shots button) { border-radius: var(--r-tile); }
 /* The undo toast just under the chip row (the user: in the space right under 홀 안내), over the top of the hole, the chips
@@ -1978,7 +1977,7 @@ body:has(#entry[hidden]) #course { visibility: hidden; }
 .sc { background: transparent; }
 .sc::after { display: none; }
 .sc-top { background: linear-gradient(180deg, rgb(10 22 15 / .55) 0%, rgb(10 22 15 / .32) 70%, rgb(10 22 15 / 0) 100%); -webkit-backdrop-filter: none; backdrop-filter: none; text-shadow: 0 1px 3px rgb(0 0 0 / .55); }
-.sc-sheet, .box { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+.sc-sheet, .box { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--panel-line), var(--glass-drop); }
 /* No ground behind the title at all (the user: the gradient still looked odd): the title scrolls away with the page, so
    nothing ever passes under it and it needs none. */
 .sc-top { position: relative; background: none; }
@@ -2042,14 +2041,14 @@ body:has(#menu[open]) .bar-menu .ti { background: none; }
   background: linear-gradient(180deg, rgb(10 22 15 / .55), rgb(10 22 15 / .72)); color: var(--on-glass);
 }
 .picker::backdrop { background: rgb(15 33 24 / .35); }
-.picker-list, .picker-foot { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: 0 0 26px rgb(196 224 79 / .1), var(--glass-drop); }
+.picker-list, .picker-foot { background: var(--deep-glass); -webkit-backdrop-filter: var(--deep-blur); backdrop-filter: var(--deep-blur); box-shadow: var(--panel-line), var(--glass-drop); }
 .pk-search { background: rgb(255 255 255 / .1); box-shadow: none; }
 .picker-head > .head-btn { outline: none; color: var(--on-glass); }
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true'], .chip[aria-pressed='true']) {
-  background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none; box-shadow: inset 0 0 0 1.5px var(--lime);
+  background: rgb(255 255 255 / .1); color: var(--on-glass); outline: none; box-shadow: inset 0 0 0 1px var(--lime);
 }
 /* v42: of these only the picker's primary button glows; html lifts it to the rule above's weight, so it wins. */
-html body .picker .btn.primary { box-shadow: inset 0 0 0 1.5px var(--lime), 0 0 14px rgb(196 224 79 / .28); }
+html body .picker .btn.primary { box-shadow: inset 0 0 0 1px var(--lime); }
 body .picker :is(.btn.primary, .course[aria-pressed='true'], .pk-len button[aria-pressed='true'], .nine-pick button[aria-checked='true'], .chip[aria-pressed='true']):active { background: rgb(255 255 255 / .18); }
 body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 /* v41 (the user, again: the picker had not taken the design). The sheet floats as the 기록 screen's card does, inset
@@ -2068,7 +2067,7 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 /* Under 600px tall the floating sheet gives back the 16px its margins cost, and its rows sit 6px apart (10px elsewhere), so the nines stay whole though its narrower note can wrap to two lines. */
 @media (max-height: 599px) { .picker-areas { margin-top: 2px; } .picker-list { margin-top: 0; } .picker-foot { margin-block: 6px max(8px, env(safe-area-inset-bottom)); padding-block: 12px; gap: 6px; } .pk-scroll { gap: 6px; } }
 /* v43: the menu's 백업과 복원 line with no backup yet, or one thirty days old: a small sand dot before it (no alarm red). */
-.mi small.backup-old::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; border-radius: var(--r-full); background: var(--sand); }
+.mi small.backup-old::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; border-radius: var(--r-round); background: var(--sand); }
 /* v44: 지난 라운드 넣기 — a sheet like the summary: the date, 18 cells (6 to a row so each is a thumb wide at 360px),
    the chips that set the picked cell relative to par, and the total with 저장. The picked cell has the lime edge
    (chosen = lime edge, no glow); a cell off par shows its strokes in white with the difference beneath. */
@@ -2083,7 +2082,7 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 .qe-cell.off { color: var(--ink); }
 .qe-cell[aria-pressed='true'] { box-shadow: var(--chosen-edge); }
 .qe-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
-.qe-chip { min-height: 48px; border: 0; border-radius: var(--r-full); background: var(--fill-2); color: var(--ink); font: inherit; font-size: var(--t-m); font-weight: var(--w-label); }
+.qe-chip { min-height: 48px; border: 0; border-radius: var(--r-ctl); background: var(--fill-2); color: var(--ink); font: inherit; font-size: var(--t-m); font-weight: var(--w-label); }
 .qe-chip:active { background: var(--fill-press); }
 .qe-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: 10px; }
 .qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
