@@ -1,5 +1,6 @@
 import { AREAS, CUSTOM_NAME, MAX_CUSTOM_NAME, defaultNines, findCourse, resolveChoice, roundSetup, searchCourses, type Course } from './courses';
 import type { CourseChoice } from './storage';
+import { loadMyCourses, saveMyCourses, withoutMyCourse, type MyCourse } from './my-courses';
 
 type Children = (Node | string | null | false)[];
 
@@ -56,6 +57,10 @@ export function openPicker(options: PickerOptions): void {
   onStart = options.onStart;
   onCancel = options.onCancel;
   choice = withHoles(resolveChoice(options.initial), options.holes ?? (options.initial?.holes === 9 ? 9 : 18));
+  // 내 코스 (v45): a name typed last time that is now a kept course comes back as that course, with its pars.
+  const typed = choice.course === null && !choice.mine ? (choice.name ?? '').trim() : '';
+  const kept = typed ? loadMyCourses().find((c) => c.name === typed) : undefined;
+  if (kept) choice = { ...choice, mine: kept.id };
   $('picker-len').hidden = options.holes !== undefined;
   // Where the round's holes are fixed, the count stands in the toggle's place (v23: the name above no longer says it).
   $('picker-holes').hidden = options.holes === undefined;
@@ -80,7 +85,9 @@ export function openPicker(options: PickerOptions): void {
   // The chosen course's row at the list's top (v23), never half a row; the list is its rows' offset parent.
   const list = $('picker-list');
   const chosen = list.querySelector<HTMLElement>('[aria-pressed="true"]')?.closest('li');
-  if (chosen) list.scrollTop = chosen.offsetTop;
+  // The first row under a heading (내 코스, 골프장; v45) brings its heading into view with it.
+  const head = chosen?.previousElementSibling?.classList.contains('course-group') ? (chosen.previousElementSibling as HTMLElement) : null;
+  if (chosen) list.scrollTop = (head ?? chosen).offsetTop;
 }
 
 /** The choice for 18 holes (no field) or one nine (`holes: 9`). */
@@ -108,17 +115,23 @@ function bind(): void {
     renderList();
   });
   $('picker-list').addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-course]');
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-course], button[data-mine]');
     if (!button) return;
-    const id = button.dataset.course!;
+    const id = button.dataset.course ?? '';
     const holes = choice.holes === 9 ? 9 : 18;
-    if (id === CUSTOM) {
-      choice = withHoles({ course: null, front: '', back: '', name: choice.course === null ? choice.name : '' }, holes);
+    const kept = button.dataset.mine ? loadMyCourses().find((c) => c.id === button.dataset.mine) : undefined;
+    if (kept) {
+      // 내 코스 (v45): a typed-in name standing for the kept course; a nine-hole one keeps the 18/9 toggle.
+      choice = withHoles({ course: null, front: '', back: '', name: kept.name, mine: kept.id }, holes);
+    } else if (button.dataset.mine) {
+      return;
+    } else if (id === CUSTOM) {
+      choice = withHoles({ course: null, front: '', back: '', name: choice.course === null && !choice.mine ? choice.name : '' }, holes);
     } else {
       const [front, back] = defaultNines(findCourse(id)!);
       choice = withHoles({ course: id, front, back }, holes);
     }
-    for (const b of $('picker-list').querySelectorAll('button[data-course]')) b.setAttribute('aria-pressed', String(b === button));
+    for (const b of $('picker-list').querySelectorAll('button[data-course], button[data-mine]')) b.setAttribute('aria-pressed', String(b === button));
     renderChosen();
   });
   $('picker-chosen').addEventListener('click', (event) => {
@@ -133,6 +146,15 @@ function bind(): void {
       choice = { ...choice, front: choice.back, back: choice.front };
       renderChosen();
       $('picker-swap').focus();
+    } else if (target.closest('#picker-mine-delete')) {
+      // 내 코스 (v45): asked first; past rounds keep what they recorded, and the name stays as a course typed in by hand.
+      const kept = loadMyCourses().find((c) => c.id === choice.mine);
+      if (!kept || !confirm(`${kept.name}\n\n내 코스에서 지울까요? 지난 라운드 기록은 그대로예요.`)) return;
+      saveMyCourses(withoutMyCourse(loadMyCourses(), kept.id));
+      choice = withHoles({ course: null, front: '', back: '', name: kept.name }, choice.holes === 9 ? 9 : 18);
+      renderList();
+      renderChosen();
+      dialog().focus();
     }
   });
   $('picker-chosen').addEventListener('input', (event) => {
@@ -171,12 +193,28 @@ function courseItem(c: Course): HTMLLIElement {
   ));
 }
 
+/** 내 코스 (v45): a kept course, its nines and par beside its name. */
+function mineItem(c: MyCourse): HTMLLIElement {
+  const par = c.par.reduce((s, p) => s + p, 0);
+  const nines = c.par.length === 9 ? `${c.front} 9홀` : `${c.front}·${c.back}`;
+  return h('li', {}, h('button', { type: 'button', class: 'course mine', 'data-mine': c.id, 'aria-pressed': String(choice.course === null && choice.mine === c.id) },
+    h('b', {}, c.name),
+    h('span', {}, `${nines}, Par ${par}`),
+  ));
+}
+
 function renderList(): void {
-  const found = searchCourses($<HTMLInputElement>('picker-search').value, area);
+  const query = $<HTMLInputElement>('picker-search').value;
+  const found = searchCourses(query, area);
+  // Kept courses first, under their own heading, while no area is chosen; the search finds them by name.
+  const q = query.replace(/\s+/g, '').toLowerCase();
+  const mine = area ? [] : loadMyCourses().filter((c) => !q || c.name.replace(/\s+/g, '').toLowerCase().includes(q));
   $('picker-list').replaceChildren(
+    // Read aloud too: the heading is what says a row is the player's own course.
+    ...(mine.length ? [h('li', { class: 'course-group' }, '내 코스'), ...mine.map(mineItem), h('li', { class: 'course-group' }, '골프장')] : []),
     ...found.map(courseItem),
     found.length ? '' : h('li', { class: 'empty muted' }, '찾는 골프장이 없어요. 직접 입력으로 시작하세요.'),
-    h('li', {}, h('button', { type: 'button', class: 'course custom', 'data-course': CUSTOM, 'aria-pressed': String(choice.course === null) },
+    h('li', {}, h('button', { type: 'button', class: 'course custom', 'data-course': CUSTOM, 'aria-pressed': String(choice.course === null && !choice.mine) },
       h('b', {}, CUSTOM_NAME),
       h('span', {}, '목록에 없는 골프장, Par 4로 시작해 홀마다 바꿔요'),
     )),
@@ -197,7 +235,17 @@ function renderChosen(): void {
   const course = findCourse(choice.course);
   const nine = choice.holes === 9;
   for (const b of $('picker-len').querySelectorAll('button[data-holes]')) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.holes === (nine ? '9' : '18')));
-  if (!course) {
+  const kept = !course && choice.mine ? loadMyCourses().find((c) => c.id === choice.mine) : undefined;
+  if (kept) {
+    // 내 코스 (v45): what it starts with, no name to type.
+    const setup = roundSetup(choice);
+    const par = setup.pars.reduce((s, p) => s + p, 0);
+    const nines = nine ? `${setup.course.front} 9홀` : setup.course.front === setup.course.back ? `${setup.course.front} 9홀을 두 번 돌아요` : `전반 ${setup.course.front}, 후반 ${setup.course.back}`;
+    // 지우기 in the place 전·후반 바꾸기 takes for a bundled course: kept courses are listed above, and removed here.
+    box.replaceChildren(h('div', { class: 'nine-row' }, h('span', { class: 'nine-fixed' }, nines),
+      h('button', { type: 'button', class: 'btn swap', id: 'picker-mine-delete', 'aria-label': `${kept.name} 내 코스에서 지우기` }, '지우기')),
+    h('p', { class: 'muted small' }, `내 코스, Par ${par}${kept.hcp ? ', HCP 있음' : ''}`));
+  } else if (!course) {
     const input = h('input', { id: 'picker-name', type: 'text', maxlength: String(MAX_CUSTOM_NAME), placeholder: '골프장 이름', autocomplete: 'off', 'aria-label': '골프장 이름' });
     input.value = choice.name ?? '';
     box.replaceChildren(input, h('p', { class: 'muted small' }, 'Par는 모두 4로 시작해요. 홀마다 3, 4, 5로 바꿀 수 있어요.'));

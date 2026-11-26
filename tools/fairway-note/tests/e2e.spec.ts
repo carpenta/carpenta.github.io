@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v44');
+  await expect(page.locator('#menu-version')).toHaveText('v45');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v44');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v45');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -6819,7 +6819,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v44');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v45');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -8830,4 +8830,205 @@ test('백업과 복원 saves every kept round as one CSV (v44)', async ({ page }
   const text = readFileSync((await file.path())!, 'utf8');
   expect(text.replace(/^﻿/, '').split('\r\n')[0]).toBe('날짜,코스,전반,후반,홀,파,타수,퍼트,OB,해저드,넣은 기록');
   expect(text.split('\r\n').filter(Boolean)).toHaveLength(1 + 36);
+});
+
+/* ---------- v45: 내 코스 — a course typed in by hand, kept with its pars, nine names and an optional HCP ---------- */
+
+const MY_COURSES_KEY = 'fairway-note:courses:v1';
+const MY_PARS = [4, 4, 3, 5, 4, 4, 3, 5, 4, 5, 4, 3, 4, 4, 5, 3, 4, 4];
+const MY_HCP = [5, 1, 9, 3, 7, 2, 8, 4, 6, 6, 2, 8, 4, 1, 3, 9, 5, 7];
+
+/** Plays 동네 골프장, typed in by hand, with MY_PARS (every hole in par) and opens its summary. */
+async function finishTypedRound(page: Page, pars = MY_PARS) {
+  if (await page.locator('#summary').isVisible()) {
+    // A later round, started as a player would: the one on screen kept from its summary, then 새 라운드.
+    await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+    await expect(page.locator('#summary')).toBeHidden();
+    await menu(page, '새 라운드');
+    await page.locator('#new-round').click();
+  } else {
+    await page.goto('/');
+  }
+  await page.locator('#picker-list button', { hasText: '직접 입력' }).click();
+  await page.getByRole('textbox', { name: '골프장 이름' }).fill('동네 골프장');
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await seed(page, Object.fromEntries(pars.map((par, i) => [i, { par, driver: 1, approach: par - 3, putts: 2 }])), 17);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  const anyway = page.getByRole('button', { name: '그대로 마치기' });
+  if (await anyway.isVisible()) await anyway.click();
+  await expect(page.locator('#summary')).toBeVisible();
+}
+
+test('a course typed in by hand is kept as 내 코스 from its summary, and the next round there starts with its pars and HCP (v45)', async ({ page }) => {
+  await finishTypedRound(page);
+  await expect(page.locator('#sum-mine')).toBeVisible();
+  await expect(page.locator('#sum-mine')).toContainText('이 골프장을 내 코스로 저장할까요?');
+  // Readable on the summary's dark glass, and on its column: the same edges as the finding above it.
+  for (const r of await contrastOf(page, ['#sum-mine-text', '#sum-mine-save'].map((sel) => ({ sel, min: 4.5, unders: ['--deep'] })))) {
+    expect(r.ratio!, r.sel).toBeGreaterThanOrEqual(4.5);
+  }
+  const [card, insight] = [await rect(page, '#sum-mine'), await rect(page, '#sum-insight')];
+  expectAligned(card.x, insight.x, 'the card’s left on the finding’s');
+  expectAligned(card.x + card.width, insight.x + insight.width, 'the card’s right on the finding’s');
+  await page.locator('#sum-mine-save').click();
+  const sheet = page.locator('#mine-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(page.locator('#mine-front')).toHaveValue('전반');
+  await expect(page.locator('#mine-back')).toHaveValue('후반');
+  await page.locator('#mine-front').fill('OUT');
+  await page.locator('#mine-back').fill('IN');
+  await sheet.getByText('HCP(선택)').click();
+  for (const [i, n] of MY_HCP.entries()) await sheet.locator(`.mine-hcp input[data-hole="${i + 1}"]`).fill(String(n));
+  await page.locator('#mine-save').click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('#sum-mine')).toContainText('내 코스에 저장했어요');
+  await expect(page.locator('#announce')).toHaveText('내 코스에 저장했어요');
+  const kept = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!), MY_COURSES_KEY);
+  expect(kept).toHaveLength(1);
+  expect(kept[0]).toMatchObject({ name: '동네 골프장', front: 'OUT', back: 'IN', par: MY_PARS, hcp: MY_HCP });
+  // The next round: 내 코스 is at the top of the picker, and picking it fills the pars and the handicap.
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  const first = page.locator('#picker-list li').first();
+  await expect(first).toContainText('내 코스');
+  // The name typed last time is now that course: chosen already, and shown under its heading without scrolling.
+  const row = page.locator('#picker-list button.mine', { hasText: '동네 골프장' });
+  await expect(row).toHaveAttribute('aria-pressed', 'true');
+  await expect(first).toBeInViewport();
+  await expect(row).toBeInViewport();
+  await expect(page.locator('#picker-list button.custom')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#course-name')).toHaveText('동네 골프장 OUT·IN');
+  expect((await page.locator('#scorecard .ct-col .c-par').allTextContents()).map(Number)).toEqual(MY_PARS);
+  await expect(page.locator('#hole-hdcp')).toHaveText('HDCP 5');
+});
+
+test('a handicap list that does not fit is not saved, and the card does not come back for the same pars (v45)', async ({ page }) => {
+  await finishTypedRound(page);
+  await page.locator('#sum-mine-save').click();
+  const sheet = page.locator('#mine-sheet');
+  await sheet.getByText('HCP(선택)').click();
+  await sheet.locator('.mine-hcp input[data-hole="1"]').fill('1');
+  await sheet.locator('.mine-hcp input[data-hole="2"]').fill('1');
+  await page.locator('#mine-save').click();
+  await expect(page.locator('#mine-error')).toHaveText('HCP는 9홀마다 1–9, 또는 18홀에 1–18이 한 번씩 들어가야 해요. 비워 두어도 돼요.');
+  const [said] = await contrastOf(page, [{ sel: '#mine-error', min: 4.5, unders: ['--deep'] }]);
+  expect(said.ratio!, 'the HCP line on the dark sheet').toBeGreaterThanOrEqual(4.5);
+  await expect(sheet).toBeVisible();
+  for (let i = 1; i <= 18; i++) await sheet.locator(`.mine-hcp input[data-hole="${i}"]`).fill('');
+  await page.locator('#mine-save').click();
+  await expect(sheet).toBeHidden();
+  expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!)[0].hcp, MY_COURSES_KEY)).toBeUndefined();
+  // The same course with the same pars: nothing to offer. With a par changed: offered as an update.
+  await finishTypedRound(page);
+  await expect(page.locator('#sum-mine')).toBeHidden();
+  await finishTypedRound(page, MY_PARS.map((p, i) => (i === 0 ? 5 : p)));
+  await expect(page.locator('#sum-mine')).toContainText('내 코스의 파를 이 라운드대로 바꿀까요?');
+  await page.locator('#sum-mine-save').click();
+  await expect(page.locator('#sum-mine')).toContainText('내 코스에 저장했어요');
+  expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!)[0].par[0], MY_COURSES_KEY)).toBe(5);
+});
+
+test('내 코스 fills 지난 라운드 넣기, is deleted from the course picker, and travels in the backup file (v45)', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(([k, pars]) => localStorage.setItem(k, JSON.stringify([{ id: 'my-a', name: '동네 골프장', front: '전반', back: '후반', par: pars }])), [MY_COURSES_KEY, MY_PARS] as const);
+  await page.reload();
+  await page.getByRole('button', { name: '이 코스로 시작' }).click();
+  await showPast(page);
+  await page.locator('#hist-add').click();
+  await page.locator('#picker-list button.mine', { hasText: '동네 골프장' }).click();
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
+  expect(await page.locator('#quick .qe-cell').evaluateAll((cells) => cells.map((c) => Number(c.querySelector('b')!.textContent)))).toEqual(MY_PARS);
+  await page.locator('#qe-cancel').click();
+  // The backup file carries it.
+  await showBackup(page);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '백업 파일 저장' }).click()]);
+  const saved = (await download.path())!;
+  const file = JSON.parse(readFileSync(saved, 'utf8'));
+  expect(file.courses).toEqual([{ id: 'my-a', name: '동네 골프장', front: '전반', back: '후반', par: MY_PARS }]);
+  await closeMenu(page);
+  // Chosen in the picker, its nines and par below the list, and 지우기 where 전·후반 바꾸기 sits for a bundled course.
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  await page.locator('#picker-list button.mine', { hasText: '동네 골프장' }).click();
+  await expect(page.locator('#picker-chosen')).toContainText('전반 전반, 후반 후반');
+  await expect(page.locator('#picker-chosen')).toContainText('내 코스, Par 72');
+  const del = page.locator('#picker-mine-delete');
+  await expect(del).toHaveAccessibleName('동네 골프장 내 코스에서 지우기');
+  const [delBox, start] = [await rect(page, '#picker-mine-delete'), await rect(page, '#picker-start')];
+  expectAligned(delBox.x + delBox.width, start.x + start.width, '지우기 on the panel’s right edge, as 시작');
+  expect(delBox.height).toBeGreaterThanOrEqual(44);
+  const [readable] = await contrastOf(page, [{ sel: '#picker-mine-delete', min: 4.5, unders: ROUGH }]);
+  expect(readable.ratio!, '지우기 on the picker').toBeGreaterThanOrEqual(4.5);
+  // Deleted after a yes: off the list, the name left as a course typed in by hand; past rounds are not touched.
+  const asked = accept(page);
+  await del.click();
+  expect(await asked).toContain('동네 골프장');
+  await expect(page.locator('#picker-list button.mine')).toHaveCount(0);
+  await expect(page.locator('#picker-list .course-group')).toHaveCount(0);
+  await expect(page.locator('#picker-name')).toHaveValue('동네 골프장');
+  expect(await page.evaluate((k) => localStorage.getItem(k), MY_COURSES_KEY)).toBeNull();
+  await page.locator('#picker-cancel').click();
+  await expect(page.locator('#picker')).toBeHidden();
+  // The saved backup brings it back to the picker; a second import adds nothing.
+  await showBackup(page);
+  await page.locator('#backup-file').setInputFiles(saved);
+  await expect(page.locator('#backup-status')).toHaveText('가져온 지난 라운드는 없어요. 내 코스 1개를 가져왔어요.');
+  await page.locator('#backup-file').setInputFiles(saved);
+  await expect(page.locator('#backup-status')).toHaveText('가져온 지난 라운드는 없어요.');
+  expect(await page.evaluate((k) => JSON.parse(localStorage.getItem(k)!).length, MY_COURSES_KEY)).toBe(1);
+  await closeMenu(page);
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  await expect(page.locator('#picker-list button.mine', { hasText: '동네 골프장' })).toHaveCount(1);
+});
+
+test('the 내 코스 sheet fits 360px with its HCP open, and the picker row keeps to the screen (v45)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await finishTypedRound(page);
+  // Last in the summary, the card keeps the blocks' 8px from the buttons when scrolled to the end, not flush with them.
+  await page.locator('#summary .sum-body').evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await settled(page);
+  const [card, bar] = [await rect(page, '#sum-mine'), await rect(page, '#sum-actions')];
+  expect(bar.y - (card.y + card.height), 'the card above the buttons').toBeGreaterThanOrEqual(7);
+  await page.locator('#sum-mine-save').click();
+  await page.locator('#mine-sheet').getByText('HCP(선택)').click();
+  for (const box of [page.locator('#mine-sheet'), page.locator('html')]) {
+    expect(await box.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  }
+  const save = await page.locator('#mine-save').boundingBox();
+  expect(save!.height).toBeGreaterThanOrEqual(44);
+  // One column: the title, the labels, the HCP toggle and the grid from one left edge; the fields, the grid and 저장 to one right.
+  const lefts = await Promise.all(['#mine-title', '.mine-nine span', 'details.mine-hcp > summary', '.mine-hcp .qe-grid'].map((s) => rect(page, s)));
+  for (const b of lefts.slice(1)) expectAligned(b.x, lefts[0].x, 'the sheet’s left edge');
+  const rights = await Promise.all(['#mine-front', '#mine-back', '.mine-hcp .qe-grid', '#mine-save'].map((s) => rect(page, s)));
+  for (const b of rights.slice(1)) expectAligned(b.x + b.width, rights[0].x + rights[0].width, 'the sheet’s right edge');
+  // Kept, its row at the top of the picker stays inside the list at 360px, as the bundled rows do.
+  await page.locator('#mine-save').click();
+  await expect(page.locator('#mine-sheet')).toBeHidden();
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  const row = page.locator('#picker-list button.mine', { hasText: '동네 골프장' });
+  await expect(row).toBeVisible();
+  const list = page.locator('#picker-list');
+  expect(await list.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  const [rowBox, listBox] = [await row.boundingBox(), await list.boundingBox()];
+  expect(rowBox!.x).toBeGreaterThanOrEqual(listBox!.x);
+  expect(rowBox!.x + rowBox!.width).toBeLessThanOrEqual(listBox!.x + listBox!.width + 0.5);
+  expect(rowBox!.height).toBeGreaterThanOrEqual(44);
+  // The 내 코스 heading starts on the rows' text, and reads on the list.
+  const textLeft = (sel: string) => page.locator(sel).first().evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getBoundingClientRect().left;
+  });
+  expectAligned(await textLeft('#picker-list .course-group'), await textLeft('#picker-list button.mine b'), 'the heading on the rows’ text');
+  const [heading] = await contrastOf(page, [{ sel: '#picker-list .course-group', min: 4.5, unders: ROUGH }]);
+  expect(heading.ratio!, 'the 내 코스 heading').toBeGreaterThanOrEqual(4.5);
 });
