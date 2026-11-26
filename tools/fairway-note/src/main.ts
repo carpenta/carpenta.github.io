@@ -51,8 +51,9 @@ import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, rou
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
-import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
-import { HISTORY_KEY, hasFinishedHole, loadHistory, readHistory } from './history';
+import { keepBeforeNewRound, newRoundQuestion, refreshHistory, renderHistory, type Page } from './history-view';
+import { openQuickEntry } from './quick-entry';
+import { HISTORY_KEY, hasFinishedHole, loadHistory, readHistory, saveHistory, withRound } from './history';
 import { renderBackup } from './backup-view';
 import { createRoundShare, dressRoundButtons } from './share-round';
 import { VIEWS as CLUBS, bindShotPanel, renderShotPanel, type View as ClubKey } from './shot-panel';
@@ -1460,6 +1461,8 @@ const tile = (label: Node | string, value: string, small = '') => h('div', {}, h
 function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)[] {
   const t = a.totals;
   if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나와요.')];
+  // v44: an entered round knows strokes only; its view says so and leaves out putts, greens, penalties and areas.
+  if (a.entered) return [h('p', { class: 'muted entered-note' }, '넣은 기록은 타수만 있어요. 퍼트·그린 적중·벌타는 세지 않아요.'), totalLine(a)];
   const maxDist = Math.max(...Object.values(a.distribution));
   const advice = adviceLines(a);
   return [
@@ -2482,6 +2485,32 @@ renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
 // A backup saved or shared (v43) changes the menu's 백업과 복원 line.
 $('backup').addEventListener('backup-saved', () => renderNow());
+// 지난 라운드 넣기 (v44): the picker names the course, then the quick entry takes strokes per hole and keeps it.
+$('hist-add').addEventListener('click', () => openPicker({
+  mode: 'new',
+  title: '어디서 쳤나요?',
+  startLabel: '다음',
+  initial: loadPrefs(),
+  onStart: (choice) => openQuickEntry($<HTMLDialogElement>('quick'), {
+    choice,
+    kept: (date, name) => loadHistory().some((e) => e.round.date === date && roundCourse(e.round).name === name),
+    onSave: (entered) => {
+      if (!saveHistory(withRound(loadHistory(), entered, Date.parse(`${entered.date}T18:00:00`)))) {
+        announce('저장하지 못했어요. 저장 공간을 확인해 주세요');
+        return;
+      }
+      refreshHistory();
+      // v43's rule applies to an entered round too: ask for a backup only when one is due.
+      const kept = loadHistory().length;
+      const mark = loadBackupMark();
+      const why = shouldAskBackup(kept, mark, localDate());
+      backupNudge = why ? 'ask' : null;
+      nudgeSince = why === 'rounds' && mark ? kept - mark.rounds : 0;
+      renderNow();
+      announce('지난 라운드에 넣었어요');
+    },
+  }),
+}));
 bindMissing();
 // The 지난 라운드 header counts the kept rounds; the list changes on keeping, deleting and importing.
 new MutationObserver(() => renderNow()).observe($('history-list'), { childList: true });

@@ -180,6 +180,8 @@ export interface Average {
   ob: number;
   /** Greens in regulation, percent of holes. */
   gir: number;
+  /** Rounds recorded hole by hole (v44): putts, OB and greens are averaged over these, never over entered rounds. */
+  recorded: number;
 }
 
 export interface Trends {
@@ -193,19 +195,24 @@ export interface Trends {
   series: number[];
   /** Their days (YYYY-MM-DD), in the same order: the line's first and last dates (v32). */
   dates: string[];
+  /** Which of them were entered as strokes only (v44): drawn as open dots. */
+  entered: boolean[];
 }
 
 function average(list: Analysis[]): Average | null {
   if (!list.length) return null;
-  const sum = (f: (a: Analysis) => number) => list.reduce((s, a) => s + f(a), 0);
-  const holes = sum((a) => a.totals.holes);
+  const sum = (f: (a: Analysis) => number, of = list) => of.reduce((s, a) => s + f(a), 0);
+  // v44: an entered round knows strokes only, so it counts toward strokes and par, not putts, OB or greens.
+  const rec = list.filter((a) => !a.entered);
+  const holes = sum((a) => a.totals.holes, rec);
   return {
     rounds: list.length,
     strokes: sum((a) => a.totals.strokes) / list.length,
     toPar: sum((a) => a.toPar) / list.length,
-    putts: sum((a) => a.totals.putts) / list.length,
-    ob: sum((a) => a.totals.ob) / list.length,
-    gir: holes ? (sum((a) => a.girHoles) / holes) * 100 : 0,
+    putts: rec.length ? sum((a) => a.totals.putts, rec) / rec.length : 0,
+    ob: rec.length ? sum((a) => a.totals.ob, rec) / rec.length : 0,
+    gir: holes ? (sum((a) => a.girHoles, rec) / holes) * 100 : 0,
+    recorded: rec.length,
   };
 }
 
@@ -220,6 +227,7 @@ export function trends(entries: Entry[]): Trends {
     recent: full.length > RECENT ? average(full.slice(0, RECENT)) : null,
     series: latest.map(({ a }) => a.totals.strokes),
     dates: latest.map(({ day }) => day),
+    entered: latest.map(({ a }) => a.entered),
   };
 }
 

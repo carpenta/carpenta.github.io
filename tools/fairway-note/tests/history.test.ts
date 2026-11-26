@@ -251,8 +251,8 @@ describe('trends', () => {
   it('has no recent average until there are more full rounds than it covers, and no averages without one', () => {
     expect(trends(entries.slice(0, RECENT)).recent).toBeNull();
     expect(trends(entries.slice(0, RECENT)).all?.rounds).toBe(RECENT);
-    expect(trends([entry('n', nine)])).toEqual({ rounds: 1, full: 0, all: null, recent: null, series: [], dates: [] });
-    expect(trends([])).toEqual({ rounds: 0, full: 0, all: null, recent: null, series: [], dates: [] });
+    expect(trends([entry('n', nine)])).toEqual({ rounds: 1, full: 0, all: null, recent: null, series: [], dates: [], entered: [] });
+    expect(trends([])).toEqual({ rounds: 0, full: 0, all: null, recent: null, series: [], dates: [], entered: [] });
   });
 
   it(`draws at most the latest ${SERIES} full rounds`, () => {

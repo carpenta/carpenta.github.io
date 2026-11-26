@@ -2,7 +2,7 @@
 // The file goes only where the player saves or shares it; nothing is sent.
 import { analyze, localDate, type Round } from './round';
 import { persistenceState, saveBackupMark } from './storage';
-import { dateLabel } from './report';
+import { dateLabel, historyCsv } from './report';
 import { hasFinishedHole, hasRecord, loadHistory, saveHistory } from './history';
 import { MAX_BACKUP_BYTES, backupName, backupOf, backupText, parseBackup, planImport, settleImport } from './backup';
 import { refreshHistory, type Page } from './history-view';
@@ -56,6 +56,18 @@ function saveFile(): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
   saved();
   say(`백업 파일을 만들었어요 (${name}). 새 기기에서는 "백업 파일 가져오기"로 불러오세요.`);
+}
+
+/** v44: every kept round as a CSV (BOM so Excel reads Korean), named by today's date. */
+function saveCsv(): void {
+  const name = `fairway-note-rounds-${localDate()}.csv`;
+  const url = URL.createObjectURL(new Blob(['\uFEFF', historyCsv(loadHistory())], { type: 'text/csv;charset=utf-8' }));
+  const link = h('a', { href: url, download: name, hidden: '' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  say(`모든 라운드를 CSV 파일로 만들었어요 (${name}). 엑셀이나 구글 시트에서 열 수 있어요.`);
 }
 
 function canShareFiles(): boolean {
@@ -148,6 +160,9 @@ export function renderBackup(container: HTMLElement, p: BackupPage): void {
   const save = h('button', { id: 'backup-save', class: 'btn', type: 'button' }, '백업 파일 저장');
   const load = h('button', { id: 'backup-import', class: 'btn', type: 'button' }, '백업 파일 가져오기');
   const share = h('button', { id: 'backup-share', class: 'btn', type: 'button' }, '백업 파일 공유');
+  // v44: every kept round as one spreadsheet file, beside the backup.
+  const csv = h('button', { id: 'backup-csv', class: 'btn', type: 'button' }, '모든 라운드 CSV 저장');
+  csv.addEventListener('click', saveCsv);
   const input = h('input', { id: 'backup-file', type: 'file', accept: 'application/json,.json', hidden: '' });
   status = h('p', { id: 'backup-status', class: 'muted small', role: 'status' });
   share.hidden = !canShareFiles();
@@ -164,7 +179,7 @@ export function renderBackup(container: HTMLElement, p: BackupPage): void {
   container.replaceChildren(
     h('h2', { id: 'backup-title' }, '백업'),
     h('p', { class: 'muted small' }, '모든 라운드를 파일 하나로 저장해요. 폰을 바꾸면 새 폰에서 가져오세요. 파일은 저장한 곳에만 있어요.'),
-    h('div', { class: 'backup-actions' }, save, load, share),
+    h('div', { class: 'backup-actions' }, save, load, share, csv),
     input,
     status,
     what,

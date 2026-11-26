@@ -57,3 +57,22 @@ describe('every round as one CSV (v44)', () => {
     expect(lines[1].startsWith('2026-11-20,"동네, 골프장",,,1,')).toBe(true);
   });
 });
+
+describe('trends with entered rounds (v44)', () => {
+  it('average strokes over every full round, and putts, greens and OB over the recorded ones only; the line marks the entered', async () => {
+    const { newRound } = await import('../src/round');
+    const { trends } = await import('../src/history');
+    const base = newRound(new Date(2026, 10, 10));
+    const recorded = { ...base, date: '2026-11-10', current: 17, closed: true as const, holes: base.holes.map((h) => ({ ...h, driver: 1, approach: h.par - 3, putts: 2 })) };
+    const entered = enteredRound('2026-11-20', setup, bogeyGolf);
+    const t = trends([
+      { id: 'r', endedAt: Date.parse('2026-11-10T18:00:00'), round: recorded },
+      { id: 'e', endedAt: Date.parse('2026-11-20T18:00:00'), round: entered },
+    ]);
+    expect(t.all?.strokes).toBe((72 + 90) / 2);
+    expect(t.all?.putts).toBe(36);
+    expect(t.all?.recorded).toBe(1);
+    expect(t.series).toEqual([72, 90]);
+    expect(t.entered).toEqual([false, true]);
+  });
+});

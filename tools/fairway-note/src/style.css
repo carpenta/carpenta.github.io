@@ -2069,3 +2069,23 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 @media (max-height: 599px) { .picker-areas { margin-top: 2px; } .picker-list { margin-top: 0; } .picker-foot { margin-block: 6px max(8px, env(safe-area-inset-bottom)); padding-block: 12px; gap: 6px; } .pk-scroll { gap: 6px; } }
 /* v43: the menu's 백업과 복원 line with no backup yet, or one thirty days old: a small sand dot before it (no alarm red). */
 .mi small.backup-old::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; border-radius: var(--r-full); background: var(--sand); }
+/* v44: 지난 라운드 넣기 — a sheet like the summary: the date, 18 cells (6 to a row so each is a thumb wide at 360px),
+   the chips that set the picked cell relative to par, and the total with 저장. The picked cell has the lime edge
+   (chosen = lime edge, no glow); a cell off par shows its strokes in white with the difference beneath. */
+.qe-sheet { max-height: 100dvh; padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); }
+.qe-head h2 { font-size: var(--t-xl); font-weight: var(--w-label); }
+.qe-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; font-size: var(--t-m); font-weight: var(--w-label); }
+.qe-date input { min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-tile); background: var(--fill); color: var(--ink); font: inherit; }
+.qe-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+.qe-cell { min-height: 56px; padding: 4px 0; border: 0; border-radius: var(--r-tile); background: var(--fill); color: var(--muted); display: grid; justify-items: center; align-content: center; gap: 1px; font: inherit; }
+.qe-cell b { font-size: var(--t-l); font-weight: var(--w-value); }
+.qe-cell .qe-no, .qe-cell .qe-d { font-size: var(--t-s); font-weight: var(--w-help); }
+.qe-cell.off { color: var(--ink); }
+.qe-cell[aria-pressed='true'] { box-shadow: var(--chosen-edge); }
+.qe-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.qe-chip { min-height: 48px; border: 0; border-radius: var(--r-full); background: var(--fill-2); color: var(--ink); font: inherit; font-size: var(--t-m); font-weight: var(--w-label); }
+.qe-chip:active { background: var(--fill-press); }
+.qe-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: 10px; }
+.qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
+.past-meta, .hist-add { white-space: nowrap; }
+.spark-line .spark-hole { fill: none; stroke: var(--deep); stroke-width: 3.5; stroke-linecap: round; }
