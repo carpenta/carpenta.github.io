@@ -1,6 +1,7 @@
 import data from './data/courses.json';
 import { HOLE_COUNT, type Par, type RoundCourse } from './round';
 import type { CourseChoice } from './storage';
+import { findMine, loadMyCourses, myHcp, myPar, type MyCourse } from './my-courses';
 
 /** A hole's length from one tee, as the course publishes it. */
 export interface TeeLength {
@@ -68,7 +69,7 @@ export function defaultNines(course: Course): [string, string] {
 export function resolveChoice(choice: CourseChoice | null): CourseChoice {
   // A round of one nine is kept as a choice too (v11); 18 holes is the default and is not written.
   const nine = choice?.holes === 9 ? { holes: 9 as const } : {};
-  if (choice && choice.course === null) return { course: null, front: '', back: '', name: choice.name ?? '', ...nine };
+  if (choice && choice.course === null) return { course: null, front: '', back: '', name: choice.name ?? '', ...nine, ...(choice.mine ? { mine: choice.mine } : {}) };
   const course = findCourse(choice?.course ?? null);
   if (!course || !choice) return { ...DEFAULT_CHOICE };
   const [front, back] = defaultNines(course);
@@ -80,10 +81,17 @@ export function resolveChoice(choice: CourseChoice | null): CourseChoice {
  * The course and pars a new round starts with: two nines, or one for a 9-hole round (its back nine name is empty).
  * A course typed in by hand starts at par 4 everywhere.
  */
-export function roundSetup(choice: CourseChoice): { course: RoundCourse; pars: Par[] } {
+export function roundSetup(choice: CourseChoice, mine?: readonly MyCourse[]): { course: RoundCourse; pars: Par[] } {
   const resolved = resolveChoice(choice);
   const count = resolved.holes === 9 ? 9 : HOLE_COUNT;
   const course = findCourse(resolved.course);
+  // 내 코스 (v45): its name, nines and pars; a nine-hole one is played twice. Deleted, it is a typed-in name again.
+  const m = !course && resolved.mine ? (mine ?? loadMyCourses()).find((c) => c.id === resolved.mine) : undefined;
+  if (m) {
+    const pars = Array.from({ length: count }, (_, i) => myPar(m, i));
+    const back = count === 9 ? '' : m.back || m.front;
+    return { course: { id: null, name: m.name, front: m.front, back }, pars };
+  }
   if (!course) {
     const name = (resolved.name ?? '').trim().slice(0, MAX_CUSTOM_NAME) || CUSTOM_NAME;
     return { course: { id: null, name, front: '', back: '' }, pars: Array<Par>(count).fill(4) };
@@ -104,8 +112,12 @@ export function courseSource(course: RoundCourse): Course | null {
  * The par a round's course publishes for hole `index` (0-17), found by the nine names the round keeps: par 4 on a
  * course typed in by hand, null when the bundle no longer has those nines. 파 수정 marks the holes changed from it.
  */
-export function publishedPar(course: RoundCourse, index: number, courses: readonly Course[] = COURSES): Par | null {
-  if (course.id === null) return 4;
+export function publishedPar(course: RoundCourse, index: number, courses: readonly Course[] = COURSES, mine?: readonly MyCourse[]): Par | null {
+  if (course.id === null) {
+    // 내 코스 (v45): its own pars; any other course typed in by hand starts at par 4.
+    const m = findMine(course, mine ?? loadMyCourses());
+    return m ? myPar(m, index) : 4;
+  }
   const nine = courses.find((x) => x.id === course.id)?.nines.find((n) => n.name.ko === (index < 9 ? course.front : course.back));
   return nine?.par[index % 9] ?? null;
 }
@@ -125,8 +137,14 @@ function isHttps(url: string): boolean {
  * 10-18, found by the nine names the round keeps. Null when the bundle has none. A link that is not https, an empty
  * note and a length that is not positive are left out, so nothing odd reaches the page.
  */
-export function holeInfo(course: RoundCourse, index: number, courses: readonly Course[] = COURSES): HoleInfo | null {
-  const c = course.id === null ? undefined : courses.find((x) => x.id === course.id);
+export function holeInfo(course: RoundCourse, index: number, courses: readonly Course[] = COURSES, mine?: readonly MyCourse[]): HoleInfo | null {
+  if (course.id === null) {
+    // 내 코스 (v45): only the handicap index the player gave, shown as the bundled courses' "HDCP n".
+    const m = findMine(course, mine ?? loadMyCourses());
+    const si = m ? myHcp(m, index) : undefined;
+    return si ? { si } : null;
+  }
+  const c = courses.find((x) => x.id === course.id);
   const nine = c?.nines.find((n) => n.name.ko === (index < 9 ? course.front : course.back));
   const raw = nine?.holes?.[index % 9];
   if (!raw) return null;

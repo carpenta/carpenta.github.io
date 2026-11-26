@@ -226,6 +226,8 @@ export interface CourseChoice {
   name?: string;
   /** 9 for a round of one nine (`front`, then `back` is unused); missing for 18 holes. */
   holes?: 9;
+  /** 내 코스 (v45): the id of the saved course a typed-in name stands for. An older version ignores it. */
+  mine?: string;
 }
 
 export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
@@ -236,6 +238,7 @@ export function loadPrefs(kv: KV | null = store()): CourseChoice | null {
     const choice: CourseChoice = { course: o.course, front: o.front, back: o.back };
     if (isText(o.name)) choice.name = o.name;
     if (o.holes === 9) choice.holes = 9;
+    if (o.course === null && typeof o.mine === 'string' && o.mine !== '' && o.mine.length <= 64) choice.mine = o.mine;
     return choice;
   } catch {
     return null;

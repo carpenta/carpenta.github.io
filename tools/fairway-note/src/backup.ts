@@ -1,5 +1,6 @@
 import { localDate, type Round } from './round';
 import { parseRound } from './storage';
+import { readMyCourses, type MyCourse } from './my-courses';
 import { fingerprint, hasRecord, mergeEntries, readEntry, withRound, type Entry } from './history';
 
 export const BACKUP_APP = 'fairway-note';
@@ -16,10 +17,12 @@ export interface Backup {
   /** The round being recorded, or null when nothing is entered on it. */
   current: Round | null;
   history: Entry[];
+  /** 내 코스 (v45), only when there are some. An older version's import ignores the field. */
+  courses?: MyCourse[];
 }
 
-export function backupOf(current: Round, history: Entry[], now = new Date()): Backup {
-  return { app: BACKUP_APP, format: BACKUP_FORMAT, exportedAt: now.toISOString(), current: hasRecord(current) ? current : null, history };
+export function backupOf(current: Round, history: Entry[], now = new Date(), courses: MyCourse[] = []): Backup {
+  return { app: BACKUP_APP, format: BACKUP_FORMAT, exportedAt: now.toISOString(), current: hasRecord(current) ? current : null, history, ...(courses.length ? { courses } : {}) };
 }
 
 export function backupName(now = new Date()): string {
@@ -31,7 +34,7 @@ export function backupText(backup: Backup): string {
 }
 
 export type ReadBackup =
-  | { ok: true; history: Entry[]; invalid: number; current: Round | null }
+  | { ok: true; history: Entry[]; invalid: number; current: Round | null; courses?: MyCourse[] }
   | { ok: false; error: 'not-backup' | 'newer' };
 
 /** Reads a backup file. Every round is checked as a saved round would be; those that fail are counted in `invalid`. */
@@ -59,7 +62,9 @@ export function parseBackup(text: string): ReadBackup {
     current = parseRound(JSON.stringify(b.current));
     if (!current) invalid += 1;
   }
-  return { ok: true, history, invalid, current };
+  // 내 코스 (v45): read with the stored list's checks; a file without them reads as before.
+  const courses = Array.isArray(b.courses) ? readMyCourses(JSON.stringify(b.courses)).courses : [];
+  return { ok: true, history, invalid, current, ...(courses.length ? { courses } : {}) };
 }
 
 export interface ImportPlan {
