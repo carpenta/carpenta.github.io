@@ -194,6 +194,24 @@ export function roundCsv(round: Round): string {
   return `${rows.map((r) => r.map(csvCell).join(',')).join('\r\n')}\r\n`;
 }
 
+/**
+ * Every kept round for a spreadsheet (v44, 백업과 복원): one row per finished hole with the date, course and nines, the
+ * hole's par and strokes, its putts, OB and hazard (blank in an entered round, which knows strokes only), and 예 in
+ * 넣은 기록 for an entered round. The caller adds the UTF-8 BOM.
+ */
+export function historyCsv(entries: readonly { round: Round }[]): string {
+  const rows: (string | number)[][] = [['날짜', '코스', '전반', '후반', '홀', '파', '타수', '퍼트', 'OB', '해저드', '넣은 기록']];
+  for (const { round } of entries) {
+    const c = roundCourse(round);
+    round.holes.forEach((h, i) => {
+      if (!finished(round, i)) return;
+      const known = round.entered !== true;
+      rows.push([round.date, c.name, c.front, c.back, i + 1, h.par, strokes(h), known ? h.putts : '', known ? h.ob : '', known ? h.hazard : '', known ? '' : '예']);
+    });
+  }
+  return `${rows.map((r) => r.map(csvCell).join(',')).join('\r\n')}\r\n`;
+}
+
 /** "fairway-note-2026-11-20.csv": the round's own date. */
 export function csvName(round: Round): string {
   return `fairway-note-${round.date}.csv`;

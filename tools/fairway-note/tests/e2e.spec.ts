@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v43');
+  await expect(page.locator('#menu-version')).toHaveText('v44');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v43');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v44');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -6819,7 +6819,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v43');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v44');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -8745,4 +8745,89 @@ test('the backup panel says what the file holds, and from the home screen whethe
     await showBackup(page);
     await expect(page.locator('#backup-keep')).toHaveText(says);
   }
+});
+
+/*
+ * v44 (the user's calls): 지난 라운드 넣기 enters a past round as strokes per hole: the course from the picker, a date
+ * no later than today, then 18 cells filled with the par where only the holes off par are changed with chips. It is
+ * kept as an entered round (strokes only), marked in the list; 백업과 복원 saves every kept round as one CSV.
+ */
+const qeCell = (page: Page, hole: number) => page.locator(`#quick .qe-cell[data-hole="${hole}"]`);
+async function openQuickEntry(page: Page) {
+  await showPast(page);
+  await page.locator('#hist-add').click();
+  await expect(page.locator('#picker-title')).toHaveText('어디서 쳤나요?');
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.locator('#quick')).toBeVisible();
+}
+
+test('지난 라운드 넣기 keeps a past round from chips on the off-par holes, marked as entered (v44)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  // Every cell starts at its par; the date is today at most.
+  await expect(page.locator('#quick .qe-cell')).toHaveCount(18);
+  await expect(page.locator('#qe-total')).toHaveText(/^72타 \(E\)$/);
+  const today = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+  await expect(page.locator('#qe-date')).toHaveAttribute('max', today);
+  await page.locator('#qe-date').fill('2026-11-01');
+  // A bogey golfer: nine holes at +1, two at +2 — a tap on the cell, a tap on the chip.
+  let taps = 1;
+  for (const hole of [1, 2, 4, 5, 7, 9, 11, 13, 16]) {
+    await qeCell(page, hole).click();
+    await page.locator('#quick .qe-chip', { hasText: '+1' }).click();
+    taps += 2;
+  }
+  for (const hole of [14, 18]) {
+    await qeCell(page, hole).click();
+    await page.locator('#quick .qe-chip', { hasText: '+2' }).click();
+    taps += 2;
+  }
+  expect(taps).toBeLessThanOrEqual(30);
+  await expect(page.locator('#qe-total')).toHaveText('85타 (+13)');
+  await page.locator('#qe-save').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  const first = page.locator('#history-list > li').first();
+  await expect(first).toContainText('85타');
+  await expect(first).toContainText('넣은 기록');
+  // Never backed up: v43's rule asks for a backup after an entered round too.
+  await expect(page.locator('#backup-card')).toBeVisible();
+  // Opened, it says it knows strokes only.
+  await first.locator('button').first().click();
+  await expect(page.locator('.entered-note')).toHaveText('넣은 기록은 타수만 있어요. 퍼트·그린 적중·벌타는 세지 않아요.');
+});
+
+test('a cell picked again moves on to the next, 파 puts it back, and the screen fits 360px (v44)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await open(page);
+  await openQuickEntry(page);
+  await qeCell(page, 1).click();
+  await page.locator('#quick .qe-chip', { hasText: '+3' }).click();
+  await expect(qeCell(page, 2)).toHaveAttribute('aria-pressed', 'true');
+  await qeCell(page, 1).click();
+  await page.locator('#quick .qe-chip', { hasText: '파' }).click();
+  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
+  expect(await sideScroll(page)).toBe(0);
+});
+
+test('a past round on a day and course already kept is flagged before it is saved (v44)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [3]);
+  await openQuickEntry(page);
+  await page.locator('#qe-date').fill('2026-10-01');
+  await expect(page.locator('#qe-dup')).toHaveText('이 날 같은 코스 기록이 이미 있어요. 그래도 저장할 수 있어요.');
+  await page.locator('#qe-date').fill('2026-10-02');
+  await expect(page.locator('#qe-dup')).toBeHidden();
+});
+
+test('백업과 복원 saves every kept round as one CSV (v44)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [1, 2]);
+  await showBackup(page);
+  const download = page.waitForEvent('download');
+  await page.locator('#backup-csv').click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^fairway-note-rounds-\d{4}-\d{2}-\d{2}\.csv$/);
+  const text = readFileSync((await file.path())!, 'utf8');
+  expect(text.replace(/^﻿/, '').split('\r\n')[0]).toBe('날짜,코스,전반,후반,홀,파,타수,퍼트,OB,해저드,넣은 기록');
+  expect(text.split('\r\n').filter(Boolean)).toHaveLength(1 + 36);
 });

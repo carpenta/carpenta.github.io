@@ -99,7 +99,7 @@ function item(e: Entry): HTMLLIElement {
       h('span', { class: 'past-when' }, when),
       h('span', { class: 'past-score' }, `${t.strokes}타 `, h('span', { class: toParClass(a.toPar) }, formatToPar(a.toPar))),
       h('span', { class: 'past-where' }, where),
-      h('span', { class: 'past-meta' }, `${t.holes}홀, 퍼트 ${t.putts}${ob}`),
+      h('span', { class: 'past-meta' }, a.entered ? `${t.holes}홀, 넣은 기록` : `${t.holes}홀, 퍼트 ${t.putts}${ob}`),
     ),
   );
 }
@@ -108,7 +108,7 @@ function item(e: Entry): HTMLLIElement {
  * Strokes of the latest full rounds as a small line, oldest on the left; its values are in the label. A dot on each round
  * and the first and last days under its ends (v32), so it reads as rounds over days and not as a stroke of the pen.
  */
-function sparkline(series: number[], dates: string[]): HTMLElement {
+function sparkline(series: number[], dates: string[], entered: boolean[] = []): HTMLElement {
   // At least ten strokes from bottom to top (v32), centred on the rounds: 82 then 83 had filled the whole height and
   // read as a steep climb.
   const lo = Math.min(...series);
@@ -132,10 +132,17 @@ function sparkline(series: number[], dates: string[]): HTMLElement {
   svg.append(line);
   for (const [i, v] of series.entries()) {
     const dot = document.createElementNS(SVG, 'path');
-    dot.setAttribute('class', 'spark-dot');
+    // v44: an entered round's dot is open, so the line tells it from a round recorded hole by hole.
+    dot.setAttribute('class', entered[i] ? 'spark-dot open' : 'spark-dot');
     dot.setAttribute('d', `M${x(i).toFixed(2)} ${y(v).toFixed(2)}h0`);
     dot.setAttribute('vector-effect', 'non-scaling-stroke');
     svg.append(dot);
+    if (entered[i]) {
+      // The open dot's hole: a smaller disc in the panel's own colour on top of the ring.
+      const hole = dot.cloneNode() as SVGPathElement;
+      hole.setAttribute('class', 'spark-hole');
+      svg.append(hole);
+    }
   }
   const day = (d: string | undefined) => (d ? dateLabel(d).replace(/^\d+년 /, '') : '');
   return h('div', { class: 'spark', role: 'img', 'aria-label': `최근 ${series.length}라운드 타수: ${series.join(', ')}` },
@@ -156,15 +163,16 @@ function renderTrends(box: HTMLElement, t: Trends): void {
   if (t.all) {
     items.push(['평균 타수', one(t.all.strokes), averageToPar(t.all.toPar)]);
     if (t.recent) items.push([`최근 ${t.recent.rounds}라운드`, one(t.recent.strokes), averageToPar(t.recent.toPar)]);
-    items.push(['라운드당 퍼트', `${one(t.all.putts)}개`, ''], ['그린 적중', `${Math.round(t.all.gir)}%`, '']);
+    // v44: putts and greens from rounds recorded hole by hole only; none when every round was entered as strokes.
+    if (t.all.recorded) items.push(['라운드당 퍼트', `${one(t.all.putts)}개`, ''], ['그린 적중', `${Math.round(t.all.gir)}%`, '']);
     // No 0.0 OB line (v29): a tile of nothing.
-    if (t.all.ob) items.push(['라운드당 OB', `${one(t.all.ob)}회`, '']);
+    if (t.all.recorded && t.all.ob) items.push(['라운드당 OB', `${one(t.all.ob)}회`, '']);
   }
   const note = !t.all
     ? '18홀을 모두 끝낸 라운드가 생기면 평균이 나와요.'
     : t.full < t.rounds ? '평균은 18홀을 모두 끝낸 라운드로 내요.' : '';
   box.replaceChildren(h('dl', { class: 'metrics' }, ...items.map(([k, v, small]) => h('div', {}, h('dt', {}, k), h('dd', {}, v, small ? h('small', {}, small) : null)))));
-  if (t.series.length >= 2) box.append(sparkline(t.series, t.dates));
+  if (t.series.length >= 2) box.append(sparkline(t.series, t.dates, t.entered));
   if (note) box.append(h('p', { class: 'muted small trend-note' }, note));
 }
 

@@ -232,6 +232,8 @@
       <section class="view sc" id="hist-view" role="tabpanel" aria-labelledby="tab-hist" hidden>
         <header class="sc-top">
           <div class="sc-title"><h2>지난 라운드</h2><p id="hist-sub"></p></div>
+          <!-- v44: a past round entered as strokes per hole -->
+          <button type="button" class="head-btn hist-add" id="hist-add">넣기</button>
         </header>
         <div class="sc-body">
         <!-- The title and the score on one baseline, then the course and "11월 20일, 5홀 기록" on lines of their own (v23) -->
@@ -428,6 +430,9 @@
         </ul>
       </section>
     </dialog>
+
+    <!-- v44: 지난 라운드 넣기, filled by src/quick-entry.ts -->
+    <dialog id="quick" class="sheet-dialog qe-sheet" aria-labelledby="qe-title"></dialog>
 
     <dialog id="summary" class="sheet-dialog sum-sheet" aria-labelledby="sum-title">
       <div class="grab" aria-hidden="true"></div>
