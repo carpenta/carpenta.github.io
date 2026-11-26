@@ -19,6 +19,7 @@ import {
   finished,
   formatToPar,
   isStale,
+  localDate,
   newRound,
   played,
   roundCourse,
@@ -43,14 +44,15 @@ import { bandShape, bandSvg, bandTerrain, courseShape, courseSvg, courseTerrain,
 import { holeArt, osmHoleAt, osmLoading } from './osm-holes';
 import { registerOffline } from './offline';
 import { adviceLines, analysisText, csvName, dateLabel, detailLines, mailtoHref, rateSub, reportSubject, reportText, roundCsv } from './report';
-import { PREFS_KEY, STORAGE_KEY, clearRound, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
+import { PREFS_KEY, STORAGE_KEY, clearRound, loadBackupMark, loadDisplay, loadPrefs, loadRound, preserveUnreadable, requestPersistence, saveDisplay, savePrefs, saveRound, store, type CourseChoice } from './storage';
+import { backupStatus, shouldAskBackup } from './backup-nudge';
 import { keepScreenOn } from './wake';
 import { courseSource, distanceLabel, holeInfo, publishedPar, resolveChoice, roundSetup } from './courses';
 import { closePicker, openPicker, pickerOpen } from './picker';
 import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, renderHistory, type Page } from './history-view';
-import { HISTORY_KEY, hasFinishedHole, readHistory } from './history';
+import { HISTORY_KEY, hasFinishedHole, loadHistory, readHistory } from './history';
 import { renderBackup } from './backup-view';
 import { createRoundShare, dressRoundButtons } from './share-round';
 import { VIEWS as CLUBS, bindShotPanel, renderShotPanel, type View as ClubKey } from './shot-panel';
@@ -1765,7 +1767,12 @@ function keepFinishedRound(): void {
   clearRound();
   round = newRound(new Date(), roundSetup(resolveChoice(loadPrefs())));
   roundless = true;
-  backupNudge = 'ask';
+  // v43: ask for a backup only with none yet, five rounds kept since the last, or the last thirty days old.
+  const kept = loadHistory().length;
+  const mark = loadBackupMark();
+  const why = shouldAskBackup(kept, mark, localDate());
+  backupNudge = why ? 'ask' : null;
+  nudgeSince = why === 'rounds' && mark ? kept - mark.rounds : 0;
   render();
   show('hist', true);
   announce('지난 라운드에 보관했어요. 다음 라운드는 코스를 고르고 시작해요');
@@ -2141,7 +2148,11 @@ function renderNow(a: Analysis = analyze(round)): void {
   // after the first render).
   document.getElementById('history-status')?.classList.toggle('sr-only', !card.hidden);
   setText($('bk-h'), backupNudge === 'saved' ? '백업 파일을 저장했어요' : '라운드를 보관했어요');
-  setText($('bk-text'), backupNudge === 'saved' ? '폰을 바꾸면 메뉴의 백업과 복원에서 이 파일을 열면 돼요.' : '기록은 이 기기에만 있어요. 폰을 바꾸거나 브라우저가 기록을 지울 때를 대비해 백업 파일을 저장해 두세요.');
+  setText($('bk-text'), backupNudge === 'saved' ? '폰을 바꾸면 메뉴의 백업과 복원에서 이 파일을 열면 돼요.' : `기록은 이 기기에만 있어요. 폰을 바꾸거나 브라우저가 기록을 지울 때를 대비해 백업 파일을 저장해 두세요.${nudgeSince ? ` 마지막 백업 뒤 ${nudgeSince}라운드를 보관했어요.` : ''}`);
+  // v43: the menu's 백업과 복원 line says how many rounds are kept and when the last backup was.
+  const line = backupStatus(kept, loadBackupMark(), localDate());
+  setText($('mi-backup-sub'), line.text);
+  $('mi-backup-sub').classList.toggle('backup-old', line.stale);
   $('bk-save').hidden = backupNudge === 'saved';
   setText($('bk-later'), backupNudge === 'saved' ? '닫기' : '나중에');
   $('home-card').hidden = !kept || homeSeen || standalone() || backupNudge !== null;
@@ -2149,6 +2160,8 @@ function renderNow(a: Analysis = analyze(round)): void {
 
 /** Set when a round is kept from the summary; cleared with 나중에 or 닫기. In memory only. */
 let backupNudge: 'ask' | 'saved' | null = null;
+/** Rounds kept since the last backup when that is why the card asks (v43), else 0. */
+let nudgeSince = 0;
 
 function bindBackupCard(): void {
   $('bk-save').addEventListener('click', () => {
@@ -2467,6 +2480,8 @@ const lent: Page = {
 document.addEventListener('touchstart', () => {}, { passive: true });
 renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
+// A backup saved or shared (v43) changes the menu's 백업과 복원 line.
+$('backup').addEventListener('backup-saved', () => renderNow());
 bindMissing();
 // The 지난 라운드 header counts the kept rounds; the list changes on keeping, deleting and importing.
 new MutationObserver(() => renderNow()).observe($('history-list'), { childList: true });

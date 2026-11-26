@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v42');
+  await expect(page.locator('#menu-version')).toHaveText('v43');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v42');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v43');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -6819,7 +6819,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v42');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v43');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -8646,4 +8646,103 @@ test('only the hole ring and the main action glow; chosen tabs, modes and panes 
   await settled(page);
   await expect(page.locator('#next-hole')).toHaveClass(/finish/);
   expect((await glowing(page)).sort()).toEqual(['#hole-btn', '#next-hole']);
+});
+
+/*
+ * v43 (the user's calls): the backup card asks after a round is kept only when nothing was ever backed up, five or more
+ * rounds were kept since the last backup, or that backup is thirty or more days old; the menu's 백업과 복원 says how
+ * many rounds are kept and when the last backup was; the backup panel says what the file holds and, opened from the
+ * home screen, whether the browser keeps this site's storage.
+ */
+/** Finishes the round being recorded with one hole and keeps it in 지난 라운드. */
+async function keepOneHole(page: Page) {
+  await seed(page, { 0: { driver: 1, approach: 1, putts: 2 } }, 1);
+  await showCard(page);
+  await page.getByRole('button', { name: '라운드 마치기' }).click();
+  await page.getByRole('button', { name: '그대로 마치기' }).click();
+  await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
+  await expect(page.locator('#hist-view')).toBeVisible();
+}
+/** Writes the last-backup mark into the prefs, `daysAgo` before today, and reloads. */
+async function markBackup(page: Page, daysAgo: number, rounds: number) {
+  await page.evaluate(([key, ago, n]) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (ago as number));
+    const at = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const prefs = JSON.parse(localStorage.getItem(key as string) ?? '{}');
+    localStorage.setItem(key as string, JSON.stringify({ ...prefs, backedUpAt: at, backedUpRounds: n }));
+  }, [PREFS_KEY, daysAgo, rounds] as const);
+  await page.reload();
+}
+const backupLine = (page: Page) => page.locator('#mi-backup-sub');
+
+test('the backup card asks after the first kept round; saving shows in the menu as today (v43)', async ({ page }) => {
+  await open(page);
+  await menu(page);
+  await expect(backupLine(page)).toHaveText('기록을 파일로 옮겨요');
+  await closeMenu(page);
+  await keepOneHole(page);
+  await expect(page.locator('#backup-card')).toBeVisible();
+  await menu(page);
+  await expect(backupLine(page)).toHaveText('보관한 라운드 1개 · 아직 백업하지 않았어요');
+  await expect(backupLine(page)).toHaveClass(/backup-old/);
+  await closeMenu(page);
+  const download = page.waitForEvent('download');
+  await page.locator('#bk-save').click();
+  await download;
+  await menu(page);
+  await expect(backupLine(page)).toHaveText('보관한 라운드 1개 · 마지막 백업 오늘');
+  await expect(backupLine(page)).not.toHaveClass(/backup-old/);
+});
+
+test('after a backup the card stays away for the fourth kept round since it (v43)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [1, 2, 3]);
+  await markBackup(page, 0, 0);
+  await keepOneHole(page);
+  await expect(page.locator('#hist-sub')).toHaveText('보관한 라운드 4개');
+  await expect(page.locator('#backup-card')).toBeHidden();
+});
+
+test('the fifth round kept since a backup brings the card back, saying why (v43)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [1, 2, 3, 4]);
+  await markBackup(page, 0, 0);
+  await keepOneHole(page);
+  await expect(page.locator('#hist-sub')).toHaveText('보관한 라운드 5개');
+  await expect(page.locator('#backup-card')).toBeVisible();
+  await expect(page.locator('#bk-text')).toContainText('마지막 백업 뒤 5라운드를 보관했어요.');
+});
+
+test('a backup thirty days old is marked in the menu and asked for after the next kept round (v43)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [1, 2]);
+  await markBackup(page, 30, 2);
+  await menu(page);
+  await expect(backupLine(page)).toHaveText('보관한 라운드 2개 · 마지막 백업 30일 전');
+  await expect(backupLine(page)).toHaveClass(/backup-old/);
+  // Marked by the dot alone: the line stays plain small text (a first draft's class picked up the stale-round box).
+  const look = await backupLine(page).evaluate((el) => ({ bg: getComputedStyle(el).backgroundColor, pad: getComputedStyle(el).paddingLeft, dot: getComputedStyle(el, '::before').width }));
+  expect(look).toEqual({ bg: 'rgba(0, 0, 0, 0)', pad: '0px', dot: '6px' });
+  await closeMenu(page);
+  await keepOneHole(page);
+  await expect(page.locator('#backup-card')).toBeVisible();
+});
+
+test('the backup panel says what the file holds, and from the home screen whether storage is kept (v43)', async ({ page }) => {
+  await open(page);
+  await showBackup(page);
+  await expect(page.locator('#backup-what')).toHaveText('백업 파일에는 코스·날짜·홀별 기록만 들어가요. 이름이나 연락처는 없어요.');
+  // In a browser tab the storage line is not shown.
+  await expect(page.locator('#backup-keep')).toBeHidden();
+  for (const [kept, says] of [[true, '이 폰이 기록을 지우지 않도록 요청했어요.'], [false, '브라우저가 오래 쓰지 않은 기록을 정리할 수 있어요. 백업 파일을 저장해 두세요.']] as const) {
+    await page.addInitScript((value) => {
+      const real = window.matchMedia.bind(window);
+      window.matchMedia = (q: string) => (q.includes('display-mode: standalone') ? ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} } as unknown as MediaQueryList) : real(q));
+      Object.defineProperty(navigator, 'storage', { configurable: true, value: { persist: async () => value, persisted: async () => value } });
+    }, kept);
+    await page.reload();
+    await showBackup(page);
+    await expect(page.locator('#backup-keep')).toHaveText(says);
+  }
 });

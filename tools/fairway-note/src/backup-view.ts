@@ -1,6 +1,7 @@
 // The backup view: save or share one file with every round, and import one. renderBackup() mounts it into any container.
 // The file goes only where the player saves or shares it; nothing is sent.
-import { analyze, type Round } from './round';
+import { analyze, localDate, type Round } from './round';
+import { persistenceState, saveBackupMark } from './storage';
 import { dateLabel } from './report';
 import { hasFinishedHole, hasRecord, loadHistory, saveHistory } from './history';
 import { MAX_BACKUP_BYTES, backupName, backupOf, backupText, parseBackup, planImport, settleImport } from './backup';
@@ -18,6 +19,26 @@ function say(text: string): void {
   if (status) setText(status, text);
 }
 
+let view: HTMLElement | null = null;
+
+/** v43: remembers the backup (date and kept rounds) and tells the page, whose menu line says when it was. */
+function saved(): void {
+  saveBackupMark({ at: localDate(), rounds: loadHistory().length });
+  view?.dispatchEvent(new Event('backup-saved'));
+}
+
+/** Opened from the home screen: the browser counts its storage apart from the browser's own (WebKit). */
+const fromHomeScreen = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+/** v43: from the home screen, whether the browser keeps this site's storage; hidden in a browser tab. */
+async function showKeep(line: HTMLElement): Promise<void> {
+  if (!fromHomeScreen()) return;
+  const kept = await persistenceState();
+  if (kept === null) return;
+  setText(line, kept ? '이 폰이 기록을 지우지 않도록 요청했어요.' : '브라우저가 오래 쓰지 않은 기록을 정리할 수 있어요. 백업 파일을 저장해 두세요.');
+  line.hidden = false;
+}
+
 function fileText(p: BackupPage): string {
   return backupText(backupOf(p.current(), loadHistory()));
 }
@@ -33,6 +54,7 @@ function saveFile(): void {
   link.remove();
   // The download keeps its own copy; the URL only has to outlive the click.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  saved();
   say(`백업 파일을 만들었어요 (${name}). 새 기기에서는 "백업 파일 가져오기"로 불러오세요.`);
 }
 
@@ -50,6 +72,7 @@ async function shareFile(): Promise<void> {
   const file = new File([fileText(page)], backupName(), { type: BACKUP_TYPE });
   try {
     await navigator.share({ files: [file], title: 'Fairway Note 백업' });
+    saved();
     say('백업 파일을 공유했어요.');
   } catch (error) {
     if ((error as DOMException).name !== 'AbortError') say('공유하지 못했어요. "백업 파일 저장"을 써 주세요.');
@@ -132,6 +155,11 @@ export function renderBackup(container: HTMLElement, p: BackupPage): void {
   share.addEventListener('click', () => void shareFile());
   load.addEventListener('click', () => input.click());
   input.addEventListener('change', () => void importFile(input));
+  // v43: what the file holds (backup.ts: the course, date and holes of each round; no name or contact), and from the
+  // home screen whether the browser keeps the storage.
+  const what = h('p', { id: 'backup-what', class: 'muted small' }, '백업 파일에는 코스·날짜·홀별 기록만 들어가요. 이름이나 연락처는 없어요.');
+  const keep = h('p', { id: 'backup-keep', class: 'muted small', hidden: '' });
+  view = container;
   container.setAttribute('aria-labelledby', 'backup-title');
   container.replaceChildren(
     h('h2', { id: 'backup-title' }, '백업'),
@@ -139,5 +167,8 @@ export function renderBackup(container: HTMLElement, p: BackupPage): void {
     h('div', { class: 'backup-actions' }, save, load, share),
     input,
     status,
+    what,
+    keep,
   );
+  void showKeep(keep);
 }
