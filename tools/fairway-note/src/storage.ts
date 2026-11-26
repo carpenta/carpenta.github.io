@@ -123,6 +123,7 @@ export function readRound(text: string | null): { round: Round; lossy: boolean }
   const round: Round = { version: 1, date: r.date, current, holes };
   if (typeof r.lastEdited === 'number' && Number.isFinite(r.lastEdited) && r.lastEdited > 0) round.lastEdited = r.lastEdited;
   if (r.closed === true) round.closed = true;
+  if (r.entered === true) round.entered = true;
   // Rounds saved before courses could be chosen have none and keep their pars; a broken one is unreadable.
   if ('course' in r) {
     const course = parseCourse(r.course);

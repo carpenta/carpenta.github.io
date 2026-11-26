@@ -124,6 +124,11 @@ export interface Round {
    * counts without a putt (a chip-in on the last hole). Recording on that hole again, or going to another, clears it.
    */
   closed?: true;
+  /**
+   * A past round entered as strokes per hole only (v44, 지난 라운드 넣기): each hole's strokes are kept in `approach`,
+   * with no clubs, putts or penalties, so its stats count strokes and results only.
+   */
+  entered?: true;
 }
 
 export function emptyHole(par: Par = DEFAULT_PAR): Hole {
@@ -137,6 +142,21 @@ export function localDate(now = new Date()): string {
 
 export function newRound(now = new Date(), setup: { course: RoundCourse; pars: readonly Par[] } = { course: DEFAULT_COURSE, pars: COURSE_PARS }): Round {
   return { version: 1, date: localDate(now), current: 0, holes: setup.pars.map((par) => emptyHole(par)), course: { ...setup.course } };
+}
+
+/** A past round entered as strokes per hole (v44): finished on every hole, dated `date`, on `setup`'s course. */
+export function enteredRound(date: string, setup: { course: RoundCourse; pars: readonly Par[] }, strokesPerHole: readonly number[]): Round {
+  if (strokesPerHole.length !== setup.pars.length) throw new Error('one count per hole');
+  if (strokesPerHole.some((n) => !Number.isInteger(n) || n < 1 || n > 15)) throw new Error('1 to 15 strokes a hole');
+  return {
+    version: 1,
+    date,
+    current: setup.pars.length - 1,
+    holes: setup.pars.map((par, i) => ({ ...emptyHole(par), approach: strokesPerHole[i] })),
+    course: { ...setup.course },
+    closed: true,
+    entered: true,
+  };
 }
 
 export function isTagged(key: Counter): key is Tagged {
@@ -426,6 +446,8 @@ export interface Analysis {
   front: Totals;
   back: Totals;
   toPar: number;
+  /** An entered round (v44): only strokes and results count; putts, greens, penalties and areas are not known. */
+  entered: boolean;
   puttsPerHole: number;
   onePutts: number;
   threePutts: number;
@@ -528,6 +550,7 @@ export function analyze(round: Round): Analysis {
     front: totals(round, 0, 9),
     back: totals(round, 9),
     toPar: all.strokes - all.par,
+    entered: round.entered === true,
     puttsPerHole: all.holes ? all.putts / all.holes : 0,
     onePutts,
     threePutts,
