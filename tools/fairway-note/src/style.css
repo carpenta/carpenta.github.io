@@ -1342,6 +1342,11 @@ button.scell:active { background: var(--fill); }
 .check-actions { margin-top: 14px; display: grid; gap: 8px; }
 .check-actions button { height: 52px; border-radius: var(--r-ctl); background: var(--white); color: var(--turf); outline: 1px solid var(--turf); outline-offset: -1px; font-size: var(--t-l); font-weight: var(--w-label); }
 .check-actions .primary { background: var(--action); color: var(--on-action); outline: none; }
+/* KakaoTalk's in-app browser notice (v47): why, then that phone's steps on a tile as 라운드 마치기's list has them, then what follows. */
+.kakao-sheet p { margin-top: 10px; font-size: var(--t-m); }
+.kakao-sheet .kakao-how { padding: 10px 12px; border-radius: var(--r-tile); background: var(--paper); }
+.kakao-sheet b { font-weight: var(--w-label); }
+.kakao-sheet .kakao-then { color: var(--muted); font-size: var(--t-s); }
 
 /* ---------- long-press a count: a one-row 0 … 5+ picker ---------- */
 .pill { -webkit-touch-callout: none; }

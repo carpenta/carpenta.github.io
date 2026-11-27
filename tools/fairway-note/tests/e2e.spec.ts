@@ -9185,3 +9185,49 @@ test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px un
   await expect(qeCell(page, 7)).toHaveAttribute('aria-label', '7번 홀 파 3, 10타');
   await expect(page.locator('#qe-total')).toHaveText('82타 (+10)');
 });
+
+const KAKAO_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.82 Mobile Safari/537.36;KAKAOTALK 2410590';
+const KAKAO_IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.8.5';
+const CHROME_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36';
+
+for (const [phone, ua, shown, other] of [['Android', KAKAO_ANDROID, '#kakao-android', '#kakao-ios'], ['iPhone', KAKAO_IPHONE, '#kakao-ios', '#kakao-android']] as const) {
+  test.describe(`in KakaoTalk's in-app browser on ${phone} (v47)`, () => {
+    test.use({ userAgent: ua });
+
+    test('says once that records kept here stay here, and how to open the app in the phone\'s browser', async ({ page }) => {
+      const requests = outgoing(page);
+      await page.goto('/');
+      const note = page.locator('#kakao');
+      await expect(note).toBeVisible();
+      await expect(page.locator('#kakao-title')).toHaveText('카카오톡 안에서 열었어요');
+      await expect(page.locator('#kakao-why')).toContainText('보이지 않을 수 있어요');
+      await expect(page.locator(shown)).toBeVisible();
+      await expect(page.locator(other)).toBeHidden();
+      await page.getByRole('button', { name: '알겠어요' }).click();
+      await expect(note).toBeHidden();
+      // The course picker under it is there to use.
+      await page.getByRole('button', { name: '이 코스로 시작' }).click();
+      await expect(page.locator('#picker')).toBeHidden();
+      // Once put away, it does not come back: the round started above opens on 기록, with no notice over it.
+      await page.reload();
+      await expect(page.locator('#entry')).toBeVisible();
+      await expect(note).toBeHidden();
+      expect(requests).toEqual([]);
+    });
+  });
+}
+
+test.describe('in Chrome on Android (v47)', () => {
+  test.use({ userAgent: CHROME_ANDROID });
+  test('says nothing about KakaoTalk', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#picker')).toBeVisible();
+    await expect(page.locator('#kakao')).toBeHidden();
+  });
+});
+
+test('says nothing about KakaoTalk in this browser either (v47)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  await expect(page.locator('#kakao')).toBeHidden();
+});

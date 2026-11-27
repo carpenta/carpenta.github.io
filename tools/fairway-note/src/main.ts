@@ -55,6 +55,7 @@ import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, refreshHistory, renderHistory, type Page } from './history-view';
 import { openQuickEntry } from './quick-entry';
+import { kakaoInApp, openKakaoNotice } from './kakao';
 import { HISTORY_KEY, hasFinishedHole, loadHistory, readHistory, saveHistory, withRound } from './history';
 import { renderBackup } from './backup-view';
 import { createRoundShare, dressRoundButtons } from './share-round';
@@ -2499,6 +2500,10 @@ else if (stale) {
     },
   });
 }
+// v47 (U4): in KakaoTalk's in-app browser, say once, over whatever opened first, that rounds kept here stay here and
+// how to open the app in the phone's own browser. Put away, it is remembered beside the other display settings.
+const kakao = kakaoInApp(navigator.userAgent);
+if (kakao && !loadDisplay().kakao) openKakaoNotice($<HTMLDialogElement>('kakao'), kakao, () => saveDisplay({ kakao: true }));
 keepScreenOn();
 registerOffline();
 // What the past rounds and backup views borrow from the page; each mounts into its own container.
