@@ -123,6 +123,20 @@ export function reportSubject(round: Round): string {
   return `${roundLabel(round)} ${dateLabel(round.date)} 라운드${score}`;
 }
 
+/**
+ * What an entered round (v44) says about itself in the outgoing texts (v47, U1): it knows each hole's strokes and no
+ * putts, penalties or shots, so it never reports them, not even as zero.
+ */
+export const ENTERED_NOTE = '홀별 타수만 넣은 기록입니다. 퍼트·벌타·샷은 기록하지 않았습니다.';
+
+/** "분포: 파 3 · 보기 9" over the finished holes. */
+const distLine = (a: Analysis) => `분포: ${(Object.keys(SCORE_LABELS) as ScoreName[])
+  .filter((k) => a.distribution[k])
+  .map((k) => `${SCORE_LABELS[k]} ${a.distribution[k]}`)
+  .join(' · ')}`;
+
+const byParLine = (a: Analysis) => `Par별 평균: ${a.byPar.filter((p) => p.holes).map((p) => `Par${p.par} ${one(p.average)}타`).join(' · ')}`;
+
 /** The round as plain text for email or sharing: summary, hole by hole, then analysis. */
 export function reportText(round: Round): string {
   const a = analyze(round);
@@ -137,6 +151,19 @@ export function reportText(round: Round): string {
     `총 ${t.strokes}타 (${formatToPar(a.toPar)}) · ${t.holes}/${round.holes.length}홀`,
     // A round of one nine has no nines to compare.
     ...(round.holes.length === 9 ? [] : [`전반 ${a.front.holes ? `${a.front.strokes}타` : '-'} · 후반 ${a.back.holes ? `${a.back.strokes}타` : '-'}`]),
+  );
+  // v47: an entered round gives its strokes, hole by hole, and what follows from strokes alone; nothing else.
+  if (a.entered) {
+    lines.push(ENTERED_NOTE, '', '[홀별] 타수 (파 대비)');
+    round.holes.forEach((h, i) => {
+      if (!finished(round, i)) return;
+      const s = strokes(h);
+      lines.push(`${i + 1}번 Par${h.par}: ${s}타 (${formatToPar(s - h.par)})`);
+    });
+    lines.push('', '[분석]', distLine(a), byParLine(a));
+    return lines.join('\n');
+  }
+  lines.push(
     `퍼트 ${t.putts} · OB ${t.ob}${t.hazard ? ` · 해저드 ${t.hazard}` : ''} · 멀리건 ${t.mulligan}`,
     '',
     `[홀별] 타수 = 드라이버 + ${AREA_LABELS.approach}${a.split.holes ? `(${PART_LABELS.second} + ${PART_LABELS.short})` : ''} + 퍼트 + 벌타(OB·해저드)`,
@@ -147,18 +174,14 @@ export function reportText(round: Round): string {
     const extra = [h.ob ? `OB ${h.ob}` : '', h.hazard ? `해저드 ${h.hazard}` : '', h.mulligan ? `멀리건 ${h.mulligan}` : ''].filter(Boolean).join(' ');
     lines.push(`${i + 1}번 Par${h.par}: ${s}타 (${formatToPar(s - h.par)}) 드${h.driver} ${middle(h)} 퍼${h.putts}${extra ? ` ${extra}` : ''}${holeTags(h)}`);
   });
-  const dist = (Object.keys(SCORE_LABELS) as ScoreName[])
-    .filter((k) => a.distribution[k])
-    .map((k) => `${SCORE_LABELS[k]} ${a.distribution[k]}`)
-    .join(' · ');
   lines.push(
     '',
     '[분석]',
     `평균 퍼트 ${one(a.puttsPerHole)}개 · 1퍼트 ${a.onePutts}홀 · 3퍼트 이상 ${a.threePutts}홀`,
     `그린 적중 ${a.girHoles}/${t.holes} (${pct(a.girHoles, t.holes)}%)`,
     ...(a.split.holes ? [`세컨·어프로치 (상세로 나눈 ${a.split.holes}홀): 그린 적중 ${a.split.gir}/${a.split.holes} · 업앤다운 ${a.split.upDown.made}/${a.split.upDown.chances}`] : []),
-    `분포: ${dist}`,
-    `Par별 평균: ${a.byPar.filter((p) => p.holes).map((p) => `Par${p.par} ${one(p.average)}타`).join(' · ')}`,
+    distLine(a),
+    byParLine(a),
     ...insights(a).map((s) => `- ${s}`),
   );
   const detail = detailLines(a);
@@ -232,9 +255,19 @@ export function analysisText(round: Round): string {
     single ? `코스: ${c.front || '9홀'} (9홀)` : `코스: 전반 ${c.front || '-'} · 후반 ${c.back || '-'}`,
     `날짜: ${round.date}`,
     `기록한 홀: ${t.holes}/${round.holes.length}`,
-    '',
-    `[홀별] 홀 | 파 | 드라이버 | ${AREA_LABELS.approach} | ${PART_LABELS.second} | ${PART_LABELS.short} | 퍼트 | OB | 해저드 | 타수 | 파 대비`,
   ];
+  // v47: an entered round is strokes per hole, so its facts are strokes and to-par; no counts it never had.
+  if (a.entered) {
+    lines.push(ENTERED_NOTE, '', '[홀별] 홀 | 파 | 타수 | 파 대비');
+    round.holes.forEach((h, i) => {
+      const s = strokes(h);
+      lines.push(finished(round, i) ? [i + 1, h.par, s, formatToPar(s - h.par)].join(' | ') : `${i + 1} | ${h.par} | 기록 없음`);
+    });
+    lines.push('', '[합계]', `타수 ${t.strokes} (${formatToPar(a.toPar)})`);
+    if (!single) lines.push(`전반 ${a.front.holes ? `${a.front.strokes}타 (${a.front.holes}홀)` : '기록 없음'} · 후반 ${a.back.holes ? `${a.back.strokes}타 (${a.back.holes}홀)` : '기록 없음'}`);
+    return lines.join('\n');
+  }
+  lines.push('', `[홀별] 홀 | 파 | 드라이버 | ${AREA_LABELS.approach} | ${PART_LABELS.second} | ${PART_LABELS.short} | 퍼트 | OB | 해저드 | 타수 | 파 대비`);
   round.holes.forEach((h, i) => {
     if (!finished(round, i)) {
       lines.push(`${i + 1} | ${h.par} | 기록 없음`);

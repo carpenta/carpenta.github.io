@@ -67,8 +67,11 @@ export interface ScorecardNine {
 }
 
 export interface CardStat {
-  /** updown (v28): only on a round with an 어프로치 recorded in 상세, the last of the row. */
-  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best' | 'updown';
+  /**
+   * updown (v28): only on a round with an 어프로치 recorded in 상세, the last of the row. entered (v47): an entered round's
+   * row is its best hole and this word that it holds strokes only, in place of counts it does not have.
+   */
+  key: 'putts' | 'gir' | 'fairway' | 'penalty' | 'best' | 'updown' | 'entered';
   label: string;
   value: string;
   sub: string;
@@ -117,7 +120,8 @@ function cardHole(round: Round, i: number): ScorecardHole {
   const x = round.holes[i];
   if (!finished(round, i)) return { hole: i + 1, par: x.par, score: null, putts: null, mark: null, tone: null };
   const s = strokes(x);
-  return { hole: i + 1, par: x.par, score: s, putts: x.putts, mark: scoreName(s - x.par), tone: toneOf(s - x.par) };
+  // An entered round (v47) has no putts to show: its cells read "–", never 0.
+  return { hole: i + 1, par: x.par, score: s, putts: round.entered ? null : x.putts, mark: scoreName(s - x.par), tone: toneOf(s - x.par) };
 }
 
 export function shareCardContent(round: Round): ShareCardContent {
@@ -137,13 +141,14 @@ export function shareCardContent(round: Round): ShareCardContent {
       par: round.holes.slice(start, start + 9).reduce((sum, x) => sum + x.par, 0),
       ...half(n),
       tone: n.holes ? toneOf(n.strokes - n.par) : null,
-      putts: n.holes ? String(n.putts) : '–',
+      putts: n.holes && !a.entered ? String(n.putts) : '–',
       holes: Array.from({ length: 9 }, (_, k) => cardHole(round, start + k)),
     };
   };
   const both = course.front === course.back ? course.front : [course.front, course.back].filter(Boolean).join(' · ');
   const { hit, drives } = fairwayHits(round);
   const best = a.best ? round.holes[a.best.hole - 1] : null;
+  const bestStat: CardStat = { key: 'best', label: '베스트 홀', value: a.best && best ? `${a.best.hole}번 홀` : '–', sub: a.best && best ? scoreWord(strokes(best), best.par) : '' };
   return {
     course: course.name,
     nines: nine ? `${names[nine === 'front' ? 0 : 1]} 9홀` : both,
@@ -156,12 +161,14 @@ export function shareCardContent(round: Round): ShareCardContent {
     par: t.holes ? `파 ${t.par}` : '',
     halves: nine ? [] : [{ label: '전반', ...half(a.front) }, { label: '후반', ...half(a.back) }],
     scorecard: nine === 'front' ? [nineCard(0)] : nine === 'back' ? [nineCard(9)] : [nineCard(0), nineCard(9)],
-    stats: [
+    // v47: an entered round shows its best hole and says it holds strokes only; putts, greens, fairways and penalties
+    // were never entered, so they are not drawn as zeros.
+    stats: a.entered ? [bestStat, { key: 'entered', label: '넣은 기록', value: '타수만', sub: '퍼트·벌타 없음' }] : [
       { key: 'putts', label: '퍼트', value: String(t.putts), sub: t.holes ? `홀당 ${one(a.puttsPerHole)}` : '' },
       { key: 'gir', label: '그린 적중', value: t.holes ? `${a.girHoles}/${t.holes}` : '–', sub: t.holes ? rateSub(a.girHoles, t.holes) : '' },
       { key: 'fairway', label: '페어웨이', value: drives ? `${hit}/${drives}` : '–', sub: drives ? rateSub(hit, drives) : '기록 없음' },
       { key: 'penalty', label: '벌타', value: `OB ${t.ob}`, sub: `해저드 ${t.hazard}` },
-      { key: 'best', label: '베스트 홀', value: a.best && best ? `${a.best.hole}번 홀` : '–', sub: a.best && best ? scoreWord(strokes(best), best.par) : '' },
+      bestStat,
       // 업앤다운 (v28): one 어프로치 then one putt or none, out of the split holes with an 어프로치.
       ...(a.split.upDown.chances
         ? [{ key: 'updown' as const, label: '업앤다운', value: `${a.split.upDown.made}/${a.split.upDown.chances}`, sub: rateSub(a.split.upDown.made, a.split.upDown.chances) }]
