@@ -508,6 +508,22 @@
       </div>
     </dialog>
 
+    <!-- KakaoTalk's in-app browser (v47): rounds kept there stay there, so the first visit says how to open the app in
+         the phone's own browser, with the steps of that phone's KakaoTalk menu (src/kakao.ts shows one or both). -->
+    <dialog id="kakao" class="sheet-dialog sum-sheet check-sheet kakao-sheet" aria-labelledby="kakao-title" aria-describedby="kakao-why">
+      <div class="grab" aria-hidden="true"></div>
+      <header class="sum-head">
+        <div><h2 id="kakao-title">카카오톡 안에서 열었어요</h2></div>
+      </header>
+      <p id="kakao-why" class="kakao-why">기록은 브라우저마다 따로 남아요. 여기서 남긴 기록은 휴대폰의 Chrome·Safari나 홈 화면 앱에서는 보이지 않을 수 있어요.</p>
+      <p id="kakao-android" class="kakao-how">휴대폰 브라우저로 열려면 오른쪽 아래 <svg data-icon="dots-vertical" class="kebab" width="16" height="16"></svg> <b>더보기</b>를 누르고 <b>다른 브라우저로 열기</b>를 고르세요.</p>
+      <p id="kakao-ios" class="kakao-how">Safari로 열려면 오른쪽 아래 <b>공유</b> 버튼을 누르고 <b>Safari</b>를 고르세요.</p>
+      <p class="kakao-then">그 브라우저에서 홈 화면에 추가하면 앱처럼 열 수 있어요.</p>
+      <div class="check-actions">
+        <button type="button" class="primary" id="kakao-ok">알겠어요</button>
+      </div>
+    </dialog>
+
     <!-- Long-press a count: set it straight to 0 … 5+ -->
     <dialog id="numpick" class="numpick" aria-labelledby="np-title">
       <p class="np-h" id="np-title"></p>

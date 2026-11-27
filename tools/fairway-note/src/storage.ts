@@ -266,12 +266,14 @@ export interface Display {
   voice: boolean;
   /** 상세's one-time tip on what 세컨 and 어프로치 are (v28) was put away. */
   split: boolean;
+  /** The one-time notice in KakaoTalk's in-app browser (v47) was put away. */
+  kakao: boolean;
 }
 
 /** Only the settings that are on are written, so an untouched prefs value stays as it was. */
 const flags = (d: Display) => ({
   ...(d.big ? { big: true } : {}), ...(d.coach ? { coach: true } : {}), ...(d.home ? { home: true } : {}), ...(d.voice ? { voice: true } : {}),
-  ...(d.split ? { split: true } : {}),
+  ...(d.split ? { split: true } : {}), ...(d.kakao ? { kakao: true } : {}),
 });
 
 function prefsObject(kv: KV | null): Record<string, unknown> {
@@ -285,7 +287,7 @@ function prefsObject(kv: KV | null): Record<string, unknown> {
 
 export function loadDisplay(kv: KV | null = store()): Display {
   const o = prefsObject(kv);
-  return { big: o.big === true, coach: o.coach === true, home: o.home === true, voice: o.voice === true, split: o.split === true };
+  return { big: o.big === true, coach: o.coach === true, home: o.home === true, voice: o.voice === true, split: o.split === true, kakao: o.kakao === true };
 }
 
 /** When the last backup file was made (v43): the local date and how many past rounds were kept then. */
@@ -331,7 +333,7 @@ export async function persistenceState(nav: { storage?: { persisted?: () => Prom
 export function saveDisplay(change: Partial<Display>, kv: KV | null = store()): boolean {
   try {
     if (!kv) return false;
-    const { big: _big, coach: _coach, home: _home, voice: _voice, split: _split, ...rest } = prefsObject(kv);
+    const { big: _big, coach: _coach, home: _home, voice: _voice, split: _split, kakao: _kakao, ...rest } = prefsObject(kv);
     kv.setItem(PREFS_KEY, JSON.stringify({ ...rest, ...flags({ ...loadDisplay(kv), ...change }) }));
     return true;
   } catch {

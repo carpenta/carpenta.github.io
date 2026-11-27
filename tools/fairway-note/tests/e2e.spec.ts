@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v46');
+  await expect(page.locator('#menu-version')).toHaveText('v47');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v46');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v47');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -6822,7 +6822,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v46');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v47');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -9111,4 +9111,123 @@ test('nothing is a pill any more: controls 12px, cards 16px, and only what is as
   await expect(page.locator('#past')).toBeVisible();
   await settled(page);
   expect(await pills(page), '지난 라운드').toEqual([]);
+});
+
+/*
+ * v47, the user's three fixes ("3가지 먼저 수정"): an entered round shows and sends only what was entered; the quick
+ * entry's chips reach an eagle and a double par (양파); KakaoTalk's in-app browser keeps its own records, so a visit
+ * there says once how to open the app in the phone's own browser.
+ */
+const qeChip = (page: Page, label: string) => page.locator('#quick').getByRole('button', { name: label, exact: true });
+
+test('지난 라운드 넣기 takes an eagle and a double par, and the round adds up in the list, its view and the share (v47)', async ({ page }) => {
+  await useShare(page, 'files');
+  await open(page);
+  await openQuickEntry(page);
+  // Everis 새별·레이크: hole 1 is a par 4, hole 3 a par 5.
+  await qeCell(page, 3).click();
+  await qeChip(page, '−2').click();
+  await qeCell(page, 1).click();
+  await qeChip(page, '+4').click();
+  await expect(qeCell(page, 3)).toHaveAttribute('aria-label', '3번 홀 파 5, 3타');
+  await expect(qeCell(page, 1)).toHaveAttribute('aria-label', '1번 홀 파 4, 8타');
+  await expect(page.locator('#qe-total')).toHaveText('74타 (+2)');
+  await page.locator('#qe-save').click();
+  const first = page.locator('#history-list > li').first();
+  await expect(first).toContainText('74타');
+  await first.locator('button').first().click();
+  const past = page.locator('#past');
+  await expect(past).toBeVisible();
+  await expect(past.locator('.tot-n')).toHaveText('74타');
+  // Putts read "–" in every finished column and in the sums, the spoken lines leave putts out, the total line is not
+  // repeated, and the analysis shows what strokes tell under the plain note.
+  await expect(past.locator('.ct-col .c-putt')).toHaveText(Array<string>(18).fill('–'));
+  await expect(past.locator('.ct-sum .c-putt')).toHaveText(['–', '–']);
+  expect((await past.locator('.nine-tbl .sr-only').allTextContents()).join(' ')).not.toContain('퍼트');
+  await expect(past.locator('.tot')).toHaveCount(1);
+  await expect(past.locator('.entered-note')).toBeVisible();
+  await expect(past.getByRole('heading', { name: '스코어 분포' })).toBeVisible();
+  await expect(past.locator('.best-worst')).toContainText('가장 잘한 홀 3번 (-2)');
+  await past.locator('#past-share').click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  const text = (await sharedData(page))[0].text ?? '';
+  expect(text).toContain('총 74타 (+2) · 18/18홀');
+  expect(text).toContain('1번 Par4: 8타 (+4)');
+  expect(text).toContain('3번 Par5: 3타 (-2)');
+  for (const never of ['퍼트 0', '퍼0', '평균 퍼트', '그린 적중', '가장 많이 잃은']) expect(text, never).not.toContain(never);
+});
+
+test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px under the thumb (v47)', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await open(page);
+  await openQuickEntry(page);
+  await atRest(page);
+  const chips = page.locator('#quick .qe-chip');
+  await expect(chips).toHaveText(['−2', '−1', '파', '+1', '+2', '+3', '+4', '+5', '+6', '+7']);
+  expect(await sideScroll(page)).toBe(0);
+  const boxes = await chips.evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, width: b.width, height: b.height }; }));
+  expect(new Set(boxes.map((b) => Math.round(b.top))).size, 'two rows').toBe(2);
+  for (const b of boxes) {
+    expect(b.width).toBeGreaterThanOrEqual(48);
+    expect(b.height).toBeGreaterThanOrEqual(48);
+    expect(b.left).toBeGreaterThanOrEqual(0);
+    expect(b.right).toBeLessThanOrEqual(360);
+    // The lower half of the screen, where a thumb reaches, and all of it on screen.
+    expect(b.top).toBeGreaterThanOrEqual(740 / 2);
+    expect(b.bottom).toBeLessThanOrEqual(740);
+  }
+  // A double par on a par 3 and the top chip: 6 and 10 strokes, the total moving with them.
+  await qeCell(page, 4).click();
+  await qeChip(page, '+3').click();
+  await qeCell(page, 7).click();
+  await qeChip(page, '+7').click();
+  await expect(qeCell(page, 4)).toHaveAttribute('aria-label', '4번 홀 파 3, 6타');
+  await expect(qeCell(page, 7)).toHaveAttribute('aria-label', '7번 홀 파 3, 10타');
+  await expect(page.locator('#qe-total')).toHaveText('82타 (+10)');
+});
+
+const KAKAO_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.82 Mobile Safari/537.36;KAKAOTALK 2410590';
+const KAKAO_IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.8.5';
+const CHROME_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36';
+
+for (const [phone, ua, shown, other] of [['Android', KAKAO_ANDROID, '#kakao-android', '#kakao-ios'], ['iPhone', KAKAO_IPHONE, '#kakao-ios', '#kakao-android']] as const) {
+  test.describe(`in KakaoTalk's in-app browser on ${phone} (v47)`, () => {
+    test.use({ userAgent: ua });
+
+    test('says once that records kept here stay here, and how to open the app in the phone\'s browser', async ({ page }) => {
+      const requests = outgoing(page);
+      await page.goto('/');
+      const note = page.locator('#kakao');
+      await expect(note).toBeVisible();
+      await expect(page.locator('#kakao-title')).toHaveText('카카오톡 안에서 열었어요');
+      await expect(page.locator('#kakao-why')).toContainText('보이지 않을 수 있어요');
+      await expect(page.locator(shown)).toBeVisible();
+      await expect(page.locator(other)).toBeHidden();
+      await page.getByRole('button', { name: '알겠어요' }).click();
+      await expect(note).toBeHidden();
+      // The course picker under it is there to use.
+      await page.getByRole('button', { name: '이 코스로 시작' }).click();
+      await expect(page.locator('#picker')).toBeHidden();
+      // Once put away, it does not come back: the round started above opens on 기록, with no notice over it.
+      await page.reload();
+      await expect(page.locator('#entry')).toBeVisible();
+      await expect(note).toBeHidden();
+      expect(requests).toEqual([]);
+    });
+  });
+}
+
+test.describe('in Chrome on Android (v47)', () => {
+  test.use({ userAgent: CHROME_ANDROID });
+  test('says nothing about KakaoTalk', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#picker')).toBeVisible();
+    await expect(page.locator('#kakao')).toBeHidden();
+  });
+});
+
+test('says nothing about KakaoTalk in this browser either (v47)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  await expect(page.locator('#kakao')).toBeHidden();
 });

@@ -55,6 +55,7 @@ import { VERSION_LABEL } from './version';
 import { $, h, setText } from './dom';
 import { keepBeforeNewRound, newRoundQuestion, refreshHistory, renderHistory, type Page } from './history-view';
 import { openQuickEntry } from './quick-entry';
+import { kakaoInApp, openKakaoNotice } from './kakao';
 import { HISTORY_KEY, hasFinishedHole, loadHistory, readHistory, saveHistory, withRound } from './history';
 import { renderBackup } from './backup-view';
 import { createRoundShare, dressRoundButtons } from './share-round';
@@ -1322,6 +1323,8 @@ function nineTable(r: Round, a: Analysis, start: number, mode: CardMode): HTMLEl
   const t = start === 0 ? a.front : a.back;
   const par = r.holes.slice(start, start + 9).reduce((n, x) => n + x.par, 0);
   const heading = `${mode}-nine-${start}`;
+  // v47: an entered round knows strokes only, so its 퍼트 row reads "–" and its spoken lines leave putts out.
+  const known = r.entered !== true;
   /** The four cells of a column; screen readers get the column's name or line instead. */
   const cells = (hole: string, parCell: HTMLElement, score: Node | string, putts: string) => [
     h('span', { class: 'c-hole', 'aria-hidden': 'true' }, hole), parCell,
@@ -1335,8 +1338,8 @@ function nineTable(r: Round, a: Analysis, start: number, mode: CardMode): HTMLEl
     const published = publishedPar(course, i);
     const changed = mode === 'edit' && published !== null && x.par !== published;
     const content = cells(String(i + 1), h('span', { class: `c-par${changed ? ' changed' : ''}`, 'aria-hidden': 'true' }, String(x.par)),
-      done ? h('span', { class: 'm', 'data-mark': markOf(d), 'data-tone': toneOf(d) }, h('b', {}, String(s))) : '', done ? String(x.putts) : '');
-    const state = done ? `${s}타 ${scoreWord(s, x.par)}, 퍼트 ${x.putts}` : '기록 없음';
+      done ? h('span', { class: 'm', 'data-mark': markOf(d), 'data-tone': toneOf(d) }, h('b', {}, String(s))) : '', done ? (known ? String(x.putts) : '–') : '');
+    const state = done ? `${s}타 ${scoreWord(s, x.par)}${known ? `, 퍼트 ${x.putts}` : ''}` : '기록 없음';
     if (mode === 'read') return h('div', { class: 'ct-col', 'data-hole': String(i) }, h('span', { class: 'sr-only' }, `${i + 1}번 홀, Par ${x.par}, ${state}`), ...content);
     return h('button', {
       type: 'button',
@@ -1347,8 +1350,8 @@ function nineTable(r: Round, a: Analysis, start: number, mode: CardMode): HTMLEl
     }, ...content);
   };
   const labels = h('div', { class: 'ct-lbl', 'aria-hidden': 'true' }, ...cells('홀', h('span', { class: 'c-par' }, '파'), '타수', '퍼트'));
-  const sum = h('div', { class: 'ct-sum' }, h('span', { class: 'sr-only' }, `${label} 합계, Par ${par}, ${t.holes ? `${t.holes}홀 ${t.strokes}타, 퍼트 ${t.putts}` : '기록 없음'}`),
-    ...cells(label, h('span', { class: 'c-par', 'aria-hidden': 'true' }, String(par)), t.holes ? String(t.strokes) : '', t.holes ? String(t.putts) : ''));
+  const sum = h('div', { class: 'ct-sum' }, h('span', { class: 'sr-only' }, `${label} 합계, Par ${par}, ${t.holes ? `${t.holes}홀 ${t.strokes}타${known ? `, 퍼트 ${t.putts}` : ''}` : '기록 없음'}`),
+    ...cells(label, h('span', { class: 'c-par', 'aria-hidden': 'true' }, String(par)), t.holes ? String(t.strokes) : '', t.holes ? (known ? String(t.putts) : '–') : ''));
   return h('div', { class: 'nine-tbl', role: 'group', 'aria-labelledby': heading },
     h('p', { class: 'nt-h', id: heading }, h('b', {}, name), h('small', {}, label)),
     h('div', { class: `ct${mode === 'edit' ? ' editing' : ''}` }, labels, ...Array.from({ length: 9 }, (_, k) => column(start + k)), sum));
@@ -1463,9 +1466,23 @@ const tile = (label: Node | string, value: string, small = '') => h('div', {}, h
 function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)[] {
   const t = a.totals;
   if (!t.holes) return [h('p', { class: 'muted' }, '홀을 기록하면 여기에 합계와 분석이 나와요.')];
-  // v44: an entered round knows strokes only; its view says so and leaves out putts, greens, penalties and areas.
-  if (a.entered) return [h('p', { class: 'muted entered-note' }, '넣은 기록은 타수만 있어요. 퍼트·그린 적중·벌타는 세지 않아요.'), totalLine(a)];
   const maxDist = Math.max(...Object.values(a.distribution));
+  // What strokes alone tell: how the holes scored, the average at each par, the best and the worst hole.
+  const fromStrokes = [
+    h('h4', {}, '스코어 분포'),
+    h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
+    h('h4', {}, 'Par별 평균'),
+    // The par in the label and how many holes at the label's other end, so the average alone is the value.
+    h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {},
+      h('dt', {}, h('span', {}, `Par ${p.par}`), p.holes ? h('small', {}, `${p.holes}홀`) : null),
+      h('dd', {}, p.holes ? `${one(p.average)}타` : '–')))),
+    a.best && a.worst
+      ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}), 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
+      : '',
+  ];
+  // v44: an entered round knows strokes only; its view says so and leaves out putts, greens, penalties and areas. v47:
+  // it shows what strokes tell instead of a second total line (the scorecard above already ends with the total).
+  if (a.entered) return [h('p', { class: 'muted entered-note' }, '넣은 기록은 타수만 있어요. 퍼트·그린 적중·벌타는 세지 않아요.'), ...fromStrokes];
   const advice = adviceLines(a);
   return [
     h('p', { class: 'headline' }, `${t.holes}홀 ${t.strokes}타`, h('span', { class: a.toPar < 0 ? 'under' : '' }, ` ${formatToPar(a.toPar)}`),
@@ -1478,16 +1495,7 @@ function analysisNodes(a: Analysis, holes = round.holes.length): (Node | string)
       // Tiles of nothing step aside (v29): no 벌타 tile without a penalty, no 멀리건 tile without a mulligan.
       t.ob || t.hazard ? tile('벌타', `OB ${t.ob}`, `해저드 ${t.hazard}`) : '',
       t.mulligan ? tile('멀리건', `${t.mulligan}회`) : ''),
-    h('h4', {}, '스코어 분포'),
-    h('div', { class: 'bars' }, ...(Object.keys(SCORE_LABELS) as ScoreName[]).map((k) => bar(SCORE_LABELS[k], a.distribution[k], maxDist, `${a.distribution[k]}홀`, `score-${k}`))),
-    h('h4', {}, 'Par별 평균'),
-    // The par in the label and how many holes at the label's other end, so the average alone is the value.
-    h('dl', { class: 'metrics three' }, ...a.byPar.map((p) => h('div', {},
-      h('dt', {}, h('span', {}, `Par ${p.par}`), p.holes ? h('small', {}, `${p.holes}홀`) : null),
-      h('dd', {}, p.holes ? `${one(p.average)}타` : '–')))),
-    a.best && a.worst
-      ? h('p', { class: 'best-worst' }, `가장 잘한 홀 ${a.best.hole}번 (${formatToPar(a.best.toPar)}), 가장 아쉬운 홀 ${a.worst.hole}번 (${formatToPar(a.worst.toPar)})`)
-      : '',
+    ...fromStrokes,
     // The holes split in 상세 (v28): how many, greens hit with no 어프로치, and up and downs (one 어프로치, then one putt or none).
     ...(a.split.holes
       ? [h('h4', {}, '세컨·어프로치'), h('dl', { class: 'metrics three split' },
@@ -2492,6 +2500,10 @@ else if (stale) {
     },
   });
 }
+// v47 (U4): in KakaoTalk's in-app browser, say once, over whatever opened first, that rounds kept here stay here and
+// how to open the app in the phone's own browser. Put away, it is remembered beside the other display settings.
+const kakao = kakaoInApp(navigator.userAgent);
+if (kakao && !loadDisplay().kakao) openKakaoNotice($<HTMLDialogElement>('kakao'), kakao, () => saveDisplay({ kakao: true }));
 keepScreenOn();
 registerOffline();
 // What the past rounds and backup views borrow from the page; each mounts into its own container.
