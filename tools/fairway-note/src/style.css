@@ -173,7 +173,8 @@ svg { display: block; }
    The sheet scrolls on its own, so it says the same for touches that start on it. */
 #entry, #entry .sheet { touch-action: pan-y pinch-zoom; }
 /* The pills take what the screen leaves (or a fixed height in 상세); the count follows, so it keeps 8px clear of + and −. */
-#entry { --pill-h: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h)), var(--pill-max))); }
+/* v48: less the course's own line under 340px (--head-h, main.ts's fitHead; 0 elsewhere). */
+#entry { --head-h: 0px; --pill-h: var(--pill-fixed, clamp(var(--pill-min), calc(100dvh - var(--pill-base) - var(--notes-h) - var(--head-h)), var(--pill-max))); }
 /* The sheet slides sideways between holes; nothing scrolls the page sideways meanwhile. */
 #entry { overflow-x: clip; }
 .round {
@@ -610,7 +611,7 @@ body:has(#menu[open]) .tab[aria-selected='true'] .ti { background: transparent; 
 /* Under the tables while 파 수정 is on (v23), on the tables' edges. */
 .edit-hint { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-tile); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-help); text-wrap: pretty; }
 .sc-title h2 { font-size: var(--t-l); font-weight: var(--w-label); }
-.sc-title p { font-size: var(--t-s); color: var(--on-dark-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-title p { font-size: var(--t-s); color: var(--on-dark-soft); margin-top: 2px; text-wrap: balance; }   /* v48: wraps, not "…"; two lines stay centred on the bar's line */
 /* 스코어카드 | 분석 (v26): the picker's 18홀 | 9홀 at the cards' width under the title row, the chosen half a white pill on
    the tint. 44px tall with 3px padding, so the radii are concentric (22 outside, 19 inside), each half reaching 48px to
    the touch; 12px from the title row (its 10px and 2px) and from the card under it. */
@@ -829,7 +830,7 @@ button.mi:active { background: var(--fill-2); }
 .mi .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-t { min-width: 0; }
 .mi b { display: block; font-size: var(--t-l); font-weight: var(--w-label); }
-.mi small { display: block; font-size: var(--t-s); color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi small { display: block; font-size: var(--t-s); color: var(--muted); margin-top: 2px; text-wrap: pretty; }   /* v48: wraps, not "…" */
 #mi-mulligan small { white-space: normal; }   /* v39: the centred menu is 32px narrower at 360; beside its − 0 + the line wraps rather than end in … */
 .mi .chev { justify-self: end; color: var(--off-ink); transition: transform .16s; }
 .mi[aria-expanded='true'] .chev { transform: rotate(90deg); }
@@ -1217,7 +1218,11 @@ button.ct-col:active, .sum-actions > :active, .round-actions > :active { backgro
 .nt-h { display: flex; align-items: baseline; gap: 8px; padding: 0 0 8px; }
 .nt-h b { font-size: var(--t-l); font-weight: var(--w-label); }
 .nt-h small { font-size: var(--t-s); color: var(--muted); }
-.ct { position: relative; display: grid; grid-template-columns: 36px repeat(9, minmax(0, 1fr)) 40px; border-radius: var(--r-tile); overflow: hidden; background: var(--white); font-variant-numeric: tabular-nums; }
+/* v48: a hole's column never under 24px, the width its scorecard mark needs; where nine of them do not fit (a 320px
+   phone, a zoomed screen, 큰 글씨 on a small one) the table scrolls sideways on its own, not the page (WCAG 1.4.10 keeps
+   a data table two-dimensional), with its labels and 전반/후반 column held (below). From 360px up nothing changes. */
+.ct { position: relative; display: grid; grid-template-columns: 36px repeat(9, minmax(24px, 1fr)) 40px; border-radius: var(--r-tile); overflow: auto hidden; overscroll-behavior-x: contain; scrollbar-width: none; background: var(--white); font-variant-numeric: tabular-nums; }
+.ct::-webkit-scrollbar { display: none; }
 /* The hairline round the table is drawn over the cells (v23): under them, the header row and the sum column covered it,
    and on a past round's paper the sum column seemed to stand outside its table. */
 .ct::after { content: ''; position: absolute; inset: 0; border-radius: inherit; outline: 1px solid var(--line); outline-offset: -1px; pointer-events: none; }
@@ -2098,3 +2103,127 @@ details.mine-hcp > summary { font-size: var(--t-m); color: var(--ink); }
 .mine-error:empty { display: none; }
 .mine-foot { display: flex; justify-content: flex-end; }
 .picker-list .course-group { padding: 10px 16px 6px; font-size: var(--t-s); font-weight: var(--w-label); color: var(--muted); }
+
+/* ======================================================================================================================
+   v48: narrow and zoomed screens. A 320px phone (WCAG 1.4.10's width), a 360px phone at 130% (277×569) and a 390px
+   phone at 200% (195×422), 큰 글씨 on or off: nothing runs off the screen or lies on another, no word is cut short (a
+   line wraps instead of ending in "…"), and on 기록 every − is in view above the bar. Zoomed, a CSS pixel is that much
+   bigger on the glass, so a target holds 48px there at 48px ÷ the zoom (24 at 200%, 37 at 130%).
+   ==================================================================================================================== */
+/* The tab labels wrap rather than run into the next tab: 스코어카드 breaks after 스코어 (<wbr>), 지난 라운드 at its space.
+   Where a label may take two lines the bar grows to hold them (below). */
+.tab-label { white-space: normal; text-align: center; line-height: 1.15; }
+@media (max-width: 299px) { :root { --island: 66px; } }
+@media (max-width: 349px) { body.big { --island: 72px; } }
+
+@media (max-width: 339px) {
+  /* The titles take a line of their own under the bar's first row (홈 and the badge, 파 수정 or 넣기), the whole width,
+     and wrap there: at 200% the course had a 27px column ("에…"), and the paper screens' titles ran over 파 수정. */
+  .top { row-gap: 8px; }
+  .round-head { grid-column: 1 / -1; grid-row: 2; }
+  .round-name { white-space: normal; overflow: visible; text-wrap: balance; }
+  .info { grid-row: 3; }
+  .notes { grid-row: 4; }
+  .sc-top { grid-template-rows: var(--bar-row) auto; row-gap: 8px; }
+  #entry[data-mode='detail'] .top { row-gap: 4px; }
+  .sc-title { grid-column: 1 / -1; grid-row: 2; }
+  /* A course's line in the picker and the round's course on 지난 라운드 wrap too; the chosen course's name takes the
+     sheet's width, 18홀/9홀 under it at the right. */
+  .picker-list .course span, #now-sub > span { white-space: normal; overflow: visible; }
+  .pk-name { flex-wrap: wrap; row-gap: 6px; }
+  .pk-name .picker-label { flex: 1 1 100%; }
+  .pk-name .pk-len, .pk-name .pk-holes { margin-left: auto; }
+  /* The nines with slimmer sides, so three fit at 320px. */
+  .nine-pick button { min-width: 48px; padding: 0 6px; }
+  /* 멀리건's − 0 + goes under its words. */
+  .mi.mi-step { grid-template-columns: 40px minmax(0, 1fr); row-gap: 6px; }
+  .mi.mi-step .stepper { grid-column: 2; justify-self: start; }
+  /* The table's labels and its 전반/후반 column stay while the holes scroll between them, on the card's own tone. */
+  .ct-lbl, .ct-sum { position: sticky; z-index: 1; background-color: var(--deep); }
+  .ct-lbl { left: 0; }
+  .ct-sum { right: 0; }
+  /* 상세's direction pad and tee line inside the card: smaller buttons and gaps, OB · 벙커 · 해저드 still under the pad's
+     far-left, 페어웨이 and far-right buttons. */
+  #entry[data-mode='detail'] { --dir: 44px; }
+  .pad { gap: 4px; }
+  .dir { width: var(--dir, 48px); height: var(--dir, 48px); }
+  .d-c { width: 56px; }
+  #entry[data-mode='detail'] .pens { margin-inline: calc((var(--dir) - 72px) / 2); }
+  .tee-chips { gap: 4px; }
+  .tchip { padding: 0 6px; min-width: 40px; }
+  .tchip.miss { min-width: 48px; }
+  /* 분석's ⓘ no longer hangs into the finding's line, which reaches the card's edge here. */
+  .info-toggle { margin-bottom: 0; }
+  /* 상세's names wrap inside their chips where one line does not fit (어프/로치), the chips growing to hold two. */
+  :is(.club-second, .club-short) .club-name { white-space: normal; word-break: break-all; text-align: center; line-height: 1.15; }
+  .lbl-in { height: auto; min-height: 32px; }
+}
+/* The picker's question takes its own line on a short narrow screen too (it moves into the row's middle under 700px). */
+@media (max-width: 339px) and (max-height: 699px) {
+  .picker-head > h2 { grid-column: 1 / -1; grid-row: 2; white-space: normal; text-align: center; text-wrap: balance; }
+  .picker-head > .pk-first { grid-row: 3; }
+  /* The sheet's scrolling rows reach 8px past their box (their fading room): 8px to the start button, not 6. */
+  .picker-foot { gap: 8px; }
+}
+@media (max-width: 299px) {
+  #entry[data-mode='detail'] { --dir: 36px; }
+  .d-c { width: 48px; }
+  /* 전반 and 후반 over their nines, which then take the sheet's width (three still fit at 130%). */
+  .nine-row { grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
+  /* 큰 글씨: 페어웨이 at 16px needs 58px; the tee result goes over its chips. */
+  body.big #entry[data-mode='detail'] { --dir: 34px; }
+  body.big .d-c { width: 58px; }
+  body.big #entry[data-mode='detail'] .tee-line { flex-wrap: wrap; height: auto; row-gap: 4px; padding-block: 2px; }
+  /* The hole ring hangs 8px over its row: 6px above it, as on a tall screen (a short one's 2px let the chip row, 32px
+     tall in 큰 글씨, touch it). */
+  .hole-nav { margin-top: 6px; }
+}
+
+/* 200% (under 260px): the screen's inset and the cards' padding halve, the hole switcher keeps its ring and arrows (Par
+   is in the badge and in the screen reader's words, HCP in 홀 안내), and the bar reaches nearly edge to edge so each
+   tab's two lines fit. The long-press tip wraps on the card. */
+@media (max-width: 259px) {
+  :root { --m: 8px; --card-pad: 8px; }
+  .hole-nav .switcher { gap: 6px; }
+  .nav-pill { grid-template-columns: 1fr; }
+  .nav-stat { display: none; }
+  .tabbar { left: 4px; right: 4px; padding: 0 2px; }
+  .bar, .tabs { column-gap: 2px; }
+  .coach { max-width: 100%; white-space: normal; text-align: center; }
+  /* 분석's and a past round's tiles one to a row, their values free to wrap. */
+  .metrics, .metrics.three { grid-template-columns: minmax(0, 1fr); }
+  .metrics dd { white-space: normal; }
+  #entry[data-mode='detail'] { --dir: 26px; }
+  .d-c { width: 48px; }
+  .pad { gap: 2px; }
+  /* 상세's four capsules 4px apart, and the names' chips with 2px sides, so 어프로치 breaks once (어프/로치). */
+  #entry[data-mode='detail'] .clubs { column-gap: 4px; }
+  #entry[data-mode='detail'] .lbl-in { padding: 0 2px; }
+  /* OB · 벙커 · 해저드 48px wide, still centred under the pad's far-left, 페어웨이 and far-right buttons. */
+  #entry[data-mode='detail'] .pens > * { flex-basis: 48px; }
+  #entry[data-mode='detail'] .pens { margin-inline: calc((var(--dir) - 48px) / 2); }
+  #entry[data-mode='detail'] .tee-line { flex-wrap: wrap; height: auto; row-gap: 4px; padding-block: 2px; }
+}
+/* 200% on a phone (390×844 → 195×422): the capsules come first. The chip row (the length and 홀 안내) and the round so
+   far step aside, as 상세's chip row does on a short screen; the switcher, the card's top, the club chips and the bar
+   close up; and the capsules take what is left, each half 40px or more (80px on the glass). */
+@media (max-width: 259px) and (max-height: 459px) {
+  :root, body.big { --pill-base: 290px; --pill-min: 80px; }
+  :root { --lbl-h: 36px; --glyph: 28px; --glyph-inset: 5px; --mark: 18px; }
+  .info, .round-head .progress { display: none; }
+  .hole-nav { margin: 6px var(--m) 10px; }
+  #entry[data-mode='basic'] .sheet { --sheet-pt: 8px; }
+  .sheet .mode { height: 30px; }
+  .tabbar { bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .app { padding-bottom: calc(var(--island) + 12px + env(safe-area-inset-bottom)); }
+  .view.sc { margin-bottom: calc(-1 * (var(--island) + 12px + env(safe-area-inset-bottom))); }
+}
+/* With 큰 글씨 at 200% too: the bar's two 16px lines fit 66px, and the course keeps one line at 16px (a step over its
+   15, the 18 of 큰 글씨 would wrap it and push the capsules' − under the bar); 상세's two-line names get their room. */
+@media (max-width: 259px) { body.big { --island: 66px; } body.big #entry[data-mode='detail'] { --dir: 24px; } }
+@media (max-width: 259px) and (max-height: 459px) {
+  body.big .round-name { font-size: calc(var(--t-m) * .89); }
+  #entry[data-mode='detail'] { --lbl-h: 40px; }
+  /* The card's tabs as close to its top as with 큰 글씨 off (a short screen's 큰 글씨 had set them 16px lower). */
+  body.big .sheet .modes { margin-top: -4px; }
+}

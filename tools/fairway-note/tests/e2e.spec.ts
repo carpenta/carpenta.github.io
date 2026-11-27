@@ -2625,9 +2625,15 @@ const tabTarget = (page: Page, selector: string) => page.locator(selector).first
   return bottom - top + 1;
 });
 
-for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+// v48: also on a 320px phone and at 130% (277×569) and 200% (195×422) zoom. Under 340px the course and the round (and
+// the paper screens' titles) take a line of their own under 홈 and the badge, the whole width (it read "에…" at 200%).
+for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [277, 569], [195, 422]]) {
   test.describe(`lined up on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const narrow = width < 340;
+    // Zoomed (277 is a 360px phone at 130%, 195 a 390px one at 200%), a CSS pixel is bigger on the glass: 48px there is
+    // 48 ÷ the zoom (v48).
+    const least = Math.floor(48 / (width === 195 ? 2 : width === 277 ? 1.3 : 1));
 
     // v39: the hole switcher sits low, between the hole and the card; the top bar holds 홈, the course and the round, and
     // the badge; 기본 has no penalties ("ob 해저드 벙커는 상세에서만"), and 상세's OB · 벙커 · 해저드 stand on the direction
@@ -2647,17 +2653,25 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         // clear of the card.
         const badge = await rect(page, '#badge');
         const head = await rect(page, '#entry .round-head');
+        const home = await rect(page, '.home-link');
         expectAligned(badge.width, 60, `${mode}: badge width`);
         expectAligned(badge.height, 60, `${mode}: badge height`);
         expectAligned(badge.x + badge.width, sheet.x + sheet.width, `${mode}: badge right edge on the inset`);
-        expectAligned(midY(badge), midY(head), `${mode}: badge on the top bar's centre line`);
-        expectAligned(midY(await rect(page, '.home-link')), midY(head), `${mode}: 홈 on the top bar's centre line`);
+        if (narrow) {
+          // 홈 and the badge on the first line, the course and the round under them, whole (v48).
+          expectAligned(midY(badge), midY(home), `${mode}: 홈 and the badge on the first line`);
+          expect(head.y, `${mode}: the course under the badge`).toBeGreaterThanOrEqual(badge.y + badge.height - 1);
+          expect(await page.locator('#round-name').evaluate((el) => el.scrollWidth - el.clientWidth), `${mode}: the course whole`).toBeLessThanOrEqual(1);
+        } else {
+          expectAligned(midY(badge), midY(head), `${mode}: badge on the top bar's centre line`);
+          expectAligned(midY(home), midY(head), `${mode}: 홈 on the top bar's centre line`);
+        }
         expectAligned(midX(head), width / 2, `${mode}: the course and the round centred`);
         expect(badge.y + badge.height, `${mode}: badge clear of the card`).toBeLessThan(sheet.y);
         // 기록 carries no version since v29: it lives under 앱 정보.
         await expect(page.locator('#app-version')).toHaveCount(0);
-        for (const m of ['basic', 'detail']) expect(await tabTarget(page, `.sheet .mode[data-mode="${m}"]`), `${mode}: ${m} tab's touch area`).toBeGreaterThanOrEqual(48);
-        expect(await tabTarget(page, '#mode-voice'), `${mode}: 음성 tab's touch area`).toBeGreaterThanOrEqual(48);
+        for (const m of ['basic', 'detail']) expect(await tabTarget(page, `.sheet .mode[data-mode="${m}"]`), `${mode}: ${m} tab's touch area`).toBeGreaterThanOrEqual(least);
+        expect(await tabTarget(page, '#mode-voice'), `${mode}: 음성 tab's touch area`).toBeGreaterThanOrEqual(least);
         // The three tabs share the card's width, 음성 on the right.
         const tabs = await Promise.all(['.sheet .mode[data-mode="basic"]', '.sheet .mode[data-mode="detail"]', '#mode-voice'].map((s) => rect(page, s)));
         expectAligned(midX(tabs[1]), width / 2, `${mode}: 상세 tab centred`);
@@ -2673,9 +2687,11 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         const cols = await Promise.all(KEYS[mode].map((k) => rect(page, `.club-${k} .pill`)));
         const [c1, c2] = cols;
         const cLast = cols[cols.length - 1];
-        // The capsules run from the card's content edge to the other (16px in from the card), one width, one gap.
-        expectAligned(c1.x, sheet.x + 16, `${mode}: first capsule on the content edge`);
-        expectAligned(cLast.x + cLast.width, sheet.x + sheet.width - 16, `${mode}: last capsule on the content edge`);
+        // The capsules run from the card's content edge to the other (its padding in from the card: 16px, less at 200%
+        // since v48), one width, one gap.
+        const pad = await page.locator('#sheet').evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft));
+        expectAligned(c1.x, sheet.x + pad, `${mode}: first capsule on the content edge`);
+        expectAligned(cLast.x + cLast.width, sheet.x + sheet.width - pad, `${mode}: last capsule on the content edge`);
         for (const [j, c] of cols.entries()) {
           expectAligned(c.width, c1.width, `${mode}: capsule ${j + 1} width`);
           if (j) expectAligned(c.x - (cols[j - 1].x + cols[j - 1].width), cols[1].x - (c1.x + c1.width), `${mode}: gap before capsule ${j + 1}`);
@@ -2686,9 +2702,13 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
         }
         if (mode === '기본') {
           expectAligned(midX(c2), width / 2, '기본: middle stepper');
-          expectAligned((await rect(page, '#hole-info')).x, sheet.x, '기본: chips left edge');
-          const info = await rect(page, '#info-btn');
-          expectAligned(info.x + info.width, sheet.x + sheet.width, '기본: 홀 안내 on the right inset');
+          // At 200% the chip row steps aside for the capsules (v48), as 상세's does on a short screen.
+          await expect(page.locator('#hole-info')).toBeVisible({ visible: width !== 195 });
+          if (width !== 195) {
+            expectAligned((await rect(page, '#hole-info')).x, sheet.x, '기본: chips left edge');
+            const info = await rect(page, '#info-btn');
+            expectAligned(info.x + info.width, sheet.x + sheet.width, '기본: 홀 안내 on the right inset');
+          }
           await expect(page.locator('#pens')).toBeHidden();
         } else {
           // Four capsules (v28): the gap between 세컨 and 어프로치 on the screen's centre line.
@@ -2722,21 +2742,26 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       await open(page);
       await atRest(page);
       // The row's line is 기록's top bar: 홈, the course and the round, and the badge (v39: the switcher moved down).
-      const line = midY(await rect(page, '#entry .round-head'));
+      // Under 340px (v48) the titles have a line of their own under it, as the course has on 기록.
+      const head = await rect(page, '#entry .round-head');
+      const line = midY(head);
+      const bar = midY(await rect(page, '#badge'));
       const sheet = await rect(page, '#sheet');
+      // On its own line (under 340px) a title starts where the course does; in the bar it sits on the bar's centre line.
+      const titled = (title: { y: number; height: number }, what: string) => (narrow ? expectAligned(title.y, head.y, `${what} top`) : expectAligned(midY(title), line, `${what} middle`));
       await showCard(page);
       const edit = await rect(page, '#edit-par');
       expectAligned(edit.x + edit.width, sheet.x + sheet.width, '파 수정 right edge');
-      expectAligned(midY(edit), line, '파 수정 middle');
+      expectAligned(midY(edit), narrow ? bar : line, '파 수정 middle');
       expectAligned(midX(await rect(page, '#card-view .sc-title')), width / 2, '스코어카드 title centre');
-      expectAligned(midY(await rect(page, '#card-view .sc-title')), line, '스코어카드 title middle');
+      titled(await rect(page, '#card-view .sc-title'), '스코어카드 title');
       const card = await rect(page, '#sc-sheet');
       expectAligned(card.x, sheet.x, 'card left edge');
       expectAligned(card.x + card.width, sheet.x + sheet.width, 'card right edge');
       await tab(page, '지난 라운드').click();
       await expect(page.locator('#hist-view')).toBeVisible();
       expectAligned(midX(await rect(page, '#hist-view .sc-title')), width / 2, '지난 라운드 title centre');
-      expectAligned(midY(await rect(page, '#hist-view .sc-title')), line, '지난 라운드 title middle');
+      titled(await rect(page, '#hist-view .sc-title'), '지난 라운드 title');
     });
   });
 }
@@ -3913,7 +3938,8 @@ const SEVEN_HOLES = {
   4: { driver: 2, approach: 3, putts: 3 }, 9: { driver: 1, approach: 1, putts: 1 }, 10: { driver: 1, approach: 2, putts: 2 },
 };
 
-for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
+// v48: on a 320px phone and at 130% and 200% zoom too.
+for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [277, 569], [195, 422]]) {
   test.describe(`lined up on a ${width}×${height} phone`, () => {
     test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 
@@ -3947,10 +3973,12 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       // The round's total sits in the 전반/후반 column under the nines' subtotals; 합계 starts on the table's edge.
       within1px(midOf(await spanOf(page, '#tot-strokes')), midOf(await spanOf(page, '#scorecard .ct-sum .c-score')), '합계 in the 전반/후반 column');
       within1px((await spanOf(page, '#sc-sheet .tot h3')).x, table.x, '합계');
-      // The legend's six marks sit on the hero tiles' three columns, under the 파 4 기준 line.
+      // The legend's six marks sit on the hero tiles' three columns, under the 파 4 기준 line. Under 340px three of its
+      // columns no longer fit, and it flows in two from the table's edge (v48).
       const items = await spansOf(page, '#legend li:not(.lg-cap)');
       expect(items).toHaveLength(6);
-      items.forEach((item, i) => within1px(item.x, tiles[i % 3].x, `legend item ${i + 1}`));
+      if (width >= 340) items.forEach((item, i) => within1px(item.x, tiles[i % 3].x, `legend item ${i + 1}`));
+      else within1px(items[0].x, table.x, 'legend, first item');
       // Both bar charts start and end their bars at the same x; text in a tile sits 12px in, in the hero and in 라운드 분석
       // (v26: behind 분석, then back to the tables).
       within1px((await spanOf(page, '#sc-hero .sh-stats dt')).x - tiles[0].x, 12, 'hero tile text');
@@ -4033,11 +4061,15 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844]]) {
       // 전반 and 후반 (새별, 레이크, 파인) as one grid: three equal columns, the 후반 row under the 전반 row, ending on the edge.
       const nines = await spansOf(page, '#picker-chosen .nine-pick button');
       expect(nines).toHaveLength(6);
+      // At 200% three nines do not fit the sheet, and they scroll sideways as many nines always have (v17): 후반's
+      // columns still sit under 전반's (v48).
+      const scrolls = await page.locator('#picker-chosen .nine-pick').first().evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+      expect(scrolls, 'nines scroll').toBe(width === 195);
       for (const [i, b] of nines.entries()) {
-        within1px(b.width, nines[0].width, `nine ${i + 1} width`);
+        within1px(b.width, nines[scrolls ? i % 3 : 0].width, `nine ${i + 1} width`);
         within1px(b.x, nines[i % 3].x, `nine ${i + 1} column`);
       }
-      within1px(endOf(nines[2]), endOf(list) - inset, 'nines, right');
+      if (!scrolls) within1px(endOf(nines[2]), endOf(list) - inset, 'nines, right');
     });
   });
 }
@@ -9232,7 +9264,7 @@ test('says nothing about KakaoTalk in this browser either (v47)', async ({ page 
   await expect(page.locator('#kakao')).toBeHidden();
 });
 
-/* ---------- v48: 큰 글씨 on every screen, and the sizes in rem ---------- */
+/* ---------- v48: 큰 글씨 on every screen, the sizes in rem, and the narrow and zoomed screens ---------- */
 
 /** Turns 큰 글씨 on as the menu's switch keeps it, and reloads. */
 async function bigText(page: Page) {
@@ -9368,5 +9400,241 @@ test.describe('큰 글씨 on every screen, measured word by word (v48)', () => {
     };
     const off = await summary(false);
     expectGrown(off, await summary(true), '요약');
+  });
+});
+
+/**
+ * What goes wrong when a screen is narrow or its words big (v48), in the modal dialog in front or on the page: the page
+ * scrolling sideways, words or a control off the screen, a control lying on another, a control's words spilling out
+ * of it, other words lying on a control, and words cut short. Hidden things and the screen reader's words are left out,
+ * and so is the tab bar, which floats over the paper screens as they scroll clear of it (checked on its own below). The
+ * long-press coach mark and the capsules' counts lie on the capsules on purpose; they are only checked to stay on the
+ * screen.
+ */
+const layoutFaults = (page: Page) => page.evaluate(() => {
+  const faults: string[] = [];
+  const vw = document.documentElement.clientWidth;
+  const shut = (el: Element) => {
+    for (let p: Element | null = el; p; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0 || /^inset\(50%/.test(s.clipPath)) return true;
+      if (p.matches('[hidden], dialog:not([open]), .sr-only, svg')) return true;
+    }
+    return false;
+  };
+  const name = (el: Element) => (el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join('')}`);
+  type Box = { l: number; t: number; r: number; b: number };
+  /** The part of a box that its scrolling and clipping ancestors (and, for words, their own box) leave in view. */
+  const shown = (el: Element, box?: Box): Box => {
+    const v = box ? { ...box } : (({ left, top, right, bottom }) => ({ l: left, t: top, r: right, b: bottom }))(el.getBoundingClientRect());
+    for (let p = box ? el : el.parentElement; p; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
+      const c = p.getBoundingClientRect();
+      v.l = Math.max(v.l, c.left); v.t = Math.max(v.t, c.top); v.r = Math.min(v.r, c.right); v.b = Math.min(v.b, c.bottom);
+    }
+    return v;
+  };
+  const meet = (a: Box, b: Box) => ({ w: Math.min(a.r, b.r) - Math.max(a.l, b.l), h: Math.min(a.b, b.b) - Math.max(a.t, b.t) });
+  const scope = [...document.querySelectorAll('dialog')].filter((d) => d.matches(':modal')).pop() ?? document.body;
+  const sideways = document.documentElement.scrollWidth - vw;
+  if (sideways > 0.5) faults.push(`the page scrolls sideways by ${sideways}px`);
+  const CONTROL = 'button, a[href], input, select, textarea, summary, [role="tab"], [role="switch"], [role="radio"]';
+  const controls = [...scope.querySelectorAll(CONTROL)].filter((el) => !el.closest('.tabbar') && !shut(el))
+    .map((el) => ({ el, box: shown(el) }))
+    .filter(({ box }) => box.r - box.l >= 1 && box.b - box.t >= 1);
+  for (const { el, box } of controls) {
+    if (box.l < -0.5 || box.r > vw + 0.5) faults.push(`${name(el)} runs off the screen (${Math.round(box.l)} to ${Math.round(box.r)})`);
+  }
+  for (let i = 0; i < controls.length; i++) {
+    for (let j = i + 1; j < controls.length; j++) {
+      const [a, b] = [controls[i], controls[j]];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      const m = meet(a.box, b.box);
+      if (m.w > 1 && m.h > 1) faults.push(`${name(a.el)} lies on ${name(b.el)} (${Math.round(m.w)}×${Math.round(m.h)})`);
+    }
+  }
+  const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n.textContent!.trim().replace(/\s+/g, ' ');
+    const el = n.parentElement!;
+    if (!text || el.closest('.tabbar') || shut(el)) continue;
+    const range = document.createRange();
+    range.selectNodeContents(n);
+    const own = el.closest(CONTROL);
+    const ownBox = own?.getBoundingClientRect();
+    for (const r of range.getClientRects()) {
+      if (r.width < 1 || r.height < 1) continue;
+      const v = shown(el, { l: r.left, t: r.top, r: r.right, b: r.bottom });
+      if (v.r - v.l < 1 || v.b - v.t < 1) continue;
+      if (v.l < -0.5 || v.r > vw + 0.5) faults.push(`"${text.slice(0, 20)}" runs off the screen (${Math.round(v.l)} to ${Math.round(v.r)})`);
+      if (own && ownBox && (r.left < ownBox.left - 1 || r.right > ownBox.right + 1 || r.top < ownBox.top - 1 || r.bottom > ownBox.bottom + 1)) {
+        faults.push(`"${text.slice(0, 20)}" spills out of ${name(own)}`);
+      }
+      // The coach mark and a capsule's count lie on the capsule's halves by design (the count on their midline).
+      if (el.closest('.coach, .num-row')) continue;
+      // The scorecard's held label and 전반/후반 columns cover the hole columns that scroll under them (v48).
+      const held = el.closest('.ct-lbl, .ct-sum');
+      for (const c of controls) {
+        if (c.el === own || c.el.contains(el) || (held && held.parentElement!.contains(c.el))) continue;
+        const m = meet(v, c.box);
+        if (m.w > 2 && m.h > 2) faults.push(`"${text.slice(0, 20)}" lies on ${name(c.el)}`);
+      }
+    }
+  }
+  // Words cut short: a box holding words that its text overruns while it hides the rest (an ellipsis or a clip).
+  for (const el of scope.querySelectorAll('*')) {
+    if (el.closest('.tabbar, svg') || ![...el.childNodes].some((c) => c.nodeType === 3 && c.textContent!.trim()) || shut(el)) continue;
+    const s = getComputedStyle(el);
+    if (s.overflowX !== 'visible' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1) faults.push(`"${el.textContent!.trim().slice(0, 20)}" is cut short in ${name(el)} (${el.scrollWidth}px in ${el.clientWidth}px)`);
+  }
+  return [...new Set(faults)];
+});
+
+/**
+ * The tab bar (v48): on the screen, each tab's words inside the tab (on two lines where one does not fit, never
+ * running into the next), and the tab at least `least` CSS px tall and 24 wide.
+ */
+const tabBarFaults = (page: Page, least: number) => page.evaluate((min) => {
+  const faults: string[] = [];
+  const vw = document.documentElement.clientWidth;
+  for (const tab of document.querySelectorAll('.tabbar .tab, .tabbar .bar-menu')) {
+    const t = tab.getBoundingClientRect();
+    const label = tab.querySelector('.tab-label')!;
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    for (const r of range.getClientRects()) {
+      if (r.left < t.left - 0.5 || r.right > t.right + 0.5 || r.top < t.top - 0.5 || r.bottom > t.bottom + 0.5) faults.push(`"${label.textContent}" spills out of its tab`);
+    }
+    if (t.left < -0.5 || t.right > vw + 0.5) faults.push(`${tab.id || tab.className} runs off the screen`);
+    if (t.height < min - 0.5 || t.width < 24) faults.push(`${tab.id || tab.className} is ${Math.round(t.width)}×${Math.round(t.height)}`);
+  }
+  return [...new Set(faults)];
+}, least);
+
+/** Each capsule's − on 기록 (v48): whole in the card at rest, above the tab bar, and a tap on its middle lands on it. */
+const minusFaults = (page: Page) => page.evaluate(() => {
+  const faults: string[] = [];
+  const bar = document.querySelector('.tabbar')!.getBoundingClientRect();
+  const sheet = document.getElementById('sheet')!;
+  const card = sheet.getBoundingClientRect();
+  if (sheet.scrollTop > 0) faults.push(`the card is scrolled ${sheet.scrollTop}px`);
+  for (const half of document.querySelectorAll<HTMLElement>('#clubs .step.minus')) {
+    if (half.getClientRects().length === 0) continue;
+    const club = half.closest('.club')!.id || half.closest('.club')!.className;
+    const r = half.getBoundingClientRect();
+    if (r.bottom > card.bottom + 0.5) faults.push(`${club}: the − ends ${Math.round(r.bottom - card.bottom)}px below the card`);
+    if (r.bottom > bar.top + 0.5) faults.push(`${club}: the − reaches ${Math.round(r.bottom - bar.top)}px under the tab bar`);
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (!hit || !half.contains(hit)) faults.push(`${club}: a tap on the −'s middle lands on ${hit ? hit.id || hit.className : 'nothing'}`);
+  }
+  return faults;
+});
+
+/** The capsules' halves at least `least` CSS px tall and 24 wide: 48px on the phone's own screen at its zoom (v48). */
+const capsuleFaults = (page: Page, least: number) => page.locator('#clubs .step').evaluateAll((list, min) => list
+  .filter((el) => el.getClientRects().length > 0)
+  .map((el) => el.getBoundingClientRect())
+  .filter((r) => r.height < min - 0.5 || r.width < 24)
+  .map((r) => `a half of ${Math.round(r.width)}×${Math.round(r.height)}`), least);
+
+// The narrow and zoomed screens (v48): a 320px phone (WCAG 1.4.10's width), a 360px phone at 130% (277×569) and a
+// 390px phone at 200% (195×422). Zoomed, a CSS pixel is that much bigger on the glass, so a target needs 48px ÷ the zoom.
+for (const [width, height, zoom] of [[320, 568, 1], [277, 569, 1.3], [195, 422, 2]] as const) {
+  test.describe(`on a ${width}×${height} screen (${zoom === 1 ? 'a small phone' : `${Math.round(zoom * 100)}% zoom`}, v48)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const least = Math.floor(48 / zoom);
+
+    for (const big of [false, true]) {
+      test(`every screen fits${big ? ' in 큰 글씨' : ''}: nothing off the screen, on another or cut short, each − in view`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await expect(page.locator('#picker')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '코스 선택').toEqual([]);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await atRest(page);
+        // The first round's hole 1, with the long-press coach mark on the capsules.
+        expect.soft(await layoutFaults(page), '기록, hole 1').toEqual([]);
+        expect.soft(await minusFaults(page), '기록, hole 1: the −').toEqual([]);
+        await seed(page, SEVEN_HOLES, 5);
+        await seedHistory(page, [10, 12, 8]);
+        await expect(page.locator('#entry')).toBeVisible();
+        await atRest(page);
+        expect.soft(await layoutFaults(page), '기록 기본').toEqual([]);
+        expect.soft(await minusFaults(page), '기록 기본: the −').toEqual([]);
+        expect.soft(await capsuleFaults(page, least), '기록 기본: the halves').toEqual([]);
+        expect.soft(await tabBarFaults(page, least), '탭 막대').toEqual([]);
+        await modeTab(page, '상세').click();
+        if (await page.locator('#split-tip').isVisible()) await page.locator('#split-tip').click();
+        await atRest(page);
+        expect.soft(await layoutFaults(page), '기록 상세').toEqual([]);
+        expect.soft(await capsuleFaults(page, least), '기록 상세: the halves').toEqual([]);
+        await modeTab(page, '기본').click();
+        await showCard(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '스코어카드').toEqual([]);
+        await page.getByRole('radio', { name: '분석', exact: true }).click();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '분석').toEqual([]);
+        await page.getByRole('radio', { name: '스코어카드', exact: true }).click();
+        await showPast(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드').toEqual([]);
+        await pastItems(page).first().click();
+        await expect(page.locator('#past')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드 하나').toEqual([]);
+        await page.locator('#past-close').click();
+        await expect(page.locator('#past')).toBeHidden();
+        await openQuickEntry(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '넣기').toEqual([]);
+        await page.locator('#qe-cancel').click();
+        await expect(page.locator('#quick')).toBeHidden();
+        await menu(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '메뉴').toEqual([]);
+        await closeMenu(page);
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}
+
+// A browser whose own text size is 'large' (v48: Chrome's 20px default, a 125% root): every word grows with it, as the
+// sizes are in rem now, and the screens still hold it.
+test.describe('with the browser\'s text at 125% (v48)', () => {
+  // Only to add the root's size: the page's own CSP blocks injected styles.
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+  const ROOT = 'html { font-size: 125%; }';
+
+  test('every word is a quarter larger, and nothing runs off, lies on another or is cut short', async ({ page }) => {
+    await open(page);
+    await seed(page, SEVEN_HOLES, 5);
+    await seedHistory(page, [10, 12, 8]);
+    await expect(page.locator('#entry')).toBeVisible();
+    await atRest(page);
+    const before = await wordSizes(page);
+    await page.addStyleTag({ content: ROOT });
+    await atRest(page);
+    const after = new Map(await wordSizes(page));
+    // The words at the text steps follow the root: 13→16.25, 15→18.75, 17→21.25.
+    const steps = before.filter(([, s]) => [13, 15, 17].includes(s));
+    expect(steps.length).toBeGreaterThan(5);
+    for (const [key, size] of steps) expect(after.get(key), key).toBeCloseTo(size * 1.25, 1);
+    expect.soft(await layoutFaults(page), '기록').toEqual([]);
+    expect.soft(await minusFaults(page), '기록: the −').toEqual([]);
+    expect.soft(await tabBarFaults(page, 48), '탭 막대').toEqual([]);
+    await showCard(page);
+    await settled(page);
+    expect.soft(await layoutFaults(page), '스코어카드').toEqual([]);
+    await showPast(page);
+    await settled(page);
+    expect.soft(await layoutFaults(page), '지난 라운드').toEqual([]);
+    await menu(page);
+    await settled(page);
+    expect.soft(await layoutFaults(page), '메뉴').toEqual([]);
   });
 });
