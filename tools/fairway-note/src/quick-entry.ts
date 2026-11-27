@@ -6,7 +6,12 @@ import { roundSetup } from './courses';
 import type { CourseChoice } from './storage';
 import { h, setText } from './dom';
 
-const CHIPS: [string, number][] = [['−1', -1], ['파', 0], ['+1', 1], ['+2', 2], ['+3', 3]];
+// v47 (U2): from an eagle to +7, two rows of five under the thumb, so a double par (양파: 6 on a par 3, 8 on a par 4,
+// 10 on a par 5) and a hole-in-one on a par 3 can be entered too. Strokes stay within 1–15 (enteredRound).
+const CHIPS: [string, number][] = [
+  ['−2', -2], ['−1', -1], ['파', 0], ['+1', 1], ['+2', 2],
+  ['+3', 3], ['+4', 4], ['+5', 5], ['+6', 6], ['+7', 7],
+];
 
 export interface QuickEntry {
   choice: CourseChoice;
