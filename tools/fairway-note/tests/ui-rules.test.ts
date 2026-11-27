@@ -136,22 +136,37 @@ describe('one design system (v30)', () => {
     expect(thick).toEqual([]);
   });
 
-  it('sets type in six sizes: 13, 15, 17, 22, 34 and the counts, plus the ring\'s 32 and the island\'s 11 (v39)', () => {
-    expect(css).toMatch(/--t-s: 13px; --t-m: 15px; --t-l: 17px; --t-xl: 22px; --t-2xl: 34px; --t-count: 56px;/);
+  // v48: the sizes in rem, so a browser's own text size reaches every word. At the default 16px root they are the
+  // v30 steps to the pixel (13, 15, 17, 22, 34 and 56), so nobody's screen changes unless their browser's text does.
+  it('sets type in six sizes in rem: 13, 15, 17, 22, 34 and the counts at a 16px root, plus the ring\'s and the badge\'s own (v48)', () => {
+    expect(css).toMatch(/--t-s: \.8125rem; --t-m: \.9375rem; --t-l: 1\.0625rem; --t-xl: 1\.375rem; --t-2xl: 2\.125rem; --t-count: 3\.5rem;/);
     const off = declared(/font-size/)
       // A size fitted to a narrow line, or 큰 글씨's, is a step times a factor; the counts are fluid up to theirs.
       .filter(({ value }) => !/^(var\(--t-(s|m|l|xl|2xl|count)\)|inherit|clamp\(.*var\(--t-count\)\)|calc\(var\(--t-(s|m|l|xl|2xl)\) \* \.?\d+(\.\d+)?\))$/.test(value))
-      // v39 adds two sizes from the user's mock-up, each in its one place: the hole number in the switcher's ring (32px,
-      // fixed so 큰 글씨 cannot push it out of the 80px circle) and the floating island's tab labels (11px under the icon).
-      .filter(({ selector, value }) => !(value === '32px' && /\.hole-nav (#hole-title )?\.hole-n$/.test(selector)))
-      // …and 26px in the smaller ring of a short screen (under 700px tall), so 상세 fits without scrolling.
-      .filter(({ selector, value }) => !(value === '26px' && /\.hole-nav #hole-title \.hole-n$/.test(selector)))
-      .filter(({ selector, value }) => !(value === '11px' && selector === '.tab-label'))
-      // The score badge laid out as the ring is (the user: too tight before): a 20px number, an 11px word under it, and
-      // Ace, shown alone, at 15px.
-      .filter(({ selector, value }) => !((value === '20px' && selector === '.badge #hole-strokes') || (value === '11px' && selector === '.badge .badge-name') || (value === '15px' && selector === '.badge.hio .badge-name')))
+      // v39 adds sizes from the user's mock-up, each in its one place: the hole number in the switcher's ring (2rem, 32px
+      // at the default root, fixed so 큰 글씨 cannot push it out of the 80px circle)…
+      .filter(({ selector, value }) => !(value === '2rem' && /\.hole-nav (#hole-title )?\.hole-n$/.test(selector)))
+      // …and 1.625rem (26px) in the smaller ring of a short screen (under 700px tall), so 상세 fits without scrolling.
+      .filter(({ selector, value }) => !(value === '1.625rem' && /\.hole-nav #hole-title \.hole-n$/.test(selector)))
+      // The score badge laid out as the ring is (the user: too tight before): a 1.25rem (20px) number, and Ace, shown
+      // alone, at .9375rem (15px).
+      .filter(({ selector, value }) => !((value === '1.25rem' && selector === '.badge #hole-strokes') || (value === '.9375rem' && selector === '.badge.hio .badge-name')))
       .map(({ selector, value }) => `${selector}: ${value}`);
     expect(off).toEqual([]);
+    // No size in px: a word set in px would stay small when the browser's text grows. (The counts' clamp keeps its px
+    // floor: it fits the number between the capsule's glyphs, which are drawn in px.)
+    expect(declared(/font-size/).filter(({ value }) => /\dpx/.test(value) && !value.startsWith('clamp(')).map(({ selector, value }) => `${selector}: ${value}`)).toEqual([]);
+  });
+
+  // v48 (the user's call): 큰 글씨 raises the three text steps themselves, so every screen grows with it (the picker,
+  // 지난 라운드, 넣기 and the summary had stayed as they were): 13→16, 15→18, 17→20. The titles (22, 34) are big already.
+  it('raises the three text steps in 큰 글씨: 13→16, 15→18, 17→20 (v48)', () => {
+    const big = rules(css).filter(({ selector }) => selector === 'body.big').map(({ body }) => body).join(';');
+    expect(big).toMatch(/--t-s: 1rem; --t-m: 1\.125rem; --t-l: 1\.25rem;/);
+    // A 큰 글씨 rule never sets a word back to the smallest step, which the raised token already gives (a no-op that
+    // reads as if it did something).
+    const redundant = declared(/font-size/).filter(({ selector, value }) => selector.startsWith('body.big') && value === 'var(--t-s)').map(({ selector }) => selector);
+    expect(redundant).toEqual([]);
   });
 
   // v38 let the drawing show through the chip row's pills alone. v39 (the user's glow mock-up) made glass the system: a

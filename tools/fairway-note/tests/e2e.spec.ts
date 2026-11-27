@@ -9231,3 +9231,142 @@ test('says nothing about KakaoTalk in this browser either (v47)', async ({ page 
   await expect(page.locator('#picker')).toBeVisible();
   await expect(page.locator('#kakao')).toBeHidden();
 });
+
+/* ---------- v48: 큰 글씨 on every screen, and the sizes in rem ---------- */
+
+/** Turns 큰 글씨 on as the menu's switch keeps it, and reloads. */
+async function bigText(page: Page) {
+  await page.evaluate((key) => localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) ?? '{}'), big: true })), PREFS_KEY);
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/big/);
+}
+
+/**
+ * The size of every word on the screen in front (the open modal dialog, or the page), keyed by its text and its place
+ * among words with the same text, so the same word is found again with 큰 글씨 on. Hidden words, and those kept for the
+ * screen reader alone, are left out.
+ */
+const wordSizes = (page: Page) => page.evaluate(() => {
+  const shut = (el: Element) => {
+    for (let p: Element | null = el; p; p = p.parentElement) {
+      const s = getComputedStyle(p);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0 || /^inset\(50%/.test(s.clipPath)) return true;
+      if (p.matches('[hidden], dialog:not([open]), .sr-only, svg')) return true;
+    }
+    return false;
+  };
+  const scope = [...document.querySelectorAll('dialog')].filter((d) => d.matches(':modal')).pop() ?? document.body;
+  const seen = new Map<string, number>();
+  const out: [string, number][] = [];
+  const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n.textContent!.trim().replace(/\s+/g, ' ');
+    if (!text || shut(n.parentElement!)) continue;
+    const range = document.createRange();
+    range.selectNodeContents(n);
+    const r = range.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    const i = seen.get(text) ?? 0;
+    seen.set(text, i + 1);
+    out.push([`${text.slice(0, 24)} #${i}`, parseFloat(getComputedStyle(n.parentElement!).fontSize)]);
+  }
+  return out;
+});
+
+/**
+ * 큰 글씨 on every screen (v48, the user's call): each text step grows, 13→16, 15→18 and 17→20, and no word shrinks
+ * (the hole ring's and the badge's own numbers keep their size). With it off, no word is under 13px.
+ */
+function expectGrown(off: [string, number][], on: [string, number][], where: string) {
+  const big = new Map(on);
+  const STEP: Record<string, number> = { 13: 16, 15: 18, 17: 20 };
+  const found = off.filter(([key]) => big.has(key));
+  expect(found.length, `${where}: words found again in 큰 글씨 (${found.length} of ${off.length})`).toBeGreaterThan(off.length * 0.9);
+  const fell = found.filter(([key, size]) => big.get(key)! < (STEP[String(size)] ?? size) - 0.01).map(([key, size]) => `${key}: ${size} → ${big.get(key)}`);
+  expect(fell, `${where}: words that did not grow a step`).toEqual([]);
+  expect(Math.min(...off.map(([, s]) => s)), `${where}: the smallest word`).toBeGreaterThanOrEqual(13);
+  expect(Math.min(...on.map(([, s]) => s)), `${where}: the smallest word in 큰 글씨`).toBeGreaterThanOrEqual(16);
+}
+
+test.describe('큰 글씨 on every screen, measured word by word (v48)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('코스 선택: every word grows a step', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#picker')).toBeVisible();
+    await settled(page);
+    const off = await wordSizes(page);
+    await bigText(page);
+    await expect(page.locator('#picker')).toBeVisible();
+    await settled(page);
+    expectGrown(off, await wordSizes(page), '코스 선택');
+  });
+
+  test('지난 라운드 and 넣기: every word grows a step', async ({ page }) => {
+    await open(page);
+    await seedHistory(page, [10, 12, 8]);
+    const measure = async () => {
+      await showPast(page);
+      await settled(page);
+      const past = await wordSizes(page);
+      await openQuickEntry(page);
+      await settled(page);
+      const quick = await wordSizes(page);
+      await page.locator('#qe-cancel').click();
+      await expect(page.locator('#quick')).toBeHidden();
+      return { past, quick };
+    };
+    const off = await measure();
+    await bigText(page);
+    const on = await measure();
+    expectGrown(off.past, on.past, '지난 라운드');
+    expectGrown(off.quick, on.quick, '넣기');
+  });
+
+  test('기록, 스코어카드, 분석 and the menu: every word grows a step', async ({ page }) => {
+    await open(page);
+    await seed(page, SEVEN_HOLES, 5);
+    const measure = async () => {
+      await showEntry(page);
+      await atRest(page);
+      const entry = await wordSizes(page);
+      await showCard(page);
+      await page.getByRole('radio', { name: '스코어카드', exact: true }).click();
+      await settled(page);
+      const card = await wordSizes(page);
+      await page.getByRole('radio', { name: '분석', exact: true }).click();
+      await settled(page);
+      const analysis = await wordSizes(page);
+      await menu(page);
+      await settled(page);
+      const sheet = await wordSizes(page);
+      await closeMenu(page);
+      return { entry, card, analysis, sheet };
+    };
+    const off = await measure();
+    await bigText(page);
+    const on = await measure();
+    expectGrown(off.entry, on.entry, '기록');
+    expectGrown(off.card, on.card, '스코어카드');
+    expectGrown(off.analysis, on.analysis, '분석');
+    expectGrown(off.sheet, on.sheet, '메뉴');
+  });
+
+  test('the round summary: every word grows a step', async ({ page }) => {
+    const summary = async (big: boolean) => {
+      await open(page);
+      if (big) await bigText(page);
+      await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 1, putts: 1 }, 2: { driver: 1, ob: 1, approach: 3, putts: 2 } }, 3);
+      await showCard(page);
+      await page.getByRole('button', { name: '라운드 마치기' }).click();
+      await page.getByRole('button', { name: '그대로 마치기' }).click();
+      await expect(page.locator('#summary')).toBeVisible();
+      await settled(page);
+      const sizes = await wordSizes(page);
+      await page.evaluate(() => localStorage.clear());
+      return sizes;
+    };
+    const off = await summary(false);
+    expectGrown(off, await summary(true), '요약');
+  });
+});
