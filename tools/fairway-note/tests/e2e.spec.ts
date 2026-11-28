@@ -411,13 +411,13 @@ test('opens a hole from the scorecard in 기록, and shows the current one', asy
 test('keeps mulligans, the course and the version in the menu, one panel open at a time', async ({ page }) => {
   await open(page);
   await menu(page);
-  await expect(page.locator('#menu-version')).toHaveText('v48');
+  await expect(page.locator('#menu-version')).toHaveText('v49');
   await expect(page.locator('#course-name')).toHaveText('에버리스 골프리조트 새별·레이크');
   // Every row is at least 48px; an item with a panel opens it and closes the one open before. Since v36 멀리건 counts
   // on its own row, with no panel.
   for (const item of await page.locator('#menu .mi').all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await page.locator('#menu .mi', { hasText: '앱 정보' }).click();
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v48');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v49');
   // 앱 정보 says which holes are drawn from OpenStreetMap, with its credit (v27).
   await expect(page.locator('#mp-about .ab-foot a')).toHaveAttribute('href', OSM_COPYRIGHT);
   await expect(page.locator('#mp-about .ab-foot a')).toHaveText('© OpenStreetMap 기여자, ODbL');
@@ -3560,7 +3560,8 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       expect(badge.y).toBeGreaterThanOrEqual(card.y);
       expect(Math.abs(card.x + card.width - (badge.x + badge.width) - (card.y + card.height - (badge.y + badge.height)))).toBeLessThanOrEqual(0.5);
       // One row of buttons from edge to edge: the same height, on one line, with equal gaps, each glyph centred.
-      const row = [await box('#sum-share'), await box('#sum-save'), await box('#sum-mail'), await box('#sum-archive')];
+      // v49: a round button's circle (its word sits under it), and 보관 itself.
+      const row = [await box('#sum-share .ra-ico'), await box('#sum-save .ra-ico'), await box('#sum-mail .ra-ico'), await box('#sum-archive')];
       expect(Math.abs(row[0].x - inner.left)).toBeLessThanOrEqual(1);
       expect(Math.abs(row[3].x + row[3].width - inner.right)).toBeLessThanOrEqual(1);
       const gaps = row.slice(1).map((b, k) => b.x - (row[k].x + row[k].width));
@@ -3572,7 +3573,7 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       }
       expect(Math.abs(row[0].width - row[1].width)).toBeLessThanOrEqual(1);
       for (const id of ['#sum-share', '#sum-save', '#sum-mail']) {
-        const button = await box(id);
+        const button = await box(`${id} .ra-ico`);
         const glyph = (await page.locator(`${id} svg`).boundingBox())!;
         expect(Math.abs(glyph.x + glyph.width / 2 - (button.x + button.width / 2)), id).toBeLessThanOrEqual(1);
         expect(Math.abs(glyph.y + glyph.height / 2 - (button.y + button.height / 2)), id).toBeLessThanOrEqual(1);
@@ -4019,7 +4020,12 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [
       within1px((await spanOf(page, '#history-list .past-where')).x, tiles[0].x, 'course');
       within1px(endOf(await spanOf(page, '#history-list .past-score')), endOf(tiles[1]), 'score');
       within1px(endOf(await spanOf(page, '#history-list .past-meta')), endOf(tiles[1]), 'holes and putts');
-      within1px(tiles[0].y - card.y, tiles[0].x - card.x, 'top inset');
+      // v49: the card's first line is 지난 라운드 넣기, as wide as the tiles, with the tiles 12px under it.
+      const enter = await spanOf(page, '#hist-enter');
+      within1px(enter.y - card.y, tiles[0].x - card.x, 'top inset');
+      within1px(enter.x, tiles[0].x, '지난 라운드 넣기, left');
+      within1px(endOf(enter), endOf(tiles[1]), '지난 라운드 넣기, right');
+      within1px(tiles[0].y - (enter.y + enter.height), 12, 'tiles under 지난 라운드 넣기');
       // 지금 라운드 puts its score on the title's baseline, as each row below does.
       within1px(await baselineOf(page, '#now-score'), await baselineOf(page, '#now-title'), '지금 라운드 score');
       within1px(await baselineOf(page, '#history-list .past-score'), await baselineOf(page, '#history-list .past-when'), 'row score');
@@ -4056,7 +4062,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [
       within1px((await spanOf(page, '#picker-label')).x, text, 'course name');
       within1px(endOf(await spanOf(page, '#picker-len')), endOf(list) - inset, '18홀/9홀');
       const start = await spanOf(page, '#picker-start');
-      within1px(start.x, text, 'start, left');
+      // v49: on the first screen 라운드 넣기 comes first in the start row (on a line of its own where the two do not fit).
+      within1px((await spanOf(page, '#picker-enter')).x, text, '라운드 넣기, left');
       within1px(endOf(start), endOf(list) - inset, 'start, right');
       // 전반 and 후반 (새별, 레이크, 파인) as one grid: three equal columns, the 후반 row under the 전반 row, ending on the edge.
       const nines = await spansOf(page, '#picker-chosen .nine-pick button');
@@ -5574,15 +5581,23 @@ async function seedKept(page: Page, played: number) {
   }, [HISTORY_KEY, played] as const);
   await page.reload();
 }
-/** A row of round buttons: each box and its glyph's centre, and the content edge it starts from. */
+/**
+ * A row of round buttons: each box (v49: a round button's circle) and its glyph's centre, its word under the circle with
+ * the button's own bottom, and the content edge the row starts from.
+ */
 const roundRow = (page: Page, row: string, container: string) => page.evaluate(([r, c]) => {
   const box = document.querySelector(c)!;
   const s = getComputedStyle(box);
   const left = box.getBoundingClientRect().left + parseFloat(s.paddingLeft);
   const buttons = [...document.querySelector(r)!.children].filter((b) => b.getClientRects().length).map((b) => {
-    const k = b.getBoundingClientRect();
+    const k = (b.querySelector('.ra-ico') ?? b).getBoundingClientRect();
     const g = b.querySelector('svg')?.getBoundingClientRect();
-    return { x: k.x, y: k.y, width: k.width, height: k.height, glyph: g ? { x: g.x + g.width / 2, y: g.y + g.height / 2 } : null };
+    const w = b.querySelector('.ra-lbl');
+    const wr = w?.getBoundingClientRect();
+    return {
+      x: k.x, y: k.y, width: k.width, height: k.height, glyph: g ? { x: g.x + g.width / 2, y: g.y + g.height / 2 } : null,
+      word: w && wr ? { text: w.textContent, x: wr.x + wr.width / 2, top: wr.top, bottom: wr.bottom, end: b.getBoundingClientRect().bottom } : null,
+    };
   });
   return { left, buttons };
 }, [row, container] as const);
@@ -5909,7 +5924,7 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       for (const r of await contrastOf(page, marks.map((_, k) => ({ sel: `#sum-marks li:nth-child(${k + 1}) .m`, min: 3 })))) expect(r.ratio!, `${r.sel} drawn`).toBeGreaterThanOrEqual(3);
     });
 
-    test('지난 라운드 열기 lines its round buttons up like the summary’s: 52px, 8px apart, glyphs centred', async ({ page, context, browserName }) => {
+    test('지난 라운드 열기 lines its round buttons up like the summary’s: 52px, 8px apart, glyphs centred, each word centred under its circle (v49)', async ({ page, context, browserName }) => {
       await useClipboard(page, context, browserName);
       await useShare(page, 'none');
       await finishRound(page);
@@ -5933,8 +5948,20 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
             within1px(b.glyph.x, b.x + b.width / 2, `${name}: glyph centred across`);
             within1px(b.glyph.y, b.y + b.height / 2, `${name}: glyph centred down`);
           }
+          // v49: the word, centred under the circle 4px below it, inside the button, on one line with the others.
+          if (b.word) {
+            within1px(b.word.x, b.x + b.width / 2, `${name} ${b.word.text}: word centred under its circle`);
+            within1px(b.word.top - (b.y + b.height), 4, `${name} ${b.word.text}: 4px under the circle`);
+            expect(b.word.bottom, `${name} ${b.word.text}: inside the button`).toBeLessThanOrEqual(b.word.end + 0.5);
+            within1px(b.word.top, row.buttons[0].word!.top, `${name} ${b.word.text}: one line of words`);
+          }
         }
+        expect(row.buttons.slice(0, 3).map((b) => b.word?.text), `${name}: the words`).toEqual(['복사', '저장', '메일']);
       }
+      // 보관 keeps its place and size: the rest of the row, 52px, on the circles' line.
+      const keep = summary.buttons[3];
+      expect(keep.word).toBeNull();
+      within1px(keep.x, summary.buttons[2].x + summary.buttons[2].width + 8, '보관 right after 메일');
       for (const k of [0, 1, 2]) within1px(past.buttons[k].width, summary.buttons[k].width, `button ${k + 1} as wide as the summary's`);
       expect(await page.locator('#past').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
     });
@@ -6147,7 +6174,7 @@ test('라운드 마치기, the summary and 지난 라운드 answer a press with 
   await expect(page.locator('#summary')).toBeVisible();
   await page.locator('#summary').evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
   await press(page, '#sum-close', null, '#sum-title');
-  await press(page, '#sum-share', null, '#sum-title');
+  await press(page, '#sum-share .ra-ico', null, '#sum-title');
   await press(page, '#sum-archive', '#sum-archive', '#sum-title');
   await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
   await expect(page.locator('#backup-card')).toBeVisible();
@@ -6157,7 +6184,7 @@ test('라운드 마치기, the summary and 지난 라운드 answer a press with 
   await expect(page.locator('#past')).toBeVisible();
   await settled(page);
   await press(page, '#past-close', '#past-close', '#past-title');
-  await press(page, '#past-share', null, '#past-title');
+  await press(page, '#past-share .ra-ico', null, '#past-title');
   await press(page, '#past-delete', '#past-delete', '#past-title');
   // With reduced motion the colour changes at once.
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -6854,7 +6881,7 @@ test('shows no version or maker link on the product: the version only in 앱 정
   await expect(page.locator('#app-version')).toHaveCount(0);
   await expect(page.locator('#entry')).not.toContainText(/v\d+/);
   await menu(page, '앱 정보');
-  await expect(page.locator('#mp-about')).toContainText('Fairway Note v48');
+  await expect(page.locator('#mp-about')).toContainText('Fairway Note v49');
 });
 
 test('분석 says what was lost first, keeps how it counts behind ⓘ, and speaks one voice (v29)', async ({ page }) => {
@@ -8808,9 +8835,9 @@ async function openQuickEntry(page: Page) {
 test('지난 라운드 넣기 keeps a past round from chips on the off-par holes, marked as entered (v44)', async ({ page }) => {
   await open(page);
   await openQuickEntry(page);
-  // Every cell starts at its par; the date is today at most.
+  // Every cell starts empty (v49: not taken for a par), so the total starts at 0; the date is today at most.
   await expect(page.locator('#quick .qe-cell')).toHaveCount(18);
-  await expect(page.locator('#qe-total')).toHaveText(/^72타 \(E\)$/);
+  await expect(page.locator('#qe-total')).toHaveText('0타');
   const today = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
   await expect(page.locator('#qe-date')).toHaveAttribute('max', today);
   await page.locator('#qe-date').fill('2026-11-01');
@@ -8827,8 +8854,11 @@ test('지난 라운드 넣기 keeps a past round from chips on the off-par holes
     taps += 2;
   }
   expect(taps).toBeLessThanOrEqual(30);
-  await expect(page.locator('#qe-total')).toHaveText('85타 (+13)');
+  await expect(qeProgress(page)).toHaveText('11/18');
+  // v49: the seven cells not pressed are asked about once; as pars, the round is the same 85.
   await page.locator('#qe-save').click();
+  await expect(page.locator('#qa-sub')).toHaveText('3·6·8·10·12·15·17번 홀을 파로 저장할까요, 비워 둘까요?');
+  await page.locator('#qa-par').click();
   await expect(page.locator('#quick')).toBeHidden();
   const first = page.locator('#history-list > li').first();
   await expect(first).toContainText('85타');
@@ -8849,7 +8879,8 @@ test('a cell picked again moves on to the next, 파 puts it back, and the screen
   await expect(qeCell(page, 2)).toHaveAttribute('aria-pressed', 'true');
   await qeCell(page, 1).click();
   await page.locator('#quick .qe-chip', { hasText: '파' }).click();
-  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
+  // v49: the total counts the holes entered, hole 1 alone now, at its par.
+  await expect(page.locator('#qe-total')).toHaveText('4타 (E)');
   expect(await sideScroll(page)).toBe(0);
 });
 
@@ -8986,8 +9017,9 @@ test('내 코스 fills 지난 라운드 넣기, is deleted from the course picke
   await page.locator('#hist-add').click();
   await page.locator('#picker-list button.mine', { hasText: '동네 골프장' }).click();
   await page.getByRole('button', { name: '다음' }).click();
-  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
-  expect(await page.locator('#quick .qe-cell').evaluateAll((cells) => cells.map((c) => Number(c.querySelector('b')!.textContent)))).toEqual(MY_PARS);
+  // v49: each cell, empty until a chip, says its par ("파 4") on its small line.
+  await expect(page.locator('#qe-total')).toHaveText('0타');
+  expect(await page.locator('#quick .qe-cell').evaluateAll((cells) => cells.map((c) => Number(c.querySelector('.qe-d')!.textContent!.replace('파 ', ''))))).toEqual(MY_PARS);
   await page.locator('#qe-cancel').click();
   // The backup file carries it.
   await showBackup(page);
@@ -9136,7 +9168,10 @@ test('nothing is a pill any more: controls 12px, cards 16px, and only what is as
   await settled(page);
   expect(await pills(page), '라운드 요약').toEqual([]);
   expect(await corner('#sum-archive'), '지난 라운드에 보관').toBe('12px');
-  expect(await corner('#sum-share'), 'the round icon buttons').toBe('999px');
+  // v49: a round button is its circle and its word under it; the circle, as wide as tall, rounds fully, the button
+  // around both is a control.
+  expect(await corner('#sum-share .ra-ico'), 'the round icon buttons').toBe('999px');
+  expect(await corner('#sum-share'), 'the round button around its circle and word').toBe('12px');
   await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
   await expect(page.locator('#summary')).toBeHidden();
   await pastItems(page).first().click();
@@ -9163,8 +9198,10 @@ test('지난 라운드 넣기 takes an eagle and a double par, and the round add
   await qeChip(page, '+4').click();
   await expect(qeCell(page, 3)).toHaveAttribute('aria-label', '3번 홀 파 5, 3타');
   await expect(qeCell(page, 1)).toHaveAttribute('aria-label', '1번 홀 파 4, 8타');
-  await expect(page.locator('#qe-total')).toHaveText('74타 (+2)');
+  // v49: the total counts the two holes entered; the sixteen not pressed are kept as pars, asked once.
+  await expect(page.locator('#qe-total')).toHaveText('11타 (+2)');
   await page.locator('#qe-save').click();
+  await page.locator('#qa-par').click();
   const first = page.locator('#history-list > li').first();
   await expect(first).toContainText('74타');
   await first.locator('button').first().click();
@@ -9195,7 +9232,8 @@ test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px un
   await openQuickEntry(page);
   await atRest(page);
   const chips = page.locator('#quick .qe-chip');
-  await expect(chips).toHaveText(['−2', '−1', '파', '+1', '+2', '+3', '+4', '+5', '+6', '+7']);
+  // v49: 모름 after them, two columns wide, still in the two rows at 360px.
+  await expect(chips).toHaveText(['−2', '−1', '파', '+1', '+2', '+3', '+4', '+5', '+6', '+7', '– 모름']);
   expect(await sideScroll(page)).toBe(0);
   const boxes = await chips.evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, width: b.width, height: b.height }; }));
   expect(new Set(boxes.map((b) => Math.round(b.top))).size, 'two rows').toBe(2);
@@ -9215,7 +9253,8 @@ test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px un
   await qeChip(page, '+7').click();
   await expect(qeCell(page, 4)).toHaveAttribute('aria-label', '4번 홀 파 3, 6타');
   await expect(qeCell(page, 7)).toHaveAttribute('aria-label', '7번 홀 파 3, 10타');
-  await expect(page.locator('#qe-total')).toHaveText('82타 (+10)');
+  // v49: the total counts the two holes entered.
+  await expect(page.locator('#qe-total')).toHaveText('16타 (+10)');
 });
 
 const KAKAO_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.82 Mobile Safari/537.36;KAKAOTALK 2410590';
@@ -9638,3 +9677,443 @@ test.describe('with the browser\'s text at 125% (v48)', () => {
     expect.soft(await layoutFaults(page), '메뉴').toEqual([]);
   });
 });
+
+/* ---------- v49: 넣기 hole by hole from hole 1, with how far it has come ---------- */
+
+/** The progress under the total: "7/18" for the eye, "18홀 중 7홀 넣음" for a screen reader. */
+const qeProgress = (page: Page) => page.locator('#qe-progress > [aria-hidden="true"]');
+
+test('넣기 takes a round hole by hole from hole 1: one chip a hole, 18 taps, the progress counting them (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  await expect(page.locator('#qe-guide')).toHaveText("1번 홀부터 칩을 차례로 누르세요. 파인 홀은 '파'. 넣은 기록은 타수만 남아요.");
+  await expect(qeCell(page, 1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(qeProgress(page)).toHaveText('0/18');
+  await expect(page.locator('#qe-progress .sr-only')).toHaveText('18홀 중 0홀 넣음');
+  // A bogey round: each hole's chip in turn, the next hole picked by itself.
+  const deltas = [1, 0, 1, 0, 2, 1, 0, 1, 1, 0, 1, 1, 0, 1, 2, 0, 1, 1];
+  let taps = 0;
+  for (const [i, d] of deltas.entries()) {
+    await expect(qeCell(page, i + 1)).toHaveAttribute('aria-pressed', 'true');
+    await qeChip(page, d ? `+${d}` : '파').click();
+    taps += 1;
+    await expect(qeProgress(page)).toHaveText(`${i + 1}/18`);
+  }
+  expect(taps).toBe(18);
+  await expect(page.locator('#qe-progress .sr-only')).toHaveText('18홀 중 18홀 넣음');
+  await expect(page.locator('#qe-total')).toHaveText('86타 (+14)');
+  await page.locator('#qe-save').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#history-list > li').first()).toContainText('86타');
+});
+
+test('fixing an earlier hole in 넣기 leads back to where entering stopped (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  for (let i = 0; i < 5; i++) await qeChip(page, '파').click();
+  await expect(qeCell(page, 6)).toHaveAttribute('aria-pressed', 'true');
+  await qeCell(page, 2).click();
+  await qeChip(page, '+1').click();
+  // Hole 3 is in already: the next chip goes to hole 6, the first one still to enter.
+  await expect(qeCell(page, 6)).toHaveAttribute('aria-pressed', 'true');
+  await expect(qeCell(page, 2)).toHaveAttribute('aria-label', /^2번 홀 파 \d, \d+타$/);
+  await expect(qeProgress(page)).toHaveText('5/18');
+});
+
+/* ---------- v49: 넣기 tells a cell not pressed from one entered, takes 모름, and asks once before saving ---------- */
+
+/** Each cell's par, from its small line while it is empty ("파 4"). */
+const qePars = async (page: Page) => (await page.locator('#quick .qe-cell .qe-d').allTextContents()).map((t) => Number(t.replace('파 ', '')));
+
+test('넣기 shows a cell not pressed as an empty slot, takes 모름 for a hole not remembered, and totals only the holes entered (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  const pars = await qePars(page);
+  await expect(page.locator('#quick .qe-cell.empty')).toHaveCount(18);
+  await expect(qeCell(page, 1)).toHaveAttribute('aria-label', `1번 홀 파 ${pars[0]}, 아직 안 넣음`);
+  await expect(qeChip(page, '모름')).toHaveText('– 모름');
+  await qeChip(page, '파').click();
+  await qeChip(page, '+1').click();
+  await qeChip(page, '모름').click();
+  await expect(qeCell(page, 3)).toHaveAttribute('aria-label', `3번 홀 파 ${pars[2]}, 모름`);
+  await expect(qeCell(page, 3).locator('b')).toHaveText('–');
+  await expect(qeCell(page, 1).locator('b')).toHaveText(String(pars[0]));
+  await expect(qeCell(page, 4)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#quick .qe-cell.empty')).toHaveCount(15);
+  await expect(qeProgress(page)).toHaveText('3/18');
+  // An empty slot reads as one: no fill, a dashed edge; an entered cell keeps its fill.
+  const look = (n: number) => qeCell(page, n).evaluate((el) => { const s = getComputedStyle(el); return { fill: s.backgroundColor, edge: s.outlineStyle }; });
+  expect(await look(5)).toEqual({ fill: 'rgba(0, 0, 0, 0)', edge: 'dashed' });
+  expect((await look(1)).edge).toBe('none');
+  expect((await look(1)).fill).not.toBe('rgba(0, 0, 0, 0)');
+  // Hole 1 at its par and hole 2 a bogey: 모름 and the empty holes count nowhere.
+  await expect(page.locator('#qe-total')).toHaveText(`${pars[0] + pars[1] + 1}타 (+1)`);
+});
+
+test('saving 넣기 with cells not pressed asks once: 비워 두기 leaves them out of every total, 파로 저장 keeps them as pars (v49)', async ({ page }) => {
+  await useShare(page, 'files');
+  await open(page);
+  await openQuickEntry(page);
+  const pars = await qePars(page);
+  // Holes 1–6 as bogeys, 7–18 not pressed.
+  for (let i = 0; i < 6; i++) await qeChip(page, '+1').click();
+  const six = pars.slice(0, 6).reduce((s, p) => s + p + 1, 0);
+  await expect(page.locator('#qe-total')).toHaveText(`${six}타 (+6)`);
+  await page.locator('#qe-save').click();
+  const ask = page.locator('#qe-ask');
+  await expect(ask).toBeVisible();
+  await expect(page.locator('#qa-title')).toHaveText('누르지 않은 홀이 있어요');
+  await expect(page.locator('#qa-sub')).toHaveText('7~18번 홀을 파로 저장할까요, 비워 둘까요?');
+  await expect(page.locator('#qa-none')).toBeHidden();
+  // × goes back to entering; nothing is kept.
+  await page.locator('#qa-close').click();
+  await expect(ask).toBeHidden();
+  await expect(page.locator('#quick')).toBeVisible();
+  await expect(page.locator('#history-list > li')).toHaveCount(0);
+  // 비워 두기: a round of six holes, the others counted nowhere.
+  await page.locator('#qe-save').click();
+  await page.locator('#qa-empty').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  const item = page.locator('#history-list > li').first();
+  await expect(item).toContainText(`${six}타`);
+  await expect(item).toContainText('6홀, 넣은 기록');
+  await item.locator('button').first().click();
+  const past = page.locator('#past');
+  await expect(past).toBeVisible();
+  await expect(past.locator('.tot-n')).toHaveText(`${six}타`);
+  await expect(past.locator('.ct-col .c-score')).toHaveText([...Array<RegExp>(6).fill(/^\d+$/), ...Array<string>(12).fill('')]);
+  await expect(past.locator('.round-actions')).toHaveAttribute('data-state', 'ready');
+  await past.locator('#past-share').click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  const text = (await sharedData(page))[0].text ?? '';
+  expect(text).toContain(`총 ${six}타 (+6) · 6/18홀`);
+  expect(text).toMatch(/^6번 Par\d: \d+타 \(\+1\)$/m);
+  expect(text).not.toMatch(/^7번 Par/m);
+  await page.locator('#past-close').click();
+  // 파로 저장: the same six, the twelve others at par, a full round.
+  await openQuickEntry(page);
+  await page.locator('#qe-date').fill('2026-11-01');
+  for (let i = 0; i < 6; i++) await qeChip(page, '+1').click();
+  await page.locator('#qe-save').click();
+  await page.locator('#qa-par').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  const full = page.locator('#history-list > li').nth(1);
+  await expect(full).toContainText(`${pars.reduce((s, p) => s + p, 0) + 6}타`);
+  await expect(full).toContainText('18홀, 넣은 기록');
+});
+
+test('넣기 keeps nothing all 모름, and with nothing entered only 파로 저장 can answer (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  await page.locator('#qe-save').click();
+  await expect(page.locator('#qa-sub')).toHaveText('1~18번 홀을 파로 저장할까요, 비워 둘까요?');
+  await expect(page.locator('#qa-empty')).toBeDisabled();
+  await expect(page.locator('#qa-none')).toHaveText('넣은 홀이 없어 비워 둘 수 없어요.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#qe-ask')).toBeHidden();
+  await expect(page.locator('#quick')).toBeVisible();
+  for (let i = 0; i < 18; i++) await qeChip(page, '모름').click();
+  await expect(page.locator('#qe-save')).toBeDisabled();
+  await expect(page.locator('#qe-none')).toHaveText('타수를 넣은 홀이 하나는 있어야 저장할 수 있어요.');
+  await expect(qeProgress(page)).toHaveText('18/18');
+});
+
+// 넣기 on the sizes v48 checks: a 360px phone, a 320px one, 130% (277×569) and 200% (195×422). A chip is at least 48px
+// ÷ the zoom each way, 모름 two columns wide, the chips' rows on the cells' columns, and the question fits too.
+for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.3], [195, 422, 2]] as const) {
+  test.describe(`넣기 on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const least = Math.floor(48 / zoom);
+
+    for (const big of [false, true]) {
+      test(`the cells, the chips and the question before saving fit and line up${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await openQuickEntry(page);
+        await qeChip(page, '+1').click();
+        await qeChip(page, '모름').click();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '넣기').toEqual([]);
+        const boxes = await page.locator('#quick .qe-chip').evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, width: b.width, height: b.height }; }));
+        const cells = await page.locator('#quick .qe-cell').evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right }; }));
+        const columns = width >= 350 ? 6 : 4;
+        const counts = boxes.slice(0, 10);
+        const unknown = boxes[10];
+        for (const b of boxes) {
+          expect(b.height, 'a chip is tall enough').toBeGreaterThanOrEqual(least);
+          expect(b.width, 'a chip is wide enough').toBeGreaterThanOrEqual(least);
+        }
+        for (const b of counts) within1px(b.width, counts[0].width, 'every count chip one width');
+        const gap = counts[1].left - counts[0].right;
+        within1px(unknown.width, 2 * counts[0].width + gap, '모름 two columns wide');
+        expect(new Set(boxes.map((b) => Math.round(b.top))).size, `rows of ${columns}`).toBe(12 / columns);
+        // The chips' outer edges on the cells' outer edges.
+        within1px(counts[0].left, cells[0].left, 'the chips start where the cells do');
+        within1px(Math.max(...boxes.map((b) => b.right)), Math.max(...cells.map((c) => c.right)), 'the chips end where the cells do');
+        await page.locator('#qe-save').click();
+        await expect(page.locator('#qe-ask')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '넣기: the question').toEqual([]);
+        for (const id of ['#qa-par', '#qa-empty', '#qa-close']) {
+          const b = (await page.locator(id).boundingBox())!;
+          expect(Math.min(b.width, b.height), `${id} big enough`).toBeGreaterThanOrEqual(Math.min(least, 44));
+        }
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}
+
+// v49: the total keeps its own width with any font. On CI's Linux Chromium "5타 (+1)" came out wider than on the Mac
+// and ran onto 취소 at 200% in 큰 글씨: the total's column gave way under its words. Wider letters and other fonts stand
+// in for Linux's and Android's (as above), and the longest total, every hole at +7, is the hardest case. Where the three
+// do not fit side by side, 취소 and 저장 go under the total together and share that row.
+for (const [width, height] of [[360, 640], [320, 568], [277, 569], [195, 422]] as const) {
+  test.describe(`넣기's total and buttons on a ${width}×${height} screen, with wider type too (v49)`, () => {
+    // Only to add the widening styles: the page's own CSP blocks injected styles.
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+    for (const big of [false, true]) {
+      test(`the total never lies on 취소 or 저장, and the two stay side by side${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        type Box = { left: number; top: number; right: number; bottom: number };
+        /** How far, in px, words run across a button they share a line with (0 when clear). */
+        const across = (a: Box, b: Box) => (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5 ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) : 0);
+        /** Checks the foot and says whether the buttons sit beside the total (or under it). */
+        const check = async (where: string) => {
+          await settled(page);
+          const m = await page.locator('#quick .qe-foot').evaluate((foot) => {
+            const box = (el: Element) => (({ left, top, right, bottom }) => ({ left, top, right, bottom }))(el.getBoundingClientRect());
+            const range = document.createRange();
+            range.selectNodeContents(foot.querySelector('#qe-total')!);
+            const words = [...range.getClientRects()].filter((r) => r.width >= 1).map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
+            return { foot: box(foot), sum: box(foot.querySelector('.qe-sum')!), words, cancel: box(foot.querySelector('#qe-cancel')!), save: box(foot.querySelector('#qe-save')!) };
+          });
+          for (const w of m.words) {
+            expect(across(w, m.cancel), `${where}: the total runs onto 취소 (px)`).toBeLessThanOrEqual(0.5);
+            expect(across(w, m.save), `${where}: the total runs onto 저장 (px)`).toBeLessThanOrEqual(0.5);
+            expect(w.left, `${where}: the total inside the foot`).toBeGreaterThanOrEqual(m.foot.left - 0.5);
+            expect(w.right, `${where}: the total inside the foot`).toBeLessThanOrEqual(m.foot.right + 0.5);
+          }
+          within1px(m.save.top, m.cancel.top, `${where}: 취소 and 저장 on one row`);
+          within1px(m.save.left - m.cancel.right, 8, `${where}: 8px between 취소 and 저장`);
+          within1px(m.save.right, m.foot.right, `${where}: 저장 at the foot's right edge`);
+          const beside = m.cancel.top < m.sum.bottom;
+          if (beside) {
+            expect(m.cancel.left, `${where}: 취소 8px clear of the total`).toBeGreaterThanOrEqual(Math.max(...m.words.map((w) => w.right)) + 8 - 1);
+          } else {
+            within1px(m.cancel.top - m.sum.bottom, 8, `${where}: the buttons 8px under the total`);
+            within1px(m.cancel.left, m.foot.left, `${where}: under the total, the buttons from the foot's left edge`);
+          }
+          expect.soft((await layoutFaults(page)).filter((f) => /qe-cancel|qe-save|타 \(/.test(f)), where).toEqual([]);
+          expect(await sideScroll(page), where).toBe(0);
+          return beside;
+        };
+        const styled = async (what: string) => {
+          for (const style of [WIDER, OTHER_TYPE]) {
+            const added = await page.addStyleTag({ content: style });
+            await check(`${what}, ${style === WIDER ? 'wider' : 'other fonts'}`);
+            await added.evaluate((el) => el.remove());
+          }
+        };
+        // The total CI drew too wide: +1 on hole 1, 모름 on hole 2.
+        await openQuickEntry(page);
+        await qeChip(page, '+1').click();
+        await qeChip(page, '모름').click();
+        await expect(page.locator('#qe-total')).toHaveText(/^\d+타 \(\+1\)$/);
+        const beside = await check('+1');
+        // With room, the buttons stay beside the total, as before.
+        if (width >= 320 && !big) expect(beside, 'beside the total where there is room').toBe(true);
+        await styled('+1');
+        // The longest total: every hole at +7.
+        await page.locator('#qe-cancel').click();
+        await expect(page.locator('#quick')).toBeHidden();
+        await openQuickEntry(page);
+        for (let i = 0; i < 18; i++) await qeChip(page, '+7').click();
+        await expect(page.locator('#qe-total')).toHaveText(/^\d+타 \(\+126\)$/);
+        await check('every hole +7');
+        await styled('every hole +7');
+      });
+    }
+  });
+}
+
+/* ---------- v49: the round buttons say what they do ---------- */
+
+test('the round buttons of the summary and of a past round say 공유, 저장 and 메일 under their circles, and 보관 stays as it was (v49)', async ({ page }) => {
+  await useShare(page, 'text');
+  await finishRound(page);
+  await expect(page.locator('#summary .sum-actions .ra-lbl')).toHaveText(['공유', '저장', '메일']);
+  await expect(page.locator('#sum-share')).toHaveAccessibleName('공유');
+  await expect(page.locator('#sum-save')).toHaveAccessibleName('이미지 저장');
+  await expect(page.locator('#sum-mail')).toHaveAccessibleName('이메일로 보내기');
+  const keep = page.locator('#sum-archive');
+  await expect(keep).toHaveText('지난 라운드에 보관');
+  await expect(keep).toHaveClass(/primary/);
+  expect((await keep.boundingBox())!.height).toBeCloseTo(52, 0);
+  await keep.click();
+  await pastItems(page).first().click();
+  await expect(page.locator('#past .round-actions .ra-lbl')).toHaveText(['공유', '저장', '메일']);
+  await expect(page.locator('#past-share')).toHaveAccessibleName('공유');
+});
+
+// The summary and a past round with the words under their round buttons, on the sizes v48 checks.
+for (const [width, height] of [[360, 640], [320, 568], [277, 569], [195, 422]] as const) {
+  test.describe(`round buttons on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    for (const big of [false, true]) {
+      test(`the summary and a past round fit with their round buttons' words${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await useShare(page, 'text');
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 1, putts: 1 }, 2: { driver: 1, ob: 1, approach: 3, putts: 2 } }, 3);
+        await showCard(page);
+        await page.getByRole('button', { name: '라운드 마치기' }).click();
+        await page.getByRole('button', { name: '그대로 마치기' }).click();
+        await expect(page.locator('#summary')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '요약').toEqual([]);
+        await page.locator('#sum-archive').click();
+        await pastItems(page).first().click();
+        await expect(page.locator('#past')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드 하나').toEqual([]);
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}
+
+/* ---------- v49: 넣기 within the thumb's reach, as wide as the screen, in 지난 라운드 and on the first screen ---------- */
+
+/** A box's content edges: its own box less its padding. */
+const contentOf = (page: Page, selector: string) => page.locator(selector).evaluate((el) => {
+  const r = el.getBoundingClientRect();
+  const s = getComputedStyle(el);
+  return { left: r.left + parseFloat(s.paddingLeft), right: r.right - parseFloat(s.paddingRight) };
+});
+
+test('지난 라운드 has 지난 라운드 넣기 as a button as wide as its box, above the list, and it opens 넣기 (v49)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [3, 5]);
+  await showPast(page);
+  const enter = page.locator('#hist-enter');
+  await expect(enter).toBeVisible();
+  await expect(enter).toHaveText('지난 라운드 넣기');
+  // The top right's 넣기 stays too.
+  await expect(page.locator('#hist-add')).toBeVisible();
+  const box = (await enter.boundingBox())!;
+  const inner = await contentOf(page, '#history');
+  within1px(box.x, inner.left, 'from the box\'s left edge');
+  within1px(box.x + box.width, inner.right, 'to its right edge');
+  expect(box.height).toBeGreaterThanOrEqual(48);
+  // First in the box (its heading is the view's own), above the trends and the rounds.
+  const trends = (await page.locator('#history-trends').boundingBox())!;
+  const list = (await page.locator('#history-list').boundingBox())!;
+  expect(box.y + box.height).toBeLessThan(trends.y + 1);
+  expect(box.y + box.height).toBeLessThan(list.y + 1);
+  await enter.click();
+  await expect(page.locator('#picker-title')).toHaveText('어디서 쳤나요?');
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.locator('#quick')).toBeVisible();
+});
+
+test('the first screen offers 오늘 친 라운드 넣기 over 이 코스로 시작: 넣기 on the course chosen there, 20 taps for 18 holes, then 지난 라운드 (v49)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  const enter = page.locator('#picker-enter');
+  const start = page.locator('#picker-start');
+  await expect(enter).toBeVisible();
+  await expect(enter).toHaveText('라운드 넣기');
+  await expect(enter).toHaveAccessibleName('지난 라운드 넣기');
+  const e = (await enter.boundingBox())!;
+  const s = (await start.boundingBox())!;
+  // Beside 이 코스로 시작, 8px before it, one height, the two from the foot's left content edge to its right, both in the
+  // lower half where a thumb reaches.
+  within1px(e.y, s.y, 'one line');
+  within1px(e.height, s.height, 'one height');
+  within1px(s.x - (e.x + e.width), 8, '8px between');
+  const inner = await contentOf(page, '.picker-foot');
+  within1px(e.x, inner.left, 'from the left edge');
+  within1px(s.x + s.width, inner.right, 'to the right edge');
+  expect(e.height).toBeGreaterThanOrEqual(48);
+  const viewport = page.viewportSize()!;
+  expect(e.y).toBeGreaterThanOrEqual(viewport.height / 2);
+  // 취소 in 넣기 comes back to the first screen.
+  await enter.click();
+  await expect(page.locator('#quick')).toBeVisible();
+  await expect(page.locator('#quick .qe-head p')).toHaveText('에버리스 골프리조트 · 새별·레이크');
+  await page.locator('#qe-cancel').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#picker')).toBeVisible();
+  // A round in 20 taps: this button, a chip a hole, 저장.
+  let taps = 0;
+  await enter.click();
+  taps += 1;
+  for (let i = 0; i < 18; i++) {
+    await qeChip(page, '+1').click();
+    taps += 1;
+  }
+  await page.locator('#qe-save').click();
+  taps += 1;
+  expect(taps).toBe(20);
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await expect(page.locator('#history-list > li')).toHaveCount(1);
+  await expect(page.locator('#history-list > li').first()).toContainText('90타');
+  await expect(page.locator('#now-continue')).toHaveText('코스 고르고 시작');
+  // Starting a new round from the menu offers no such button: there is a round to replace.
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  await expect(page.locator('#picker')).toBeVisible();
+  await expect(enter).toBeHidden();
+});
+
+// The two buttons on the sizes v48 checks, with 큰 글씨 on and off.
+for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.3], [195, 422, 2]] as const) {
+  test.describe(`넣기's ways in on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const least = Math.floor(48 / zoom);
+
+    for (const big of [false, true]) {
+      test(`the first screen and 지난 라운드 fit their 넣기 buttons${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await expect(page.locator('#picker')).toBeVisible();
+        await settled(page);
+        // Under 340px the whole screen (v48's check). From 340px a list row's second line ends in "…" by design (v23),
+        // so there the new button itself: whole words, on the screen, clear of 이 코스로 시작.
+        if (width < 340) expect.soft(await layoutFaults(page), '코스 선택').toEqual([]);
+        const foot = await page.evaluate(() => {
+          const enter = document.getElementById('picker-enter')!;
+          const e = enter.getBoundingClientRect();
+          const s = document.getElementById('picker-start')!.getBoundingClientRect();
+          return { cut: enter.scrollWidth - enter.clientWidth, left: e.left, right: e.right, bottom: e.bottom, top: s.top, start: s.left, vw: document.documentElement.clientWidth };
+        });
+        expect(foot.cut, '오늘 친 라운드 넣기 whole').toBeLessThanOrEqual(1);
+        expect(foot.left).toBeGreaterThanOrEqual(0);
+        expect(foot.right).toBeLessThanOrEqual(foot.vw);
+        // Beside 이 코스로 시작 where both fit, above it where they do not; never on it.
+        expect(foot.bottom <= foot.top + 0.5 || foot.right <= foot.start + 0.5, 'clear of 이 코스로 시작').toBe(true);
+        expect((await page.locator('#picker-enter').boundingBox())!.height).toBeGreaterThanOrEqual(least);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await seedHistory(page, [10, 12]);
+        await showPast(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드').toEqual([]);
+        expect((await page.locator('#hist-enter').boundingBox())!.height).toBeGreaterThanOrEqual(least);
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}

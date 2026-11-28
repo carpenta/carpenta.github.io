@@ -57,19 +57,23 @@ function dataUrl(blob: Blob): Promise<string> {
 /** Resolves once the next frame is painted, so a sheet that has just opened shows before the canvas work starts. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
+/** A round button's circle with its glyph, and under it its word (v49), which the button's name already holds. */
+const dressed = (glyph: string, word: string) => `<span class="ra-ico">${glyph}</span><span class="ra-lbl" aria-hidden="true">${word}</span>`;
+
 /**
  * The round buttons' glyphs, from the one icon family (24px grid, 1.75 line): 공유 wears the share arrow where there is
  * a share sheet and two sheets where it can only copy, with a name to match; 이미지 저장 a tray arrow down; mail an envelope.
+ * v49: each says what it does in a word under its circle (공유 or 복사, 저장, 메일), so it is read without guessing.
  */
 export function dressRoundButtons(share: HTMLElement, save: HTMLElement, mail: HTMLElement): void {
   const kind = shareKind();
   share.hidden = kind === null;
   share.dataset.icon = kind === 'copy' ? 'copy' : 'share';
   share.setAttribute('aria-label', kind === 'copy' ? '결과 복사' : '공유');
-  // Static icon markup from icons.ts, never user input.
-  share.innerHTML = icon(kind === 'copy' ? 'copy' : 'share', 22);
-  save.innerHTML = icon('download', 22);
-  mail.innerHTML = icon('mail', 22);
+  // Static icon markup from icons.ts and fixed words, never user input.
+  share.innerHTML = dressed(icon(kind === 'copy' ? 'copy' : 'share', 22), kind === 'copy' ? '복사' : '공유');
+  save.innerHTML = dressed(icon('download', 22), '저장');
+  mail.innerHTML = dressed(icon('mail', 22), '메일');
 }
 
 export interface RoundShareParts {

@@ -2512,7 +2512,7 @@ bind();
 render();
 // The course picker comes first: with no round, with an untouched one, or with one from an earlier day.
 if (loaded === null || untouched) {
-  openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound });
+  openPicker({ mode: 'first', initial: loadPrefs(), onStart: startRound, onEnter: enterFromFirst });
   showMissing(missingKind());
 }
 else if (stale) {
@@ -2554,6 +2554,7 @@ const lent: Page = {
   scorecard: (r, a) => [...scorecardNodes(r, a, 'read'), totalLine(a)],
   analysis: (a, r) => analysisNodes(a, r.holes.length),
   share: shareReport,
+  addRound: addPastRound,
 };
 // iPhone Safari shows :active only on pages that listen for touches; a passive no-op listener lets every control
 // answer a press (v23) and changes nothing else.
@@ -2562,32 +2563,64 @@ renderHistory($('history'), lent);
 renderBackup($('backup'), lent);
 // A backup saved or shared (v43) changes the menu's 백업과 복원 line.
 $('backup').addEventListener('backup-saved', () => renderNow());
-// 지난 라운드 넣기 (v44): the picker names the course, then the quick entry takes strokes per hole and keeps it.
-$('hist-add').addEventListener('click', () => openPicker({
-  mode: 'new',
-  title: '어디서 쳤나요?',
-  startLabel: '다음',
-  initial: loadPrefs(),
-  onStart: (choice) => openQuickEntry($<HTMLDialogElement>('quick'), {
+
+/** Keeps a round from 넣기 among past rounds; false (said) when it could not be saved. */
+function keepEntered(entered: Round): boolean {
+  if (!saveHistory(withRound(loadHistory(), entered, Date.parse(`${entered.date}T18:00:00`)))) {
+    announce('저장하지 못했어요. 저장 공간을 확인해 주세요');
+    return false;
+  }
+  refreshHistory();
+  // v43's rule applies to an entered round too: ask for a backup only when one is due.
+  const kept = loadHistory().length;
+  const mark = loadBackupMark();
+  const why = shouldAskBackup(kept, mark, localDate());
+  backupNudge = why ? 'ask' : null;
+  nudgeSince = why === 'rounds' && mark ? kept - mark.rounds : 0;
+  return true;
+}
+
+/** 넣기 on `choice`: the quick entry, then `then` once the round is kept. */
+function enterRound(choice: CourseChoice, then: () => void): void {
+  openQuickEntry($<HTMLDialogElement>('quick'), {
     choice,
     kept: (date, name) => loadHistory().some((e) => e.round.date === date && roundCourse(e.round).name === name),
     onSave: (entered) => {
-      if (!saveHistory(withRound(loadHistory(), entered, Date.parse(`${entered.date}T18:00:00`)))) {
-        announce('저장하지 못했어요. 저장 공간을 확인해 주세요');
-        return;
-      }
-      refreshHistory();
-      // v43's rule applies to an entered round too: ask for a backup only when one is due.
-      const kept = loadHistory().length;
-      const mark = loadBackupMark();
-      const why = shouldAskBackup(kept, mark, localDate());
-      backupNudge = why ? 'ask' : null;
-      nudgeSince = why === 'rounds' && mark ? kept - mark.rounds : 0;
+      if (keepEntered(entered)) then();
+    },
+  });
+}
+
+/** 지난 라운드 넣기 (v44): the picker names the course, then the quick entry takes strokes per hole and keeps it. */
+function addPastRound(): void {
+  openPicker({
+    mode: 'new',
+    title: '어디서 쳤나요?',
+    startLabel: '다음',
+    initial: loadPrefs(),
+    onStart: (choice) => enterRound(choice, () => {
       renderNow();
       announce('지난 라운드에 넣었어요');
-    },
-  }),
-}));
+    }),
+  });
+}
+
+/**
+ * v49: 오늘 친 라운드 넣기 on the first screen: 넣기 opens over it on the course chosen there (취소 comes back to it).
+ * Once the round is kept the first screen closes on 지난 라운드, with no round being recorded, as after 보관.
+ */
+function enterFromFirst(choice: CourseChoice): void {
+  enterRound(choice, () => {
+    closePicker();
+    roundless = true;
+    render();
+    show('hist', true);
+    announce('지난 라운드에 넣었어요. 다음 라운드는 코스를 고르고 시작해요');
+  });
+}
+
+// 지난 라운드 넣기 (v44) from the header; v49: also the button as wide as the list, above it (history-view.ts).
+$('hist-add').addEventListener('click', addPastRound);
 bindMissing();
 // The 지난 라운드 header counts the kept rounds; the list changes on keeping, deleting and importing.
 new MutationObserver(() => renderNow()).observe($('history-list'), { childList: true });
