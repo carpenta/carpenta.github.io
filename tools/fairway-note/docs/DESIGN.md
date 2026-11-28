@@ -212,6 +212,26 @@ The UI icons are Tabler Icons 3.52.0 outline SVGs from `vendor/tabler/`: a 24px 
 
 ## UI
 
+### v49: 넣기 hole by hole, holes left empty, words on the round buttons, 넣기 within reach
+
+- **넣기 in order.** A chip moves on to the next hole not entered yet (`nextHole`: after the picked hole, then from
+  hole 1; it stays once every hole is in), so a round goes in from hole 1 in 18 taps. The guide under the chips says
+  so, and under the total "7/18" counts the holes decided ("18홀 중 7홀 넣음" for a screen reader). One function decides
+  the next place, so a second chip per hole (putts) can later come between a hole's strokes and the next hole.
+- **Holes left empty.** A cell is empty (a dashed slot, its par faint), set (its strokes in bold) or 모름 (–). The total
+  counts the set holes only. Saving with empty cells asks once in `#qe-ask`, in the shape of 라운드 마치기's check: as
+  pars, or left empty; 비워 두기 is off when nothing is set, and a round all 모름 is not saved. An empty hole is kept as
+  no strokes (`enteredRound` takes 0, with at least one hole set): it is not finished, so it counts nowhere, as a hole
+  skipped while recording. No field is added; the saved form and the backup file are unchanged.
+- **Round buttons.** Each is its 52px circle and, under it, its word (공유 or 복사, 저장, 메일): the word is part of the
+  button and the button's name is unchanged. 보관 keeps its 52px on the circles' line; under 340px it takes a line of
+  its own under them, since at 200% the three circles are wider than the sheet.
+- **넣기 within reach.** 지난 라운드 starts its list box with 지난 라운드 넣기 as wide as the box (`Page.addRound`); the
+  header's 넣기 stays. The first screen (`'first'` mode, with no way back) has 라운드 넣기, named 지난 라운드 넣기, beside
+  이 코스로 시작 (`PickerOptions.onEnter`): 넣기 opens over the picker on the course chosen there, and once the round is
+  kept the picker closes on 지난 라운드, as after 보관. The two share a row where both fit whole and wrap where they do
+  not, so the nines stay whole where v35 keeps them whole.
+
 ### v48: big text everywhere, sizes in rem, narrow and zoomed screens
 
 - Type: the six size tokens are in rem (`.8125rem` … `3.5rem`), the same pixels as before at the browser's default 16px root and larger where a browser's own text is set larger; no font size is in px (`tests/ui-rules.test.ts`). The root's size is never set.
