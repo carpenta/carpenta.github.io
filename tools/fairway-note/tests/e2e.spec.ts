@@ -9638,3 +9638,45 @@ test.describe('with the browser\'s text at 125% (v48)', () => {
     expect.soft(await layoutFaults(page), '메뉴').toEqual([]);
   });
 });
+
+/* ---------- v49: 넣기 hole by hole from hole 1, with how far it has come ---------- */
+
+/** The progress under the total: "7/18" for the eye, "18홀 중 7홀 넣음" for a screen reader. */
+const qeProgress = (page: Page) => page.locator('#qe-progress > [aria-hidden="true"]');
+
+test('넣기 takes a round hole by hole from hole 1: one chip a hole, 18 taps, the progress counting them (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  await expect(page.locator('#qe-guide')).toHaveText("1번 홀부터 칩을 차례로 누르세요. 파인 홀은 '파'. 넣은 기록은 타수만 남아요.");
+  await expect(qeCell(page, 1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(qeProgress(page)).toHaveText('0/18');
+  await expect(page.locator('#qe-progress .sr-only')).toHaveText('18홀 중 0홀 넣음');
+  // A bogey round: each hole's chip in turn, the next hole picked by itself.
+  const deltas = [1, 0, 1, 0, 2, 1, 0, 1, 1, 0, 1, 1, 0, 1, 2, 0, 1, 1];
+  let taps = 0;
+  for (const [i, d] of deltas.entries()) {
+    await expect(qeCell(page, i + 1)).toHaveAttribute('aria-pressed', 'true');
+    await qeChip(page, d ? `+${d}` : '파').click();
+    taps += 1;
+    await expect(qeProgress(page)).toHaveText(`${i + 1}/18`);
+  }
+  expect(taps).toBe(18);
+  await expect(page.locator('#qe-progress .sr-only')).toHaveText('18홀 중 18홀 넣음');
+  await expect(page.locator('#qe-total')).toHaveText('86타 (+14)');
+  await page.locator('#qe-save').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#history-list > li').first()).toContainText('86타');
+});
+
+test('fixing an earlier hole in 넣기 leads back to where entering stopped (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  for (let i = 0; i < 5; i++) await qeChip(page, '파').click();
+  await expect(qeCell(page, 6)).toHaveAttribute('aria-pressed', 'true');
+  await qeCell(page, 2).click();
+  await qeChip(page, '+1').click();
+  // Hole 3 is in already: the next chip goes to hole 6, the first one still to enter.
+  await expect(qeCell(page, 6)).toHaveAttribute('aria-pressed', 'true');
+  await expect(qeCell(page, 2)).toHaveAttribute('aria-label', /^2번 홀 파 \d, \d+타$/);
+  await expect(qeProgress(page)).toHaveText('5/18');
+});

@@ -2084,6 +2084,9 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 .qe-chip:active { background: var(--fill-press); }
 .qe-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: 10px; }
 .qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
+/* v49: the total, and under it how far entering has come ("7/18"). */
+.qe-sum { min-width: 0; display: grid; gap: 2px; }
+.qe-progress { font-size: var(--t-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 .past-meta, .hist-add { white-space: nowrap; }
 .spark-line .spark-hole { fill: none; stroke: var(--deep); stroke-width: 3.5; stroke-linecap: round; }
 /* 내 코스 (v45): the offer under the summary, the save sheet, the picker's own group and the menu's list. */
