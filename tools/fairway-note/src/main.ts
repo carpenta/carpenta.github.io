@@ -223,6 +223,8 @@ function show(next: View, focusTab = false): void {
   if (changed) hideToast();
   if (changed && view !== 'entry') $(PANEL_ID[view]).scrollTop = 0;
   if (view === 'hist') renderNow();
+  // The nines' tables were drawn while hidden, where nothing measures: open them on the hole being played (v48).
+  if (view === 'card') showCurrentHole($('scorecard'));
   // The browser's bar takes the colour at the top of the view (v32): the course's rough on 기록 (the page's own value),
   // the deep header of 스코어카드 and 지난 라운드 elsewhere.
   THEME?.setAttribute('content', view === 'entry' ? THEME_ROUGH : getComputedStyle($('views')).backgroundColor);
@@ -441,8 +443,20 @@ function bindSwipe(): void {
 /** The captions row under the chips is gone (v10: the notes moved into 홀 안내), so the pills keep the full height. */
 function fitNotes(): void {
   $('entry').style.setProperty('--notes-h', '0px');
+  fitHead();
   fitMeta();
   fitSwitcher();
+}
+
+/**
+ * v48: under 340px the course and the round take a line of their own under the top bar's first row (style.css).
+ * The capsules give that line the room it takes, one line or two, so the card's − stays above the bar.
+ */
+function fitHead(): void {
+  const head = document.querySelector<HTMLElement>('#entry .round-head')!;
+  const own = getComputedStyle(head).gridRowStart === '2';
+  const gap = parseFloat(getComputedStyle(head.parentElement!).rowGap) || 0;
+  $('entry').style.setProperty('--head-h', own ? `${Math.ceil(head.getBoundingClientRect().height + gap)}px` : '0px');
 }
 
 /**
@@ -1357,6 +1371,20 @@ function nineTable(r: Round, a: Analysis, start: number, mode: CardMode): HTMLEl
     h('div', { class: `ct${mode === 'edit' ? ' editing' : ''}` }, labels, ...Array.from({ length: 9 }, (_, k) => column(start + k)), sum));
 }
 
+/**
+ * v48: where a nine's table scrolls sideways (a narrow or zoomed screen, style.css), it opens with the hole being
+ * played in view, between the held labels and the 전반/후반 column. Nothing moves where the table fits.
+ */
+function showCurrentHole(root: HTMLElement): void {
+  for (const table of root.querySelectorAll<HTMLElement>('.ct')) {
+    const cur = table.querySelector<HTMLElement>('.ct-col.cur');
+    if (!cur || table.scrollWidth <= table.clientWidth) continue;
+    const lead = table.querySelector<HTMLElement>('.ct-lbl')!.offsetWidth;
+    const tail = table.querySelector<HTMLElement>('.ct-sum')!.offsetWidth;
+    table.scrollLeft = Math.max(0, Math.min(cur.offsetLeft - lead, cur.offsetLeft + cur.offsetWidth - (table.clientWidth - tail)));
+  }
+}
+
 /** A round's nines as scorecard tables: two, or one for a 9-hole round. */
 function scorecardNodes(r: Round, a: Analysis, mode: CardMode): HTMLElement[] {
   return r.holes.length === 9 ? [nineTable(r, a, 0, mode)] : [nineTable(r, a, 0, mode), nineTable(r, a, 9, mode)];
@@ -1400,6 +1428,7 @@ function renderCard(a: Analysis): void {
   setText($('sum-ob'), String(t.ob));
   setText($('sum-hazard'), String(t.hazard));
   $('scorecard').replaceChildren(...scorecardNodes(round, a, editPar ? 'edit' : 'open'));
+  showCurrentHole($('scorecard'));
   setText($('tot-holes'), `${t.holes}홀`);
   // The total sits in the 전반/후반 column under the subtotals: a bare number like them ("타" is read, not shown), and
   // a dash with no to-par before any hole is recorded, as the empty subtotals above it are blank.
@@ -2449,6 +2478,8 @@ function bind(): void {
   });
   // The bundled font can arrive after the first render (font-display: swap): fit the header again in its widths (v25).
   document.fonts?.addEventListener('loadingdone', () => fitNotes());
+  // The course's own line (v48) grows when the round so far first shows under it, or when a long name wraps.
+  new ResizeObserver(() => fitHead()).observe(document.querySelector('#entry .round-head')!);
   window.addEventListener('resize', () => {
     fitNotes();
     drawCourse();
