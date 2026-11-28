@@ -86,7 +86,15 @@ jobs:
           path: tools/tabula/dist
           if-no-files-found: error
 
+  # The e2e suite (about 400 tests, one at a time) had grown to about 15 of the job's 20 minutes, so it runs in four
+  # shards at once, each on its own runner and still one test at a time. The first shard also runs the unit tests and
+  # uploads the build; assemble waits for all four. To add a shard, add its number to the matrix.
   fairway-note:
+    name: fairway-note (${{ matrix.shard }}/${{ strategy.job-total }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -104,10 +112,12 @@ jobs:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
       - run: bun run test
+        if: matrix.shard == 1
       - run: bun run build
       - run: bunx playwright install --with-deps chromium
-      - run: bun run test:e2e --workers=1
+      - run: bun run test:e2e --workers=1 --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - uses: actions/upload-artifact@v7
+        if: matrix.shard == 1
         with:
           name: fairway-note-dist
           path: tools/fairway-note/dist

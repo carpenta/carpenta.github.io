@@ -297,6 +297,6 @@ bun run test:e2e --workers=1
 
 ## 배포
 
-이 도구는 `carpenta.github.io` 저장소의 `tools/fairway-note/`에 있고, `https://carpenta.github.io/tools/fairway-note/`로 서비스됩니다. 저장소 루트의 `.github/workflows/pages.yml`이 테스트와 빌드를 실행한 뒤 사이트와 함께 배포합니다. `base: './'`이므로 하위 경로에서 그대로 동작합니다.
+이 도구는 `carpenta.github.io` 저장소의 `tools/fairway-note/`에 있고, `https://carpenta.github.io/tools/fairway-note/`로 서비스됩니다. 저장소 루트의 `.github/workflows/pages.yml`이 테스트와 빌드를 실행한 뒤 사이트와 함께 배포합니다. CI에서 e2e는 네 조각(`--shard=1/4`…`4/4`)으로 나뉘어 네 러너에서 동시에 돌고(조각마다 시험은 하나씩), 단위 테스트와 빌드 결과 올리기는 첫 조각이 맡습니다. 넷이 모두 통과해야 합치기와 배포로 갑니다. 실패한 조각은 로컬에서 같은 `--shard`를 붙여 다시 돌립니다(`bun run test:e2e --workers=1 --shard=2/4`). `base: './'`이므로 하위 경로에서 그대로 동작합니다.
 
 설계는 [docs/DESIGN.md](docs/DESIGN.md), 의존성은 [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)를 참조하세요.
