@@ -4020,7 +4020,12 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [
       within1px((await spanOf(page, '#history-list .past-where')).x, tiles[0].x, 'course');
       within1px(endOf(await spanOf(page, '#history-list .past-score')), endOf(tiles[1]), 'score');
       within1px(endOf(await spanOf(page, '#history-list .past-meta')), endOf(tiles[1]), 'holes and putts');
-      within1px(tiles[0].y - card.y, tiles[0].x - card.x, 'top inset');
+      // v49: the card's first line is 지난 라운드 넣기, as wide as the tiles, with the tiles 12px under it.
+      const enter = await spanOf(page, '#hist-enter');
+      within1px(enter.y - card.y, tiles[0].x - card.x, 'top inset');
+      within1px(enter.x, tiles[0].x, '지난 라운드 넣기, left');
+      within1px(endOf(enter), endOf(tiles[1]), '지난 라운드 넣기, right');
+      within1px(tiles[0].y - (enter.y + enter.height), 12, 'tiles under 지난 라운드 넣기');
       // 지금 라운드 puts its score on the title's baseline, as each row below does.
       within1px(await baselineOf(page, '#now-score'), await baselineOf(page, '#now-title'), '지금 라운드 score');
       within1px(await baselineOf(page, '#history-list .past-score'), await baselineOf(page, '#history-list .past-when'), 'row score');
@@ -4057,7 +4062,8 @@ for (const [width, height] of [[360, 640], [375, 667], [390, 844], [320, 568], [
       within1px((await spanOf(page, '#picker-label')).x, text, 'course name');
       within1px(endOf(await spanOf(page, '#picker-len')), endOf(list) - inset, '18홀/9홀');
       const start = await spanOf(page, '#picker-start');
-      within1px(start.x, text, 'start, left');
+      // v49: on the first screen 라운드 넣기 comes first in the start row (on a line of its own where the two do not fit).
+      within1px((await spanOf(page, '#picker-enter')).x, text, '라운드 넣기, left');
       within1px(endOf(start), endOf(list) - inset, 'start, right');
       // 전반 and 후반 (새별, 레이크, 파인) as one grid: three equal columns, the 후반 row under the 전반 row, ending on the edge.
       const nines = await spansOf(page, '#picker-chosen .nine-pick button');
@@ -9900,6 +9906,132 @@ for (const [width, height] of [[360, 640], [320, 568], [277, 569], [195, 422]] a
         await expect(page.locator('#past')).toBeVisible();
         await settled(page);
         expect.soft(await layoutFaults(page), '지난 라운드 하나').toEqual([]);
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}
+
+/* ---------- v49: 넣기 within the thumb's reach, as wide as the screen, in 지난 라운드 and on the first screen ---------- */
+
+/** A box's content edges: its own box less its padding. */
+const contentOf = (page: Page, selector: string) => page.locator(selector).evaluate((el) => {
+  const r = el.getBoundingClientRect();
+  const s = getComputedStyle(el);
+  return { left: r.left + parseFloat(s.paddingLeft), right: r.right - parseFloat(s.paddingRight) };
+});
+
+test('지난 라운드 has 지난 라운드 넣기 as a button as wide as its box, above the list, and it opens 넣기 (v49)', async ({ page }) => {
+  await open(page);
+  await seedHistory(page, [3, 5]);
+  await showPast(page);
+  const enter = page.locator('#hist-enter');
+  await expect(enter).toBeVisible();
+  await expect(enter).toHaveText('지난 라운드 넣기');
+  // The top right's 넣기 stays too.
+  await expect(page.locator('#hist-add')).toBeVisible();
+  const box = (await enter.boundingBox())!;
+  const inner = await contentOf(page, '#history');
+  within1px(box.x, inner.left, 'from the box\'s left edge');
+  within1px(box.x + box.width, inner.right, 'to its right edge');
+  expect(box.height).toBeGreaterThanOrEqual(48);
+  // First in the box (its heading is the view's own), above the trends and the rounds.
+  const trends = (await page.locator('#history-trends').boundingBox())!;
+  const list = (await page.locator('#history-list').boundingBox())!;
+  expect(box.y + box.height).toBeLessThan(trends.y + 1);
+  expect(box.y + box.height).toBeLessThan(list.y + 1);
+  await enter.click();
+  await expect(page.locator('#picker-title')).toHaveText('어디서 쳤나요?');
+  await page.getByRole('button', { name: '다음' }).click();
+  await expect(page.locator('#quick')).toBeVisible();
+});
+
+test('the first screen offers 오늘 친 라운드 넣기 over 이 코스로 시작: 넣기 on the course chosen there, 20 taps for 18 holes, then 지난 라운드 (v49)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#picker')).toBeVisible();
+  const enter = page.locator('#picker-enter');
+  const start = page.locator('#picker-start');
+  await expect(enter).toBeVisible();
+  await expect(enter).toHaveText('라운드 넣기');
+  await expect(enter).toHaveAccessibleName('지난 라운드 넣기');
+  const e = (await enter.boundingBox())!;
+  const s = (await start.boundingBox())!;
+  // Beside 이 코스로 시작, 8px before it, one height, the two from the foot's left content edge to its right, both in the
+  // lower half where a thumb reaches.
+  within1px(e.y, s.y, 'one line');
+  within1px(e.height, s.height, 'one height');
+  within1px(s.x - (e.x + e.width), 8, '8px between');
+  const inner = await contentOf(page, '.picker-foot');
+  within1px(e.x, inner.left, 'from the left edge');
+  within1px(s.x + s.width, inner.right, 'to the right edge');
+  expect(e.height).toBeGreaterThanOrEqual(48);
+  const viewport = page.viewportSize()!;
+  expect(e.y).toBeGreaterThanOrEqual(viewport.height / 2);
+  // 취소 in 넣기 comes back to the first screen.
+  await enter.click();
+  await expect(page.locator('#quick')).toBeVisible();
+  await expect(page.locator('#quick .qe-head p')).toHaveText('에버리스 골프리조트 · 새별·레이크');
+  await page.locator('#qe-cancel').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#picker')).toBeVisible();
+  // A round in 20 taps: this button, a chip a hole, 저장.
+  let taps = 0;
+  await enter.click();
+  taps += 1;
+  for (let i = 0; i < 18; i++) {
+    await qeChip(page, '+1').click();
+    taps += 1;
+  }
+  await page.locator('#qe-save').click();
+  taps += 1;
+  expect(taps).toBe(20);
+  await expect(page.locator('#quick')).toBeHidden();
+  await expect(page.locator('#picker')).toBeHidden();
+  await expect(page.locator('#hist-view')).toBeVisible();
+  await expect(page.locator('#history-list > li')).toHaveCount(1);
+  await expect(page.locator('#history-list > li').first()).toContainText('90타');
+  await expect(page.locator('#now-continue')).toHaveText('코스 고르고 시작');
+  // Starting a new round from the menu offers no such button: there is a round to replace.
+  await menu(page, '새 라운드');
+  await page.locator('#new-round').click();
+  await expect(page.locator('#picker')).toBeVisible();
+  await expect(enter).toBeHidden();
+});
+
+// The two buttons on the sizes v48 checks, with 큰 글씨 on and off.
+for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.3], [195, 422, 2]] as const) {
+  test.describe(`넣기's ways in on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const least = Math.floor(48 / zoom);
+
+    for (const big of [false, true]) {
+      test(`the first screen and 지난 라운드 fit their 넣기 buttons${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await expect(page.locator('#picker')).toBeVisible();
+        await settled(page);
+        // Under 340px the whole screen (v48's check). From 340px a list row's second line ends in "…" by design (v23),
+        // so there the new button itself: whole words, on the screen, clear of 이 코스로 시작.
+        if (width < 340) expect.soft(await layoutFaults(page), '코스 선택').toEqual([]);
+        const foot = await page.evaluate(() => {
+          const enter = document.getElementById('picker-enter')!;
+          const e = enter.getBoundingClientRect();
+          const s = document.getElementById('picker-start')!.getBoundingClientRect();
+          return { cut: enter.scrollWidth - enter.clientWidth, left: e.left, right: e.right, bottom: e.bottom, top: s.top, start: s.left, vw: document.documentElement.clientWidth };
+        });
+        expect(foot.cut, '오늘 친 라운드 넣기 whole').toBeLessThanOrEqual(1);
+        expect(foot.left).toBeGreaterThanOrEqual(0);
+        expect(foot.right).toBeLessThanOrEqual(foot.vw);
+        // Beside 이 코스로 시작 where both fit, above it where they do not; never on it.
+        expect(foot.bottom <= foot.top + 0.5 || foot.right <= foot.start + 0.5, 'clear of 이 코스로 시작').toBe(true);
+        expect((await page.locator('#picker-enter').boundingBox())!.height).toBeGreaterThanOrEqual(least);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await seedHistory(page, [10, 12]);
+        await showPast(page);
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드').toEqual([]);
+        expect((await page.locator('#hist-enter').boundingBox())!.height).toBeGreaterThanOrEqual(least);
         expect(await sideScroll(page)).toBe(0);
       });
     }

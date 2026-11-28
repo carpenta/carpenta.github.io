@@ -31,6 +31,8 @@ export interface Page {
   analysis(a: Analysis, round: Round): (Node | string)[];
   /** Shares a round's report as text or copies it, writing the outcome into `status`. */
   share(round: Round, status: HTMLElement): Promise<void>;
+  /** v49: 지난 라운드 넣기, given where the list shows it as a button as wide as its box, above the rounds. */
+  addRound?(): void;
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -335,6 +337,10 @@ export function renderHistory(container: HTMLElement, p: Page): void {
     status: h('p', { id: 'history-status', class: 'muted small', role: 'status' }),
   };
   container.setAttribute('aria-labelledby', 'history-title');
-  container.replaceChildren(h('h2', { id: 'history-title' }, '지난 라운드'), view.note, view.trends, view.list, view.empty, view.status);
+  // v49: 지난 라운드 넣기 as wide as the box, first under its heading, in the thumb's reach (the header's 넣기 stays).
+  const add = p.addRound;
+  const enter = add ? h('button', { type: 'button', id: 'hist-enter', class: 'btn hist-enter' }, '지난 라운드 넣기') : null;
+  enter?.addEventListener('click', () => add?.());
+  container.replaceChildren(h('h2', { id: 'history-title' }, '지난 라운드'), ...(enter ? [enter] : []), view.note, view.trends, view.list, view.empty, view.status);
   refreshHistory();
 }

@@ -31,12 +31,18 @@ export interface PickerOptions {
   startLabel?: string;
   /** Fixes the number of holes and hides 18홀/9홀, e.g. when a round moves to another course and keeps its holes. */
   holes?: 9 | 18;
+  /**
+   * v49: shows 오늘 친 라운드 넣기 over the start button, which hands the chosen course over without closing the picker
+   * (넣기 opens over it; the caller closes the picker once the round is kept). Given on the first screen only.
+   */
+  onEnter?: (choice: CourseChoice) => void;
 }
 
 let choice: CourseChoice = resolveChoice(null);
 let area: string | null = null;
 let onStart: PickerOptions['onStart'] = () => undefined;
 let onCancel: PickerOptions['onCancel'];
+let onEnter: PickerOptions['onEnter'];
 let mode: PickerOptions['mode'] = 'first';
 let bound = false;
 
@@ -56,6 +62,7 @@ export function openPicker(options: PickerOptions): void {
   mode = options.mode;
   onStart = options.onStart;
   onCancel = options.onCancel;
+  onEnter = options.onEnter;
   choice = withHoles(resolveChoice(options.initial), options.holes ?? (options.initial?.holes === 9 ? 9 : 18));
   // 내 코스 (v45): a name typed last time that is now a kept course comes back as that course, with its pars.
   const typed = choice.course === null && !choice.mine ? (choice.name ?? '').trim() : '';
@@ -75,6 +82,7 @@ export function openPicker(options: PickerOptions): void {
   // The first visit says what the app is not: no sign-up, records only on this phone.
   $('picker-first').hidden = mode !== 'first';
   $('picker-start').textContent = options.startLabel ?? '이 코스로 시작';
+  $('picker-enter').hidden = onEnter === undefined;
   renderAreas();
   renderList();
   renderChosen();
@@ -168,6 +176,12 @@ function bind(): void {
     if (chosen.course === null) chosen.name = (chosen.name ?? '').trim().slice(0, MAX_CUSTOM_NAME);
     dialog().close();
     onStart(chosen);
+  });
+  // v49: the chosen course, resolved as 이 코스로 시작 resolves it, handed to 넣기 over the picker.
+  $('picker-enter').addEventListener('click', () => {
+    const chosen = resolveChoice(choice);
+    if (chosen.course === null) chosen.name = (chosen.name ?? '').trim().slice(0, MAX_CUSTOM_NAME);
+    onEnter?.(chosen);
   });
   $('picker-cancel').addEventListener('click', () => {
     dialog().close();

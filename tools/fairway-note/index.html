@@ -608,7 +608,12 @@
           </div>
           <div id="picker-chosen" class="picker-chosen"></div>
         </div>
-        <button id="picker-start" class="btn primary" type="button">이 코스로 시작</button>
+        <!-- v49: on the first screen only, 라운드 넣기 before 이 코스로 시작: a round already played goes straight into 넣기
+             on the course chosen here. Side by side where both fit whole, 라운드 넣기 on a line of its own above where not. -->
+        <div class="pk-actions">
+          <button id="picker-enter" class="btn" type="button" aria-label="지난 라운드 넣기" hidden>라운드 넣기</button>
+          <button id="picker-start" class="btn primary" type="button">이 코스로 시작</button>
+        </div>
       </div>
     </dialog>
 

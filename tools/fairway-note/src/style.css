@@ -735,6 +735,8 @@ body.big .legend { --lg-col: 100px; }
 .topar { display: inline-grid; place-items: center; min-width: 44px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: var(--r-ctl); background: var(--fill); font-size: var(--t-s); font-weight: var(--w-value); vertical-align: middle; }
 .topar.score-eagle, .topar.score-birdie { background: var(--red-tint); color: var(--red-ink); }
 .history-trends { margin: 8px 0 12px; }
+/* v49: 지난 라운드 넣기 as wide as the list's box, first in it, where a thumb reaches (the header's 넣기 stays). */
+.hist-enter { display: block; width: 100%; margin: 0 0 12px; }
 .history-trends .metrics { margin: 0; }
 .trend-note { margin: 8px 0 0; }
 .spark { display: grid; gap: 2px; margin-top: 10px; }
@@ -1036,7 +1038,12 @@ button.mi:active { background: var(--fill-2); }
 .nine-pick button[aria-checked='true'] { background: var(--turf); color: var(--on-dark); }
 .nine-fixed { min-width: 0; font-size: var(--t-m); font-weight: var(--w-label); }
 .nine-row .swap { min-height: 44px; padding: 0 14px; font-size: var(--t-m); }
-.picker-foot > .btn { flex: none; min-height: 52px; font-size: var(--t-l); }
+/* v49: 이 코스로 시작 in a row with, on the first screen, 라운드 넣기 before it: side by side where both fit whole (each
+   its words' width or more), 라운드 넣기 on a line of its own above where they do not (320px, 큰 글씨), so the nines stay
+   whole on the phones v35 keeps them whole on and 이 코스로 시작 stays at the foot's bottom. */
+.pk-actions { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.pk-actions > .btn { flex: 1 0 auto; min-height: 52px; font-size: var(--t-l); }
+.pk-actions > [hidden] { display: none; }
 /* Under 600px tall the first row takes 18px more than v34's title line did: the gaps give it back, so the list keeps
    its row and a half and the sheet its nines whole. */
 @media (max-height: 599px) {
