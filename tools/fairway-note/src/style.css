@@ -2113,10 +2113,16 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 /* The question before saving with cells not pressed (v49): 라운드 마치기's check sheet, with a line when 비워 두기 cannot be. */
 .qa-none { margin-top: 10px; font-size: var(--t-m); color: var(--muted); }
 .check-actions button:disabled { color: var(--off-ink); outline-color: var(--off-ink); }
-.qe-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: 10px; }
+/* v49: the total keeps its own width with any font. In a grid column that could give way, Linux's wider letters ran it
+   onto 취소 at 200% in 큰 글씨. A wrapping row instead: 취소 and 저장 sit beside the total while the three fit, else go
+   under it together. The total's grow, far above theirs, gives it a line's room first, and alone on their own line the
+   two buttons share it. */
+.qe-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
 /* v49: the total, and under it how far entering has come ("7/18"). */
-.qe-sum { min-width: 0; display: grid; gap: 2px; }
+.qe-sum { flex: 1000 1 auto; min-width: 0; display: grid; gap: 2px; }
+.qe-acts { flex: 1 0 auto; display: flex; gap: 8px; }
+.qe-acts > .btn { flex: 1 0 auto; }
 .qe-progress { font-size: var(--t-s); color: var(--muted); font-variant-numeric: tabular-nums; }
 .past-meta, .hist-add { white-space: nowrap; }
 .spark-line .spark-hole { fill: none; stroke: var(--deep); stroke-width: 3.5; stroke-linecap: round; }

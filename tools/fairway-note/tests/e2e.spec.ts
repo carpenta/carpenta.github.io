@@ -9866,6 +9866,83 @@ for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.
   });
 }
 
+// v49: the total keeps its own width with any font. On CI's Linux Chromium "5타 (+1)" came out wider than on the Mac
+// and ran onto 취소 at 200% in 큰 글씨: the total's column gave way under its words. Wider letters and other fonts stand
+// in for Linux's and Android's (as above), and the longest total, every hole at +7, is the hardest case. Where the three
+// do not fit side by side, 취소 and 저장 go under the total together and share that row.
+for (const [width, height] of [[360, 640], [320, 568], [277, 569], [195, 422]] as const) {
+  test.describe(`넣기's total and buttons on a ${width}×${height} screen, with wider type too (v49)`, () => {
+    // Only to add the widening styles: the page's own CSP blocks injected styles.
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, bypassCSP: true });
+
+    for (const big of [false, true]) {
+      test(`the total never lies on 취소 or 저장, and the two stay side by side${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        type Box = { left: number; top: number; right: number; bottom: number };
+        /** How far, in px, words run across a button they share a line with (0 when clear). */
+        const across = (a: Box, b: Box) => (Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5 ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) : 0);
+        /** Checks the foot and says whether the buttons sit beside the total (or under it). */
+        const check = async (where: string) => {
+          await settled(page);
+          const m = await page.locator('#quick .qe-foot').evaluate((foot) => {
+            const box = (el: Element) => (({ left, top, right, bottom }) => ({ left, top, right, bottom }))(el.getBoundingClientRect());
+            const range = document.createRange();
+            range.selectNodeContents(foot.querySelector('#qe-total')!);
+            const words = [...range.getClientRects()].filter((r) => r.width >= 1).map(({ left, top, right, bottom }) => ({ left, top, right, bottom }));
+            return { foot: box(foot), sum: box(foot.querySelector('.qe-sum')!), words, cancel: box(foot.querySelector('#qe-cancel')!), save: box(foot.querySelector('#qe-save')!) };
+          });
+          for (const w of m.words) {
+            expect(across(w, m.cancel), `${where}: the total runs onto 취소 (px)`).toBeLessThanOrEqual(0.5);
+            expect(across(w, m.save), `${where}: the total runs onto 저장 (px)`).toBeLessThanOrEqual(0.5);
+            expect(w.left, `${where}: the total inside the foot`).toBeGreaterThanOrEqual(m.foot.left - 0.5);
+            expect(w.right, `${where}: the total inside the foot`).toBeLessThanOrEqual(m.foot.right + 0.5);
+          }
+          within1px(m.save.top, m.cancel.top, `${where}: 취소 and 저장 on one row`);
+          within1px(m.save.left - m.cancel.right, 8, `${where}: 8px between 취소 and 저장`);
+          within1px(m.save.right, m.foot.right, `${where}: 저장 at the foot's right edge`);
+          const beside = m.cancel.top < m.sum.bottom;
+          if (beside) {
+            expect(m.cancel.left, `${where}: 취소 8px clear of the total`).toBeGreaterThanOrEqual(Math.max(...m.words.map((w) => w.right)) + 8 - 1);
+          } else {
+            within1px(m.cancel.top - m.sum.bottom, 8, `${where}: the buttons 8px under the total`);
+            within1px(m.cancel.left, m.foot.left, `${where}: under the total, the buttons from the foot's left edge`);
+          }
+          expect.soft((await layoutFaults(page)).filter((f) => /qe-cancel|qe-save|타 \(/.test(f)), where).toEqual([]);
+          expect(await sideScroll(page), where).toBe(0);
+          return beside;
+        };
+        const styled = async (what: string) => {
+          for (const style of [WIDER, OTHER_TYPE]) {
+            const added = await page.addStyleTag({ content: style });
+            await check(`${what}, ${style === WIDER ? 'wider' : 'other fonts'}`);
+            await added.evaluate((el) => el.remove());
+          }
+        };
+        // The total CI drew too wide: +1 on hole 1, 모름 on hole 2.
+        await openQuickEntry(page);
+        await qeChip(page, '+1').click();
+        await qeChip(page, '모름').click();
+        await expect(page.locator('#qe-total')).toHaveText(/^\d+타 \(\+1\)$/);
+        const beside = await check('+1');
+        // With room, the buttons stay beside the total, as before.
+        if (width >= 320 && !big) expect(beside, 'beside the total where there is room').toBe(true);
+        await styled('+1');
+        // The longest total: every hole at +7.
+        await page.locator('#qe-cancel').click();
+        await expect(page.locator('#quick')).toBeHidden();
+        await openQuickEntry(page);
+        for (let i = 0; i < 18; i++) await qeChip(page, '+7').click();
+        await expect(page.locator('#qe-total')).toHaveText(/^\d+타 \(\+126\)$/);
+        await check('every hole +7');
+        await styled('every hole +7');
+      });
+    }
+  });
+}
+
 /* ---------- v49: the round buttons say what they do ---------- */
 
 test('the round buttons of the summary and of a past round say 공유, 저장 and 메일 under their circles, and 보관 stays as it was (v49)', async ({ page }) => {

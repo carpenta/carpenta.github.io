@@ -218,6 +218,9 @@ The UI icons are Tabler Icons 3.52.0 outline SVGs from `vendor/tabler/`: a 24px 
   hole 1; it stays once every hole is in), so a round goes in from hole 1 in 18 taps. The guide under the chips says
   so, and under the total "7/18" counts the holes decided ("18홀 중 7홀 넣음" for a screen reader). One function decides
   the next place, so a second chip per hole (putts) can later come between a hole's strokes and the next hole.
+  The foot is a wrapping row, so the total keeps its own width whatever the font: 취소 and 저장, together in
+  `.qe-acts`, sit beside it while the three fit and otherwise go under it and share that line (the total's flex-grow,
+  far above theirs, gives it a line's room first).
 - **Holes left empty.** A cell is empty (a dashed slot, its par faint), set (its strokes in bold) or 모름 (–). The total
   counts the set holes only. Saving with empty cells asks once in `#qe-ask`, in the shape of 라운드 마치기's check: as
   pars, or left empty; 비워 두기 is off when nothing is set, and a round all 모름 is not saved. An empty hole is kept as

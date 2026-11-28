@@ -181,7 +181,8 @@ export function openQuickEntry(dialog: HTMLDialogElement, q: QuickEntry): void {
     chips,
     h('p', { id: 'qe-guide', class: 'muted small' }, "1번 홀부터 칩을 차례로 누르세요. 파인 홀은 '파'. 넣은 기록은 타수만 남아요."),
     none,
-    h('div', { class: 'qe-foot' }, h('div', { class: 'qe-sum' }, total, progress), cancel, save),
+    // v49: 취소 and 저장 kept together, beside the total or, where the three do not fit, under it (style.css).
+    h('div', { class: 'qe-foot' }, h('div', { class: 'qe-sum' }, total, progress), h('div', { class: 'qe-acts' }, cancel, save)),
   );
   draw();
   dialog.showModal();
