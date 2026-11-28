@@ -2079,9 +2079,21 @@ body .picker .course[aria-pressed='true'] span { color: var(--on-glass-soft); }
 .qe-cell .qe-no, .qe-cell .qe-d { font-size: var(--t-s); font-weight: var(--w-help); }
 .qe-cell.off { color: var(--ink); }
 .qe-cell[aria-pressed='true'] { box-shadow: var(--chosen-edge); }
-.qe-chips { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+/* v49: a cell not pressed yet is an empty slot, its par faint on a dashed edge, the strokes line kept so nothing moves
+   when a chip fills it; a pressed one holds its strokes in ink; 모름 holds a quiet –. */
+.qe-cell b { min-height: 1.25em; line-height: 1.25; color: var(--ink); }
+.qe-cell.empty { background: none; outline: 1px dashed var(--off-ink); outline-offset: -1px; }
+.qe-cell.unknown b { color: var(--muted); }
+.qe-chips { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
 .qe-chip { min-height: 48px; border: 0; border-radius: var(--r-ctl); background: var(--fill-2); color: var(--ink); font: inherit; font-size: var(--t-m); font-weight: var(--w-label); }
 .qe-chip:active { background: var(--fill-press); }
+/* v49: 모름 after the counts, two columns wide: six columns in two rows from 350px, four in three rows under it, so a
+   chip stays 48px or more on a phone (half that at 200%). */
+.qe-chip.qe-unknown { grid-column: span 2; color: var(--muted); }
+@media (max-width: 349px) { .qe-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* The question before saving with cells not pressed (v49): 라운드 마치기's check sheet, with a line when 비워 두기 cannot be. */
+.qa-none { margin-top: 10px; font-size: var(--t-m); color: var(--muted); }
+.check-actions button:disabled { color: var(--off-ink); outline-color: var(--off-ink); }
 .qe-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: 10px; }
 .qe-total { font-size: var(--t-l); font-weight: var(--w-value); }
 /* v49: the total, and under it how far entering has come ("7/18"). */

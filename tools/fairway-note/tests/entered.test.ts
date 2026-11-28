@@ -34,9 +34,65 @@ describe('an entered round (v44)', () => {
     expect(analyze(enteredRound('2026-11-20', setup, [...COURSE_PARS])).toPar).toBe(0);
   });
 
-  it('refuses strokes that do not fit the course: a wrong count of holes, or a hole under one stroke', () => {
+  it('refuses strokes that do not fit the course: a wrong count of holes, a hole under 0 or over 15, or no hole at all (v49: 0 is a hole left empty)', () => {
     expect(() => enteredRound('2026-11-20', setup, bogeyGolf.slice(0, 17))).toThrow();
-    expect(() => enteredRound('2026-11-20', setup, [0, ...bogeyGolf.slice(1)])).toThrow();
+    expect(() => enteredRound('2026-11-20', setup, [-1, ...bogeyGolf.slice(1)])).toThrow();
+    expect(() => enteredRound('2026-11-20', setup, [16, ...bogeyGolf.slice(1)])).toThrow();
+    expect(() => enteredRound('2026-11-20', setup, [1.5, ...bogeyGolf.slice(1)])).toThrow();
+    expect(() => enteredRound('2026-11-20', setup, bogeyGolf.map(() => 0))).toThrow();
+    expect(() => enteredRound('2026-11-20', setup, [0, ...bogeyGolf.slice(1)])).not.toThrow();
+  });
+});
+
+// v49: a hole not remembered is left empty: 0 strokes, so it is not finished and counts nowhere, as a hole skipped while
+// recording. The saved form is the same; no field is added.
+describe('an entered round with holes left empty (v49)', () => {
+  // Holes 3 and 10 left empty: 16 holes of bogey golf.
+  const strokes = bogeyGolf.map((n, i) => (i === 2 || i === 9 ? 0 : n));
+  const r = enteredRound('2026-11-20', setup, strokes);
+  const par16 = COURSE_PARS.reduce((s, p, i) => (i === 2 || i === 9 ? s : s + p), 0);
+
+  it('keeps an empty hole as no strokes, not finished, and the round as it is saved', () => {
+    expect(r.holes[2]).toMatchObject({ par: COURSE_PARS[2], driver: 0, approach: 0, putts: 0, ob: 0, hazard: 0 });
+    expect(finished(r, 2)).toBe(false);
+    expect(finished(r, 9)).toBe(false);
+    expect(r.holes.filter((_, i) => finished(r, i))).toHaveLength(16);
+    expect(parseRound(JSON.stringify(r))).toEqual(r);
+  });
+
+  it('counts the 16 holes only in its totals', () => {
+    const a = analyze(r);
+    expect(a.totals.holes).toBe(16);
+    expect(a.totals.strokes).toBe(par16 + 16);
+    expect(a.totals.par).toBe(par16);
+  });
+
+  it('leaves the empty holes out of the shared text and the analysis text, and says 16 of 18', async () => {
+    const { reportText, analysisText } = await import('../src/report');
+    const text = reportText(r);
+    expect(text).toContain(`총 ${par16 + 16}타 (+16) · 16/18홀`);
+    expect(text).not.toMatch(/^3번 Par/m);
+    expect(text).not.toMatch(/^10번 Par/m);
+    expect(text).toContain(`4번 Par${COURSE_PARS[3]}: ${COURSE_PARS[3] + 1}타 (+1)`);
+    const analysis = analysisText(r);
+    expect(analysis).toContain('기록한 홀: 16/18');
+    expect(analysis).toContain(`3 | ${COURSE_PARS[2]} | 기록 없음`);
+  });
+
+  it('draws the share card with the empty holes blank and the nines over the holes entered', async () => {
+    const { shareCardContent } = await import('../src/share-card');
+    const c = shareCardContent(r);
+    const holes = c.scorecard.flatMap((n) => n.holes);
+    expect(holes[2]).toMatchObject({ hole: 3, score: null, putts: null, mark: null });
+    expect(holes[9]).toMatchObject({ hole: 10, score: null });
+    expect(holes.filter((x) => x.score !== null)).toHaveLength(16);
+    expect(c.total).toBe(String(par16 + 16));
+  });
+
+  it('writes no CSV row for an empty hole', () => {
+    const entry: Entry = { id: 'e', endedAt: 1, round: r };
+    const rows = historyCsv([entry]).trim().split('\r\n');
+    expect(rows).toHaveLength(1 + 16);
   });
 });
 

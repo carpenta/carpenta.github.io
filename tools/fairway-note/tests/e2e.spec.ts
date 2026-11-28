@@ -8808,9 +8808,9 @@ async function openQuickEntry(page: Page) {
 test('지난 라운드 넣기 keeps a past round from chips on the off-par holes, marked as entered (v44)', async ({ page }) => {
   await open(page);
   await openQuickEntry(page);
-  // Every cell starts at its par; the date is today at most.
+  // Every cell starts empty (v49: not taken for a par), so the total starts at 0; the date is today at most.
   await expect(page.locator('#quick .qe-cell')).toHaveCount(18);
-  await expect(page.locator('#qe-total')).toHaveText(/^72타 \(E\)$/);
+  await expect(page.locator('#qe-total')).toHaveText('0타');
   const today = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
   await expect(page.locator('#qe-date')).toHaveAttribute('max', today);
   await page.locator('#qe-date').fill('2026-11-01');
@@ -8827,8 +8827,11 @@ test('지난 라운드 넣기 keeps a past round from chips on the off-par holes
     taps += 2;
   }
   expect(taps).toBeLessThanOrEqual(30);
-  await expect(page.locator('#qe-total')).toHaveText('85타 (+13)');
+  await expect(qeProgress(page)).toHaveText('11/18');
+  // v49: the seven cells not pressed are asked about once; as pars, the round is the same 85.
   await page.locator('#qe-save').click();
+  await expect(page.locator('#qa-sub')).toHaveText('3·6·8·10·12·15·17번 홀을 파로 저장할까요, 비워 둘까요?');
+  await page.locator('#qa-par').click();
   await expect(page.locator('#quick')).toBeHidden();
   const first = page.locator('#history-list > li').first();
   await expect(first).toContainText('85타');
@@ -8849,7 +8852,8 @@ test('a cell picked again moves on to the next, 파 puts it back, and the screen
   await expect(qeCell(page, 2)).toHaveAttribute('aria-pressed', 'true');
   await qeCell(page, 1).click();
   await page.locator('#quick .qe-chip', { hasText: '파' }).click();
-  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
+  // v49: the total counts the holes entered, hole 1 alone now, at its par.
+  await expect(page.locator('#qe-total')).toHaveText('4타 (E)');
   expect(await sideScroll(page)).toBe(0);
 });
 
@@ -8986,8 +8990,9 @@ test('내 코스 fills 지난 라운드 넣기, is deleted from the course picke
   await page.locator('#hist-add').click();
   await page.locator('#picker-list button.mine', { hasText: '동네 골프장' }).click();
   await page.getByRole('button', { name: '다음' }).click();
-  await expect(page.locator('#qe-total')).toHaveText('72타 (E)');
-  expect(await page.locator('#quick .qe-cell').evaluateAll((cells) => cells.map((c) => Number(c.querySelector('b')!.textContent)))).toEqual(MY_PARS);
+  // v49: each cell, empty until a chip, says its par ("파 4") on its small line.
+  await expect(page.locator('#qe-total')).toHaveText('0타');
+  expect(await page.locator('#quick .qe-cell').evaluateAll((cells) => cells.map((c) => Number(c.querySelector('.qe-d')!.textContent!.replace('파 ', ''))))).toEqual(MY_PARS);
   await page.locator('#qe-cancel').click();
   // The backup file carries it.
   await showBackup(page);
@@ -9163,8 +9168,10 @@ test('지난 라운드 넣기 takes an eagle and a double par, and the round add
   await qeChip(page, '+4').click();
   await expect(qeCell(page, 3)).toHaveAttribute('aria-label', '3번 홀 파 5, 3타');
   await expect(qeCell(page, 1)).toHaveAttribute('aria-label', '1번 홀 파 4, 8타');
-  await expect(page.locator('#qe-total')).toHaveText('74타 (+2)');
+  // v49: the total counts the two holes entered; the sixteen not pressed are kept as pars, asked once.
+  await expect(page.locator('#qe-total')).toHaveText('11타 (+2)');
   await page.locator('#qe-save').click();
+  await page.locator('#qa-par').click();
   const first = page.locator('#history-list > li').first();
   await expect(first).toContainText('74타');
   await first.locator('button').first().click();
@@ -9195,7 +9202,8 @@ test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px un
   await openQuickEntry(page);
   await atRest(page);
   const chips = page.locator('#quick .qe-chip');
-  await expect(chips).toHaveText(['−2', '−1', '파', '+1', '+2', '+3', '+4', '+5', '+6', '+7']);
+  // v49: 모름 after them, two columns wide, still in the two rows at 360px.
+  await expect(chips).toHaveText(['−2', '−1', '파', '+1', '+2', '+3', '+4', '+5', '+6', '+7', '– 모름']);
   expect(await sideScroll(page)).toBe(0);
   const boxes = await chips.evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, width: b.width, height: b.height }; }));
   expect(new Set(boxes.map((b) => Math.round(b.top))).size, 'two rows').toBe(2);
@@ -9215,7 +9223,8 @@ test('the quick entry\'s chips run from −2 to +7 in two rows that fit 360px un
   await qeChip(page, '+7').click();
   await expect(qeCell(page, 4)).toHaveAttribute('aria-label', '4번 홀 파 3, 6타');
   await expect(qeCell(page, 7)).toHaveAttribute('aria-label', '7번 홀 파 3, 10타');
-  await expect(page.locator('#qe-total')).toHaveText('82타 (+10)');
+  // v49: the total counts the two holes entered.
+  await expect(page.locator('#qe-total')).toHaveText('16타 (+10)');
 });
 
 const KAKAO_ANDROID = 'Mozilla/5.0 (Linux; Android 14; SM-S918N Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.82 Mobile Safari/537.36;KAKAOTALK 2410590';
@@ -9680,3 +9689,149 @@ test('fixing an earlier hole in 넣기 leads back to where entering stopped (v49
   await expect(qeCell(page, 2)).toHaveAttribute('aria-label', /^2번 홀 파 \d, \d+타$/);
   await expect(qeProgress(page)).toHaveText('5/18');
 });
+
+/* ---------- v49: 넣기 tells a cell not pressed from one entered, takes 모름, and asks once before saving ---------- */
+
+/** Each cell's par, from its small line while it is empty ("파 4"). */
+const qePars = async (page: Page) => (await page.locator('#quick .qe-cell .qe-d').allTextContents()).map((t) => Number(t.replace('파 ', '')));
+
+test('넣기 shows a cell not pressed as an empty slot, takes 모름 for a hole not remembered, and totals only the holes entered (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  const pars = await qePars(page);
+  await expect(page.locator('#quick .qe-cell.empty')).toHaveCount(18);
+  await expect(qeCell(page, 1)).toHaveAttribute('aria-label', `1번 홀 파 ${pars[0]}, 아직 안 넣음`);
+  await expect(qeChip(page, '모름')).toHaveText('– 모름');
+  await qeChip(page, '파').click();
+  await qeChip(page, '+1').click();
+  await qeChip(page, '모름').click();
+  await expect(qeCell(page, 3)).toHaveAttribute('aria-label', `3번 홀 파 ${pars[2]}, 모름`);
+  await expect(qeCell(page, 3).locator('b')).toHaveText('–');
+  await expect(qeCell(page, 1).locator('b')).toHaveText(String(pars[0]));
+  await expect(qeCell(page, 4)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#quick .qe-cell.empty')).toHaveCount(15);
+  await expect(qeProgress(page)).toHaveText('3/18');
+  // An empty slot reads as one: no fill, a dashed edge; an entered cell keeps its fill.
+  const look = (n: number) => qeCell(page, n).evaluate((el) => { const s = getComputedStyle(el); return { fill: s.backgroundColor, edge: s.outlineStyle }; });
+  expect(await look(5)).toEqual({ fill: 'rgba(0, 0, 0, 0)', edge: 'dashed' });
+  expect((await look(1)).edge).toBe('none');
+  expect((await look(1)).fill).not.toBe('rgba(0, 0, 0, 0)');
+  // Hole 1 at its par and hole 2 a bogey: 모름 and the empty holes count nowhere.
+  await expect(page.locator('#qe-total')).toHaveText(`${pars[0] + pars[1] + 1}타 (+1)`);
+});
+
+test('saving 넣기 with cells not pressed asks once: 비워 두기 leaves them out of every total, 파로 저장 keeps them as pars (v49)', async ({ page }) => {
+  await useShare(page, 'files');
+  await open(page);
+  await openQuickEntry(page);
+  const pars = await qePars(page);
+  // Holes 1–6 as bogeys, 7–18 not pressed.
+  for (let i = 0; i < 6; i++) await qeChip(page, '+1').click();
+  const six = pars.slice(0, 6).reduce((s, p) => s + p + 1, 0);
+  await expect(page.locator('#qe-total')).toHaveText(`${six}타 (+6)`);
+  await page.locator('#qe-save').click();
+  const ask = page.locator('#qe-ask');
+  await expect(ask).toBeVisible();
+  await expect(page.locator('#qa-title')).toHaveText('누르지 않은 홀이 있어요');
+  await expect(page.locator('#qa-sub')).toHaveText('7~18번 홀을 파로 저장할까요, 비워 둘까요?');
+  await expect(page.locator('#qa-none')).toBeHidden();
+  // × goes back to entering; nothing is kept.
+  await page.locator('#qa-close').click();
+  await expect(ask).toBeHidden();
+  await expect(page.locator('#quick')).toBeVisible();
+  await expect(page.locator('#history-list > li')).toHaveCount(0);
+  // 비워 두기: a round of six holes, the others counted nowhere.
+  await page.locator('#qe-save').click();
+  await page.locator('#qa-empty').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  const item = page.locator('#history-list > li').first();
+  await expect(item).toContainText(`${six}타`);
+  await expect(item).toContainText('6홀, 넣은 기록');
+  await item.locator('button').first().click();
+  const past = page.locator('#past');
+  await expect(past).toBeVisible();
+  await expect(past.locator('.tot-n')).toHaveText(`${six}타`);
+  await expect(past.locator('.ct-col .c-score')).toHaveText([...Array<RegExp>(6).fill(/^\d+$/), ...Array<string>(12).fill('')]);
+  await expect(past.locator('.round-actions')).toHaveAttribute('data-state', 'ready');
+  await past.locator('#past-share').click();
+  await expect.poll(async () => (await sharedData(page)).length).toBe(1);
+  const text = (await sharedData(page))[0].text ?? '';
+  expect(text).toContain(`총 ${six}타 (+6) · 6/18홀`);
+  expect(text).toMatch(/^6번 Par\d: \d+타 \(\+1\)$/m);
+  expect(text).not.toMatch(/^7번 Par/m);
+  await page.locator('#past-close').click();
+  // 파로 저장: the same six, the twelve others at par, a full round.
+  await openQuickEntry(page);
+  await page.locator('#qe-date').fill('2026-11-01');
+  for (let i = 0; i < 6; i++) await qeChip(page, '+1').click();
+  await page.locator('#qe-save').click();
+  await page.locator('#qa-par').click();
+  await expect(page.locator('#quick')).toBeHidden();
+  const full = page.locator('#history-list > li').nth(1);
+  await expect(full).toContainText(`${pars.reduce((s, p) => s + p, 0) + 6}타`);
+  await expect(full).toContainText('18홀, 넣은 기록');
+});
+
+test('넣기 keeps nothing all 모름, and with nothing entered only 파로 저장 can answer (v49)', async ({ page }) => {
+  await open(page);
+  await openQuickEntry(page);
+  await page.locator('#qe-save').click();
+  await expect(page.locator('#qa-sub')).toHaveText('1~18번 홀을 파로 저장할까요, 비워 둘까요?');
+  await expect(page.locator('#qa-empty')).toBeDisabled();
+  await expect(page.locator('#qa-none')).toHaveText('넣은 홀이 없어 비워 둘 수 없어요.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#qe-ask')).toBeHidden();
+  await expect(page.locator('#quick')).toBeVisible();
+  for (let i = 0; i < 18; i++) await qeChip(page, '모름').click();
+  await expect(page.locator('#qe-save')).toBeDisabled();
+  await expect(page.locator('#qe-none')).toHaveText('타수를 넣은 홀이 하나는 있어야 저장할 수 있어요.');
+  await expect(qeProgress(page)).toHaveText('18/18');
+});
+
+// 넣기 on the sizes v48 checks: a 360px phone, a 320px one, 130% (277×569) and 200% (195×422). A chip is at least 48px
+// ÷ the zoom each way, 모름 two columns wide, the chips' rows on the cells' columns, and the question fits too.
+for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.3], [195, 422, 2]] as const) {
+  test.describe(`넣기 on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const least = Math.floor(48 / zoom);
+
+    for (const big of [false, true]) {
+      test(`the cells, the chips and the question before saving fit and line up${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await openQuickEntry(page);
+        await qeChip(page, '+1').click();
+        await qeChip(page, '모름').click();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '넣기').toEqual([]);
+        const boxes = await page.locator('#quick .qe-chip').evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, width: b.width, height: b.height }; }));
+        const cells = await page.locator('#quick .qe-cell').evaluateAll((list) => list.map((el) => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right }; }));
+        const columns = width >= 350 ? 6 : 4;
+        const counts = boxes.slice(0, 10);
+        const unknown = boxes[10];
+        for (const b of boxes) {
+          expect(b.height, 'a chip is tall enough').toBeGreaterThanOrEqual(least);
+          expect(b.width, 'a chip is wide enough').toBeGreaterThanOrEqual(least);
+        }
+        for (const b of counts) within1px(b.width, counts[0].width, 'every count chip one width');
+        const gap = counts[1].left - counts[0].right;
+        within1px(unknown.width, 2 * counts[0].width + gap, '모름 two columns wide');
+        expect(new Set(boxes.map((b) => Math.round(b.top))).size, `rows of ${columns}`).toBe(12 / columns);
+        // The chips' outer edges on the cells' outer edges.
+        within1px(counts[0].left, cells[0].left, 'the chips start where the cells do');
+        within1px(Math.max(...boxes.map((b) => b.right)), Math.max(...cells.map((c) => c.right)), 'the chips end where the cells do');
+        await page.locator('#qe-save').click();
+        await expect(page.locator('#qe-ask')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '넣기: the question').toEqual([]);
+        for (const id of ['#qa-par', '#qa-empty', '#qa-close']) {
+          const b = (await page.locator(id).boundingBox())!;
+          expect(Math.min(b.width, b.height), `${id} big enough`).toBeGreaterThanOrEqual(Math.min(least, 44));
+        }
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}

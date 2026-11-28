@@ -432,6 +432,19 @@
 
     <!-- v44: 지난 라운드 넣기, filled by src/quick-entry.ts -->
     <dialog id="quick" class="sheet-dialog qe-sheet" aria-labelledby="qe-title"></dialog>
+    <!-- 넣기 (v49): asked once before saving when cells were not pressed: as pars, or left empty (quick-entry.ts) -->
+    <dialog id="qe-ask" class="sheet-dialog sum-sheet check-sheet" aria-labelledby="qa-title" aria-describedby="qa-sub">
+      <div class="grab" aria-hidden="true"></div>
+      <header class="sum-head">
+        <div><h2 id="qa-title">누르지 않은 홀이 있어요</h2><p id="qa-sub"></p></div>
+        <button class="sum-close" type="button" id="qa-close" aria-label="닫기"><svg data-icon="x" width="20" height="20"></svg></button>
+      </header>
+      <p id="qa-none" class="qa-none" hidden>넣은 홀이 없어 비워 둘 수 없어요.</p>
+      <div class="check-actions">
+        <button type="button" class="primary" id="qa-par">파로 저장</button>
+        <button type="button" id="qa-empty">비워 두기</button>
+      </div>
+    </dialog>
     <!-- 내 코스로 저장 (v45): the nines' names and an optional HCP, filled by my-course-view.ts -->
     <dialog id="mine-sheet" class="sheet-dialog qe-sheet mine-sheet" aria-labelledby="mine-title"></dialog>
 

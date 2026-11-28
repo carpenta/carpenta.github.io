@@ -144,10 +144,15 @@ export function newRound(now = new Date(), setup: { course: RoundCourse; pars: r
   return { version: 1, date: localDate(now), current: 0, holes: setup.pars.map((par) => emptyHole(par)), course: { ...setup.course } };
 }
 
-/** A past round entered as strokes per hole (v44): finished on every hole, dated `date`, on `setup`'s course. */
+/**
+ * A past round entered as strokes per hole (v44): finished on every hole with strokes, dated `date`, on `setup`'s
+ * course. v49: 0 is a hole left empty (not remembered), kept as a hole with no strokes, so it is not finished and counts
+ * nowhere, as a hole skipped while recording; at least one hole has strokes.
+ */
 export function enteredRound(date: string, setup: { course: RoundCourse; pars: readonly Par[] }, strokesPerHole: readonly number[]): Round {
   if (strokesPerHole.length !== setup.pars.length) throw new Error('one count per hole');
-  if (strokesPerHole.some((n) => !Number.isInteger(n) || n < 1 || n > 15)) throw new Error('1 to 15 strokes a hole');
+  if (strokesPerHole.some((n) => !Number.isInteger(n) || n < 0 || n > 15)) throw new Error('0 to 15 strokes a hole');
+  if (strokesPerHole.every((n) => n === 0)) throw new Error('strokes on at least one hole');
   return {
     version: 1,
     date,
