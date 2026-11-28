@@ -3560,7 +3560,8 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       expect(badge.y).toBeGreaterThanOrEqual(card.y);
       expect(Math.abs(card.x + card.width - (badge.x + badge.width) - (card.y + card.height - (badge.y + badge.height)))).toBeLessThanOrEqual(0.5);
       // One row of buttons from edge to edge: the same height, on one line, with equal gaps, each glyph centred.
-      const row = [await box('#sum-share'), await box('#sum-save'), await box('#sum-mail'), await box('#sum-archive')];
+      // v49: a round button's circle (its word sits under it), and 보관 itself.
+      const row = [await box('#sum-share .ra-ico'), await box('#sum-save .ra-ico'), await box('#sum-mail .ra-ico'), await box('#sum-archive')];
       expect(Math.abs(row[0].x - inner.left)).toBeLessThanOrEqual(1);
       expect(Math.abs(row[3].x + row[3].width - inner.right)).toBeLessThanOrEqual(1);
       const gaps = row.slice(1).map((b, k) => b.x - (row[k].x + row[k].width));
@@ -3572,7 +3573,7 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       }
       expect(Math.abs(row[0].width - row[1].width)).toBeLessThanOrEqual(1);
       for (const id of ['#sum-share', '#sum-save', '#sum-mail']) {
-        const button = await box(id);
+        const button = await box(`${id} .ra-ico`);
         const glyph = (await page.locator(`${id} svg`).boundingBox())!;
         expect(Math.abs(glyph.x + glyph.width / 2 - (button.x + button.width / 2)), id).toBeLessThanOrEqual(1);
         expect(Math.abs(glyph.y + glyph.height / 2 - (button.y + button.height / 2)), id).toBeLessThanOrEqual(1);
@@ -5574,15 +5575,23 @@ async function seedKept(page: Page, played: number) {
   }, [HISTORY_KEY, played] as const);
   await page.reload();
 }
-/** A row of round buttons: each box and its glyph's centre, and the content edge it starts from. */
+/**
+ * A row of round buttons: each box (v49: a round button's circle) and its glyph's centre, its word under the circle with
+ * the button's own bottom, and the content edge the row starts from.
+ */
 const roundRow = (page: Page, row: string, container: string) => page.evaluate(([r, c]) => {
   const box = document.querySelector(c)!;
   const s = getComputedStyle(box);
   const left = box.getBoundingClientRect().left + parseFloat(s.paddingLeft);
   const buttons = [...document.querySelector(r)!.children].filter((b) => b.getClientRects().length).map((b) => {
-    const k = b.getBoundingClientRect();
+    const k = (b.querySelector('.ra-ico') ?? b).getBoundingClientRect();
     const g = b.querySelector('svg')?.getBoundingClientRect();
-    return { x: k.x, y: k.y, width: k.width, height: k.height, glyph: g ? { x: g.x + g.width / 2, y: g.y + g.height / 2 } : null };
+    const w = b.querySelector('.ra-lbl');
+    const wr = w?.getBoundingClientRect();
+    return {
+      x: k.x, y: k.y, width: k.width, height: k.height, glyph: g ? { x: g.x + g.width / 2, y: g.y + g.height / 2 } : null,
+      word: w && wr ? { text: w.textContent, x: wr.x + wr.width / 2, top: wr.top, bottom: wr.bottom, end: b.getBoundingClientRect().bottom } : null,
+    };
   });
   return { left, buttons };
 }, [row, container] as const);
@@ -5909,7 +5918,7 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
       for (const r of await contrastOf(page, marks.map((_, k) => ({ sel: `#sum-marks li:nth-child(${k + 1}) .m`, min: 3 })))) expect(r.ratio!, `${r.sel} drawn`).toBeGreaterThanOrEqual(3);
     });
 
-    test('지난 라운드 열기 lines its round buttons up like the summary’s: 52px, 8px apart, glyphs centred', async ({ page, context, browserName }) => {
+    test('지난 라운드 열기 lines its round buttons up like the summary’s: 52px, 8px apart, glyphs centred, each word centred under its circle (v49)', async ({ page, context, browserName }) => {
       await useClipboard(page, context, browserName);
       await useShare(page, 'none');
       await finishRound(page);
@@ -5933,8 +5942,20 @@ for (const [width, height] of [[360, 640], [390, 844]]) {
             within1px(b.glyph.x, b.x + b.width / 2, `${name}: glyph centred across`);
             within1px(b.glyph.y, b.y + b.height / 2, `${name}: glyph centred down`);
           }
+          // v49: the word, centred under the circle 4px below it, inside the button, on one line with the others.
+          if (b.word) {
+            within1px(b.word.x, b.x + b.width / 2, `${name} ${b.word.text}: word centred under its circle`);
+            within1px(b.word.top - (b.y + b.height), 4, `${name} ${b.word.text}: 4px under the circle`);
+            expect(b.word.bottom, `${name} ${b.word.text}: inside the button`).toBeLessThanOrEqual(b.word.end + 0.5);
+            within1px(b.word.top, row.buttons[0].word!.top, `${name} ${b.word.text}: one line of words`);
+          }
         }
+        expect(row.buttons.slice(0, 3).map((b) => b.word?.text), `${name}: the words`).toEqual(['복사', '저장', '메일']);
       }
+      // 보관 keeps its place and size: the rest of the row, 52px, on the circles' line.
+      const keep = summary.buttons[3];
+      expect(keep.word).toBeNull();
+      within1px(keep.x, summary.buttons[2].x + summary.buttons[2].width + 8, '보관 right after 메일');
       for (const k of [0, 1, 2]) within1px(past.buttons[k].width, summary.buttons[k].width, `button ${k + 1} as wide as the summary's`);
       expect(await page.locator('#past').evaluate((el) => el.scrollWidth - el.clientWidth)).toBe(0);
     });
@@ -6147,7 +6168,7 @@ test('라운드 마치기, the summary and 지난 라운드 answer a press with 
   await expect(page.locator('#summary')).toBeVisible();
   await page.locator('#summary').evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
   await press(page, '#sum-close', null, '#sum-title');
-  await press(page, '#sum-share', null, '#sum-title');
+  await press(page, '#sum-share .ra-ico', null, '#sum-title');
   await press(page, '#sum-archive', '#sum-archive', '#sum-title');
   await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
   await expect(page.locator('#backup-card')).toBeVisible();
@@ -6157,7 +6178,7 @@ test('라운드 마치기, the summary and 지난 라운드 answer a press with 
   await expect(page.locator('#past')).toBeVisible();
   await settled(page);
   await press(page, '#past-close', '#past-close', '#past-title');
-  await press(page, '#past-share', null, '#past-title');
+  await press(page, '#past-share .ra-ico', null, '#past-title');
   await press(page, '#past-delete', '#past-delete', '#past-title');
   // With reduced motion the colour changes at once.
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -9830,6 +9851,55 @@ for (const [width, height, zoom] of [[360, 640, 1], [320, 568, 1], [277, 569, 1.
           const b = (await page.locator(id).boundingBox())!;
           expect(Math.min(b.width, b.height), `${id} big enough`).toBeGreaterThanOrEqual(Math.min(least, 44));
         }
+        expect(await sideScroll(page)).toBe(0);
+      });
+    }
+  });
+}
+
+/* ---------- v49: the round buttons say what they do ---------- */
+
+test('the round buttons of the summary and of a past round say 공유, 저장 and 메일 under their circles, and 보관 stays as it was (v49)', async ({ page }) => {
+  await useShare(page, 'text');
+  await finishRound(page);
+  await expect(page.locator('#summary .sum-actions .ra-lbl')).toHaveText(['공유', '저장', '메일']);
+  await expect(page.locator('#sum-share')).toHaveAccessibleName('공유');
+  await expect(page.locator('#sum-save')).toHaveAccessibleName('이미지 저장');
+  await expect(page.locator('#sum-mail')).toHaveAccessibleName('이메일로 보내기');
+  const keep = page.locator('#sum-archive');
+  await expect(keep).toHaveText('지난 라운드에 보관');
+  await expect(keep).toHaveClass(/primary/);
+  expect((await keep.boundingBox())!.height).toBeCloseTo(52, 0);
+  await keep.click();
+  await pastItems(page).first().click();
+  await expect(page.locator('#past .round-actions .ra-lbl')).toHaveText(['공유', '저장', '메일']);
+  await expect(page.locator('#past-share')).toHaveAccessibleName('공유');
+});
+
+// The summary and a past round with the words under their round buttons, on the sizes v48 checks.
+for (const [width, height] of [[360, 640], [320, 568], [277, 569], [195, 422]] as const) {
+  test.describe(`round buttons on a ${width}×${height} screen (v49)`, () => {
+    test.use({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+    for (const big of [false, true]) {
+      test(`the summary and a past round fit with their round buttons' words${big ? ' in 큰 글씨' : ''}`, async ({ page }) => {
+        await useShare(page, 'text');
+        await page.goto('/');
+        if (big) await bigText(page);
+        await page.getByRole('button', { name: '이 코스로 시작' }).click();
+        await expect(page.locator('#picker')).toBeHidden();
+        await seed(page, { 0: { driver: 1, approach: 1, putts: 2 }, 1: { driver: 1, approach: 1, putts: 1 }, 2: { driver: 1, ob: 1, approach: 3, putts: 2 } }, 3);
+        await showCard(page);
+        await page.getByRole('button', { name: '라운드 마치기' }).click();
+        await page.getByRole('button', { name: '그대로 마치기' }).click();
+        await expect(page.locator('#summary')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '요약').toEqual([]);
+        await page.locator('#sum-archive').click();
+        await pastItems(page).first().click();
+        await expect(page.locator('#past')).toBeVisible();
+        await settled(page);
+        expect.soft(await layoutFaults(page), '지난 라운드 하나').toEqual([]);
         expect(await sideScroll(page)).toBe(0);
       });
     }
