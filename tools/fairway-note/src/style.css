@@ -1136,7 +1136,7 @@ button.mi:active { background: var(--fill-2); }
 /* v49: a round button is its circle and, under it, its word (공유 or 복사, 저장, 메일), the word part of what is tapped;
    the column is the circle's width, so the circles keep their 8px and 보관 its 52px on their line. Pressed, the circle
    fills, as the button did. */
-.sum-actions > :not(.primary), .round-actions > * { height: auto; align-self: start; place-items: start center; gap: 4px; border-radius: var(--r-tile); background: none; }
+.sum-actions > :not(.primary), .round-actions > * { height: auto; align-self: start; place-items: start center; gap: 4px; border-radius: var(--r-ctl); background: none; }
 .ra-ico { width: 52px; height: 52px; border-radius: var(--r-round); background: var(--fill); display: grid; place-items: center; transition: background-color .12s ease-out; }
 .ra-lbl { font-size: var(--t-s); font-weight: var(--w-label); line-height: 1.25; color: var(--ink); white-space: nowrap; }
 .sum-actions > :not(.primary):active, .round-actions > :active { background-color: transparent; }

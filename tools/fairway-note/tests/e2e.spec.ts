@@ -9168,7 +9168,10 @@ test('nothing is a pill any more: controls 12px, cards 16px, and only what is as
   await settled(page);
   expect(await pills(page), '라운드 요약').toEqual([]);
   expect(await corner('#sum-archive'), '지난 라운드에 보관').toBe('12px');
-  expect(await corner('#sum-share'), 'the round icon buttons').toBe('999px');
+  // v49: a round button is its circle and its word under it; the circle, as wide as tall, rounds fully, the button
+  // around both is a control.
+  expect(await corner('#sum-share .ra-ico'), 'the round icon buttons').toBe('999px');
+  expect(await corner('#sum-share'), 'the round button around its circle and word').toBe('12px');
   await page.getByRole('button', { name: '지난 라운드에 보관' }).click();
   await expect(page.locator('#summary')).toBeHidden();
   await pastItems(page).first().click();
